@@ -1,27 +1,23 @@
 # Chapter 0 - The People Behind the Principles
 
 ## Abstract
-Every framework in this book was invented by a person who was frustrated. Understanding who they were, what broke, and why they cared makes the principles easier to remember and harder to misapply. This chapter tells those stories — and explains why knowing them is no longer optional for anyone who wants to work as a software engineer.
+Every framework in this book was invented by a person who was frustrated. Understanding who they were, what broke, and why they cared makes the principles easier to remember and harder to misapply. This chapter tells those stories — and explains why mastering them is the most direct path to moving your engineering skills up the value chain.
 
 ---
 
-## What Universities Don't Teach and Why It Now Matters More Than Ever
+## Two Layers of Software Engineering
 
-Most computer science programs teach you how to make things work. Algorithms. Data structures. Theory. The fundamentals are real and they matter. But there is a second layer of software engineering — the professional craft layer — that most curricula skip entirely: how to make things *keep working* under change, team growth, and operational pressure.
+Software engineering has two distinct layers, and most engineers develop them at different speeds.
 
-This layer includes design patterns, SOLID principles, 12-factor operational discipline, test-driven development, and the kind of architectural judgment that separates code that survives from code that collapses. These ideas are almost never taught formally. Students encounter them, if at all, as electives or in their first job when a senior engineer points at their code and explains what went wrong.
+The first layer is **technical execution**: the ability to write code that works. Syntax, algorithms, data structures, debugging. This is learnable, measurable, and foundational. You cannot build without it.
 
-For a long time, this gap was tolerable. Junior roles existed to give new engineers time to absorb professional practice on the job. Companies hired people to implement specs, write boilerplate, and fix straightforward bugs while developing judgment over two or three years.
+The second layer is **craft**: the ability to write code that *keeps* working — under change, under team growth, under operational pressure, and under the hands of engineers who weren't there when it was written. This layer is harder to see, harder to assess, and fundamentally different in kind. It is the difference between a system that is functional and a system that is maintainable.
 
-AI has eliminated most of that buffer.
+The craft layer is what these frameworks are about. GoF patterns are not a more sophisticated way to write code — they are a vocabulary for managing structure under change. SOLID is not a style guide — it is a set of failure modes observed across hundreds of codebases, named and addressed. 12-Factor is not a deployment checklist — it is the distillation of what distinguishes systems that can be operated reliably from systems that are a constant emergency.
 
-The mechanical work that once defined junior roles — generating implementations, translating requirements into code, writing repetitive tests — is now faster and cheaper to do with AI than with a person. What remains for human engineers is the work AI does poorly: deciding what to build, recognizing structural problems before they become expensive, making tradeoffs across time and team scale, and auditing AI-generated output for the kind of subtle architectural fragility that looks fine today and fails in six months.
+AI makes this distinction more important, not less. Engineers who have developed the craft layer use AI to accelerate — they generate implementations and immediately recognize whether the structure is sound. Engineers who haven't yet developed it generate code faster without the ability to judge whether it will survive contact with production. Speed without craft compounds problems; speed with craft compounds quality.
 
-That is exactly the professional craft layer that universities skip.
-
-The result is a compression of the career ladder. The engineers who remain valuable are the ones who already operate at the level that used to be expected of mid-level and senior practitioners — not because they are older or more experienced, but because they understand the principles that govern whether a system stays maintainable. The engineers who don't have this knowledge face a market where the tasks they are prepared to do are increasingly automated and the tasks that remain require skills they were never taught.
-
-This book was written to close that gap. Not through abstract theory, but through the stories of the people who built these frameworks, the specific problems they were solving, and the evidence of their ideas applied to a real working system.
+The frameworks in this book are the fastest path to developing craft deliberately, rather than discovering it slowly through accumulated failure.
 
 ---
 

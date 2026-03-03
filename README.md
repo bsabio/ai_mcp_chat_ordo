@@ -2,13 +2,15 @@
 
 This repository is a working companion to a book on professional software engineering in the AI era.
 
-Most CS programs teach you how to make things work. This book teaches the layer they skip: how to make things *keep working* — under change, under team growth, and under operational pressure. That layer is what separates engineers who remain valuable as AI automates the mechanical work from engineers whose skills have been absorbed into a prompt.
+There is a layer of software engineering that separates engineers who write code from engineers who build systems that last. It is not about syntax or algorithms. It is about design discipline, operational thinking, and architectural judgment — the craft that determines whether a system stays maintainable under change, team growth, and production pressure.
+
+This layer has always been the difference. AI makes it more visible and more urgent by automating the mechanical execution layer beneath it.
 
 ## Intro
 
-The junior engineering role is shrinking. The work AI cannot replace requires design judgment, operational discipline, and architectural thinking. These skills were always the difference between code that survives and code that collapses — they just matter more now, sooner in a career.
+Engineers who understand design patterns, operational discipline, and architectural tradeoffs use AI as a force multiplier — generating implementations they can evaluate, audit, and improve. Engineers who haven't developed this judgment generate code faster without being able to tell whether it will survive contact with reality.
 
-This book teaches those skills through the stories of the people who built the frameworks, and through a real working codebase that applies every principle with verifiable evidence:
+This book develops that judgment through the stories of the people who built the foundational frameworks, and through a real working codebase that applies every principle with verifiable evidence:
 
 - **GoF design patterns** — who built them, what was breaking, and how they apply to AI-native systems
 - **SOLID principles** — the field notes of a developer who spent decades cleaning up code that was unmaintainable by design
