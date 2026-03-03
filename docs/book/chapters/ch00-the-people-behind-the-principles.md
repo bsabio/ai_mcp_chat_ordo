@@ -220,6 +220,22 @@ The sprint-and-verify loop in Chapter 5 of this book is deeply influenced by thi
 
 ---
 
+## Dave Thomas, Andrew Hunt, and the Pragmatic Philosophy (1999)
+
+**Dave Thomas** and **Andy Hunt** published *The Pragmatic Programmer* in 1999, the same year as Fowler's *Refactoring*. The two books are companion pieces: Fowler gave engineers the vocabulary for making safe incremental changes; Thomas and Hunt gave them an attitude about their craft.
+
+Their central argument: programming is a craft, not an assembly line. A pragmatic programmer takes responsibility for their tools, their environment, and their decisions. They do not wait to be told how to work better. They notice what is slowing them down and fix it.
+
+The most quoted concept from the book is **DRY** — *Don't Repeat Yourself*. The full principle is more precise than most restatements give it credit for: *"Every piece of knowledge must have a single, unambiguous, authoritative representation within a system."* The emphasis is on *knowledge*, not just code. Duplicated logic is a symptom; duplicated *understanding* is the disease. When the same business rule is expressed in two places, the system has two sources of truth, and they will diverge.
+
+Their second most recognized concept is the **broken windows theory** applied to code: a codebase accumulates quality signals. A single uncaught linting warning in a passing CI run sends a message to the next engineer — *things are allowed to slip here* — and the next warning comes more easily. Quality is not a threshold you cross once; it is a discipline you maintain every commit. The `lint:strict` enforcement and zero-warnings tolerance in this project are a direct expression of this principle.
+
+They also introduced **tracer bullets** as a development philosophy: rather than building each layer completely before moving to the next, fire a thin slice all the way through the system end-to-end as early as possible. You learn more from a thin working path through real code than from a thick design that has never met a runtime. This is the same instinct that drives the sprint-archive model in Chapter 5 — ship a verified, bounded increment before the next begins.
+
+**What frustrated them:** The prevalence of passive engineering — programmers who waited for requirements to be defined, tools to be chosen, and problems to be assigned, rather than taking active ownership of the quality and direction of their work.
+
+---
+
 ## Anders Hejlsberg and the Case for Static Types (2012)
 
 **Anders Hejlsberg** had already built two compilers before TypeScript. He designed Turbo Pascal at 23 and led the development of Delphi before Microsoft hired him to lead C#. By 2012, he was watching the web industry repeat a painful history.
@@ -250,6 +266,36 @@ The `lint:strict` script in this project runs ESLint at zero-warnings tolerance.
 
 ---
 
+## Jordan Walke and the React Team — Components as the Unit of Truth (2013)
+
+**Jordan Walke** was an engineer at Facebook in 2011 working on the Ads product. The codebase had developed a class of bug that felt impossible to eliminate: cascading UI updates. When user state changed in one part of the interface, dependent views updated unpredictably — out of order, or not at all. Data and display were tightly coupled across layers of event handlers and manual DOM manipulation.
+
+His early prototype — FaxJS — applied an idea from functional programming to the problem: what if UI state was not mutated but *derived*? What if, instead of tracking every change and updating the DOM manually, you described what the UI should look like given the current state, and let the framework compute what changed? He open-sourced the result as React at JSConf US in May 2013.
+
+The virtual DOM was the implementation mechanism, but the actual contribution was **declarative components** — the idea that a piece of UI should be a pure function of its inputs. Given the same props and state, it renders the same output. Always. This made UI behavior *predictable* in the same way that well-defined functions are predictable: the output is determined entirely by the inputs, with no hidden channels.
+
+**Pete Hunt** and **Sebastian Markbåge** extended the original design. Hunt pushed for JSX — the coexistence of markup and logic in the same file — which was controversial initially and universal within a few years. Markbåge drove the research into React Server Components, which became stable in React 19 and is a first-class feature of the architecture this book describes. The `page.tsx` in this repository is a Server Component: it executes on the server, returns HTML, and contributes nothing to the client bundle. That boundary — server component rendering for static layout, `use client` as a deliberate opt-in — is directly inherited from the architecture Walke and Markbåge built.
+
+**What frustrated him:** UIs that were functionally impossible to reason about because state mutations cascaded through manual DOM manipulation in ways that no single person or tool could fully trace.
+
+---
+
+## Guillermo Rauch and the Production Framework (2016)
+
+**Guillermo Rauch** founded Vercel (originally Zeit) and shipped the first version of Next.js in October 2016. React was three years old. It was excellent for building component trees. It had no opinion about routing, no built-in server, no production deployment story. Every team assembled their own scaffolding from scratch.
+
+His observation: the decisions that teams made inconsistently — how to handle routing, how to split server and client rendering, how to optimize for performance — were not decisions that should vary. They were decisions that had a correct answer for most production applications. A framework that encoded the right choices as conventions would let teams spend their time on product logic rather than infrastructure plumbing.
+
+The key design decision in the original Next.js was **file-based routing**: the file system is the router. A file at `app/dashboard/page.tsx` is accessible at `/dashboard`. No route configuration. No annotation. The convention is the declaration — DRY applied to architecture.
+
+The 2023 App Router redesign went further. It adopted React Server Components as the default, making server-side rendering the baseline rather than the opt-in. It introduced `layout.tsx` for persistent UI shells, `loading.tsx` for streaming suspense boundaries, and `error.tsx` for component-level error recovery. Each file convention removed a category of boilerplate that had previously required custom implementation.
+
+The direct relevance to this book: the application in this repository is a Next.js App Router application. The `src/app/` directory layout, the `page.tsx` as a Server Component, the `ChatUI.tsx` as a `use client` boundary, and the MCP server running on the same runtime are all expressions of the conventions Rauch established. He also observed that *performance is not a feature — it is the baseline*. The Lighthouse score thresholds enforced in this repository's CI gate are a direct expression of that philosophy.
+
+**What frustrated him:** The fragmentation of the React ecosystem — every team reinventing deployment infrastructure, server rendering glue, and routing conventions that should have been standardized once and shared.
+
+---
+
 ## Linus Torvalds and the Case for Immutable History (2005)
 
 **Linus Torvalds** created the Linux kernel in 1991, but that is not why he appears in this chapter. He appears because of what he built in April 2005, in roughly two weeks, out of necessity and irritation.
@@ -269,6 +315,20 @@ He also understood that scale changes what tools need to do. A version control s
 **What frustrated him:** Version control systems that were slow, centralized, and incapable of operating at the velocity and scale required by a project as large as the Linux kernel — and the industry's apparent comfort with that limitation.
 
 Every `git log --oneline` in this project is a direct artifact of the system he built in two weeks to scratch his own itch.
+
+---
+
+## Ryan Dahl and the Event-Driven Server (2009)
+
+**Ryan Dahl** was frustrated with how web servers handled concurrency. The dominant model — one thread per request — meant that every simultaneous connection consumed a thread blocked waiting on I/O: a database query, a file read, a network response. It was expensive and didn't scale. In 2009, at JSConf EU, he demonstrated an alternative: Node.js.
+
+The insight was architectural, not syntactic. JavaScript, by design, had an event loop. Its original runtime — the browser — could not block waiting for network requests because it had to remain responsive to user interaction. The event loop was JavaScript's native concurrency model. Dahl's contribution was recognizing that the same model that made JavaScript non-blocking in the browser could make a server non-blocking too.
+
+Node.js moved JavaScript onto the server and made full-stack JavaScript development practical for the first time. A single language across client, server, and tooling — with a shared module ecosystem in npm. The implications compounded: the framework Guillermo Rauch built on top of it, the component model the React team applied to it, and the MCP server layer in this repository's runtime are all downstream of the runtime Dahl shipped in 2009.
+
+There is a less comfortable part of his story. In 2018, Dahl gave a talk titled *10 Things I Regret About Node.js*. He listed specific design mistakes — the module system, the omission of Promises, the build toolchain — and then launched Deno, a replacement runtime designed to address them. The willingness to publicly name what was wrong, precisely and technically rather than vaguely, is the same disposition that Hoare showed calling null his billion-dollar mistake. Engineering credibility is not damaged by honest retrospection. It is demonstrated by it.
+
+**What frustrated him:** Web servers that were slow by default — not because the hardware was slow, but because the threading model left CPU idle while connections waited on I/O that could have been handled asynchronously.
 
 ---
 
@@ -312,7 +372,7 @@ The deterministic tools described in Chapter 9 — TypeScript strict mode, ESLin
 
 ## The Thread
 
-Span the timeline. Hoare in 1965. Dijkstra in 1968. Knuth in 1968. Brooks in 1975. Liskov in 1987. Cunningham in 1992. The Gang of Four in 1994. Beck and Fowler in the late 1990s. Martin through the 2000s. Torvalds and Git in 2005. Wiggins in 2011. Hejlsberg and Zakas in 2012–2013. Clark and *Import AI* from 2016. Anthropic and MCP in 2023.
+Span the timeline. Hoare in 1965. Dijkstra in 1968. Knuth in 1968. Brooks in 1975. Liskov in 1987. Cunningham in 1992. The Gang of Four in 1994. Beck, Fowler, Thomas and Hunt in the late 1990s. Martin through the 2000s. Torvalds and Git in 2005. Dahl and Node.js in 2009. Wiggins in 2011. Hejlsberg, Zakas, and Walke's React in 2012–2013. Rauch and Next.js in 2016. Clark and *Import AI* from 2016. Anthropic and MCP in 2023.
 
 Six decades of practitioners observing failures, building vocabulary, and handing it forward.
 

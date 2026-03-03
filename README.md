@@ -79,7 +79,7 @@ docker compose up --build
 ## Table of Contents
 
 0. [Chapter 0 - The People Behind the Principles](docs/book/chapters/ch00-the-people-behind-the-principles.md)  
-	The human stories behind six decades of foundational frameworks: Hoare (null reference), Dijkstra (structured programming), Knuth (precision ethic), Brooks (essential complexity), Liskov (substitution), Cunningham (technical debt), the Gang of Four, Beck, Fowler, Martin, Wiggins (12-Factor), Hejlsberg (TypeScript), Zakas (ESLint), Torvalds (Git, immutable history), Clark (Import AI, AI governance transparency), and the Anthropic team. Every principle in this book has an origin story. Knowing it makes the principle harder to misapply.
+	The human stories behind six decades of foundational frameworks: Hoare (null reference), Dijkstra (structured programming), Knuth (precision ethic), Brooks (essential complexity), Liskov (substitution), Cunningham (technical debt), the Gang of Four, Beck, Fowler, Thomas & Hunt (Pragmatic Programmer, DRY), Martin, Wiggins (12-Factor), Hejlsberg (TypeScript), Zakas (ESLint), Dahl (Node.js, event-driven server), Walke and the React team (declarative components, RSC), Rauch (Next.js, file-based routing), Torvalds (Git, immutable history), Clark (Import AI, AI governance transparency), and the Anthropic team. Every principle in this book has an origin story. Knowing it makes the principle harder to misapply.
 
 1. [Chapter 1 - Why This Moment Matters](docs/book/chapters/ch01-why-this-moment-matters.md)  
 	The engineering layer that separates builders from maintainers has always existed. AI does not eliminate it — it makes the gap wider, faster. This chapter names what changed and why craft judgment is now the scarce resource.
