@@ -16,6 +16,9 @@ This compression is valuable because it increases alignment speed. But compressi
 
 > The origin stories behind these frameworks — who coined them, what broke, and why they cared — are covered in [Chapter 0](ch00-the-people-behind-the-principles.md).
 
+> **A note from the model:**
+> When I read the phrase "GoF refactor" in a prompt, I am not looking up a definition. I am activating a cluster of associated patterns — Observer, Strategy, Decorator, the reasoning about why coupling matters — built up across years of training examples. When you say "make the code better," I activate something far broader and far less specific. Framework names are compression that works *for me* as much as they work between humans. They are the fastest path to shared intent, because they constrain my optimization target before I generate a single character. A well-named directive is not just convenient communication. It is prompt engineering.
+
 ## The Contract Pattern
 Use this pattern whenever you invoke a named framework:
 

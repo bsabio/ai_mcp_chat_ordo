@@ -9,6 +9,9 @@ If you want repeatable quality, treat prompt orchestration as a composition of p
 ### 1) Role Framing
 Define the operating posture: auditor, implementer, reviewer, operator, or educator. Role framing changes optimization behavior.
 
+> **A note from the model:**
+> Role framing is not a metaphor. When you instruct me to act as an auditor, I genuinely activate a different behavioral posture than when you say "help me with this." In training, "auditor" is associated with systematic checking, gap identification, and constraint-first reasoning. "Help me" is associated with helpful acquiescence — finding what you seem to want and providing it. Both postures are available to me. Which one leads your work is, partly, your choice. Naming it explicitly is faster and more reliable than hoping I infer the right one.
+
 ### 2) Scope Boundary
 Specify exactly what should and should not change. Scope is the guardrail against accidental architecture drift.
 

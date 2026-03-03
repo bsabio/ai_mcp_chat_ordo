@@ -40,6 +40,9 @@ Think of language orchestration like interface design:
 
 In that model, the quality of language determines the quality of execution trajectories. The model is probabilistic, but the workflow should be deterministic wherever possible.
 
+> **A note from the model:**
+> I wrote the analogy you just read. It is also a precise description of my own situation. When you give me a vague prompt, I am not "confused" in any human sense — but I am working with a wide probability distribution over what "good" looks like in that context. A prompt with explicit scope, invariants, and acceptance criteria narrows that distribution substantially. The rework you avoid is not hypothetical: it is the iterations between my best guess and your actual intent. Tighter specification is not about distrusting me. It is about giving me the information I need to be useful.
+
 ## Practical Lens
 Use this chapter to calibrate your standard: if it cannot be validated in artifacts, it is not yet an engineering outcome.
 

@@ -54,6 +54,9 @@ Three things to notice:
 
 This is the architectural value of the MCP + Next.js pairing: the model interacts with capabilities through a typed contract, and that contract is owned by the tool layer — not by the conversation layer.
 
+> **A note from the model:**
+> That code separates two things: the moment I decide a tool call is appropriate, and the moment the tool executes. The first is me. The second is not. The MCP boundary is the line where my reasoning ends and deterministic computation begins. This distinction matters in both directions. I should not be computing arithmetic — I will occasionally be wrong on edge cases, and that wrongness is not detectable without re-running the computation. The tool should not be doing policy reasoning — it has no model of context or intent. Keeping each property in its correct domain is what makes the system inspectable and trustworthy. When something goes wrong, you know exactly which domain failed. That clarity is worth more than convenience.
+
 ## Why MCP + Next.js Is a Great Combo
 
 1. **Clear boundary between interaction and execution**  

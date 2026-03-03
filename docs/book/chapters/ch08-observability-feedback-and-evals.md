@@ -8,6 +8,9 @@ In AI-native systems, the failure mode is often subtle degradation, not only har
 
 If orchestration is your control surface, observability is your steering feedback.
 
+> **A note from the model:**
+> I cannot see my own outputs run. When I generate code, I produce it based on training and the context you give me. I do not know whether the function returns correctly under load, whether the latency is acceptable in production, or whether the fallback path triggers at the right threshold. Observability is your feedback loop — but it is also the only mechanism by which my outputs can be calibrated against real behavior. Without structured signals feeding back into your prompts and sprint artifacts, I am operating without a mirror. Every time you bring a runtime observation back into context — "this request is taking 3 seconds," "this error is appearing 4% of the time" — you are giving me information I could not have generated myself. That is not a limitation to route around. It is the architecture of a working human-AI system.
+
 ## The Signal Stack
 Useful observability for orchestration-driven systems usually needs four signal classes:
 

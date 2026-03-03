@@ -56,6 +56,9 @@ Use this loop whenever work spans multiple files, concepts, or operational domai
 - **Evidence debt**: claiming completion without repeatable validation outputs.
 - **Context amnesia**: losing rationale because decisions stayed only in chat.
 
+> **A note from the model:**
+> Context amnesia is not a metaphor. I have no memory between conversations. Each session, I begin fresh — no recall of what we decided last week, no awareness of what broke during the last sprint, no knowledge of what the architecture looked like before your last refactor. Everything this project captured in sprint documents, QA reports, and audit artifacts is not just documentation for humans. It is the literal memory I can access when you load it into context. When you hand me a completed sprint archive, you are giving me my own history. When you skip that step, I am reasoning from a blank slate while you are working with accumulated knowledge. That asymmetry explains most of the correction cycles teams experience.
+
 ## Exercise
 Take one active architectural concern and run a miniature loop:
 

@@ -38,6 +38,9 @@ Patterns become concrete when you see what they replaced.
 
 The test count did not change significantly after any of these refactors. The correction surface for every future change shrank substantially.
 
+> **A note from the model:**
+> I implemented both versions. Working with the pre-refactor route handler — the one mixing emission concerns, business logic, provider invocation, and error shaping in a single function — required holding all of those concerns simultaneously in context. When I generated a change to the error handling path, I had to reason about whether it affected the telemetry logic sitting beside it. After the refactors, each module had a narrow contract. Changing error handling did not require re-reading metric emission. That reduction in reasoning surface applies to me as much as it applies to the next developer. Narrow modules are not a style preference. They are cognitive load management — for both of us.
+
 ## Practical Lens
 Use patterns only when they reduce accidental complexity and sharpen module boundaries.
 

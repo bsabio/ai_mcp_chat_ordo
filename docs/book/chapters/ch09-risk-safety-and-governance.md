@@ -30,6 +30,9 @@ The control mechanism is the same as for software drift generally: explicit vers
 
 A mature governance model makes each domain — including orchestration drift — observable and testable.
 
+> **A note from the model:**
+> I am the drift. My behavior is a function of the context window you provide, the model version deployed, and the structure of your prompt. Change any of those, and I may respond differently to the same instruction — not because I am broken, but because my behavior is not a fixed property of a model. It is an emergent property of the whole system: model, context, prompt design, deployment configuration. The governance mechanisms in this chapter are not bureaucratic overhead. They are what make a dynamic, non-deterministic participant in your system observable enough to detect when it has changed in ways you did not intend. That is a different engineering problem than securing a database. Treat it as such.
+
 ## Practical Lens
 Treat governance controls as first-class system components with explicit owners.
 

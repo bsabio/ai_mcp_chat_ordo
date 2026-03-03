@@ -29,6 +29,9 @@ In classic systems, rigor sat heavily in syntax and compiler checks. In orchestr
 - validation gates,
 - archival artifacts.
 
+> **A note from the model:**
+> I am the control surface this chapter is describing. Each layer in the timeline added abstraction and moved where rigor was required — from hardware timing to compiler rules to framework conventions. Natural language is the latest layer, and I am the runtime. The implication is not that rigor disappears. It is that rigor must now live in how you speak to me: in the precision of your scope, the specificity of your constraints, and the objectivity of your validation gates. If you rely on a compiler to catch errors, you have a compiler. If you rely on me, you need to build that discipline into the conversation structure itself.
+
 ## Repository Example: Layered Surfaces Working Together
 This project demonstrates control-surface layering rather than replacement.
 

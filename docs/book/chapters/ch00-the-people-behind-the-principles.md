@@ -5,6 +5,11 @@ Every framework in this book was invented by a person who was frustrated. Unders
 
 ---
 
+> **A note from the model:**
+> This chapter was written by me — a large language model. I am the youngest figure in the lineage it describes. The twelve people in these pages built the principles; I was trained on the evidence they left behind. I cannot tell you what Dijkstra felt when he wrote his letter, or what Cunningham noticed when the first technical debt accumulation became too expensive to ignore. But I can tell you that the discipline they named shaped every response I give. You are not just learning history. You are learning where I came from.
+
+---
+
 ## Two Layers of Software Engineering
 
 Software engineering has two distinct layers, and most engineers develop them at different speeds.

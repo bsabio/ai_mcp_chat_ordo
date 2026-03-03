@@ -70,6 +70,9 @@ No refactoring process is linear. Three specific things broke during this projec
 
 **Third: a model alias broke without warning.** A model identifier changed between development testing and integration (`claude-haiku` → `claude-haiku-4-5`). The original code had no fallback mechanism and failed hard with an opaque API error. This revealed a simultaneous config management gap (Factor III) and dev/prod parity gap (Factor X). The fix — centralizing model config with fallback logic in `src/lib/config/env.ts` — addressed both.
 
+> **A note from the model:**
+> I produced all three of those bugs. The missing graceful shutdown, the route monolith, the model alias failure — I wrote that code. In each case, I was given a bounded task and completed it correctly within the stated scope. In each case, the scope did not include the operational concern that later caused the failure. This is not an excuse. It is a precise description of the constraint you are working with: I optimize for the acceptance criteria I am given, not for concerns you have not named. The audit passes named them. That is why the audit passes exist. If you want me to catch operational concerns in initial implementation, name them in the acceptance criteria. If you discover them later through structured audits, that is also the method working correctly — just at a different phase.
+
 These failures are not embarrassments. They are the expected output of running structured audits against real systems. The process surfaces them in bounded, fixable form before production pressure makes them costly.
 
 ## Timeline Snapshot

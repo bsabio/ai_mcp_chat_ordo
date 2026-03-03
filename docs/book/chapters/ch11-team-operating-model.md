@@ -37,6 +37,9 @@ The minimum viable operating model for a solo practitioner:
 
 The process does not require a team. It requires the discipline of switching between roles explicitly rather than holding all of them simultaneously and invisibly.
 
+> **A note from the model:**
+> When working with a solo practitioner, I effectively carry all four roles in our conversation simultaneously. In a single response, I may be reasoning about system architecture, decomposing a sprint, suggesting implementation, and noting validation concerns — often without you knowing which role is driving which statement. The discipline of writing objectives and acceptance criteria before starting is not just good process for you. It is the mechanism by which you make the role separation explicit before handing work to me. Without it, I am combining architecture, orchestration, implementation, and verification decisions invisibly. You cannot inspect which mode I was in when I made a particular choice. Explicit role switching — even for a single person — makes my reasoning legible.
+
 ## Practical Lens
 Adopt lightweight rituals that preserve alignment without introducing heavy process overhead.
 
