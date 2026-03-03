@@ -122,6 +122,31 @@ docker compose up --build
 
 ## Companion Materials
 
+### Preface from the Model
+
+[A Preface from the Model](docs/book/PREFACE-FROM-THE-MODEL.md) — A fourth-wall-breaking reflection from the AI on being trained on these practitioners' data, what changes inside the model when a prompt carries structure, and how to use the companion documents below.
+
+### Prompt Companions
+
+Each chapter has a companion document with good and bad prompt examples, plus candid "behind the curtain" commentary from the model explaining what it does with each prompt and why structure matters.
+
+0. [Ch 0 — The People Behind the Principles](docs/book/prompts/ch00-prompts-the-people-behind-the-principles.md) — 5 prompt pairs: practitioner history, technical debt, Liskov deep dive, team communication, the thread
+1. [Ch 1 — Why This Moment Matters](docs/book/prompts/ch01-prompts-why-this-moment-matters.md) — 4 prompt pairs: feature specification, AI output evaluation, three-layer model, team demo
+2. [Ch 2 — History of Control Surfaces](docs/book/prompts/ch02-prompts-history-of-control-surfaces.md) — 4 prompt pairs: control surface mapping, rigor relocation, migration note, maturity audit
+3. [Ch 3 — Prompt Orchestration Primitives](docs/book/prompts/ch03-prompts-orchestration-primitives.md) — 7 prompt pairs: one per primitive (role framing, scope, invariants, acceptance criteria, sequencing, verification, artifact discipline)
+4. [Ch 4 — Named Frameworks as Compressed Programs](docs/book/prompts/ch04-prompts-named-frameworks-as-compressed-programs.md) — 5 prompt pairs: SOLID directive, 12-Factor macro, GoF precision, DRY judgment, team communication
+5. [Ch 5 — Audit-to-Sprint Execution Loop](docs/book/prompts/ch05-prompts-audit-to-sprint-loop.md) — 7 prompt pairs: Phase Zero inquiry, audit, plan, execute, verify, archive, deterministic+probabilistic tandem
+6. [Ch 6 — 12-Factor in the LLM Era](docs/book/prompts/ch06-prompts-12-factor-in-the-llm-era.md) — 5 prompt pairs: Factor III config, Factor V build/release/run, Factor IX disposability, Factor X parity, Factor XII admin
+7. [Ch 7 — GoF for AI-Native Systems](docs/book/prompts/ch07-prompts-gof-for-ai-native-systems.md) — 5 prompt pairs: Observer, Decorator, Chain of Responsibility, Template Method+Facade, pattern cost-benefit
+8. [Ch 8 — Observability, Feedback, and Evals](docs/book/prompts/ch08-prompts-observability-feedback-evals.md) — 5 prompt pairs: signal stack, eval loop, observation feedback, correlation IDs, drift detection
+9. [Ch 9 — Risk, Safety, and Governance](docs/book/prompts/ch09-prompts-risk-safety-governance.md) — 5 prompt pairs: composite quality gate, secret audit, orchestration drift, AI code deployment, Clark's governance
+10. [Ch 10 — Case Study: IS601 Demo](docs/book/prompts/ch10-prompts-case-study-is601-demo.md) — 5 prompt pairs: phase timeline, learning from failures, creating your own case study, extracting methodology, team onboarding
+11. [Ch 11 — Team Operating Model](docs/book/prompts/ch11-prompts-team-operating-model.md) — 5 prompt pairs: role separation, sprint decomposition, CEO operating model, handoff contracts, ritual cycle
+12. [Ch 12 — Future Directions](docs/book/prompts/ch12-prompts-future-directions.md) — 4 prompt pairs: near-term roadmap, forecasting with uncertainty, adaptive systems, strategic recommendations
+13. [Ch 13 — MCP + Next.js Architecture](docs/book/prompts/ch13-prompts-mcp-nextjs-architecture.md) — 5 prompt pairs: MCP tool schema, architecture-preserving extensions, capability roadmap, talkers-to-doers, Clark's "message in a bottle"
+
+### Reference Materials
+
 - Book QA report: `docs/book/BOOK-QA.md`
 - Audience value audit: `docs/book/BOOK-AUDIENCE-AUDIT.md`
 - Operations docs: `docs/operations/`
