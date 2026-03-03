@@ -319,10 +319,10 @@ The people in this chapter spent their careers building the floor. This book is 
 This chapter is the foundation. The remaining chapters build on it in this order:
 
 - **Chapters 1–4** (conceptual) establish the thesis: language is now part of the implementation surface, and named frameworks are the vocabulary for working with it precisely.
-- **Chapter 5** (method) presents the audit-to-sprint execution loop that converts concepts into verified outcomes. Every implementation story in later chapters follows this loop.
+- **Chapter 5** (method) presents the audit-to-sprint execution loop that converts concepts into verified outcomes — including the inquiry-based prompting technique (Phase Zero) that gathers expert-level context before a single sprint is written. Every implementation story in later chapters follows this loop.
 - **Chapters 6–9** (implementation frameworks) apply 12-Factor, GoF, observability, and governance in detail with concrete repository evidence. Chapter 9 in particular covers how TypeScript, ESLint, and Lighthouse function as a composite governance layer for AI-generated code — a pattern that Hejlsberg and Zakas made possible.
 - **Chapter 10** (case study) shows the full arc: from baseline scaffold to production-grade architecture, including what went wrong and how it was corrected.
-- **Chapters 11–12** (team and future) address how teams operate effectively with these methods and where the practice is heading.
+- **Chapters 11–12** (team and future) address how teams operate effectively with these methods and where the practice is heading. Chapter 11 introduces the CEO operating model: how inquiry-based prompting and layered quality verification enable you to build expert-grade systems in domains you do not personally master.
 - **Chapter 13** (architecture) explains MCP specifically: what it is, how this project uses it, and what to build next.
 
 You can read non-linearly, but the method in Chapter 5 is worth reading before Chapters 6–9. Everything else can be entered from most directions.
