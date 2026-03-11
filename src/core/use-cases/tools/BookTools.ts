@@ -47,6 +47,12 @@ export class ListPractitionersCommand implements ToolCommand<{ query?: string },
 export class GetBookSummaryCommand implements ToolCommand<{}, string> {
   async execute() {
     const summaries = await getBookSummaries();
-    return summaries.map(s => `### Book ${s.number}: ${s.title}\n${s.chapterCount} chapters: ${s.chapters.join(", ")}`).join("\n\n");
+    return summaries.map(s => {
+      const chapterList = s.chapters.map((title, i) => {
+        const slug = s.chapterSlugs?.[i];
+        return slug ? `- ${title} (slug: \`${slug}\`)` : `- ${title}`;
+      }).join("\n");
+      return `### Book ${s.number}: ${s.title} (book_slug: \`${s.slug}\`)\n${s.chapterCount} chapters:\n${chapterList}`;
+    }).join("\n\n");
   }
 }

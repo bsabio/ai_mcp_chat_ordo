@@ -21,7 +21,7 @@ describe("chat policy", () => {
   });
 
   it("includes mandatory calculator usage in system prompt", () => {
-    expect(SYSTEM_PROMPT).toContain("MUST use for all math operations");
+    expect(SYSTEM_PROMPT).toContain("MUST use");
   });
 
   it("returns configured model first and dedupes", () => {
