@@ -1,6 +1,6 @@
 # Multi-User Auth, RBAC & Chat History — System Spec
 
-> **Status:** Draft (v2.2 — architecture-audited + requirements + behavioral tests)  
+> **Status:** Draft (v2.3 — architecture-audited + requirements + behavioral tests)  
 > **Date:** 2026-03-11  
 > **Scope:** Replace mock role-switcher with real auth, enforce RBAC server-side, persist chat history per user, make LLM role-aware.  
 > **Audit:** Clean Architecture (Robert C. Martin), SOLID, GoF design patterns.
@@ -463,7 +463,7 @@ Route matching (Edge Runtime — cookie presence check ONLY, no DB):
   /api/auth/register     → PASS (public)
   /api/auth/login        → PASS (public)
   /api/chat/*            → PASS (public — ANONYMOUS access allowed, role gating in route handler)
-  /api/tts               → PASS (public — ANONYMOUS access allowed, content gating in route handler)
+  /api/tts               → PASS (role gating in route handler — ANONYMOUS rejected there, not at middleware)
   /api/auth/me           → require cookie present
   /api/auth/switch       → require cookie present (ADMIN check in route handler)
   /api/auth/logout       → require cookie present
@@ -492,7 +492,7 @@ class ChatPolicyInteractor implements UseCase<{ role: RoleName }, string> {
 
 | Role | LLM Persona | Tool Access | Content Access |
 |------|------------|-------------|----------------|
-| **ANONYMOUS** | Sales assistant — demo the product, encourage sign-up | search_books (titles only), get_book_summary, set_theme, navigate, adjust_ui | No full chapter content, no audio, no checklists |
+| **ANONYMOUS** | Sales assistant — demo the product, encourage sign-up | calculator, search_books (titles only), get_book_summary, set_theme, navigate, adjust_ui | No full chapter content, no audio, no checklists |
 | **AUTHENTICATED** | Full advisor — use all library tools freely | All tools | Full access |
 | **STAFF** | Advisor + analytics framing | All tools | Full access, analytics-oriented responses |
 | **ADMIN** | Advisor + system configurator | All tools | Full access, can discuss system internals |
@@ -583,8 +583,8 @@ Flow:
 1. Read `lms_session_token` cookie
 2. If cookie present → `ValidateSessionInteractor.execute({ token })` → sessionUser
    If cookie absent → treat as ANONYMOUS (skip persistence, skip to step 6)
-3. If `conversationId` provided: `ConversationInteractor.get(conversationId, sessionUser.id)` — enforces ownership
-4. If omitted: `ConversationInteractor.create(sessionUser.id, title)` — auto-title from first message (80 chars)
+3. If `conversationId` provided: `ConversationInteractor.get(conversationId, sessionUser.id)` — enforces ownership; check message count < 100 (NEG-DATA-3 → 400 if exceeded)
+4. If omitted: check conversation count; if ≥ 50, delete oldest (NEG-DATA-4). Then `ConversationInteractor.create(sessionUser.id, title)` — auto-title from first message (80 chars)
 5. Before calling Anthropic: `MessageRepository.create(conversationId, userMessage)` — persist user message
 6. Build role-aware system prompt + filtered tools (ANONYMOUS if no session)
 7. Call Anthropic with system prompt + tools, stream SSE response
@@ -932,9 +932,8 @@ Rationale: Storing each tool_call as a separate row would complicate replay and 
 
 ### Conversation Limits
 
-- Max 100 messages per conversation (prevent unbounded growth)
-- Max 50 conversations per user (delete oldest when exceeded)
-- These are soft limits enforced at creation time, not hard constraints
+- Max 100 messages per conversation — **hard limit**, returns 400 (see NEG-DATA-3, TEST-CHAT-09)
+- Max 50 conversations per user — **soft limit**, oldest auto-deleted when exceeded (see NEG-DATA-4, TEST-CHAT-10)
 
 ---
 
@@ -1038,7 +1037,7 @@ These are intentionally deferred:
 | Test | What it proves |
 |------|---------------|
 | `RegisterUserInteractor` | Validates input, calls `PasswordHasher.hash()`, calls `UserRepository.create()`, calls `SessionRepository.create()`. Uses stub/mock ports. |
-| `AuthenticateUserInteractor` | Correct password → session created. Wrong password → throws. User not found → throws. |
+| `AuthenticateUserInteractor` | Correct password → session created. Wrong password → throws. User not found → still calls `PasswordHasher.verify()` against dummy hash (timing-safe), then throws. NULL `password_hash` (seed users) → throws. |
 | `ValidateSessionInteractor` | Valid token → returns user. Expired → throws. Missing → throws. |
 | `ConversationInteractor` | Ownership: user A cannot access user B's conversation. |
 | `ChatPolicyInteractor` | `buildSystemPrompt("ANONYMOUS")` includes "DEMO mode". `buildSystemPrompt("ADMIN")` includes "system administrator". |
@@ -1151,6 +1150,22 @@ POST /api/chat/stream
       data: {"tool_call": {...}}
       data: {"tool_result": {...}}
       data: {"done": true}
+
+POST /api/chat
+  Cookie: lms_session_token (optional — absent = ANONYMOUS role)
+  Body: { messages: ChatMessage[] }
+  → 200: { role: "assistant", content: string }
+  Note: Non-streaming endpoint for math/calculator. Same session/role logic
+        as /api/chat/stream but returns a single JSON response.
+        No persistence (used for quick math, not conversation continuity).
+
+POST /api/tts
+  Cookie: lms_session_token (required — ANONYMOUS rejected with 403)
+  Body: { text: string }
+  → 200: audio/mpeg stream
+  → 403: { error: "Audio generation requires a signed-in account" }
+  Note: Belt-and-suspenders enforcement — LLM prompt tells ANONYMOUS "no audio",
+        endpoint also rejects at the handler level.
 ```
 
 ---
