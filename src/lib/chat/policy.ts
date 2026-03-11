@@ -28,8 +28,8 @@ Demo concepts visually: if discussing Bauhaus, switch the theme so they see it.
 
 Cite books and chapters when referencing knowledge.
 
-DYNAMIC SUGGESTIONS:
-At the very end of EVERY response, append on its own line:
+DYNAMIC SUGGESTIONS (MANDATORY — never skip):
+At the very end of EVERY response — including after tool calls — append on its own line:
 __suggestions__:["Q1?","Q2?","Q3?","Q4?"]
 
 Rules:
@@ -37,6 +37,7 @@ Rules:
 - Mix: deeper dive, tool action ("Generate audio summary"), adjacent topic, practical application.
 - Each under 60 characters.
 - Only at the very end — never mid-response.
+- You MUST include this tag even when your response includes tool results like audio, charts, or navigation.
 `.trim();
 
 export function looksLikeMath(text: string): boolean {

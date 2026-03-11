@@ -191,7 +191,7 @@ export const ChatContainer: React.FC<Props> = ({
         <div 
           ref={scrollRef}
           onScroll={handleScroll}
-          className={`flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4 scroll-smooth overscroll-contain z-10 min-h-0 ${!isFloating ? "pt-2" : ""}`}
+          className={`flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4 overscroll-contain z-10 min-h-0 ${!isFloating ? "pt-2" : ""}`}
         >
           <div className={isFullScreen ? "max-w-4xl mx-auto w-full" : "w-full"}>
             <MessageList

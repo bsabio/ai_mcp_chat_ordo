@@ -121,7 +121,6 @@ export function AudioPlayer({ title, text }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasStarted = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [showFullText, setShowFullText] = useState(false);
   const [offScreenReady, setOffScreenReady] = useState(false);
 
   const loadingStage = useLoadingStage(state.isLoading);
@@ -322,11 +321,6 @@ export function AudioPlayer({ title, text }: AudioPlayerProps) {
     </span>
   );
 
-  /* ── text preview ──────────────────────────────────────────────── */
-
-  const previewText = text.length > 150 ? text.slice(0, 150) + "…" : text;
-  const showTextPreview = state.isLoading || (!state.isPlaying && !state.audioUrl);
-
   /* ── render ────────────────────────────────────────────────────── */
 
   return (
@@ -355,7 +349,7 @@ export function AudioPlayer({ title, text }: AudioPlayerProps) {
             </svg>
           }
         >
-          <div className="flex flex-col gap-3 p-4 w-full">
+          <div className="flex flex-col gap-2 px-3 py-2.5 w-full">
             {/* ── Progress bar (during loading) ──────────────────────── */}
             {state.isLoading && (
               <div className="w-full h-1 rounded-full bg-[var(--border-color)] overflow-hidden">
@@ -367,15 +361,15 @@ export function AudioPlayer({ title, text }: AudioPlayerProps) {
             )}
 
             {/* ── Control Row ────────────────────────────────────────── */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handlePlayToggle}
                 disabled={state.isLoading || !!state.error}
-                className="w-12 h-12 shrink-0 flex items-center justify-center rounded-full bg-accent text-accent-foreground hover:bg-accent-theme/90 transition-all disabled:opacity-50 active:scale-95 shadow-md"
+                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-accent text-accent-foreground hover:bg-accent-theme/90 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
               >
                 {state.isLoading ? (
                   <svg
-                    className="w-5 h-5 animate-spin"
+                    className="w-4 h-4 animate-spin"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -385,19 +379,19 @@ export function AudioPlayer({ title, text }: AudioPlayerProps) {
                     <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
                   </svg>
                 ) : state.isPlaying ? (
-                  <svg className="w-5 h-5 fill-current ml-[1px]" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 fill-current ml-[1px]" viewBox="0 0 24 24">
                     <rect x="6" y="4" width="4" height="16" />
                     <rect x="14" y="4" width="4" height="16" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 fill-current ml-1" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
                     <polygon points="5 3 19 12 5 21 5 3" />
                   </svg>
                 )}
               </button>
 
               {/* Shuttle & Timestamps */}
-              <div className="flex flex-col flex-1 gap-1.5 min-w-0">
+              <div className="flex flex-col flex-1 gap-1 min-w-0">
                 <input
                   type="range"
                   min={0}
@@ -423,62 +417,7 @@ export function AudioPlayer({ title, text }: AudioPlayerProps) {
               </div>
             </div>
 
-            {/* ── #6: Text preview while loading ─────────────────────── */}
-            {(showTextPreview || showFullText) && (
-              <div className="relative">
-                <div
-                  className={`text-xs opacity-60 leading-relaxed ${showFullText ? "max-h-[120px] overflow-y-auto" : "max-h-[3lh] overflow-hidden"}`}
-                >
-                  {showFullText ? text : previewText}
-                </div>
-                {!showFullText && text.length > 150 && (
-                  <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-[var(--surface)] to-transparent" />
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowFullText(!showFullText)}
-                  className="text-[10px] font-semibold text-[var(--accent-color)] hover:underline mt-1"
-                >
-                  {showFullText ? "Hide text" : "Show full text"}
-                </button>
-              </div>
-            )}
-
-            {/* Waveform Visualizer */}
-            <div
-              className="flex items-center justify-center gap-[3px] h-6 mt-1 transition-opacity duration-300"
-              style={{
-                opacity: state.isPlaying ? 0.4 : state.isLoading ? 0.25 : 0.1,
-              }}
-            >
-              {[...Array(32)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-1 bg-current rounded-full transition-all duration-150 origin-bottom"
-                  style={{
-                    height: state.isPlaying || state.isLoading ? "100%" : "20%",
-                    animation: state.isPlaying
-                      ? `wave 1.2s ease-in-out infinite alternate ${i * 0.05}s`
-                      : state.isLoading
-                        ? `wave 2s ease-in-out infinite alternate ${i * 0.08}s`
-                        : "none",
-                  }}
-                />
-              ))}
-            </div>
           </div>
-
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-                @keyframes wave {
-                    0% { height: 10%; }
-                    50% { height: 100%; }
-                    100% { height: 20%; }
-                }
-              `,
-            }}
-          />
         </ToolCard>
       </div>
 

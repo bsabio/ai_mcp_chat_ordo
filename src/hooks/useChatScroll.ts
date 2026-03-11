@@ -56,9 +56,10 @@ export function useChatScroll<T>(dep: T): {
     // requestAnimationFrame ensures the DOM has painted the new content
     const raf = requestAnimationFrame(() => {
       if (scrollRef.current) {
+        // Use instant scroll during streaming to avoid stutter from queued smooth scrolls
         scrollRef.current.scrollTo({
           top: scrollRef.current.scrollHeight,
-          behavior: "smooth",
+          behavior: "instant",
         });
       }
     });
