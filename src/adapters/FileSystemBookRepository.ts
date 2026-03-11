@@ -2,13 +2,94 @@ import fs from "fs/promises";
 import path from "path";
 import type { BookRepository } from "../core/use-cases/BookRepository";
 import type { Book } from "../core/entities/library";
-import { Chapter, BOOKS } from "../core/entities/library";
+import { Chapter } from "../core/entities/library";
 import { ResourceNotFoundError } from "../core/entities/errors";
 
 export const DEFAULT_DOCS_DIR = "docs";
 
 import { ExtractPractitioners } from "../core/use-cases/ExtractPractitioners";
 import { AnalyzeChapterChecklist } from "../core/use-cases/AnalyzeChapterChecklist";
+
+interface BookMeta {
+  slug: string;
+  title: string;
+  shortTitle: string;
+  number: string;
+  chaptersDir: string;
+}
+
+const BOOKS: BookMeta[] = [
+  {
+    slug: "software-engineering",
+    title: "Software Engineering",
+    shortTitle: "Software Eng",
+    number: "I",
+    chaptersDir: "software-engineering-book/chapters",
+  },
+  {
+    slug: "design-history",
+    title: "Design History",
+    shortTitle: "Design History",
+    number: "II",
+    chaptersDir: "design-book/chapters",
+  },
+  {
+    slug: "ui-design",
+    title: "UI Design",
+    shortTitle: "UI Design",
+    number: "III",
+    chaptersDir: "ui-design-book/chapters",
+  },
+  {
+    slug: "ux-design",
+    title: "UX Design",
+    shortTitle: "UX Design",
+    number: "IV",
+    chaptersDir: "ux-design-book/chapters",
+  },
+  {
+    slug: "product-management",
+    title: "Product Management",
+    shortTitle: "Product Mgmt",
+    number: "V",
+    chaptersDir: "product-management-book/chapters",
+  },
+  {
+    slug: "accessibility",
+    title: "Accessibility",
+    shortTitle: "Accessibility",
+    number: "VI",
+    chaptersDir: "accessibility-book/chapters",
+  },
+  {
+    slug: "entrepreneurship",
+    title: "Entrepreneurship",
+    shortTitle: "Entrepreneurship",
+    number: "VII",
+    chaptersDir: "entrepreneurship-book/chapters",
+  },
+  {
+    slug: "marketing-branding",
+    title: "Marketing & Branding",
+    shortTitle: "Marketing",
+    number: "VIII",
+    chaptersDir: "marketing-branding-book/chapters",
+  },
+  {
+    slug: "content-strategy",
+    title: "Content Strategy",
+    shortTitle: "Content Strategy",
+    number: "IX",
+    chaptersDir: "content-strategy-book/chapters",
+  },
+  {
+    slug: "data-analytics",
+    title: "Data & Analytics",
+    shortTitle: "Data & Analytics",
+    number: "X",
+    chaptersDir: "data-analytics-book/chapters",
+  },
+];
 
 export class FileSystemBookRepository implements BookRepository {
   private readonly practitionerExtractor = new ExtractPractitioners();

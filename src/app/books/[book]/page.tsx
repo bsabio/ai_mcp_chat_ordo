@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { BOOKS } from "@/core/entities/library";
-import { getBookSummaries } from "@/lib/book-library";
+import { getBooks, getBookSummaries } from "@/lib/book-library";
 
 export async function generateStaticParams() {
-  return BOOKS.map((book) => ({ book: book.slug }));
+  const books = await getBooks();
+  return books.map((book) => ({ book: book.slug }));
 }
 
 export default async function BookIndex({
@@ -12,7 +12,8 @@ export default async function BookIndex({
   params: Promise<{ book: string }>;
 }) {
   const resolvedParams = await params;
-  const book = BOOKS.find(b => b.slug === resolvedParams.book);
+  const books = await getBooks();
+  const book = books.find(b => b.slug === resolvedParams.book);
   if (!book) {
     redirect("/books");
   }

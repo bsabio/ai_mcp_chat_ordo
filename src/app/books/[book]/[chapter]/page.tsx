@@ -1,5 +1,4 @@
-import { getChapterFull, getBookSummaries } from "@/lib/book-library";
-import { BOOKS } from "@/core/entities/library";
+import { getBooks, getChapterFull, getBookSummaries } from "@/lib/book-library";
 import { ResourceNotFoundError } from "@/core/entities/errors";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -8,13 +7,10 @@ import remarkGfm from "remark-gfm";
 export async function generateStaticParams() {
   const summaries = await getBookSummaries();
   const params: { book: string; chapter: string }[] = [];
-  
-  // NOTE: BookSummary currently only has chapter titles. 
-  // We should ideally use the Indexer here to generate static params.
-  // For now, using BOOKS and a placeholder logic as chapter slugs aren't in Summary yet.
-  // I will update BookSummaryInteractor to include slugs.
-  for (const book of BOOKS) {
-    // Temporary: we need slugs. 
+  for (const summary of summaries) {
+    for (const chapterSlug of summary.chapterSlugs) {
+      params.push({ book: summary.slug, chapter: chapterSlug });
+    }
   }
   return params;
 }

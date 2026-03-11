@@ -1,14 +1,13 @@
-import { BOOKS } from "@/core/entities/library";
-import { getBookSummaries } from "@/lib/book-library";
+import { getBooks, getBookSummaries } from "@/lib/book-library";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { BookSidebar } from "@/components/BookSidebar";
 
 export async function generateStaticParams() {
-  return BOOKS.map((book) => ({ book: book.slug }));
+  const books = await getBooks();
+  return books.map((book) => ({ book: book.slug }));
 }
-
-import { BookSidebar } from "@/components/BookSidebar";
 
 export default async function BookLayout({
   children,
@@ -18,7 +17,8 @@ export default async function BookLayout({
   params: Promise<{ book: string }>;
 }) {
   const resolvedParams = await params;
-  const book = BOOKS.find(b => b.slug === resolvedParams.book);
+  const books = await getBooks();
+  const book = books.find(b => b.slug === resolvedParams.book);
   if (!book) {
     notFound();
   }
@@ -53,7 +53,7 @@ export default async function BookLayout({
               ← Books
             </Link>
             <span className="text-label opacity-40 truncate max-w-[150px]">
-              {book.number}. {book.shortTitle}
+              {book.number}. {book.title}
             </span>
           </div>
           <div className="scale-75 origin-right">

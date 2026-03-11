@@ -2,6 +2,7 @@
  * Book Content Library — Pure Facade over Core Use Cases.
  */
 
+import type { Book } from "../core/entities/library";
 import { getBookRepository } from "../adapters/RepositoryFactory";
 import { LibrarySearchInteractor } from "../core/use-cases/LibrarySearchInteractor";
 import { PractitionerInteractor } from "../core/use-cases/PractitionerInteractor";
@@ -46,6 +47,18 @@ const indexInteractor = new LoggingDecorator(
 );
 
 export type { ChapterIndex };
+
+/**
+ * Get all books (pure domain data, no file-system paths). (Facade Method)
+ */
+export async function getBooks(): Promise<Book[]> {
+  try {
+    return await bookRepository.getAllBooks();
+  } catch (error) {
+    errorHandler.handle(error, { method: "getBooks" });
+    return [];
+  }
+}
 
 export interface SearchResult {
   book: string;

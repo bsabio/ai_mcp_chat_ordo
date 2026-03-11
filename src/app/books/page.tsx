@@ -1,5 +1,4 @@
-import { getBookSummaries } from "@/lib/book-library";
-import { BOOKS } from "@/core/entities/library";
+import { getBooks, getBookSummaries } from "@/lib/book-library";
 import Link from "next/link";
 
 export const metadata = {
@@ -9,8 +8,8 @@ export const metadata = {
 };
 
 export default async function BooksIndex() {
-  const summaries = await getBookSummaries();
-  const booksWithChapters = BOOKS.map((book) => {
+  const [books, summaries] = await Promise.all([getBooks(), getBookSummaries()]);
+  const booksWithChapters = books.map((book) => {
     const summary = summaries.find((s) => s.slug === book.slug);
     return { ...book, chapterCount: summary?.chapterCount || 0 };
   });
