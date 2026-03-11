@@ -52,12 +52,12 @@ Current  → Keyword-only search (unchanged)
 | **5 — MCP Server** | 3 | 1 | 1 | ~5 |
 | **Total** | **26** | **33** | **6 unique (8 touches)** | **~60** |
 
-> **Note:** "New Files" counts production files only (no test files). Three
-> production files (`data/stopwords.ts`, `data/synonyms.ts`, `ResultFormatter.ts`)
-> are not in the spec's §12 file plan but are logically required by §7.5, §7.6,
-> and §8. "Modified Files" total counts unique files; some files are modified in
-> multiple sprints (package.json in Sprints 2 & 5, tool-composition-root.ts in
-> Sprints 2 & 4).
+> **Note:** "New Files" counts production files only (no test files). Four
+> production files (`MockEmbedder.ts`, `data/stopwords.ts`, `data/synonyms.ts`,
+> `ResultFormatter.ts`) are not in the spec's §12 file plan but are logically
+> required by §4.2, §7.5, §7.6, and §8 respectively. "Modified Files" total
+> counts unique files; some files are modified in multiple sprints (package.json
+> in Sprints 2 & 5, tool-composition-root.ts in Sprints 2 & 4).
 
 ## Requirement → Sprint Mapping
 

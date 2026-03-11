@@ -145,7 +145,7 @@ formatted results with passage context.
 | Test ID | Scenario |
 | --- | --- |
 | — | Chat query "user experience heuristics" → search_books → results with matchPassage |
-| TEST-VS-05 | Results include passage text, not 300-char snippet |
+| — | Results include passage text through full E2E chain (cf. TEST-VS-14) |
 | TEST-VS-38 | Embeddings with source_type "book_chunk" separate from "conversation" |
 | TEST-VS-39 | Search with sourceType filter returns only matching type |
 | TEST-VS-40 | Search without filter returns results across all source types |

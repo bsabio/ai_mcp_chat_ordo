@@ -192,6 +192,7 @@ class HybridSearchEngine {
 | TEST-VS-02 | "accessibility" returns results via both BM25 and vector branches |
 | TEST-VS-03 | RRF ranks results appearing in both branches above single-branch results |
 | TEST-VS-04 | Synonym: "a11y" → BM25 searches for "accessibility" + "accessible" |
+| TEST-VS-05 | Typo resilience: "accessiblity" still finds results via vector similarity |
 | TEST-VS-06 | BM25: rare "heuristic" scores higher than common "design" |
 | TEST-VS-07 | BM25: long chapter with 1 mention scores lower than short focused chapter |
 | TEST-VS-53 | Constructor requires all 7 dependencies |
@@ -199,7 +200,7 @@ class HybridSearchEngine {
 ### Verify
 
 ```bash
-npx vitest run tests/search/hybrid-search-engine.test.ts   # 7 tests pass
+npx vitest run tests/search/hybrid-search-engine.test.ts   # 8 tests pass
 npm run build
 ```
 
