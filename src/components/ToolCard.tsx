@@ -208,7 +208,7 @@ className="w-7 h-7 flex items-center justify-center rounded-md hover-surface tex
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/60 to-transparent" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[11px] font-semibold uppercase tracking-wider opacity-70 group-hover:opacity-100 transition-opacity bg-[var(--surface-muted)] border border-[var(--border-color)] rounded-full px-3 py-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider opacity-70 group-hover:opacity-100 transition-opacity bg-[var(--surface-muted)] border-theme rounded-full px-3 py-1">
                 View diagram
               </span>
             </div>

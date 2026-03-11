@@ -34,7 +34,7 @@ export default async function BooksIndex() {
             <Link
               key={book.slug}
               href={`/books/${book.slug}`}
-              className="group block rounded-xl border border-[var(--border-color)] p-6 transition-all duration-200 hover:border-[var(--accent-color)]/50 hover:shadow-lg hover:shadow-[var(--accent-color)]/5 hover:-translate-y-0.5"
+              className="group block rounded-xl border-theme p-6 transition-all duration-200 hover:border-[var(--accent-color)]/50 hover:shadow-lg hover:shadow-[var(--accent-color)]/5 hover:-translate-y-0.5"
             >
               <div className="flex items-start gap-4">
                 <span className="shrink-0 text-xs font-bold uppercase tracking-wider opacity-40 pt-1">

@@ -16,7 +16,7 @@ function renderSpan(text: string, key: string | number): React.ReactNode {
       parts.push(
         <code
           key={`c-${m.index}`}
-          className="bg-[var(--surface-muted)] text-[var(--accent-color)] px-1.5 py-0.5 rounded-md text-xs font-mono border border-[var(--border-color)] font-bold"
+          className="bg-[var(--surface-muted)] text-[var(--accent-color)] px-1.5 py-0.5 rounded-md text-xs font-mono border-theme font-bold"
         >
           {match.slice(1, -1)}
         </code>,
@@ -27,7 +27,7 @@ function renderSpan(text: string, key: string | number): React.ReactNode {
         <button
           key={`l-${m.index}`}
           onClick={() => (window as unknown as { openLibraryChapter?: (slug: string) => void }).openLibraryChapter?.(slug)}
-          className="text-[var(--accent-color)] font-bold decoration-[var(--accent-color)]/30 underline decoration-2 underline-offset-4 hover:decoration-[var(--accent-color)] transition-all px-1 rounded hover:bg-[var(--accent-color)]/5"
+          className="link-accent"
         >
           {slug.replace(/-/g, " ")}
         </button>,
@@ -133,7 +133,7 @@ export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
     setTimeout(() => setCopied(false), UI_CONSTANTS.COPY_TIMEOUT_MS);
   }
   return (
-    <div className="my-4 rounded-xl overflow-hidden border border-[var(--border-color)] text-sm">
+    <div className="my-4 rounded-xl overflow-hidden border-theme text-sm">
       <div className="flex items-center justify-between code-chrome px-4 py-2">
         <span className="text-label font-mono opacity-70">
           {lang || "code"}

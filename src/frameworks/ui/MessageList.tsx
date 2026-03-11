@@ -211,7 +211,7 @@ const SuggestionChips: React.FC<{
           key={s}
           onClick={() => onSend(s)}
           style={{ animationDelay: `${i * 100}ms` }}
-          className="rounded-xl border border-[var(--border-color)] bg-[var(--surface)] hover:bg-[var(--accent-color)] hover:text-[var(--accent-foreground)] hover:border-[var(--accent-color)] px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium text-[var(--foreground)] transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-sm hover:shadow-md animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-both"
+          className="rounded-xl border-theme bg-[var(--surface)] hover:bg-[var(--accent-color)] hover:text-[var(--accent-foreground)] hover:border-[var(--accent-color)] px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium text-[var(--foreground)] transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-sm hover:shadow-md animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-both"
         >
           {s}
         </button>

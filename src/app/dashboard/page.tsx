@@ -20,7 +20,7 @@ const DashboardCard = ({
   children: React.ReactNode;
   className?: string;
 }) => (
-  <div className={`rounded-[32px] border border-[var(--border-color)] bg-[var(--background)] p-6 shadow-bloom flex flex-col gap-4 transition-all hover:scale-[1.01] hover:shadow-2xl group ${className}`}>
+  <div className={`rounded-[32px] border-theme bg-[var(--background)] p-6 shadow-bloom flex flex-col gap-4 transition-all hover:scale-[1.01] hover:shadow-2xl group ${className}`}>
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl bg-[var(--surface-muted)] flex items-center justify-center text-[var(--accent-color)] group-hover:bg-[var(--accent-color)] group-hover:text-[var(--accent-foreground)] transition-all">
@@ -42,7 +42,7 @@ const DashboardCard = ({
 const SettingRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30 ml-1">{label}</label>
-    <div className="flex p-1 bg-[var(--surface-muted)] rounded-xl gap-1 border border-[var(--border-color)]">
+    <div className="flex p-1 bg-[var(--surface-muted)] rounded-xl gap-1 border-theme">
       {children}
     </div>
   </div>
@@ -53,7 +53,7 @@ const PillButton = ({ active, onClick, label }: { active: boolean; onClick: () =
     onClick={onClick}
     className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all haptic-press ${
       active
-        ? "bg-[var(--background)] text-[var(--accent-color)] shadow-sm scale-[1.02] border border-[var(--border-color)]"
+        ? "bg-[var(--background)] text-[var(--accent-color)] shadow-sm scale-[1.02] border-theme"
         : "opacity-30 hover:opacity-100 hover-surface"
     }`}
   >
@@ -119,7 +119,7 @@ export default function DashboardPage() {
             icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>}
           >
             <div className="flex flex-col gap-4 mt-2">
-              <div className="bg-[var(--surface-muted)] rounded-2xl p-4 border border-[var(--border-color)]">
+              <div className="bg-[var(--surface-muted)] rounded-2xl p-4 border-theme">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-label opacity-40">System Readiness</span>
                   <span className="text-label text-emerald-500">Operational</span>
@@ -133,17 +133,17 @@ export default function DashboardPage() {
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-[var(--surface-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="p-3 bg-[var(--surface-muted)] rounded-xl border-theme">
                   <p className="text-[9px] font-bold opacity-50 uppercase mb-1">Response Time</p>
                   <p className="text-lg font-black tracking-tighter">12ms</p>
                 </div>
-                <div className="p-3 bg-[var(--surface-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="p-3 bg-[var(--surface-muted)] rounded-xl border-theme">
                   <p className="text-[9px] font-bold opacity-50 uppercase mb-1">Active Memory</p>
                   <p className="text-lg font-black tracking-tighter">1.2GB</p>
                 </div>
               </div>
 
-              <button className="mt-auto w-full py-2.5 rounded-xl bg-[var(--surface-muted)] border border-[var(--border-color)] text-label font-black hover:bg-[var(--accent-color)] hover:text-white transition-all">
+              <button className="mt-auto w-full py-2.5 rounded-xl bg-[var(--surface-muted)] border-theme text-label font-black hover:bg-[var(--accent-color)] hover:text-white transition-all">
                 Run Diagnostics Sweep
               </button>
             </div>
@@ -178,7 +178,7 @@ export default function DashboardPage() {
 
               <div className="flex flex-col gap-4">
                 <div className="text-label font-black opacity-50 border-b border-[var(--border-color)] pb-2">Layout Tokens</div>
-                <div className="flex-1 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-muted)] p-4 flex flex-col justify-center gap-4">
+                <div className="flex-1 rounded-2xl border-theme bg-[var(--surface-muted)] p-4 flex flex-col justify-center gap-4">
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between text-label opacity-40">
                       <span>Border Tension</span>

@@ -30,7 +30,7 @@ export default function MentionsMenu({
 
   return (
     <div
-      className="absolute z-[100] w-72 bg-[var(--surface)] border border-[var(--border-color)] rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+      className="absolute z-[100] w-72 bg-[var(--surface)] border-theme rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
       style={{
         bottom: "calc(100% + 8px)",
         left: "12px",

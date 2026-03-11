@@ -41,7 +41,7 @@ export function ContentModal({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[101] w-[calc(100vw-2rem)] max-w-3xl h-[85vh] -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-[var(--background)] border border-[var(--border-color)] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[101] w-[calc(100vw-2rem)] max-w-3xl h-[85vh] -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-[var(--background)] border-theme shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] bg-[var(--surface)]/50">
             <Dialog.Title className="text-lg font-bold tracking-tight uppercase tracking-widest text-xs opacity-60">
               Library Reader

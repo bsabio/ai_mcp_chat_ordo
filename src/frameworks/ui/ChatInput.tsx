@@ -103,7 +103,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           {pendingFiles.map((file, i) => (
             <div
               key={i}
-              className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface)] border border-[var(--border-color)] rounded-lg text-xs font-medium"
+              className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface)] border-theme rounded-lg text-xs font-medium"
             >
               <span className="truncate max-w-[120px]">{file.name}</span>
               <button
@@ -123,7 +123,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           e.preventDefault();
           onSend();
         }}
-        className="relative flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border-color)] rounded-full p-1 sm:p-1.5 transition-all duration-500 focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[var(--accent-color)]/10 shadow-sm hover:shadow-md"
+        className="relative flex items-center gap-1.5 bg-[var(--surface)] border-theme rounded-full p-1 sm:p-1.5 transition-all duration-500 focus-within:border-[var(--accent-color)] focus-within:ring-2 focus-within:ring-[var(--accent-color)]/10 shadow-sm hover:shadow-md"
       >
         {activeTrigger && suggestions.length > 0 && (
           <MentionsMenu

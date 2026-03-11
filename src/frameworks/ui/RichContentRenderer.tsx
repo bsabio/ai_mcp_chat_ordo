@@ -15,7 +15,7 @@ const MermaidRenderer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[160px] w-full flex items-center justify-center text-xs opacity-50 animate-pulse bg-[var(--surface-muted)] rounded-xl border border-[var(--border-color)] my-2">
+      <div className="h-[160px] w-full flex items-center justify-center text-xs opacity-50 animate-pulse bg-[var(--surface-muted)] rounded-xl border-theme my-2">
         Loading Diagram Engine...
       </div>
     ),
@@ -27,7 +27,7 @@ const AudioPlayer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[72px] w-full max-w-sm flex items-center justify-center text-xs opacity-50 animate-pulse bg-[var(--surface-muted)] rounded-xl border border-[var(--border-color)] my-2">
+      <div className="h-[72px] w-full max-w-sm flex items-center justify-center text-xs opacity-50 animate-pulse bg-[var(--surface-muted)] rounded-xl border-theme my-2">
         Loading Audio Engine...
       </div>
     ),
@@ -131,14 +131,14 @@ const inlineRegistry: { [K in InlineNode["type"]]: React.FC<InlineProps<Extract<
   text: ({ node }) => <>{node.text}</>,
   bold: ({ node }) => <strong>{node.text}</strong>,
   "code-inline": ({ node }) => (
-    <code className="bg-[var(--surface-muted)] text-[var(--foreground)] px-1.5 py-0.5 rounded-md text-[0.85em] font-mono border border-[var(--border-color)]">
+    <code className="bg-[var(--surface-muted)] text-[var(--foreground)] px-1.5 py-0.5 rounded-md text-[0.85em] font-mono border-theme">
       {node.text}
     </code>
   ),
   "library-link": ({ node, onLinkClick }) => (
     <button
       onClick={() => onLinkClick?.(node.slug)}
-      className="text-[var(--accent-color)] font-bold decoration-[var(--accent-color)]/30 underline decoration-2 underline-offset-4 hover:decoration-[var(--accent-color)] transition-all px-1 rounded hover:bg-[var(--accent-color)]/5"
+      className="link-accent"
     >
       {node.slug.replace(/-/g, " ")}
     </button>
@@ -171,7 +171,7 @@ const CodeBlock: React.FC<{ code: string; lang?: string }> = ({
     setTimeout(() => setCopied(false), UI_CONSTANTS.COPY_TIMEOUT_MS);
   };
   return (
-    <div className="my-4 rounded-xl overflow-hidden border border-[var(--border-color)] text-sm">
+    <div className="my-4 rounded-xl overflow-hidden border-theme text-sm">
       <div className="flex items-center justify-between code-chrome px-4 py-2">
         <span className="text-label font-mono opacity-70">
           {lang || "code"}
@@ -196,7 +196,7 @@ const TableRenderer: React.FC<{
   onLinkClick?: (slug: string) => void;
 }> = ({ header, rows, onLinkClick }) => {
   return (
-    <div className="my-4 w-full overflow-x-auto border border-[var(--border-color)] rounded-[var(--border-radius)]">
+    <div className="my-4 w-full overflow-x-auto border-theme rounded-[var(--border-radius)]">
       <table className="w-full text-sm border-collapse">
         {header && (
           <thead>

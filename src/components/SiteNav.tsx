@@ -63,7 +63,7 @@ export function SiteNav({ user }: SiteNavProps) {
         </div>
 
         {/* Center: AI Status (The "Unified" part) */}
-          <div className="hidden xl:flex items-center gap-4 px-6 py-1.5 rounded-full bg-[var(--surface-muted)] border border-[var(--border-color)]">
+          <div className="hidden xl:flex items-center gap-4 px-6 py-1.5 rounded-full bg-[var(--surface-muted)] border-theme">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 rounded-full accent-fill flex items-center justify-center text-[8px] font-bold">
               A

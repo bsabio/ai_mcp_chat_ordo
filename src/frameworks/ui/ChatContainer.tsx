@@ -118,7 +118,7 @@ export const ChatContainer: React.FC<Props> = ({
   }
 
   const containerClasses = isFloating
-    ? `fixed z-[60] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[-40px_40px_80px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-3xl bg-[var(--background)]/95 border border-[var(--border-color)]
+    ? `fixed z-[60] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[-40px_40px_80px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-3xl bg-[var(--background)]/95 border-theme
        ${isFullScreen 
          ? "top-0 start-0 w-full h-full rounded-none" 
          : "bottom-6 end-6 w-[calc(100vw-3rem)] md:w-[480px] h-[calc(100dvh-6rem)] md:h-[calc(100dvh-10rem)] max-h-[820px] rounded-[32px]"}`

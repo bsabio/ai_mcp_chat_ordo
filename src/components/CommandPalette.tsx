@@ -94,7 +94,7 @@ export default function CommandPalette() {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] animate-in fade-in duration-200" />
         <Dialog.Content
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-[70%] w-full max-w-[640px] bg-[var(--surface)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-[101] overflow-hidden animate-in zoom-in-95 fade-in slide-in-from-top-4 duration-200"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-[70%] w-full max-w-[640px] bg-[var(--surface)] border-theme rounded-2xl shadow-2xl z-[101] overflow-hidden animate-in zoom-in-95 fade-in slide-in-from-top-4 duration-200"
           onKeyDown={handleKeyDown}
         >
           <div className="flex items-center border-b border-[var(--border-color)] px-4 py-3 gap-3">
@@ -122,7 +122,7 @@ export default function CommandPalette() {
                 setActiveIndex(0);
               }}
             />
-            <kbd className="hidden sm:flex h-6 items-center gap-1 rounded border border-[var(--border-color)] bg-[var(--surface-muted)] px-2 font-mono text-[10px] font-medium opacity-60">
+            <kbd className="hidden sm:flex h-6 items-center gap-1 rounded border-theme bg-[var(--surface-muted)] px-2 font-mono text-[10px] font-medium opacity-60">
               ESC
             </kbd>
           </div>

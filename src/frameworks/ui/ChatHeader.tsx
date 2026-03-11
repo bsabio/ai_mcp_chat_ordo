@@ -48,7 +48,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <div>
             <h3 className="text-sm font-bold tracking-tight">{title}</h3>
             <div className="flex items-center gap-1.5 leading-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider">
                 PD Advisor
               </span>
@@ -59,7 +59,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={onFullScreenToggle}
-            className="p-2 rounded-xl hover-surface opacity-50 hover:opacity-100 transition-all active:scale-90"
+            className="icon-btn"
             aria-label={isFullScreen ? "Exit Full Screen" : "Enter Full Screen"}
           >
             {isFullScreen ? (
@@ -75,7 +75,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           
           <button
             onClick={onMinimize}
-            className="p-2 rounded-xl hover-surface opacity-50 hover:opacity-100 transition-all active:scale-90"
+            className="icon-btn"
             aria-label="Minimize Chat"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

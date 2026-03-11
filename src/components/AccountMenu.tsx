@@ -16,7 +16,7 @@ const SettingBlock = ({ label, children }: { label: string; children: React.Reac
     <div className="text-[9px] font-bold uppercase tracking-widest opacity-60 ml-1">
       {label}
     </div>
-    <div className="flex p-1 bg-[var(--surface-muted)] rounded-xl gap-1 border border-[var(--border-color)]">
+    <div className="flex p-1 bg-[var(--surface-muted)] rounded-xl gap-1 border-theme">
       {children}
     </div>
   </div>
@@ -104,7 +104,7 @@ export function AccountMenu({ user }: AccountMenuProps) {
           {user.roles[0]}
         </span>
       </div>
-      <div className="w-8 h-8 rounded-full border border-[var(--border-color)] bg-[var(--surface-muted)] flex items-center justify-center text-[10px] font-bold group-hover:bg-[var(--surface-hover)] transition-colors shadow-sm">
+      <div className="w-8 h-8 rounded-full border-theme bg-[var(--surface-muted)] flex items-center justify-center text-[10px] font-bold group-hover:bg-[var(--surface-hover)] transition-colors shadow-sm">
         {initials}
       </div>
     </button>
@@ -115,7 +115,7 @@ export function AccountMenu({ user }: AccountMenuProps) {
       {menuTrigger}
 
       {open && (
-        <div className="absolute right-0 top-12 z-[100] w-72 rounded-[24px] border border-[var(--border-color)] bg-[var(--background)] shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-2.5 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-4 duration-500 spring-bounce shadow-bloom">
+        <div className="absolute right-0 top-12 z-[100] w-72 rounded-[24px] border-theme bg-[var(--background)] shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-2.5 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-4 duration-500 spring-bounce shadow-bloom">
           
           {/* Header: Identity & Quick Toggles */}
           <div className="px-3 py-2.5 flex items-center justify-between border-b border-[var(--border-color)] mb-1 bg-[var(--surface-muted)] rounded-t-2xl">
@@ -123,7 +123,7 @@ export function AccountMenu({ user }: AccountMenuProps) {
               <p className="text-xs font-black truncate tracking-tight">{user.name}</p>
               <p className="text-[10px] opacity-60 truncate font-medium">{user.email}</p>
             </div>
-            <div className="flex items-center gap-1.5 bg-[var(--background)] p-1 rounded-xl border border-[var(--border-color)] shadow-inner">
+            <div className="flex items-center gap-1.5 bg-[var(--background)] p-1 rounded-xl border-theme shadow-inner">
               <button
                 onClick={() => setGridEnabled(!gridEnabled)}
                 className={`p-1.5 rounded-lg transition-all ${gridEnabled ? "accent-fill" : "opacity-40 hover:opacity-100"}`}

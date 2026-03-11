@@ -29,7 +29,7 @@ export function BookSidebar({ book, chapters, currentChapterSlug }: BookSidebarP
       {/* Collapse Toggle */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-10 w-6 h-6 bg-[var(--surface)] border border-[var(--border-color)] rounded-full flex items-center justify-center z-50 hover:bg-[var(--accent-color)] hover:text-[var(--accent-foreground)] transition-colors shadow-sm"
+        className="absolute -right-3 top-10 w-6 h-6 bg-[var(--surface)] border-theme rounded-full flex items-center justify-center z-50 hover:bg-[var(--accent-color)] hover:text-[var(--accent-foreground)] transition-colors shadow-sm"
       >
         <svg
           width="12"
