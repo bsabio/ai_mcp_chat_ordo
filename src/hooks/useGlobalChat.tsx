@@ -149,10 +149,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setIsLoadingConversations(true);
     try {
       const res = await fetch("/api/conversations");
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
+      // 401 is expected for anonymous users — just skip loading
+      if (res.status === 401) return;
       if (res.ok) {
         const data = await res.json() as { conversations: ConversationSummary[] };
         setConversations(data.conversations);

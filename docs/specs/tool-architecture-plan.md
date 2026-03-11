@@ -231,12 +231,12 @@
 
 | Sprint | Tasks | New Files | Modified Files | New Tests |
 | --- | --- | --- | --- | --- |
-| **0 — Core Types & Registry** | 3 | 6 | 0 | ~12 (registry + middleware) |
+| **0 — Core Types & Registry** | 3 | 8 | 0 | ~12 (registry + middleware) |
 | **1 — Tool Descriptors** | 3 | 11 | 4 | 0 (build verified) |
 | **2 — Composition & Wiring** | 3 | 1 | 6 | ~3 (updated policy tests) |
 | **3 — Performance & Formatting** | 2 | 2 | 4 | ~7 (cache + formatter) |
 | **4 — QA & Hardening** | 3 | 1 | 0 | ~8 (integration + security) |
-| **Total** | **14** | **21** | **14** | **~30** |
+| **Total** | **14** | **23** | **14** | **~30** |
 
 ## Dependency Graph
 

@@ -13,17 +13,21 @@
 The current tool system works but violates multiple SOLID principles and will not
 scale as the platform is reused across projects:
 
-- **Adding a new tool requires editing 5 files** — command class, schema constant
-  in `tools.ts`, `ALL_TOOLS` array, `commands` registry, and `ToolAccessPolicy`
-  whitelist. Every extension requires modification (violates Open/Closed).
+- **Adding a new tool requires 5 edit points across 2–3 files** — schema constant
+  in `tools.ts`, `ALL_TOOLS` array entry, `commands` registry entry (all in
+  `tools.ts`), plus a new command class file, and optionally the
+  `ToolAccessPolicy` whitelist. Every extension requires modification
+  (violates Open/Closed).
 - **No RBAC enforcement at dispatch** — `getToolsForRole()` filters tool
   *definitions* sent to Anthropic, but `createToolResults()` executes any tool the
   LLM calls. If the LLM hallucinates a tool name not in the filtered set, the
   server executes it anyway. This is a security gap.
 - **Role context mixed with LLM input** — The `role` field is spread into
   `toolUse.input` via `{ ...toolUse.input, role }`, mixing server-controlled
-  auth context with LLM-controlled data in the same object. A crafted `role`
-  field in tool input would override the server's value.
+  auth context with LLM-controlled data in the same object. The server's
+  `role` value wins (it appears after the spread), but the merge itself
+  violates trust boundary separation — LLM-controlled input should never
+  share an object with server-controlled auth context.
 - **No observability** — Auth interactors have `LoggingDecorator`. Tool execution
   has zero logging, timing, or error tracking. In a streaming agent loop,
   tool calls can take seconds with no visibility.
@@ -33,7 +37,7 @@ scale as the platform is reused across projects:
 - **`ToolCommand` uses `any`** — `ToolCommand<TInput = any, TOutput = any>`
   defeats type safety at the dispatch boundary.
 - **God file** — `tools.ts` holds tool schemas, the command registry, dependency
-  wiring, and the dispatch function. 250+ lines, 4 responsibilities.
+  wiring, and the dispatch function. 231 lines, 4 responsibilities.
 - **UI tools are stubs** — `set_theme`, `navigate`, `generate_chart`,
   `generate_audio`, and `adjust_ui` return static strings. Their real effect
   happens on the client via SSE parsing. This is fine architecturally, but
@@ -65,7 +69,7 @@ A tool architecture where:
 | `src/core/use-cases/tools/BookTools.ts` | 5 book commands | Core | Clean DI via BookRepository. `SearchBooksCommand` has inline RBAC formatting. |
 | `src/core/use-cases/tools/CalculatorTool.ts` | Calculator command | Core | Clean — pure domain entity. |
 | `src/core/use-cases/tools/UiTools.ts` | 5 UI commands | Core | Zero dependencies, return static strings. No shared contract. |
-| `src/lib/chat/tools.ts` | Schemas + registry + wiring + dispatch | Lib (infra) | God file: 4 responsibilities, 250+ lines. Eagerly constructs all commands at module load. |
+| `src/lib/chat/tools.ts` | Schemas + registry + wiring + dispatch | Lib (infra) | God file: 4 responsibilities, 231 lines. Eagerly constructs all commands at module load. |
 | `src/lib/chat/orchestrator.ts` | Non-streaming tool loop | Lib | Passes `role` to `createToolResults()` |
 | `src/lib/chat/anthropic-stream.ts` | Streaming tool loop | Lib | Same role pass-through |
 | `src/adapters/FileSystemBookRepository.ts` | Reads chapters from disk | Adapter | No caching — reads all 104 files per search |
@@ -80,7 +84,7 @@ A tool architecture where:
 | `get_chapter` | `GetChapterCommand` | `BookRepository` | AUTH+ only | FS read | None |
 | `get_checklist` | `GetChecklistCommand` | `BookRepository` | AUTH+ only | FS read | None |
 | `list_practitioners` | `ListPractitionersCommand` | `BookRepository` | AUTH+ only | FS read | None |
-| `get_book_summary` | `GetBookSummaryCommand` | `BookRepository` | AUTH+ only | FS read | None |
+| `get_book_summary` | `GetBookSummaryCommand` | `BookRepository` | ANON ✅ | FS read | None |
 | `set_theme` | `SetThemeCommand` | None | ANON ✅ | Returns string | Client sets theme |
 | `adjust_ui` | `AdjustUICommand` | None | ANON ✅ | Returns string | Client adjusts UI |
 | `navigate` | `NavigateCommand` | None | ANON ✅ | Returns string | Client navigates |
@@ -91,11 +95,11 @@ A tool architecture where:
 
 | Principle | Violation | Severity |
 | --- | --- | --- |
-| **Open/Closed** | Adding a tool requires 5 file edits | High |
+| **Open/Closed** | Adding a tool requires 5 edit points across 2–3 files | High |
 | **Single Responsibility** | `tools.ts` has 4 jobs; `SearchBooksCommand` mixes data + RBAC formatting | Medium |
 | **Dependency Inversion** | `tools.ts` calls `getBookRepository()` at import time — untestable | Medium |
 | **Security** | No RBAC check at dispatch — only at schema filtering | High |
-| **Security** | `role` spread into LLM input object — overridable | Medium |
+| **Security** | `role` merged into LLM input object — trust boundary violation | Medium |
 | **Type Safety** | `ToolCommand<any, any>` defaults | Medium |
 | **Performance** | No caching on `FileSystemBookRepository` | High |
 | **Observability** | Zero logging/timing on tool execution | Medium |
@@ -364,7 +368,10 @@ RBAC formatting reusable, testable, and swappable.
 | `src/core/tool-registry/ToolExecutionContext.ts` | Core | Context type (role, userId, conversationId) |
 | `src/core/tool-registry/ToolCommand.ts` | Core | Updated `ToolCommand` interface (no `any`) |
 | `src/core/tool-registry/ToolRegistry.ts` | Core | Registry class — register, getSchemasForRole, execute |
-| `src/core/tool-registry/ToolMiddleware.ts` | Core | Middleware interface + `LoggingMiddleware` + `RbacGuardMiddleware` |
+| `src/core/tool-registry/ToolMiddleware.ts` | Core | Middleware interface + `composeMiddleware()` function |
+| `src/core/tool-registry/LoggingMiddleware.ts` | Core | Structured logging: tool name, role, duration, success/error |
+| `src/core/tool-registry/RbacGuardMiddleware.ts` | Core | Reject execution if role not in descriptor's `roles` |
+| `src/core/tool-registry/errors.ts` | Core | `ToolAccessDeniedError`, `UnknownToolError` error classes |
 | `src/core/tool-registry/ToolResultFormatter.ts` | Core | Result formatting strategy (role-aware search) |
 | `src/core/use-cases/tools/calculator.tool.ts` | Core | Calculator descriptor |
 | `src/core/use-cases/tools/search-books.tool.ts` | Core | Search books descriptor (factory, needs BookRepo) |
