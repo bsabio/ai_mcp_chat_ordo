@@ -576,22 +576,23 @@ This applies to:
 |------|-------|--------|-------------|
 | `discoverBooks()` | 5 | 0 | Valid manifest, missing manifest, invalid JSON, empty corpus, slug≠dirname |
 | Sort & validation | 2 | 0 | sortOrder sort, domain validation |
-| Cache clearing | 3 | 0 | Discovery cache, CachedBookRepo cache, combined |
+| Chapter discovery | 1 | 0 | Chapters resolved from `_corpus/{slug}/chapters/` path |
+| Cache clearing | 4 | 0 | Discovery cache, CachedBookRepo cache (x2), discovery re-scan after clear |
 | `librarian_list` | 2 | 1 | Lists books, handles empty corpus |
 | `librarian_get_book` | 2 | 1 | Returns details, throws for missing |
 | `librarian_add_book` (manual) | 4 | 1 | Creates book, rejects duplicate slug, validates fields, sortOrder |
 | `librarian_add_chapter` | 3 | 1 | Creates chapter, rejects missing book, validates content |
 | `librarian_remove_book` | 3 | 1 | Removes book + embeddings, clears cache, rejects missing |
 | `librarian_remove_chapter` | 3 | 1 | Removes chapter + embeddings, clears cache, rejects missing |
-| Path traversal | 3 | 1 | `../`, absolute paths, encoded sequences |
+| Path traversal & slug validation | 5 | 1 | `../`, dots, absolute paths, chapter traversal, single-char slug |
 | Cache invariant | 2 | 1 | Cache cleared after add, cache cleared after remove |
 | `librarian_add_book` (zip) | 4 | 2 | Valid zip, missing book.json, path traversal, oversize |
 | Zip safety | 4 | 2 | Bomb detection, symlinks, UTF-8 filenames, nested dirs |
 | Zip atomicity | 2 | 2 | Rollback on failure, temp extraction |
 | Zip edge cases | 2 | 2 | Duplicate chapters, overwrite rejection |
 
-**Sprint 0:** ~10 tests | **Sprint 1:** ~22 tests | **Sprint 2:** ~12 tests
-**Total:** ~351 tests (307 existing + 44 new)
+**Sprint 0:** ~12 tests | **Sprint 1:** ~24 tests | **Sprint 2:** ~12 tests
+**Total:** ~355 tests (307 existing + 48 new)
 
 ### 9.2 Integration Tests
 
@@ -623,7 +624,7 @@ pipeline works, search works.
 | 0.5 | Update tests — verify auto-discovery, slug mismatch, sortOrder, cache clearing | |
 | 0.6 | Run full test suite + build pipeline — zero regressions | |
 
-**Deliverable:** ~307 existing tests still pass + ~10 new, build works against `_corpus/`.
+**Deliverable:** ~307 existing tests still pass + ~12 new (~319 total), build works against `_corpus/`.
 
 ### Sprint 1 — MCP Librarian Tools (Core)
 
@@ -643,7 +644,7 @@ LLM tool interface.
 | 1.8 | Unit tests for all 6 tools (~22 tests) | |
 | 1.9 | Full suite green, build clean | |
 
-**Deliverable:** ~339 tests passing (307 + 10 + 22 new).
+**Deliverable:** ~343 tests passing (307 + 12 + 24 new).
 
 ### Sprint 2 — Zip Import
 
@@ -660,7 +661,7 @@ extracts atomically, and rolls back on failure.
 | 2.6 | Unit tests for zip mode (~12 tests) | |
 | 2.7 | Full suite green, build clean | |
 
-**Deliverable:** ~351 tests passing (339 + 12 new).
+**Deliverable:** ~355 tests passing (343 + 12 new).
 
 ---
 
