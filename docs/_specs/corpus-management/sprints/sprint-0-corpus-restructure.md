@@ -6,6 +6,9 @@
 > works.
 > **Spec ref:** §3 (directory convention), §4 (repository changes)
 > **Prerequisite:** Vector Search Sprints 0–5 complete (307 tests passing)
+>
+> **Schema change from v1.0:** `book.json` now includes `domain` (required)
+> and `tags` (optional) fields for future search scoping (spec §3.2).
 
 ---
 
@@ -72,26 +75,32 @@ spec §3.2. The data comes directly from the current hardcoded `BOOKS` array.
 
 | Directory | `book.json` |
 |-----------|-------------|
-| `_corpus/software-engineering-book/` | `{"slug":"software-engineering","title":"Software Engineering","number":"I"}` |
-| `_corpus/design-book/` | `{"slug":"design-history","title":"Design History","number":"II"}` |
-| `_corpus/ui-design-book/` | `{"slug":"ui-design","title":"UI Design","number":"III"}` |
-| `_corpus/ux-design-book/` | `{"slug":"ux-design","title":"UX Design","number":"IV"}` |
-| `_corpus/product-management-book/` | `{"slug":"product-management","title":"Product Management","number":"V"}` |
-| `_corpus/accessibility-book/` | `{"slug":"accessibility","title":"Accessibility","number":"VI"}` |
-| `_corpus/entrepreneurship-book/` | `{"slug":"entrepreneurship","title":"Entrepreneurship","number":"VII"}` |
-| `_corpus/marketing-branding-book/` | `{"slug":"marketing-branding","title":"Marketing & Branding","number":"VIII"}` |
-| `_corpus/content-strategy-book/` | `{"slug":"content-strategy","title":"Content Strategy","number":"IX"}` |
-| `_corpus/data-analytics-book/` | `{"slug":"data-analytics","title":"Data & Analytics","number":"X"}` |
+| `_corpus/software-engineering-book/` | `{"slug":"software-engineering","title":"Software Engineering","number":"I","domain":["teaching","reference"],"tags":["software-engineering","best-practices"]}` |
+| `_corpus/design-book/` | `{"slug":"design-history","title":"Design History","number":"II","domain":["teaching","reference"],"tags":["design","history"]}` |
+| `_corpus/ui-design-book/` | `{"slug":"ui-design","title":"UI Design","number":"III","domain":["teaching","reference"],"tags":["ui","design"]}` |
+| `_corpus/ux-design-book/` | `{"slug":"ux-design","title":"UX Design","number":"IV","domain":["teaching","reference"],"tags":["ux","design"]}` |
+| `_corpus/product-management-book/` | `{"slug":"product-management","title":"Product Management","number":"V","domain":["teaching","reference"],"tags":["product-management"]}` |
+| `_corpus/accessibility-book/` | `{"slug":"accessibility","title":"Accessibility","number":"VI","domain":["teaching","reference"],"tags":["accessibility","a11y"]}` |
+| `_corpus/entrepreneurship-book/` | `{"slug":"entrepreneurship","title":"Entrepreneurship","number":"VII","domain":["teaching","reference"],"tags":["entrepreneurship","business"]}` |
+| `_corpus/marketing-branding-book/` | `{"slug":"marketing-branding","title":"Marketing & Branding","number":"VIII","domain":["teaching","sales"],"tags":["marketing","branding"]}` |
+| `_corpus/content-strategy-book/` | `{"slug":"content-strategy","title":"Content Strategy","number":"IX","domain":["teaching","reference"],"tags":["content-strategy"]}` |
+| `_corpus/data-analytics-book/` | `{"slug":"data-analytics","title":"Data & Analytics","number":"X","domain":["teaching","reference"],"tags":["data","analytics"]}` |
 
-Each `book.json` is a 5-line file:
+Each `book.json` is a formatted JSON file:
 
 ```json
 {
   "slug": "software-engineering",
   "title": "Software Engineering",
-  "number": "I"
+  "number": "I",
+  "domain": ["teaching", "reference"],
+  "tags": ["software-engineering", "best-practices"]
 }
 ```
+
+- `domain` is **required** (at least one entry). Valid values: `teaching`,
+  `sales`, `customer-service`, `reference`, `internal`.
+- `tags` is **optional**. Freeform strings for finer filtering.
 
 ### Verify
 
@@ -134,6 +143,8 @@ interface BookManifest {
   slug: string;
   title: string;
   number: string;
+  domain: string[];
+  tags?: string[];
 }
 
 export class FileSystemBookRepository implements BookRepository {
@@ -167,6 +178,7 @@ export class FileSystemBookRepository implements BookRepository {
         if (typeof manifest.slug !== "string") continue;
         if (typeof manifest.title !== "string") continue;
         if (typeof manifest.number !== "string") continue;
+        if (!Array.isArray(manifest.domain) || manifest.domain.length === 0) continue;
         books.push({
           slug: manifest.slug,
           title: manifest.title,
@@ -269,9 +281,11 @@ Uses a temp directory with test fixtures — no dependency on real corpus data.
 | skips directories without book.json | Create 1 valid dir, 1 missing book.json → only 1 book returned |
 | skips directories with invalid JSON | Create dir with `book.json` containing `{invalid` → skipped, no crash |
 | skips book.json missing required fields | `book.json` with only `slug`, no `title` → skipped |
+| skips book.json with missing domain | `book.json` with slug/title/number but no `domain` → skipped |
 | returns empty for missing _corpus dir | Point docsDir at nonexistent path → returns `[]` |
 | sorts books by number | Create 3 books with numbers III, I, II → returned sorted I, II, III |
 | chapters discovered from _corpus path | Create book in `_corpus/test-book/chapters/ch00.md` → `getChaptersByBook()` returns it |
+| preserves domain and tags in discovery | `book.json` with `domain` + `tags` → values accessible on discovered book |
 | clearDiscoveryCache forces re-scan | Discover once, add new book.json, clear cache, discover again → new book appears |
 
 ### Test file: `tests/corpus/cached-repo-clear.test.ts`
@@ -318,7 +332,7 @@ npm run dev                   # site runs, search works
 ## Sprint 0 — Completion Checklist
 
 - [ ] `docs/_corpus/` created with all 10 book directories
-- [ ] `book.json` exists in each book directory
+- [ ] `book.json` exists in each book directory (with `domain` and `tags`)
 - [ ] Loose docs root files moved to `_reference/`
 - [ ] `FileSystemBookRepository` uses `discoverBooks()` — no hardcoded `BOOKS`
 - [ ] `CachedBookRepository` has `clearCache()` method

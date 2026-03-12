@@ -1,13 +1,20 @@
 # Corpus Management — System Spec
 
-> **Status:** Draft v1.0
-> **Date:** 2026-03-11
+> **Status:** Draft v2.0
+> **Date:** 2026-03-12
 > **Scope:** Restructure book content into a `docs/_corpus/` directory with
->   JSON-manifest auto-discovery, then add MCP tools for listing, adding, and
+>   JSON-manifest auto-discovery (including `domain`/`tags` metadata for future
+>   search scoping), then add "librarian" MCP tools for listing, adding, and
 >   removing corpus content — including zip-file upload for bulk import.
 > **Dependencies:** Vector Search Sprints 0–5 (complete), RBAC (complete)
 > **Affects:** `FileSystemBookRepository`, `CachedBookRepository`,
 >   `build-search-index.ts`, `mcp/embedding-server.ts`, admin tool surface
+>
+> **Metaphor:** The system uses a **Librarian / Publisher** boundary.
+> The librarian (this spec) receives, catalogs, shelves, indexes, and retrieves
+> finished content. The publisher (future) generates and produces content.
+> Content flows one way: Publisher → Librarian → Search. The librarian never
+> authors or edits — books are on the shelf or they're not.
 
 ---
 
@@ -54,7 +61,7 @@ no mechanism to accept, validate, and unpack such archives into the corpus.
    enforced by existing RBAC middleware.
 4. **Incremental by default** — existing SHA-256 change detection continues to
    work. Only changed content is re-embedded on rebuild.
-5. **Zip-ready** — the `corpus_add_book` tool accepts either individual
+5. **Zip-ready** — the `librarian_add_book` tool accepts either individual
    arguments (slug, title, number, chapter content) or a zip archive containing
    `book.json` + `chapters/*.md`. The zip path prepares for the future
    book-generation pipeline without implementing it now.
@@ -90,7 +97,9 @@ docs/_corpus/
 {
   "slug": "software-engineering",
   "title": "Software Engineering",
-  "number": "I"
+  "number": "I",
+  "domain": ["teaching", "reference"],
+  "tags": ["software-engineering", "best-practices", "design-patterns"]
 }
 ```
 
@@ -99,6 +108,13 @@ docs/_corpus/
 | `slug` | `string` | Yes | URL-safe identifier. Must be unique across corpus. Used as the `bookSlug` in source IDs (`{slug}/{chapterSlug}`). |
 | `title` | `string` | Yes | Human-readable book title. Used in search results and metadata. |
 | `number` | `string` | Yes | Display ordering (Roman numeral or digit). Used in `Book.number`. |
+| `domain` | `string[]` | Yes | Controlled vocabulary for search scoping. Valid values: `teaching`, `sales`, `customer-service`, `reference`, `internal`. A book may belong to multiple domains. |
+| `tags` | `string[]` | No | Freeform labels for finer-grained filtering. Used for metadata enrichment; not enforced by schema. |
+
+> **Design note (Option A):** Domain and tags are captured in manifests and
+> stored alongside embeddings from Sprint 0. Search-time filtering by domain
+> is deferred to a future sprint — the metadata is present so it never needs
+> to be retrofitted.
 
 ### 3.3 Chapter Convention
 
@@ -142,6 +158,8 @@ interface BookManifest {
   slug: string;
   title: string;
   number: string;
+  domain: string[];
+  tags?: string[];
 }
 
 async discoverBooks(): Promise<BookMeta[]> {
@@ -156,6 +174,7 @@ async discoverBooks(): Promise<BookMeta[]> {
       const manifest: BookManifest = JSON.parse(raw);
       // Validate required fields
       if (!manifest.slug || !manifest.title || !manifest.number) continue;
+      if (!Array.isArray(manifest.domain) || manifest.domain.length === 0) continue;
       books.push({
         slug: manifest.slug,
         title: manifest.title,
@@ -210,16 +229,16 @@ run as admin processes).
 
 | Tool | Description | Input | Sprint |
 |------|-------------|-------|--------|
-| `corpus_list` | List all books in the corpus with chapter counts | `{}` | 1 |
-| `corpus_get_book` | Get details of a single book (chapters, sizes) | `{slug}` | 1 |
-| `corpus_add_book` | Create a new book from JSON args or zip archive | `{slug, title, number, chapters?}` OR `{zip_base64}` | 1 |
-| `corpus_add_chapter` | Add a chapter to an existing book | `{book_slug, chapter_slug, content}` | 1 |
-| `corpus_remove_book` | Remove a book and clean up its embeddings | `{slug}` | 1 |
-| `corpus_remove_chapter` | Remove a single chapter and its embeddings | `{book_slug, chapter_slug}` | 1 |
+| `librarian_list` | List all books in the corpus with chapter counts | `{}` | 1 |
+| `librarian_get_book` | Get details of a single book (chapters, sizes) | `{slug}` | 1 |
+| `librarian_add_book` | Create a new book from JSON args or zip archive | `{slug, title, number, domain, tags?, chapters?}` OR `{zip_base64}` | 1 |
+| `librarian_add_chapter` | Add a chapter to an existing book | `{book_slug, chapter_slug, content}` | 1 |
+| `librarian_remove_book` | Remove a book and clean up its embeddings | `{slug}` | 1 |
+| `librarian_remove_chapter` | Remove a single chapter and its embeddings | `{book_slug, chapter_slug}` | 1 |
 
 ### 5.2 Tool Specifications
 
-#### `corpus_list`
+#### `librarian_list`
 
 **Input:** `{}` (no arguments)
 **Output:** Array of book summaries
@@ -231,6 +250,8 @@ run as admin processes).
       "slug": "software-engineering",
       "title": "Software Engineering",
       "number": "I",
+      "domain": ["teaching", "reference"],
+      "tags": ["software-engineering", "best-practices"],
       "chapterCount": 14,
       "indexed": true
     }
@@ -243,7 +264,7 @@ run as admin processes).
 **Behavior:** Scans `_corpus/`, reads each `book.json`, counts `chapters/*.md`
 files, checks if embeddings exist in the vector store for this book's chapters.
 
-#### `corpus_get_book`
+#### `librarian_get_book`
 
 **Input:** `{slug: string}`
 **Output:** Book details with chapter listing
@@ -264,7 +285,7 @@ files, checks if embeddings exist in the vector store for this book's chapters.
 }
 ```
 
-#### `corpus_add_book`
+#### `librarian_add_book`
 
 **Input (manual):**
 ```json
@@ -272,6 +293,8 @@ files, checks if embeddings exist in the vector store for this book's chapters.
   "slug": "ai-ethics",
   "title": "AI Ethics",
   "number": "XI",
+  "domain": ["teaching", "reference"],
+  "tags": ["ai", "ethics"],
   "chapters": [
     {
       "slug": "ch00-introduction",
@@ -311,7 +334,7 @@ The zip file must contain:
 }
 ```
 
-#### `corpus_add_chapter`
+#### `librarian_add_chapter`
 
 **Input:** `{book_slug: string, chapter_slug: string, content: string}`
 **Behavior:**
@@ -320,7 +343,7 @@ The zip file must contain:
 3. Clear repository cache
 4. Return confirmation
 
-#### `corpus_remove_book`
+#### `librarian_remove_book`
 
 **Input:** `{slug: string}`
 **Behavior:**
@@ -330,7 +353,7 @@ The zip file must contain:
 4. Clear repository cache
 5. Return confirmation with deleted chapter/embedding counts
 
-#### `corpus_remove_chapter`
+#### `librarian_remove_chapter`
 
 **Input:** `{book_slug: string, chapter_slug: string}`
 **Behavior:**
@@ -381,7 +404,7 @@ embeddings (source IDs present in the vector store but not in the document
 list) and delete them. This is existing behavior in `EmbeddingPipeline`.
 
 For immediate cleanup (without waiting for the next build), the
-`corpus_remove_book` tool explicitly calls `vectorStore.delete()` for each
+`librarian_remove_book` tool explicitly calls `vectorStore.delete()` for each
 chapter.
 
 ---
@@ -389,24 +412,24 @@ chapter.
 ## 7. Extracted Tool Logic
 
 Following the established pattern (`mcp/calculator-tool.ts`,
-`mcp/embedding-tool.ts`), corpus tool logic lives in a separate module:
+`mcp/embedding-tool.ts`), librarian tool logic lives in a separate module:
 
 | File | Purpose |
 |------|---------|
-| `mcp/corpus-tool.ts` | Pure functions for corpus operations (dependency-injected) |
-| `mcp/embedding-server.ts` | Registers corpus tools alongside existing embedding tools |
+| `mcp/librarian-tool.ts` | Pure functions for librarian operations (dependency-injected) |
+| `mcp/embedding-server.ts` | Registers librarian tools alongside existing embedding tools |
 
-### 7.1 `CorpusToolDeps`
+### 7.1 `LibrarianToolDeps`
 
 ```typescript
-export interface CorpusToolDeps {
+export interface LibrarianToolDeps {
   corpusDir: string;              // absolute path to docs/_corpus/
   vectorStore: VectorStore;       // for embedding cleanup on remove
   clearRepoCache: () => void;     // callback to bust CachedBookRepository
 }
 ```
 
-Corpus tools do NOT depend on the full `EmbeddingToolDeps`. They only need
+Librarian tools do NOT depend on the full `EmbeddingToolDeps`. They only need
 filesystem access, the vector store (for cleanup), and a cache-clear callback.
 
 ---
@@ -454,12 +477,12 @@ This applies to:
 | Area | Tests | Description |
 |------|-------|-------------|
 | `discoverBooks()` | 4 | Valid manifest, missing manifest, invalid JSON, empty corpus |
-| `corpus_list` | 2 | Lists books, handles empty corpus |
-| `corpus_add_book` (manual) | 3 | Creates book, rejects duplicate slug, validates fields |
-| `corpus_add_book` (zip) | 4 | Valid zip, missing book.json, path traversal rejection, oversize |
-| `corpus_add_chapter` | 3 | Creates chapter, rejects missing book, validates content |
-| `corpus_remove_book` | 3 | Removes book + embeddings, clears cache, rejects missing |
-| `corpus_remove_chapter` | 3 | Removes chapter + embeddings, clears cache, rejects missing |
+| `librarian_list` | 2 | Lists books, handles empty corpus |
+| `librarian_add_book` (manual) | 3 | Creates book, rejects duplicate slug, validates fields |
+| `librarian_add_book` (zip) | 4 | Valid zip, missing book.json, path traversal rejection, oversize |
+| `librarian_add_chapter` | 3 | Creates chapter, rejects missing book, validates content |
+| `librarian_remove_book` | 3 | Removes book + embeddings, clears cache, rejects missing |
+| `librarian_remove_chapter` | 3 | Removes chapter + embeddings, clears cache, rejects missing |
 | Path traversal | 3 | `../`, absolute paths, encoded sequences |
 | Cache invalidation | 2 | Cache cleared after add, cache cleared after remove |
 
@@ -503,13 +526,13 @@ can list, add, and remove books/chapters through the LLM tool interface.
 
 | Task | Description |
 |------|-------------|
-| 1.1 | Create `mcp/corpus-tool.ts` with extracted tool logic |
-| 1.2 | Register corpus tools in `mcp/embedding-server.ts` |
-| 1.3 | Implement `corpus_list` and `corpus_get_book` |
-| 1.4 | Implement `corpus_add_book` (manual JSON mode) |
-| 1.5 | Implement `corpus_add_chapter` |
-| 1.6 | Implement `corpus_remove_book` and `corpus_remove_chapter` |
-| 1.7 | Implement `corpus_add_book` (zip mode) |
+| 1.1 | Create `mcp/librarian-tool.ts` with extracted tool logic |
+| 1.2 | Register librarian tools in `mcp/embedding-server.ts` |
+| 1.3 | Implement `librarian_list` and `librarian_get_book` |
+| 1.4 | Implement `librarian_add_book` (manual JSON mode) |
+| 1.5 | Implement `librarian_add_chapter` |
+| 1.6 | Implement `librarian_remove_book` and `librarian_remove_chapter` |
+| 1.7 | Implement `librarian_add_book` (zip mode) |
 | 1.8 | Add path traversal and zip safety validation |
 | 1.9 | Unit tests for all 6 tools (~27 tests) |
 | 1.10 | Full suite green, build clean |
@@ -524,7 +547,7 @@ can list, add, and remove books/chapters through the LLM tool interface.
 
 A future system will generate complete books by combining LLM-generated content,
 Wikipedia research, and reference book material. This pipeline will produce a
-zip archive matching the format in §5.3. The `corpus_add_book` zip mode is
+zip archive matching the format in §5.3. The `librarian_add_book` zip mode is
 designed to be the ingestion endpoint for this pipeline.
 
 ### 11.2 Versioning

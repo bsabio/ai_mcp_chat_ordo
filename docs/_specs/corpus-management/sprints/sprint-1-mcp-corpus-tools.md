@@ -1,6 +1,6 @@
-# Sprint 1 — MCP Corpus Management Tools
+# Sprint 1 — MCP Librarian Tools
 
-> **Goal:** Add 6 corpus management tools to the MCP embedding server. Admins
+> **Goal:** Add 6 librarian tools to the MCP embedding server. Admins
 > can list, inspect, add, and remove books/chapters through the LLM chat
 > interface or any MCP client.
 > **Spec ref:** §5 (tool surface), §7 (extracted tool logic), §8 (security)
@@ -13,18 +13,18 @@
 | Asset | Purpose | Sprint 1 Use |
 |-------|---------|-------------|
 | `docs/_corpus/` | Corpus root — auto-discovered by `FileSystemBookRepository` | All tools read/write here |
-| `book.json` convention | Manifest per book | `corpus_add_book` creates these, `corpus_list` reads them |
+| `book.json` convention | Manifest per book | `librarian_add_book` creates these, `librarian_list` reads them |
 | `FileSystemBookRepository.clearDiscoveryCache()` | Busts book discovery cache | Called after every mutation |
 | `CachedBookRepository.clearCache()` | Busts all repository caches | Called after every mutation |
-| `VectorStore.delete(sourceId)` | Removes embeddings for a source | `corpus_remove_book`, `corpus_remove_chapter` |
-| `VectorStore.count(sourceType?)` | Counts stored embeddings | `corpus_list` checks indexing status |
+| `VectorStore.delete(sourceId)` | Removes embeddings for a source | `librarian_remove_book`, `librarian_remove_chapter` |
+| `VectorStore.count(sourceType?)` | Counts stored embeddings | `librarian_list` checks indexing status |
 | MCP embedding server (`mcp/embedding-server.ts`) | Existing 6-tool server | Corpus tools registered alongside |
 | `mcp/embedding-tool.ts` pattern | Extracted testable tool functions | Corpus tools follow same pattern |
-| Admin RBAC | `roles: ["ADMIN"]` on tool descriptors | Corpus tools are admin-only |
+| Admin RBAC | `roles: ["ADMIN"]` on tool descriptors | Librarian tools are admin-only |
 
 ---
 
-## Task 1.1 — Create `mcp/corpus-tool.ts`
+## Task 1.1 — Create `mcp/librarian-tool.ts`
 
 **What:** Extracted tool logic module following the established pattern. Each
 function validates input, performs filesystem + vector store operations, and
@@ -32,15 +32,15 @@ returns a plain result object. The MCP server is a thin transport wrapper.
 
 | Item | Detail |
 |------|--------|
-| **Create** | `mcp/corpus-tool.ts` |
+| **Create** | `mcp/librarian-tool.ts` |
 | **Pattern** | Matches `mcp/embedding-tool.ts` — dependency injection via interface |
 
-### `CorpusToolDeps` interface
+### `LibrarianToolDeps` interface
 
 ```typescript
 import type { VectorStore } from "@/core/search/ports/VectorStore";
 
-export interface CorpusToolDeps {
+export interface LibrarianToolDeps {
   corpusDir: string;           // absolute path to docs/_corpus/
   vectorStore: VectorStore;    // for embedding cleanup on remove
   clearCaches: () => void;     // callback to clear repo + discovery caches
@@ -50,19 +50,20 @@ export interface CorpusToolDeps {
 ### Tool functions
 
 ```typescript
-// --- corpus_list ---
-export async function corpusList(deps: CorpusToolDeps): Promise<{
+// --- librarian_list ---
+export async function librarianList(deps: LibrarianToolDeps): Promise<{
   books: Array<{
     slug: string; title: string; number: string;
+    domain: string[]; tags: string[];
     chapterCount: number; indexed: boolean;
   }>;
   totalBooks: number;
   totalChapters: number;
 }>
 
-// --- corpus_get_book ---
-export async function corpusGetBook(
-  deps: CorpusToolDeps,
+// --- librarian_get_book ---
+export async function librarianGetBook(
+  deps: LibrarianToolDeps,
   args: { slug: string },
 ): Promise<{
   slug: string; title: string; number: string;
@@ -73,11 +74,12 @@ export async function corpusGetBook(
   }>;
 }>
 
-// --- corpus_add_book (manual + zip) ---
-export async function corpusAddBook(
-  deps: CorpusToolDeps,
+// --- librarian_add_book (manual + zip) ---
+export async function librarianAddBook(
+  deps: LibrarianToolDeps,
   args: {
     slug?: string; title?: string; number?: string;
+    domain?: string[]; tags?: string[];
     chapters?: Array<{ slug: string; content: string }>;
     zip_base64?: string;
   },
@@ -86,23 +88,23 @@ export async function corpusAddBook(
   directory: string; chaptersWritten: number;
 }>
 
-// --- corpus_add_chapter ---
-export async function corpusAddChapter(
-  deps: CorpusToolDeps,
+// --- librarian_add_chapter ---
+export async function librarianAddChapter(
+  deps: LibrarianToolDeps,
   args: { book_slug: string; chapter_slug: string; content: string },
 ): Promise<{ book_slug: string; chapter_slug: string; written: boolean }>
 
-// --- corpus_remove_book ---
-export async function corpusRemoveBook(
-  deps: CorpusToolDeps,
+// --- librarian_remove_book ---
+export async function librarianRemoveBook(
+  deps: LibrarianToolDeps,
   args: { slug: string },
 ): Promise<{
   slug: string; chaptersRemoved: number; embeddingsDeleted: number;
 }>
 
-// --- corpus_remove_chapter ---
-export async function corpusRemoveChapter(
-  deps: CorpusToolDeps,
+// --- librarian_remove_chapter ---
+export async function librarianRemoveChapter(
+  deps: LibrarianToolDeps,
   args: { book_slug: string; chapter_slug: string },
 ): Promise<{ book_slug: string; chapter_slug: string; embeddingsDeleted: number }>
 ```
@@ -136,15 +138,15 @@ npx tsc --noEmit
 
 ---
 
-## Task 1.2 — Register corpus tools in `mcp/embedding-server.ts`
+## Task 1.2 — Register librarian tools in `mcp/embedding-server.ts`
 
-**What:** Add the 6 corpus tools to the existing MCP embedding server's
+**What:** Add the 6 librarian tools to the existing MCP embedding server's
 `ListToolsRequestSchema` and `CallToolRequestSchema` handlers.
 
 ### Changes to `mcp/embedding-server.ts`
 
-1. **Import** corpus tool functions from `./corpus-tool`
-2. **Build `CorpusToolDeps`** in `buildDeps()` — derive `corpusDir` from
+1. **Import** librarian tool functions from `./librarian-tool`
+2. **Build `LibrarianToolDeps`** in `buildDeps()` — derive `corpusDir` from
    `process.cwd() + "/docs/_corpus"`, reuse `vectorStore`, add `clearCaches`
    callback
 3. **Add 6 tools** to the `ListToolsRequestSchema` response
@@ -154,7 +156,7 @@ npx tsc --noEmit
 
 ```typescript
 {
-  name: "corpus_list",
+  name: "librarian_list",
   description: "List all books in the corpus with chapter counts and indexing status.",
   inputSchema: {
     type: "object" as const,
@@ -163,7 +165,7 @@ npx tsc --noEmit
   },
 },
 {
-  name: "corpus_get_book",
+  name: "librarian_get_book",
   description: "Get details of a corpus book including its chapters.",
   inputSchema: {
     type: "object" as const,
@@ -175,14 +177,24 @@ npx tsc --noEmit
   },
 },
 {
-  name: "corpus_add_book",
-  description: "Add a new book to the corpus. Provide slug/title/number/chapters, or a base64-encoded zip archive containing book.json and chapters/.",
+  name: "librarian_add_book",
+  description: "Add a new book to the corpus. Provide slug/title/number/domain/chapters, or a base64-encoded zip archive containing book.json and chapters/.",
   inputSchema: {
     type: "object" as const,
     properties: {
       slug: { type: "string", description: "Book slug (lowercase, hyphens)." },
       title: { type: "string", description: "Book title." },
       number: { type: "string", description: "Display number (e.g. 'XI')." },
+      domain: {
+        type: "array",
+        description: "Content domains (e.g. ['teaching', 'reference']).",
+        items: { type: "string" },
+      },
+      tags: {
+        type: "array",
+        description: "Optional freeform tags.",
+        items: { type: "string" },
+      },
       chapters: {
         type: "array",
         description: "Array of {slug, content} chapter objects.",
@@ -201,7 +213,7 @@ npx tsc --noEmit
   },
 },
 {
-  name: "corpus_add_chapter",
+  name: "librarian_add_chapter",
   description: "Add a chapter to an existing book in the corpus.",
   inputSchema: {
     type: "object" as const,
@@ -215,7 +227,7 @@ npx tsc --noEmit
   },
 },
 {
-  name: "corpus_remove_book",
+  name: "librarian_remove_book",
   description: "Remove a book and all its embeddings from the corpus.",
   inputSchema: {
     type: "object" as const,
@@ -227,7 +239,7 @@ npx tsc --noEmit
   },
 },
 {
-  name: "corpus_remove_chapter",
+  name: "librarian_remove_chapter",
   description: "Remove a single chapter and its embeddings from a book.",
   inputSchema: {
     type: "object" as const,
@@ -249,11 +261,11 @@ npx tsc --noEmit
 
 ---
 
-## Task 1.3 — Implement `corpus_list` and `corpus_get_book`
+## Task 1.3 — Implement `librarian_list` and `librarian_get_book`
 
 **What:** Read-only tools that scan `_corpus/` and return structured data.
 
-### `corpusList` implementation
+### `librarianList` implementation
 
 1. Read `_corpus/` directory entries
 2. For each directory with a valid `book.json`:
@@ -262,7 +274,7 @@ npx tsc --noEmit
      for `{slug}/*` pattern
 3. Return sorted inventory
 
-### `corpusGetBook` implementation
+### `librarianGetBook` implementation
 
 1. Find the book directory by matching `book.json` slug
 2. Read all `chapters/*.md` filenames
@@ -279,25 +291,25 @@ track indexing state separately.
 ### Verify
 
 ```bash
-npx vitest run tests/corpus/corpus-tools.test.ts   # targeted tests
+npx vitest run tests/corpus/librarian-tools.test.ts   # targeted tests
 ```
 
 ---
 
-## Task 1.4 — Implement `corpus_add_book` (manual JSON mode)
+## Task 1.4 — Implement `librarian_add_book` (manual JSON mode)
 
 **What:** Create a new book directory with `book.json` and chapters.
 
 ### Implementation
 
 ```typescript
-export async function corpusAddBook(deps, args) {
+export async function librarianAddBook(deps, args) {
   // 1. Determine source: zip or manual
   if (args.zip_base64) return addBookFromZip(deps, args.zip_base64);
 
   // 2. Validate required fields
   if (!args.slug || !args.title || !args.number) {
-    throw new Error("corpus_add_book requires slug, title, and number.");
+    throw new Error("librarian_add_book requires slug, title, number, and domain.");
   }
   assertValidSlug(args.slug);
 
@@ -312,7 +324,10 @@ export async function corpusAddBook(deps, args) {
   await fs.mkdir(chaptersDir, { recursive: true });
 
   // 5. Write book.json
-  const manifest = { slug: args.slug, title: args.title, number: args.number };
+  const manifest = {
+    slug: args.slug, title: args.title, number: args.number,
+    domain: args.domain, ...(args.tags ? { tags: args.tags } : {}),
+  };
   await fs.writeFile(
     path.join(bookDir, "book.json"),
     JSON.stringify(manifest, null, 2) + "\n",
@@ -344,12 +359,12 @@ export async function corpusAddBook(deps, args) {
 ### Verify
 
 ```bash
-npx vitest run tests/corpus/corpus-tools.test.ts
+npx vitest run tests/corpus/librarian-tools.test.ts
 ```
 
 ---
 
-## Task 1.5 — Implement `corpus_add_chapter`
+## Task 1.5 — Implement `librarian_add_chapter`
 
 **What:** Add a single chapter to an existing book.
 
@@ -371,16 +386,16 @@ npx vitest run tests/corpus/corpus-tools.test.ts
 ### Verify
 
 ```bash
-npx vitest run tests/corpus/corpus-tools.test.ts
+npx vitest run tests/corpus/librarian-tools.test.ts
 ```
 
 ---
 
-## Task 1.6 — Implement `corpus_remove_book` and `corpus_remove_chapter`
+## Task 1.6 — Implement `librarian_remove_book` and `librarian_remove_chapter`
 
 **What:** Delete book/chapter content and clean up associated embeddings.
 
-### `corpusRemoveBook` implementation
+### `librarianRemoveBook` implementation
 
 1. Find book directory by slug
 2. List all chapters to get source IDs (`{slug}/{chapterSlug}`)
@@ -389,7 +404,7 @@ npx vitest run tests/corpus/corpus-tools.test.ts
 5. Clear caches
 6. Return counts
 
-### `corpusRemoveChapter` implementation
+### `librarianRemoveChapter` implementation
 
 1. Find book directory and chapter file
 2. Call `vectorStore.delete("{bookSlug}/{chapterSlug}")`
@@ -405,12 +420,12 @@ npx vitest run tests/corpus/corpus-tools.test.ts
 ### Verify
 
 ```bash
-npx vitest run tests/corpus/corpus-tools.test.ts
+npx vitest run tests/corpus/librarian-tools.test.ts
 ```
 
 ---
 
-## Task 1.7 — Implement `corpus_add_book` (zip mode)
+## Task 1.7 — Implement `librarian_add_book` (zip mode)
 
 **What:** Accept a base64-encoded zip archive containing `book.json` and
 `chapters/*.md`, validate it, and extract to `_corpus/`.
@@ -419,7 +434,7 @@ npx vitest run tests/corpus/corpus-tools.test.ts
 
 ```typescript
 async function addBookFromZip(
-  deps: CorpusToolDeps,
+  deps: LibrarianToolDeps,
   zipBase64: string,
 ): Promise<{ slug: string; title: string; directory: string; chaptersWritten: number }> {
   // 1. Decode base64 to Buffer
@@ -489,7 +504,7 @@ function validateZipSafety(entries: AdmZip.IZipEntry[]): void {
 
 ```bash
 npx tsc --noEmit
-npx vitest run tests/corpus/corpus-tools.test.ts
+npx vitest run tests/corpus/librarian-tools.test.ts
 ```
 
 ---
@@ -514,41 +529,41 @@ npx vitest run tests/corpus/corpus-tools.test.ts
 ### Verify
 
 ```bash
-npx vitest run tests/corpus/corpus-security.test.ts
+npx vitest run tests/corpus/librarian-security.test.ts
 ```
 
 ---
 
-## Task 1.9 — Full unit test suite for corpus tools
+## Task 1.9 — Full unit test suite for librarian tools
 
 **What:** Complete test coverage for all 6 tool functions.
 
-### Test file: `tests/corpus/corpus-tools.test.ts`
+### Test file: `tests/corpus/librarian-tools.test.ts`
 
 Uses a temp directory created per test (via `beforeEach`/`afterEach`) with
 an `InMemoryVectorStore` — no real DB.
 
 | Test | Tool | Description |
 |------|------|-------------|
-| lists empty corpus | `corpus_list` | Empty `_corpus/` → `{ books: [], totalBooks: 0 }` |
-| lists books with chapter counts | `corpus_list` | 2 books → correct counts and indexing status |
-| gets book details with chapters | `corpus_get_book` | Returns chapters with titles and contentLength |
-| throws for missing book | `corpus_get_book` | Unknown slug → error |
-| adds book with chapters (manual) | `corpus_add_book` | Creates dir, book.json, chapter files |
-| adds book without chapters (manual) | `corpus_add_book` | Creates dir + book.json only |
-| rejects duplicate slug | `corpus_add_book` | Existing slug → error |
-| rejects missing fields | `corpus_add_book` | No title → error |
-| adds book from zip | `corpus_add_book` | Valid zip → extracted correctly |
-| rejects invalid zip | `corpus_add_book` | Zip missing book.json → error |
-| adds chapter to existing book | `corpus_add_chapter` | File written, cache cleared |
-| rejects chapter for missing book | `corpus_add_chapter` | Unknown book → error |
-| rejects empty content | `corpus_add_chapter` | Empty string → error |
-| removes book and embeddings | `corpus_remove_book` | Dir deleted, embeddings deleted, cache cleared |
-| rejects removing missing book | `corpus_remove_book` | Unknown slug → error |
-| removes chapter and embeddings | `corpus_remove_chapter` | File deleted, embeddings deleted |
-| rejects removing missing chapter | `corpus_remove_chapter` | Unknown chapter → error |
-| clears caches after add | cache | `clearCaches` called after `corpus_add_book` |
-| clears caches after remove | cache | `clearCaches` called after `corpus_remove_book` |
+| lists empty corpus | `librarian_list` | Empty `_corpus/` → `{ books: [], totalBooks: 0 }` |
+| lists books with chapter counts | `librarian_list` | 2 books → correct counts and indexing status |
+| gets book details with chapters | `librarian_get_book` | Returns chapters with titles and contentLength |
+| throws for missing book | `librarian_get_book` | Unknown slug → error |
+| adds book with chapters (manual) | `librarian_add_book` | Creates dir, book.json, chapter files |
+| adds book without chapters (manual) | `librarian_add_book` | Creates dir + book.json only |
+| rejects duplicate slug | `librarian_add_book` | Existing slug → error |
+| rejects missing fields | `librarian_add_book` | No title → error |
+| adds book from zip | `librarian_add_book` | Valid zip → extracted correctly |
+| rejects invalid zip | `librarian_add_book` | Zip missing book.json → error |
+| adds chapter to existing book | `librarian_add_chapter` | File written, cache cleared |
+| rejects chapter for missing book | `librarian_add_chapter` | Unknown book → error |
+| rejects empty content | `librarian_add_chapter` | Empty string → error |
+| removes book and embeddings | `librarian_remove_book` | Dir deleted, embeddings deleted, cache cleared |
+| rejects removing missing book | `librarian_remove_book` | Unknown slug → error |
+| removes chapter and embeddings | `librarian_remove_chapter` | File deleted, embeddings deleted |
+| rejects removing missing chapter | `librarian_remove_chapter` | Unknown chapter → error |
+| clears caches after add | cache | `clearCaches` called after `librarian_add_book` |
+| clears caches after remove | cache | `clearCaches` called after `librarian_remove_book` |
 
 **~19 functional tests + ~8 security tests from Task 1.8 = ~27 total.**
 
@@ -586,19 +601,19 @@ npm run build                 # build discovers corpus, embeds, BM25 indexes
 
 ## Sprint 1 — Completion Checklist
 
-- [ ] `mcp/corpus-tool.ts` — 6 tool functions with `CorpusToolDeps`
-- [ ] `mcp/embedding-server.ts` — 12 total tools (6 embedding + 6 corpus)
-- [ ] `corpus_list` — returns book inventory with indexing status
-- [ ] `corpus_get_book` — returns book details with chapter listing
-- [ ] `corpus_add_book` (manual) — creates book dir + book.json + chapters
-- [ ] `corpus_add_book` (zip) — validates and extracts zip archive
-- [ ] `corpus_add_chapter` — adds chapter to existing book
-- [ ] `corpus_remove_book` — removes book dir + cleans embeddings
-- [ ] `corpus_remove_chapter` — removes chapter file + cleans embeddings
+- [ ] `mcp/librarian-tool.ts` — 6 tool functions with `LibrarianToolDeps`
+- [ ] `mcp/embedding-server.ts` — 12 total tools (6 embedding + 6 librarian)
+- [ ] `librarian_list` — returns book inventory with indexing status
+- [ ] `librarian_get_book` — returns book details with chapter listing
+- [ ] `librarian_add_book` (manual) — creates book dir + book.json + chapters
+- [ ] `librarian_add_book` (zip) — validates and extracts zip archive
+- [ ] `librarian_add_chapter` — adds chapter to existing book
+- [ ] `librarian_remove_book` — removes book dir + cleans embeddings
+- [ ] `librarian_remove_chapter` — removes chapter file + cleans embeddings
 - [ ] Path traversal prevention on all filesystem operations
 - [ ] Zip safety: size limit, no traversal, no symlinks, bomb detection
 - [ ] Cache clearing after every mutation
-- [ ] ~27 unit tests for corpus tools
+- [ ] ~27 unit tests for librarian tools
 - [ ] All ~344 tests pass
 - [ ] `npm run build` clean
 
