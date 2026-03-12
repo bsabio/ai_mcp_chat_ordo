@@ -4,7 +4,7 @@
 > only — no zip). Admins can list, inspect, add, and remove books/chapters
 > through the LLM chat interface or any MCP client.
 > **Spec ref:** §5 (tool surface), §7 (extracted tool logic), §8 (security)
-> **Prerequisite:** Sprint 0 complete (auto-discovery working, ~319 tests passing)
+> **Prerequisite:** Sprint 0 complete (auto-discovery working, 320 tests passing)
 >
 > **Scope note:** Zip import mode is deferred to Sprint 2. This sprint
 > implements `librarian_add_book` with manual JSON args only.
@@ -18,7 +18,8 @@
 | `docs/_corpus/` | Corpus root — auto-discovered by `FileSystemBookRepository` | All tools read/write here |
 | `book.json` convention | Manifest per book (dir = slug, with `sortOrder`) | `librarian_add_book` creates these, `librarian_list` reads them |
 | `FileSystemBookRepository.clearDiscoveryCache()` | Busts book discovery cache | Called after every mutation |
-| `CachedBookRepository.clearCache()` | Busts all repository caches | Called after every mutation |
+| `CachedBookRepository.clearCache()` | Busts all 5 repository caches | Called after every mutation |
+| `VALID_DOMAINS` set in `FileSystemBookRepository.ts` | Controlled vocabulary: `teaching`, `sales`, `customer-service`, `reference`, `internal` | Reuse for `librarian_add_book` domain validation |
 | `VectorStore.delete(sourceId)` | Removes embeddings for a source | `librarian_remove_book`, `librarian_remove_chapter` |
 | `VectorStore.getBySourceId(sourceId)` | Checks if embeddings exist | `librarian_list`, `librarian_get_book` check indexing status |
 | MCP embedding server (`mcp/embedding-server.ts`) | Existing 6-tool server | Librarian tools registered alongside |
@@ -153,7 +154,27 @@ npx tsc --noEmit
 1. **Import** librarian tool functions from `./librarian-tool`
 2. **Build `LibrarianToolDeps`** in `buildDeps()` — derive `corpusDir` from
    `process.cwd() + "/docs/_corpus"`, reuse `vectorStore`, add `clearCaches`
-   callback
+   callback.
+
+   **Wiring note:** `getBookRepository()` returns the `BookRepository`
+   interface, which doesn't expose `clearCache()` or `clearDiscoveryCache()`.
+   `buildDeps()` must construct the repo graph directly (not via
+   `RepositoryFactory`) to capture concrete `CachedBookRepository` and
+   `FileSystemBookRepository` references. The `clearCaches` callback wraps
+   both `cached.clearCache()` and `fsRepo.clearDiscoveryCache()`.
+
+   ```typescript
+   const fsRepo = new FileSystemBookRepository();
+   const cached = new CachedBookRepository(fsRepo);
+   const librarianDeps: LibrarianToolDeps = {
+     corpusDir: path.resolve(process.cwd(), "docs/_corpus"),
+     vectorStore,
+     clearCaches: () => {
+       cached.clearCache();
+       fsRepo.clearDiscoveryCache();
+     },
+   };
+   ```
 3. **Add 6 tools** to the `ListToolsRequestSchema` response
 4. **Add 6 cases** to the `CallToolRequestSchema` switch
 
@@ -328,6 +349,19 @@ export async function librarianAddBook(
   }
   assertValidSlug(args.slug);
 
+  // 1b. Validate domain against controlled vocabulary
+  //     Same values as VALID_DOMAINS in FileSystemBookRepository:
+  //     teaching, sales, customer-service, reference, internal
+  if (!Array.isArray(args.domain) || args.domain.length === 0) {
+    throw new Error("domain must be a non-empty array.");
+  }
+  const VALID_DOMAINS = new Set(["teaching", "sales", "customer-service", "reference", "internal"]);
+  for (const d of args.domain) {
+    if (!VALID_DOMAINS.has(d)) {
+      throw new Error(`Invalid domain value: "${d}". Valid: ${[...VALID_DOMAINS].join(", ")}`);
+    }
+  }
+
   // 2. LIBRARIAN-090: directory = slug
   const bookDir = assertSafePath(deps.corpusDir, args.slug);
   if (await pathExists(bookDir)) {
@@ -488,6 +522,8 @@ an `InMemoryVectorStore` — no real DB.
 | rejects duplicate slug | `librarian_add_book` | Existing slug → error |
 | rejects missing fields | `librarian_add_book` | No title → error |
 | validates sortOrder is number | `librarian_add_book` | String sortOrder → error |
+| rejects invalid domain values | `librarian_add_book` | `domain: ["bogus"]` → error |
+| rejects empty domain array | `librarian_add_book` | `domain: []` → error |
 | adds chapter to existing book | `librarian_add_chapter` | File written, cache cleared |
 | overwrites existing chapter | `librarian_add_chapter` | Existing chapter → overwritten (idempotent) |
 | rejects chapter for missing book | `librarian_add_chapter` | Unknown book → error |
@@ -499,13 +535,13 @@ an `InMemoryVectorStore` — no real DB.
 | clears caches after add | cache | `clearCaches` called after `librarian_add_book` |
 | clears caches after remove | cache | `clearCaches` called after `librarian_remove_book` |
 
-**~19 functional tests + ~5 security tests from Task 1.7 = ~24 total.**
+**~21 functional tests + ~5 security tests from Task 1.7 = ~26 total.**
 
 ### Verify
 
 ```bash
 npx vitest run tests/corpus/
-npm test                        # full suite: ~319 + ~24 = ~343 tests
+npm test                        # full suite: 320 + ~26 = ~346 tests
 npm run build                   # clean
 ```
 
@@ -518,7 +554,7 @@ npm run build                   # clean
 ```bash
 npx tsc --noEmit              # type-check
 npm run lint                  # lint clean
-npm test                      # all ~343 tests pass
+npm test                      # all ~346 tests pass
 npm run build                 # build discovers corpus, embeds, BM25 indexes
 ```
 
@@ -527,9 +563,9 @@ npm run build                 # build discovers corpus, embeds, BM25 indexes
 | Suite | Tests |
 |-------|-------|
 | Existing (Sprints 0–5 vector search) | 307 |
-| Sprint 0 (discovery + cache) | ~12 |
-| Sprint 1 (librarian tools) | ~24 |
-| **Total** | **~343** |
+| Sprint 0 (discovery + cache + domain validation) | 13 |
+| Sprint 1 (librarian tools + security) | ~26 |
+| **Total** | **~346** |
 
 ---
 
@@ -546,10 +582,21 @@ npm run build                 # build discovers corpus, embeds, BM25 indexes
 - [ ] Path traversal prevention via `path.relative()` on all filesystem ops
 - [ ] Slug validation: lowercase kebab-case, max 100 chars
 - [ ] Cache clearing after every successful mutation (`LIBRARIAN-050`)
-- [ ] ~24 unit tests for librarian tools
-- [ ] All ~343 tests pass
+- [ ] ~26 unit tests for librarian tools (21 functional + 5 security)
+- [ ] All ~346 tests pass
 - [ ] `npm run build` clean
 
 ---
 
-## QA Deviations
+## QA Deviations from Sprint 0
+
+Changes discovered during Sprint 0 implementation and QA that affect this sprint:
+
+| Finding | Impact on Sprint 1 |
+|---------|--------------------|
+| Sprint 0 produced 13 tests (not 12) — domain validation test added during QA | Test baseline is 320, not 319 |
+| `VALID_DOMAINS` controlled vocabulary enforced at discovery time in `FileSystemBookRepository` | `librarian_add_book` must validate domain values at write time too — reject before writing `book.json` |
+| `getBookRepository()` returns `BookRepository` interface — no access to `clearCache()` or `clearDiscoveryCache()` | `buildDeps()` must construct repo graph directly (not via `RepositoryFactory`) to capture concrete types |
+| `CommandPalette.tsx` routes fixed (pre-existing bug) | No Sprint 1 impact — already committed |
+| README.md paths updated to `docs/_corpus/{slug}/` | No Sprint 1 impact — already committed |
+| Stray heredoc artifact `product-man{` cleaned up | No Sprint 1 impact — already committed |

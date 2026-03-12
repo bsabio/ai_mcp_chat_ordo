@@ -574,16 +574,16 @@ This applies to:
 
 | Area | Tests | Sprint | Description |
 |------|-------|--------|-------------|
-| `discoverBooks()` | 5 | 0 | Valid manifest, missing manifest, invalid JSON, empty corpus, slug≠dirname |
-| Sort & validation | 2 | 0 | sortOrder sort, domain validation |
+| `discoverBooks()` | 8 | 0 | Valid manifest, missing manifest, invalid JSON, missing fields, missing domain, invalid domain values, slug≠dirname, empty corpus |
+| Sort & validation | 1 | 0 | sortOrder sort |
 | Chapter discovery | 1 | 0 | Chapters resolved from `_corpus/{slug}/chapters/` path |
-| Cache clearing | 4 | 0 | Discovery cache, CachedBookRepo cache (x2), discovery re-scan after clear |
+| Cache clearing | 3 | 0 | Discovery re-scan after clear, CachedBookRepo cache (x2) |
 | `librarian_list` | 2 | 1 | Lists books, handles empty corpus |
 | `librarian_get_book` | 2 | 1 | Returns details, throws for missing |
-| `librarian_add_book` (manual) | 4 | 1 | Creates book, rejects duplicate slug, validates fields, sortOrder |
-| `librarian_add_chapter` | 3 | 1 | Creates chapter, rejects missing book, validates content |
-| `librarian_remove_book` | 3 | 1 | Removes book + embeddings, clears cache, rejects missing |
-| `librarian_remove_chapter` | 3 | 1 | Removes chapter + embeddings, clears cache, rejects missing |
+| `librarian_add_book` (manual) | 7 | 1 | Creates book with/without chapters, rejects duplicate slug, validates fields, sortOrder, invalid domain, empty domain |
+| `librarian_add_chapter` | 4 | 1 | Creates chapter, overwrites existing, rejects missing book, validates content |
+| `librarian_remove_book` | 2 | 1 | Removes book + embeddings, rejects missing |
+| `librarian_remove_chapter` | 2 | 1 | Removes chapter + embeddings, rejects missing |
 | Path traversal & slug validation | 5 | 1 | `../`, dots, absolute paths, chapter traversal, single-char slug |
 | Cache invariant | 2 | 1 | Cache cleared after add, cache cleared after remove |
 | `librarian_add_book` (zip) | 4 | 2 | Valid zip, missing book.json, path traversal, oversize |
@@ -591,8 +591,8 @@ This applies to:
 | Zip atomicity | 2 | 2 | Rollback on failure, temp extraction |
 | Zip edge cases | 2 | 2 | Duplicate chapters, overwrite rejection |
 
-**Sprint 0:** ~12 tests | **Sprint 1:** ~24 tests | **Sprint 2:** ~12 tests
-**Total:** ~355 tests (307 existing + 48 new)
+**Sprint 0:** 13 tests | **Sprint 1:** ~26 tests | **Sprint 2:** ~12 tests
+**Total:** ~358 tests (307 existing + 51 new)
 
 ### 9.2 Integration Tests
 
@@ -624,7 +624,7 @@ pipeline works, search works.
 | 0.5 | Update tests — verify auto-discovery, slug mismatch, sortOrder, cache clearing | |
 | 0.6 | Run full test suite + build pipeline — zero regressions | |
 
-**Deliverable:** ~307 existing tests still pass + ~12 new (~319 total), build works against `_corpus/`.
+**Deliverable:** 307 existing tests still pass + 13 new (320 total), build works against `_corpus/`.
 
 ### Sprint 1 — MCP Librarian Tools (Core)
 
@@ -644,7 +644,7 @@ LLM tool interface.
 | 1.8 | Unit tests for all 6 tools (~22 tests) | |
 | 1.9 | Full suite green, build clean | |
 
-**Deliverable:** ~343 tests passing (307 + 12 + 24 new).
+**Deliverable:** ~346 tests passing (320 + 26 new).
 
 ### Sprint 2 — Zip Import
 
@@ -661,7 +661,7 @@ extracts atomically, and rolls back on failure.
 | 2.6 | Unit tests for zip mode (~12 tests) | |
 | 2.7 | Full suite green, build clean | |
 
-**Deliverable:** ~355 tests passing (343 + 12 new).
+**Deliverable:** ~358 tests passing (346 + 12 new).
 
 ---
 
