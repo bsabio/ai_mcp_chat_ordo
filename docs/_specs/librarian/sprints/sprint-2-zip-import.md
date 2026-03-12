@@ -5,7 +5,7 @@
 > book-generation pipeline to produce zip archives that the librarian can
 > ingest directly.
 > **Spec ref:** §5.3 (zip spec), §8.3 (zip safety), §2 goal 6
-> **Prerequisite:** Sprint 1 complete (6 librarian tools working, ~343 tests passing)
+> **Prerequisite:** Sprint 1 complete (6 librarian tools working, 346 tests passing)
 >
 > **Feedback-driven:** This sprint was split from Sprint 1 to reduce risk
 > and isolate the zip concern (its own library dependency, rollback semantics,
@@ -87,6 +87,13 @@ async function addBookFromZip(
   }
   if (!Array.isArray(manifest.domain) || manifest.domain.length === 0) {
     throw new Error("book.json must contain a non-empty domain array.");
+  }
+  for (const d of manifest.domain) {
+    if (!VALID_DOMAINS.has(d)) {
+      throw new Error(
+        `Invalid domain value in zip book.json: "${d}". Valid: ${[...VALID_DOMAINS].join(", ")}`,
+      );
+    }
   }
   assertValidSlug(manifest.slug);
 
@@ -329,7 +336,7 @@ Helper: create test zip buffers programmatically using `adm-zip` in tests.
 |------|-------------|
 | adds book from valid zip | Zip with book.json + 2 chapters → extracted correctly to `_corpus/{slug}/` |
 | rejects zip missing book.json | Zip with only chapters/ → error |
-| rejects zip with invalid book.json | `book.json` missing required fields → error |
+| rejects zip with invalid book.json | `book.json` missing required fields or invalid domain values → error |
 | rejects zip with slug conflict | Zip slug matches existing book → error (never overwrite) |
 | rejects zip with path traversal | Entry `../../../etc/passwd` → error |
 | rejects zip exceeding size limit | Zip with > 50 MB uncompressed → error |
@@ -347,7 +354,7 @@ Helper: create test zip buffers programmatically using `adm-zip` in tests.
 ```bash
 npx vitest run tests/corpus/librarian-zip.test.ts
 npx vitest run tests/corpus/
-npm test                        # full suite: ~343 + ~12 = ~355 tests
+npm test                        # full suite: 346 + ~12 = ~358 tests
 npm run build                   # clean
 ```
 
@@ -360,7 +367,7 @@ npm run build                   # clean
 ```bash
 npx tsc --noEmit              # type-check
 npm run lint                  # lint clean
-npm test                      # all ~355 tests pass
+npm test                      # all ~358 tests pass
 npm run build                 # build discovers corpus, embeds, BM25 indexes
 ```
 
@@ -369,10 +376,10 @@ npm run build                 # build discovers corpus, embeds, BM25 indexes
 | Suite | Tests |
 |-------|-------|
 | Existing (Sprints 0–5 vector search) | 307 |
-| Sprint 0 (discovery + cache) | ~12 |
-| Sprint 1 (librarian tools — core) | ~24 |
+| Sprint 0 (discovery + cache + domain validation) | 13 |
+| Sprint 1 (librarian tools + security) | 26 |
 | Sprint 2 (zip import) | ~12 |
-| **Total** | **~355** |
+| **Total** | **~358** |
 
 ---
 
@@ -389,9 +396,20 @@ npm run build                 # build discovers corpus, embeds, BM25 indexes
 - [ ] Rollback on any failure (temp dir cleaned up)
 - [ ] `zip_base64` parameter registered on `librarian_add_book` tool schema
 - [ ] ~12 unit tests for zip mode
-- [ ] All ~355 tests pass
+- [ ] All ~358 tests pass
 - [ ] `npm run build` clean
 
 ---
 
-## QA Deviations
+## QA Deviations from Sprint 1
+
+Changes discovered during Sprint 1 implementation and QA that affect this sprint:
+
+| Finding | Impact on Sprint 2 |
+|---------|--------------------|
+| Sprint 0 produced 13 tests (not 12) — domain validation test added during QA | Test baseline updated: Sprint 0 = 13 |
+| Sprint 1 produced 26 tests (not 24) — 21 functional + 5 security = 26 | Test baseline updated: Sprint 1 = 26, total pre-Sprint-2 = 346 |
+| `VALID_DOMAINS` is module-level (not exported) in `mcp/librarian-tool.ts` | `addBookFromZip()` lives in the same file — can reference `VALID_DOMAINS` directly |
+| Domain values validated at write time in `librarianAddBook` manual mode | `addBookFromZip()` must also validate domain values — added domain validation step |
+| `AllDeps` interface pattern established in `embedding-server.ts` | Zip mode adds no new deps — `LibrarianToolDeps` is sufficient |
+| `librarian_add_book` schema has `required: ["slug", "title", "number", "sortOrder", "domain"]` | Task 2.5 must relax `required` since zip mode uses only `zip_base64` |
