@@ -1,57 +1,206 @@
 # Sprint 4 — Tool Integration
 
 > **Goal:** Wire the hybrid search engine into the existing `search_books` chat
-> tool. After this sprint, users get passage-level semantic search results in
-> the chat UI. The existing API contract is preserved — enhanced fields are additive.
-> **Spec ref:** §8, §10.2, §12 (modified files)
-> **Prerequisite:** Sprint 3 complete (hybrid search engine + handler chain)
+> tool so users get passage-level semantic search results in the chat UI. The
+> existing API contract is preserved — enhanced fields are additive.
+> **Spec ref:** §8, §10.2, §12 (modified files), Phase 5 steps 20–23
+> **Prerequisite:** Sprint 3 complete (hybrid search engine, handler chain,
+> composition root `getSearchHandler()` factory — committed `1f9c14f`)
 
 ---
 
-## Task 4.1 — Update SearchBooksCommand result format
+## Available Assets (from Sprints 0–3)
 
-**What:** Modify `SearchBooksCommand` to return `HybridSearchResult` fields
-(`matchPassage`, `matchSection`, `matchHighlight`, `rrfScore`, `vectorRank`,
-`bm25Rank`, `relevance`, `passageOffset`) alongside existing fields.
+All ports, adapters, engines, and wiring listed below already exist and are
+**imported, not created**, by Sprint 4.
+
+### Composition Root (`src/lib/chat/tool-composition-root.ts`)
+
+Currently exposes (added in Sprint 3):
+
+| Export | Purpose |
+| --- | --- |
+| `getSearchHandler(): SearchHandler` | Constructs full chain: HybridSearchHandler → BM25SearchHandler → LegacyKeywordHandler → EmptyResultHandler |
+| `getEmbeddingPipelineFactory()` | Factory for embedding pipelines (Sprint 2) |
+| `getBookPipeline()` | Book-chunk embedding pipeline (Sprint 2) |
+| `getToolRegistry()` | Tool registry with all tools |
+| `getToolExecutor()` | Middleware-composed tool executor |
+
+### Key Types
+
+| Type | Location | Relevant Fields |
+| --- | --- | --- |
+| `HybridSearchResult` | `src/core/search/types.ts` | 14 fields: bookTitle, bookNumber, bookSlug, chapterTitle, chapterSlug, rrfScore, vectorRank, bm25Rank, relevance, matchPassage, matchSection, matchHighlight, passageOffset |
+| `LibrarySearchResult` | `src/core/entities/library.ts` | bookTitle, bookNumber, bookSlug, chapterTitle, chapterSlug, matchContext, relevance, score |
+| `SearchHandler` | `src/core/search/ports/SearchHandler.ts` | `canHandle()`, `search(query, filters?)`, `setNext(handler)` |
+
+### Current Integration Point
+
+`LibrarySearchInteractor` already accepts an optional `searchHandler?: SearchHandler`
+constructor param (added in Sprint 3, Task 3.6). When present, it delegates to
+hybrid search and maps `HybridSearchResult[]` → `LibrarySearchResult[]`:
+
+```typescript
+// Current mapping (Sprint 3):
+matchPassage → matchContext
+rrfScore → score
+```
+
+**Gap:** `SearchBooksCommand` constructs its own `LibrarySearchInteractor(repo)`
+without passing a `searchHandler`. This means the hybrid path is never
+activated at runtime. Sprint 4 must inject the search handler into the command.
+
+### Current SearchBooksCommand Output
+
+```typescript
+// BookTools.ts — current output fields:
+{ book, bookNumber, chapter, chapterSlug, bookSlug, matchContext, relevance }
+```
+
+Does **not** yet include: `matchPassage`, `matchSection`, `matchHighlight`,
+`rrfScore`, `vectorRank`, `bm25Rank`, `passageOffset`.
+
+---
+
+## Task 4.1 — Inject SearchHandler into SearchBooksCommand (Phase 5.20)
+
+**What:** Modify `SearchBooksCommand` to accept an optional `SearchHandler`,
+pass it to `LibrarySearchInteractor`, and surface the enhanced
+`HybridSearchResult` fields in the tool output alongside existing fields.
 
 | Item | Detail |
 | --- | --- |
 | **Modify** | `src/core/use-cases/tools/BookTools.ts` |
+| **Modify** | `src/core/use-cases/tools/search-books.tool.ts` |
 | **Spec** | §8, Phase 5.20 |
-| **Reqs** | VSEARCH-38 |
+| **Reqs** | VSEARCH-38 (API contract preserved), VSEARCH-05, VSEARCH-06, VSEARCH-07 |
 
-### Changes
-
-The `SearchBooksCommand.execute()` now receives results from
-`LibrarySearchInteractor.searchBooks()` which may return `HybridSearchResult[]`
-when the search handler is wired. Map these to the tool output format:
+### Changes to `SearchBooksCommand`
 
 ```typescript
-// Existing fields preserved (backward compatible):
-{
-  book, bookNumber, chapter, chapterSlug, bookSlug, matchContext, relevance
+export class SearchBooksCommand implements ToolCommand<{ query: string; max_results?: number }, unknown> {
+  private readonly search: LibrarySearchInteractor;
+  constructor(repo: BookRepository, searchHandler?: SearchHandler) {
+    this.search = new LibrarySearchInteractor(repo, searchHandler);
+  }
+
+  async execute({ query, max_results = 5 }: { query: string; max_results?: number }, _context?: ToolExecutionContext) {
+    const results = await this.search.execute({ query, maxResults: Math.min(max_results, 15) });
+    if (results.length === 0) return `No results found for "${query}".`;
+
+    return results.map(r => ({
+      // Existing fields preserved (backward compatible — VSEARCH-38):
+      book: `${r.bookNumber}. ${r.bookTitle}`,
+      bookNumber: r.bookNumber,
+      chapter: r.chapterTitle,
+      chapterSlug: r.chapterSlug,
+      bookSlug: r.bookSlug,
+      matchContext: r.matchContext,
+      relevance: r.relevance,
+    }));
+  }
 }
-// New fields (additive — VSEARCH-38):
-{
-  matchPassage,     // 200-400 word passage
-  matchSection,     // heading of matching section
-  matchHighlight,   // passage with **bold** query terms
-  rrfScore,         // numeric RRF fusion score
-  vectorRank,       // rank in vector results (null if not in top 50)
-  bm25Rank,         // rank in BM25 results (null if not in top 50)
-  passageOffset,    // { start, end } char offsets in source chapter
+```
+
+> **Note on additive fields:** The `LibrarySearchResult` type currently maps
+> `matchPassage → matchContext` and `rrfScore → score`. To surface the enhanced
+> fields (`matchPassage`, `matchSection`, `matchHighlight`, `rrfScore`,
+> `vectorRank`, `bm25Rank`, `passageOffset`), `LibrarySearchResult` must be
+> extended with optional hybrid fields. The tool output then includes them
+> when present:
+
+```typescript
+// Extended LibrarySearchResult (additive — existing consumers unaffected):
+export interface LibrarySearchResult {
+  // ... existing fields ...
+  // New optional fields (populated when hybrid search is active):
+  matchPassage?: string;          // full 200-400 word passage
+  matchSection?: string | null;   // section heading
+  matchHighlight?: string;        // passage with **bold** query terms
+  rrfScore?: number;              // numeric RRF score
+  vectorRank?: number | null;     // rank in vector results
+  bm25Rank?: number | null;       // rank in BM25 results
+  passageOffset?: { start: number; end: number };
+}
+```
+
+```typescript
+// Extended tool output (when hybrid fields present):
+return results.map(r => ({
+  // Existing fields (always present):
+  book: `${r.bookNumber}. ${r.bookTitle}`,
+  bookNumber: r.bookNumber,
+  chapter: r.chapterTitle,
+  chapterSlug: r.chapterSlug,
+  bookSlug: r.bookSlug,
+  matchContext: r.matchContext,
+  relevance: r.relevance,
+  // Additive fields (present when hybrid search active):
+  ...(r.matchPassage !== undefined && {
+    matchPassage: r.matchPassage,
+    matchSection: r.matchSection,
+    matchHighlight: r.matchHighlight,
+    rrfScore: r.rrfScore,
+    vectorRank: r.vectorRank,
+    bm25Rank: r.bm25Rank,
+    passageOffset: r.passageOffset,
+  }),
+}));
+```
+
+### Changes to `search-books.tool.ts`
+
+```typescript
+import { getSearchHandler } from "@/lib/chat/tool-composition-root";
+// ... or accept searchHandler as a parameter from the composition root
+
+export function createSearchBooksTool(repo: BookRepository, searchHandler?: SearchHandler): ToolDescriptor {
+  return {
+    // ... schema unchanged ...
+    command: new SearchBooksCommand(repo, searchHandler),
+    // ...
+  };
+}
+```
+
+### Changes to `LibrarySearchInteractor`
+
+Update the hybrid path mapping to populate the new optional fields:
+
+```typescript
+if (this.searchHandler) {
+  const hybridResults = await this.searchHandler.search(request.query);
+  return hybridResults.slice(0, maxResults).map(hr => ({
+    // Existing fields:
+    bookTitle: hr.bookTitle,
+    bookNumber: hr.bookNumber,
+    bookSlug: hr.bookSlug,
+    chapterTitle: hr.chapterTitle,
+    chapterSlug: hr.chapterSlug,
+    matchContext: hr.matchPassage,
+    relevance: hr.relevance,
+    score: hr.rrfScore,
+    // New optional hybrid fields (additive):
+    matchPassage: hr.matchPassage,
+    matchSection: hr.matchSection,
+    matchHighlight: hr.matchHighlight,
+    rrfScore: hr.rrfScore,
+    vectorRank: hr.vectorRank,
+    bm25Rank: hr.bm25Rank,
+    passageOffset: hr.passageOffset,
+  }));
 }
 ```
 
 ### Verify
 
 ```bash
-npm run build && npm test   # existing search tests still pass
+npm run build && npm test   # existing search tests still pass (VSEARCH-39)
 ```
 
 ---
 
-## Task 4.2 — Update ToolResultFormatter for new fields
+## Task 4.2 — Update ToolResultFormatter for new fields (Phase 5.21)
 
 **What:** Update `RoleAwareSearchFormatter` to format the new result fields
 for the LLM context window. Passage text is included for AUTHENTICATED+ roles;
@@ -60,19 +209,49 @@ ANONYMOUS gets limited preview.
 | Item | Detail |
 | --- | --- |
 | **Modify** | `src/core/tool-registry/ToolResultFormatter.ts` |
-| **Spec** | §12 modified files |
+| **Spec** | §8, §12 modified files |
+| **Reqs** | VSEARCH-05, VSEARCH-06, VSEARCH-07 |
 
 ### Changes
 
+The current formatter only strips fields for ANONYMOUS. It must now:
+
+1. **AUTHENTICATED+ roles:** Pass through all fields including hybrid fields.
+   The LLM context gets the full passage, section heading, and highlights.
+2. **ANONYMOUS role:** Strip hybrid fields (`matchPassage`, `matchHighlight`,
+   `rrfScore`, `vectorRank`, `bm25Rank`, `passageOffset`). Keep only:
+   `book`, `bookNumber`, `chapter`, `relevance`, `matchSection` (section
+   heading is safe for ANONYMOUS).
+
 ```typescript
-// Format new fields for LLM context:
-// - Include matchPassage (full passage text)
-// - Include matchSection heading
-// - Include matchHighlight (bold query terms)
-// - Include rrfScore with 4 decimal places
-// - Include relevance label
-// ANONYMOUS: limited to matchSection + relevance only (no full passage)
+export class RoleAwareSearchFormatter implements ToolResultFormatter {
+  format(toolName: string, result: unknown, context: ToolExecutionContext): unknown {
+    if (toolName !== "search_books") return result;
+    if (!Array.isArray(result)) return result;
+    if (context.role === "ANONYMOUS") {
+      return result.map((r: Record<string, unknown>) => ({
+        book: r.book,
+        bookNumber: r.bookNumber,
+        chapter: r.chapterTitle ?? r.chapter,
+        relevance: r.relevance,
+        matchSection: r.matchSection ?? null,
+      }));
+    }
+    return result;
+  }
+}
 ```
+
+### Tests (`tests/tool-registry/tool-result-formatter.test.ts`)
+
+Update existing formatter tests to cover hybrid fields:
+
+| Test ID | Scenario |
+| --- | --- |
+| — | AUTHENTICATED: hybrid fields pass through unchanged |
+| — | ANONYMOUS: matchPassage, matchHighlight, rrfScore, vectorRank, bm25Rank stripped |
+| — | ANONYMOUS: matchSection preserved (safe metadata) |
+| — | Non-search tool results pass through unmodified |
 
 ### Verify
 
@@ -82,44 +261,36 @@ npm run build && npm test
 
 ---
 
-## Task 4.3 — Wire everything in composition root
+## Task 4.3 — Wire SearchHandler into tool registration (Phase 5.22)
 
-**What:** Wire the full search stack in `tool-composition-root.ts` using
-`EmbeddingPipelineFactory` (GoF-2) and `SearchHandlerChain` (GoF-1).
+**What:** Connect `getSearchHandler()` to `SearchBooksCommand` via the
+composition root's tool registration. The `getSearchHandler()` factory already
+exists (Sprint 3) — this task passes it through to the search tool.
 
 | Item | Detail |
 | --- | --- |
 | **Modify** | `src/lib/chat/tool-composition-root.ts` |
 | **Spec** | §10.2, Phase 5.22 |
-| **Reqs** | VSEARCH-35, VSEARCH-36, VSEARCH-45 |
+| **Reqs** | VSEARCH-35, VSEARCH-36 |
 
-### Wiring
+> **Note:** The Sprint 3 composition root already builds the full chain in
+> `getSearchHandler()`. This task only adds one line — passing the handler
+> to `createSearchBooksTool()`.
+
+### Changes
 
 ```typescript
-// Adapters
-const embedder = new LocalEmbedder();
-const vectorStore = new SQLiteVectorStore(getDb());
-const bm25IndexStore = new SQLiteBM25IndexStore(getDb());
+export function createToolRegistry(bookRepo: BookRepository): ToolRegistry {
+  const reg = new ToolRegistry(new RoleAwareSearchFormatter());
 
-// Core
-const bm25Scorer = new BM25Scorer();
-const vectorProcessor = new QueryProcessor([new LowercaseStep(), new StopwordStep(STOPWORDS)]);
-const bm25Processor = new QueryProcessor([new LowercaseStep(), new StopwordStep(STOPWORDS), new SynonymStep(SYNONYMS)]);
+  // ... stateless tools unchanged ...
 
-const engine = new HybridSearchEngine(
-  embedder, vectorStore, bm25Scorer, bm25IndexStore,
-  vectorProcessor, bm25Processor,
-  { vectorTopN: 50, bm25TopN: 50, rrfK: 60, maxResults: 10 }
-);
+  // Book tools — now with hybrid search handler
+  reg.register(createSearchBooksTool(bookRepo, getSearchHandler()));
+  // ... other book tools unchanged ...
 
-// Fallback chain (GoF-1)
-const searchHandler = new HybridSearchHandler(engine)
-  .setNext(new BM25SearchHandler(bm25Scorer, bm25IndexStore))
-  .setNext(new LegacyKeywordHandler(bookRepository))
-  .setNext(new EmptyResultHandler());
-
-// Inject into LibrarySearchInteractor
-const interactor = new LibrarySearchInteractor(bookRepository, searchHandler);
+  return reg;
+}
 ```
 
 ### Verify
@@ -130,42 +301,60 @@ npm run build && npm test   # all tests green
 
 ---
 
-## Task 4.4 — End-to-end integration test
+## Task 4.4 — Integration tests (Phase 5.23)
 
-**What:** Full E2E test: chat message → `search_books` tool → hybrid search →
-formatted results with passage context.
+**What:** Integration tests verifying the full path: tool registration →
+command execute → hybrid search → formatted results with passage context.
 
 | Item | Detail |
 | --- | --- |
-| **Create** | `tests/search/e2e-search.test.ts` |
+| **Create** | `tests/search/tool-integration.test.ts` |
+| **Modify** | existing formatter tests if needed |
 | **Spec** | Phase 5.23 |
+| **Reqs** | VSEARCH-38, VSEARCH-39 |
 
-### Tests (`tests/search/e2e-search.test.ts`)
+### Tests (`tests/search/tool-integration.test.ts`)
+
+Uses test doubles (MockEmbedder, InMemoryVectorStore, InMemoryBM25IndexStore)
+to construct the full chain without requiring real embeddings.
 
 | Test ID | Scenario |
 | --- | --- |
-| — | Chat query "user experience heuristics" → search_books → results with matchPassage |
-| — | Results include passage text through full E2E chain (cf. TEST-VS-14) |
-| TEST-VS-38 | Embeddings with source_type "book_chunk" separate from "conversation" |
-| TEST-VS-39 | Search with sourceType filter returns only matching type |
-| TEST-VS-40 | Search without filter returns results across all source types |
+| VSEARCH-38 | `search_books` returns existing fields (book, chapter, etc.) — backward compatible |
+| VSEARCH-39 | All pre-Sprint-4 search tests still pass (verified via full test suite) |
+| — | `SearchBooksCommand` with hybrid handler returns `matchPassage` in output |
+| — | `SearchBooksCommand` with hybrid handler returns `matchHighlight` with `**bold**` terms |
+| — | `SearchBooksCommand` with hybrid handler returns `matchSection` heading |
+| — | `SearchBooksCommand` without handler falls back to legacy keyword scoring |
+| — | `RoleAwareSearchFormatter` strips hybrid fields for ANONYMOUS |
+| — | `RoleAwareSearchFormatter` preserves hybrid fields for AUTHENTICATED |
 
 ### Verify
 
 ```bash
-npx vitest run tests/search/e2e-search.test.ts   # 5 tests pass
-npm run build && npm test                         # all tests green
+npx vitest run tests/search/tool-integration.test.ts   # ~8 tests pass
+npm run build && npm test                               # all tests green
 ```
 
 ---
 
 ## Sprint 4 — Completion Checklist
 
-- [ ] `SearchBooksCommand` returns enhanced `HybridSearchResult` fields (additive)
-- [ ] `ToolResultFormatter` formats passage + section + highlight fields
-- [ ] Composition root wires full stack: embedder → engine → chain → interactor
-- [ ] E2E test: chat → search_books → hybrid results with passage context
+- [ ] `LibrarySearchResult` extended with optional hybrid fields (additive)
+- [ ] `LibrarySearchInteractor` hybrid path populates new optional fields
+- [ ] `SearchBooksCommand` accepts optional `SearchHandler` via constructor
+- [ ] `search-books.tool.ts` passes `getSearchHandler()` to command
+- [ ] `SearchBooksCommand` output includes hybrid fields when present
+- [ ] `RoleAwareSearchFormatter` strips hybrid fields for ANONYMOUS
+- [ ] Composition root passes `getSearchHandler()` to tool registration
+- [ ] Integration tests: command → hybrid search → formatted output (~8 tests)
 - [ ] Existing `search_books` API contract unchanged (VSEARCH-38)
-- [ ] Existing search tests unmodified and passing (VSEARCH-39)
-- [ ] ~6 new tests passing
+- [ ] All existing tests unmodified and passing (VSEARCH-39)
 - [ ] `npm run build && npm test` — all tests green
+
+---
+
+## QA Deviations
+
+_To be populated during implementation QA. Any deviations from this sprint doc
+or the original spec will be documented here with rationale._
