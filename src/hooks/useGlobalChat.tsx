@@ -112,7 +112,7 @@ interface ChatContextType {
   loadConversation: (id: string) => Promise<void>;
   newConversation: () => void;
   deleteConversation: (id: string) => Promise<void>;
-  refreshConversations: () => Promise<void>;
+  refreshConversations: () => Promise<ConversationSummary[]>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -145,27 +145,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [input, isSending],
   );
 
-  const refreshConversations = useCallback(async () => {
+  const refreshConversations = useCallback(async (): Promise<ConversationSummary[]> => {
     setIsLoadingConversations(true);
     try {
       const res = await fetch("/api/conversations");
       // 401 is expected for anonymous users — just skip loading
-      if (res.status === 401) return;
+      if (res.status === 401) return [];
       if (res.ok) {
         const data = await res.json() as { conversations: ConversationSummary[] };
         setConversations(data.conversations);
+        return data.conversations;
       }
     } catch {
       // Silent fail — conversations list is non-critical
     } finally {
       setIsLoadingConversations(false);
     }
+    return [];
   }, []);
 
-  // Load conversations on mount
-  useEffect(() => {
-    refreshConversations();
-  }, [refreshConversations]);
+  // Load conversations on mount + auto-resume is below (after loadConversation)
 
   const newConversation = useCallback(() => {
     setConversationId(null);
@@ -215,6 +214,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingMessages(false);
     }
+  }, []);
+
+  // Load conversations on mount + auto-resume most recent
+  useEffect(() => {
+    refreshConversations().then((convos) => {
+      if (convos && convos.length > 0) {
+        loadConversation(convos[0].id);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const deleteConversation = useCallback(async (id: string) => {

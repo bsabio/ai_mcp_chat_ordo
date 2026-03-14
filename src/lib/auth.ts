@@ -96,25 +96,33 @@ const ANONYMOUS_USER: SessionUser = {
 export async function getSessionUser(): Promise<SessionUser> {
   const cookieStore = await cookies();
 
+  // Check for simulation role override (set via /api/auth/switch)
+  const mockRole = cookieStore.get(MOCK_SESSION_COOKIE_NAME)?.value as
+    | RoleName
+    | undefined;
+
   // 1. Try real session token first
   const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (sessionToken) {
     try {
-      return await validateSession(sessionToken);
+      const realUser = await validateSession(sessionToken);
+
+      // If a simulation role is active, overlay it onto the real identity
+      if (mockRole && mockRole !== realUser.roles[0]) {
+        return { ...realUser, roles: [mockRole] };
+      }
+
+      return realUser;
     } catch {
       // Invalid/expired session — fall through to mock or ANONYMOUS
     }
   }
 
-  // 2. Fall back to legacy mock system
-  const rawRole = cookieStore.get(MOCK_SESSION_COOKIE_NAME)?.value as
-    | RoleName
-    | undefined;
-
-  if (rawRole) {
+  // 2. Fall back to legacy mock system (no real session)
+  if (mockRole) {
     const db = getDb();
     const mapper = new UserDataMapper(db);
-    const user = mapper.findByActiveRole(rawRole);
+    const user = mapper.findByActiveRole(mockRole);
     if (user) return user;
   }
 

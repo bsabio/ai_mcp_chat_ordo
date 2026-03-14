@@ -30,9 +30,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.staging
 !.env.example
+!.env.production.example
+!.env.staging.example
 
 # vercel
 .vercel
@@ -41,12 +48,17 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# lighthouse reports (generated locally, not committed)
+# lighthouse reports
 lighthouse-report.json
 lighthouse-prod.json
 lighthouse-*.json
 .lighthouseci/
 
-# local research/reference files
-jack_clark.txt
-*.txt
+# SQLite database (local runtime data)
+.data/
+
+# audio artifacts
+*.mp3
+
+# lint/build output
+lint_results.txt

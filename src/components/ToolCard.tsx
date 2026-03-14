@@ -46,7 +46,7 @@ export function ToolCard({
       <Dialog.Root open={isExpanded} onOpenChange={setIsExpanded}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[99999] bg-[var(--background)]/80 backdrop-blur-md animate-in fade-in duration-200" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[100000] w-[calc(100vw-2rem)] max-w-7xl h-[90dvh] md:h-[90vh] -translate-x-1/2 -translate-y-1/2 bg-surface rounded-2xl shadow-2xl flex flex-col border border-border animate-in zoom-in-95 duration-200">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[100000] w-[calc(100vw-2rem)] max-w-7xl h-[90dvh] md:h-[90vh] -translate-x-1/2 -translate-y-1/2 bg-surface text-[var(--foreground)] rounded-2xl shadow-2xl flex flex-col border border-border animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-3">

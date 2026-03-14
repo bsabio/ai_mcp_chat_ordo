@@ -15,6 +15,7 @@ const TOOL_NAMES = {
   ADJUST_UI: "adjust_ui",
   GENERATE_CHART: "generate_chart",
   GENERATE_AUDIO: "generate_audio",
+  ADMIN_WEB_SEARCH: "admin_web_search",
 } as const;
 
 export interface PresentedMessage {
@@ -87,6 +88,16 @@ export class ChatPresenter {
             type: BLOCK_TYPES.AUDIO,
             text: typeof call.args.text === "string" ? call.args.text : "",
             title: typeof call.args.title === "string" ? call.args.title : "",
+          });
+          break;
+        case TOOL_NAMES.ADMIN_WEB_SEARCH:
+          richContent.blocks.push({
+            type: BLOCK_TYPES.WEB_SEARCH,
+            query: typeof call.args.query === "string" ? call.args.query : "",
+            allowed_domains: Array.isArray(call.args.allowed_domains)
+              ? (call.args.allowed_domains as string[])
+              : undefined,
+            model: typeof call.args.model === "string" ? call.args.model : undefined,
           });
           break;
       }

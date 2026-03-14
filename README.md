@@ -1,227 +1,262 @@
-# The Product Development Library
+# Ordo — AI Chat Console with MCP Tool Orchestration
 
 <div align="center">
 
-![Book Cover — Language as Executable Architecture](docs/_corpus/software-engineering/cover-language-as-architecture.png)
+**A production-grade AI chat system built on Next.js, Anthropic Claude, and the Model Context Protocol — with hybrid search, RBAC, and a 10-book knowledge corpus.**
 
-**A 10-book series on professional product development in the AI era — with a working codebase that proves every claim.**
-
-[Browse the Books](#the-series) · [Try the Prompts](#-prompt-companions) · [Run the Code](#getting-started) · [Read the Model's Preface](docs/_corpus/software-engineering/PREFACE-FROM-THE-MODEL.md)
+[Getting Started](#getting-started) · [Architecture](#architecture) · [Features](#features) · [The Corpus](#the-corpus) · [Development](#development)
 
 </div>
 
 ---
 
-## The Thesis
+## What Is Ordo
 
-Intelligence is concentrated energy. When you give an AI vague direction, you get vague output. When you give it precise constraints — named frameworks, explicit scope, testable acceptance criteria — the probability distribution narrows and the output sharpens. The same principle applies to human teams: shared vocabulary, documented principles, and proven patterns amplify capability.
+Ordo is an AI-powered product development advisor delivered as a chat-first web application. It connects Anthropic Claude to a **104-chapter knowledge corpus** via a **registry-based tool system** and a **hybrid BM25 + vector search engine**, giving the LLM grounded, citation-backed answers instead of hallucinated ones.
 
-This series applies that thesis across the full product development lifecycle: from software engineering through design, UX, product management, accessibility, entrepreneurship, marketing, content strategy, and data analytics. Each book grounds its principles in practitioner stories—the people who built the vocabulary we use today.
+The chat interface is the entire application — there are no separate pages to navigate. The AI uses tools to search the library, render diagrams, generate audio, switch themes, and navigate the user to content. Users register, log in, and interact through a single streaming conversation with full RBAC controlling which tools and content each role can access.
 
-This repository is both the library and the proof: a **production-grade Next.js + MCP application** built using the principles described in the texts.
+### Key Capabilities
 
-## Quality Baseline
+- **Streaming AI Chat** — SSE-based conversation with Claude, multi-round tool use (up to 4 rounds per message), rich content rendering (Markdown, Mermaid diagrams, code blocks)
+- **Hybrid Search Engine** — BM25 keyword scoring + all-MiniLM-L6-v2 vector embeddings fused via Reciprocal Rank Fusion, with query processing pipeline (stopwords, synonyms, lowercasing)
+- **15 Registry-Based Tools** — Calculator, book search, chapter retrieval, chart generation, TTS audio, UI theme control, navigation, web search — all with RBAC guards and middleware chains
+- **Role-Based Access Control** — Three roles (ANONYMOUS, AUTHENTICATED, ADMIN) with role-aware tool visibility, content gating, and system prompt directives
+- **10-Book Knowledge Corpus** — 104 chapters across software engineering, design, UX, product management, accessibility, entrepreneurship, marketing, content strategy, and data analytics
+- **MCP Servers** — Calculator and embedding servers using the Model Context Protocol SDK
+- **Conversation Persistence** — Per-user server-side conversation storage with SQLite
+- **Text-to-Speech** — OpenAI TTS-1 integration for audio generation from chat
+- **Admin Web Search** — Live web search via OpenAI GPT-5 with rich citation cards (admin-only)
+- **Theming** — Five switchable design themes (Bauhaus, Swiss, Postmodern, Skeuomorphic, Fluid) controllable via chat commands
 
-These are not aspirational targets. They are the current state, enforced on every commit by `npm run quality` ([Chapter 9](docs/_corpus/software-engineering/chapters/ch09-risk-safety-and-governance.md)).
+---
 
-| Gate | Command | Result |
-| --- | --- | --- |
-| TypeScript strict | `npm run typecheck` | 0 errors |
-| ESLint zero-warnings | `npm run lint:strict` | 0 warnings |
-| Test suite | `npm test` | 67/67 passing |
-| Lighthouse Performance | `npm run lhci:dev` | 98 / 100 |
-| Lighthouse Accessibility | | 100 / 100 |
-| Lighthouse Best Practices | | 100 / 100 |
-| Lighthouse SEO | | 100 / 100 |
+## Tech Stack
+
+| Category | Technology | Purpose |
+|----------|-----------|---------|
+| Framework | Next.js 16 (App Router, Turbopack) | Fullstack React framework |
+| Language | TypeScript 5 (strict mode) | Type safety |
+| LLM | Anthropic Claude (`@anthropic-ai/sdk`) | Chat + agentic tool use |
+| LLM (search) | OpenAI GPT-5 (`openai`) | Web search + TTS |
+| Embeddings | `@huggingface/transformers` | Local all-MiniLM-L6-v2 (384 dims) |
+| MCP | `@modelcontextprotocol/sdk` | Tool server protocol |
+| Database | `better-sqlite3` | Users, sessions, conversations, embeddings, BM25 indexes |
+| Auth | `bcryptjs` | Password hashing |
+| Styling | Tailwind CSS 4 | Utility-first CSS |
+| Testing | Vitest 4 + Testing Library | 376+ tests across 65 files |
+| Quality | ESLint 9 + Lighthouse CI | Zero-warning lint + performance auditing |
 
 ---
 
 ## Getting Started
 
 ```bash
-# 1. Install
+# 1. Clone
+git clone git@github.com:kaw393939/ai_mcp_chat_ordo.git
+cd ai_mcp_chat_ordo
+
+# 2. Install
 npm install
 
-# 2. Configure
+# 3. Configure
+cp .env.example .env
+# Edit .env — at minimum set ANTHROPIC_API_KEY
 export ANTHROPIC_API_KEY="your-key"
-export ANTHROPIC_MODEL="claude-haiku-4-5"
 
-# 3. Run
+# 4. Run
 npm run dev
 
-# 4. Verify — the same composite gate used throughout the book
+# 5. Verify
 npm run quality          # typecheck + lint:strict + test
-npm run lhci:dev         # Lighthouse against localhost
 
-# 5. Production parity (optional)
+# 6. Production (optional)
 docker compose up --build
 ```
 
----
+### Environment Variables
 
-## What's in This Repository
-
-```text
-├── docs/
-│   ├── _corpus/                     ← All 10 books (auto-discovered via book.json)
-│   │   ├── software-engineering/    ← Book I: 14 chapters + 14 prompt companions + editorial
-│   │   ├── design-history/          ← Book II: 10 chapters on design history
-│   │   ├── ui-design/               ← Book III: 10 chapters on UI engineering
-│   │   ├── ux-design/               ← Book IV: 10 chapters on UX design
-│   │   ├── product-management/      ← Book V: 10 chapters on product management
-│   │   ├── accessibility/           ← Book VI: 10 chapters on accessibility
-│   │   ├── entrepreneurship/        ← Book VII: 10 chapters on entrepreneurship
-│   │   ├── marketing-branding/      ← Book VIII: 10 chapters on marketing & branding
-│   │   ├── content-strategy/        ← Book IX: 10 chapters on content strategy
-│   │   └── data-analytics/          ← Book X: 10 chapters on data & analytics
-│   ├── operations/                  ← Runbooks, environment matrix, process model
-│   └── _planning/                   ← Series architecture & book plans (internal)
-├── src/                             ← Next.js application (Claude chat + MCP tools)
-├── mcp/                             ← MCP tool servers (calculator, typed schemas)
-├── scripts/                         ← 10 operational scripts (health, secrets, release)
-├── sprints/completed/               ← 23 archived sprint artifacts with evidence
-└── tests/                           ← 67 tests across unit, integration, policy
-```
-
----
-
-## The Series
-
-Ten books covering the full product development lifecycle. Each chapter follows the same convention: **Practitioner Story → Principle → Engineering Connection → Repository Example → Checklist.** Every Book's Chapter 9 connects its discipline to AI and the intelligence concentration thesis.
-
-### Book I — Software Engineering
-
-Fourteen chapters developing engineering judgment through the human stories behind six decades of foundational frameworks, applied to this codebase with verifiable evidence.
-
-> **How to read:** Each chapter links to its text and its prompt companion. Read the chapter for the principle, then use the prompt companion to practice it — each contains good/bad prompt pairs with candid "behind the curtain" commentary from the model.
-
-| # | Chapter | Prompt Companion |
-| --- | --------- | ----------------- |
-| 0 | [The People Behind the Principles](docs/_corpus/software-engineering/chapters/ch00-the-people-behind-the-principles.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch00-prompts-the-people-behind-the-principles.md) |
-| | *Hoare, Dijkstra, Knuth, Brooks, Liskov, Berners-Lee, and more.* | |
-| 1 | [Why This Moment Matters](docs/_corpus/software-engineering/chapters/ch01-why-this-moment-matters.md) | [4 prompts](docs/_corpus/software-engineering/prompts/ch01-prompts-why-this-moment-matters.md) |
-| 2 | [A Brief History of Control Surfaces](docs/_corpus/software-engineering/chapters/ch02-history-of-control-surfaces.md) | [4 prompts](docs/_corpus/software-engineering/prompts/ch02-prompts-history-of-control-surfaces.md) |
-| 3 | [Prompt Orchestration Primitives](docs/_corpus/software-engineering/chapters/ch03-prompt-orchestration-primitives.md) | [7 prompts](docs/_corpus/software-engineering/prompts/ch03-prompts-orchestration-primitives.md) |
-| 4 | [Named Frameworks as Compressed Programs](docs/_corpus/software-engineering/chapters/ch04-named-frameworks-as-compressed-programs.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch04-prompts-named-frameworks-as-compressed-programs.md) |
-| 5 | [The Audit-to-Sprint Execution Loop](docs/_corpus/software-engineering/chapters/ch05-audit-to-sprint-loop.md) | [7 prompts](docs/_corpus/software-engineering/prompts/ch05-prompts-audit-to-sprint-loop.md) |
-| 6 | [12-Factor in the LLM Era](docs/_corpus/software-engineering/chapters/ch06-12-factor-in-the-llm-era.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch06-prompts-12-factor-in-the-llm-era.md) |
-| 7 | [GoF Patterns for AI-Native Systems](docs/_corpus/software-engineering/chapters/ch07-gof-for-ai-native-systems.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch07-prompts-gof-for-ai-native-systems.md) |
-| 8 | [Observability, Feedback, and Evals](docs/_corpus/software-engineering/chapters/ch08-observability-feedback-and-evals.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch08-prompts-observability-feedback-evals.md) |
-| 9 | [Risk, Safety, and Operational Governance](docs/_corpus/software-engineering/chapters/ch09-risk-safety-and-governance.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch09-prompts-risk-safety-governance.md) |
-| 10 | [Case Study: IS601 Demo](docs/_corpus/software-engineering/chapters/ch10-case-study-is601-demo.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch10-prompts-case-study-is601-demo.md) |
-| 11 | [Team Operating Model](docs/_corpus/software-engineering/chapters/ch11-team-operating-model.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch11-prompts-team-operating-model.md) |
-| 12 | [Future Directions](docs/_corpus/software-engineering/chapters/ch12-future-directions.md) | [4 prompts](docs/_corpus/software-engineering/prompts/ch12-prompts-future-directions.md) |
-| 13 | [MCP + Next.js: Architecture and Capability Roadmap](docs/_corpus/software-engineering/chapters/ch13-mcp-nextjs-architecture-and-capability-roadmap.md) | [5 prompts](docs/_corpus/software-engineering/prompts/ch13-prompts-mcp-nextjs-architecture.md) |
-
----
-
-### Book II — Design History
-
-Ten chapters tracing the visual design decisions that shaped modern interfaces — from De Stijl's mathematical grids to fluid CSS calculus.
-
-| # | Chapter |
-| --- | --------- |
-| 0 | [Before the Bauhaus — The People Who Mathematized Art](docs/_corpus/design-history/chapters/ch00-before-the-bauhaus.md) |
-| 1 | [The Bauhaus Experiment — Typography as Infrastructure](docs/_corpus/design-history/chapters/ch01-bauhaus-and-the-machine.md) |
-| 2 | [The Swiss Grid — Spatial Rhythm and Mathematics](docs/_corpus/design-history/chapters/ch02-the-swiss-grid.md) |
-| 3 | [Postmodernism and Rebellion — Why We Break the Grid](docs/_corpus/design-history/chapters/ch03-postmodernism-and-rebellion.md) |
-| 4 | [The Digital Transition — Translating Physics to Pixels](docs/_corpus/design-history/chapters/ch04-the-digital-transition.md) |
-| 5 | [Skeuomorphism to Flat Design — Reducing the Noise](docs/_corpus/design-history/chapters/ch05-skeuomorphism-to-flat-design.md) |
-| 6 | [The Motion and Fluid Web Era — Design as a Calculus](docs/_corpus/design-history/chapters/ch06-the-motion-and-fluid-era.md) |
-| 7 | [Color Theory — From Newton to OKLCH](docs/_corpus/design-history/chapters/ch07-color-theory.md) |
-| 8 | [Typography — From Gutenberg to Variable Fonts](docs/_corpus/design-history/chapters/ch08-typography.md) |
-| 9 | [Industrial Design — From Loewy to Rams](docs/_corpus/design-history/chapters/ch09-industrial-design.md) |
-
----
-
-### Books III–X
-
-| Book | Topic | Chapters | Key Practitioners |
-| ------ | ------- | :--------: | ------------------- |
-| **III** | [UI Design](docs/_corpus/ui-design/chapters/) | 10 | Engelbart, Raskin, Tesler, Shneiderman, Tufte, Frost, Norman, Krug |
-| **IV** | [UX Design](docs/_corpus/ux-design/chapters/) | 10 | Nielsen, Hall, Miller, Kahneman, Cooper, Christensen, Torres |
-| **V** | [Product Management](docs/_corpus/product-management/chapters/) | 10 | Cagan, Porter, Dunford, Ries, Doerr, Ramanujam, Bush |
-| **VI** | [Accessibility](docs/_corpus/accessibility/chapters/) | 10 | Ed Roberts, Kat Holmes, Léonie Watson |
-| **VII** | [Entrepreneurship](docs/_corpus/entrepreneurship/chapters/) | 10 | Graham, Thiel, Blank, Fitzpatrick, Osterwalder |
-| **VIII** | [Marketing & Branding](docs/_corpus/marketing-branding/chapters/) | 10 | Ries & Trout, Pulizzi, Miller (StoryBrand) |
-| **IX** | [Content Strategy](docs/_corpus/content-strategy/chapters/) | 10 | Halvorson, Mailchimp Style Guide |
-| **X** | [Data & Analytics](docs/_corpus/data-analytics/chapters/) | 10 | Kaushik, Tufte |
-
----
-
-## 📋 Prompt Companions
-
-**71 prompt pairs across 14 companion documents.** Each pair shows a bad prompt and a good prompt for the same task, with candid "Behind the Curtain" commentary where the model explains — in its own voice — what it actually does when it receives each one.
-
-> *"When your context window contains vague intent, broad scope, and no acceptance criteria, the most probable output is generic, plausible, and often subtly wrong. When it contains a named framework, explicit scope boundaries, clear invariants, and testable acceptance criteria, the probability distribution narrows dramatically. The difference is not magic. It is math."*
->
-> — [Preface from the Model](docs/_corpus/software-engineering/PREFACE-FROM-THE-MODEL.md)
-
-| If you are... | Start here |
-| --- | --- |
-| Writing your first structured prompt | [Ch 3 — Primitives](docs/_corpus/software-engineering/prompts/ch03-prompts-orchestration-primitives.md) |
-| Running an audit or sprint | [Ch 5 — Audit-to-Sprint Loop](docs/_corpus/software-engineering/prompts/ch05-prompts-audit-to-sprint-loop.md) |
-| Hardening a deployment | [Ch 6 — 12-Factor](docs/_corpus/software-engineering/prompts/ch06-prompts-12-factor-in-the-llm-era.md) |
-| Refactoring architecture | [Ch 7 — GoF Patterns](docs/_corpus/software-engineering/prompts/ch07-prompts-gof-for-ai-native-systems.md) |
-| Setting up quality gates | [Ch 9 — Governance](docs/_corpus/software-engineering/prompts/ch09-prompts-risk-safety-governance.md) |
-| Working solo or in an unfamiliar domain | [Ch 11 — CEO Operating Model](docs/_corpus/software-engineering/prompts/ch11-prompts-team-operating-model.md) |
-| Designing MCP tools | [Ch 13 — MCP Architecture](docs/_corpus/software-engineering/prompts/ch13-prompts-mcp-nextjs-architecture.md) |
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `ANTHROPIC_API_KEY` | **Yes** | — | Claude API access |
+| `ANTHROPIC_MODEL` | No | `claude-haiku-4-5` | Model selection |
+| `OPENAI_API_KEY` | No | — | TTS + web search (features disabled without it) |
+| `NODE_ENV` | No | `development` | Environment mode |
+| `PORT` | No | `3000` | Server port |
 
 ---
 
 ## Architecture
 
-![MCP Architecture — Three-Layer Split](docs/_corpus/software-engineering/mcp-architecture-diagram.png)
+Ordo follows **Clean Architecture** with strict dependency inversion. The domain core has zero framework dependencies.
 
-| Layer | Responsibility | Location |
-| --- | --- | --- |
-| **Next.js** | UI, API routes, orchestration policy, provider wiring | `src/` |
-| **MCP Protocol** | Typed tool schemas, deterministic execution contracts | `mcp/` |
-| **Operations** | Health, secrets, release integrity, admin workflows | `scripts/` |
+```
+src/
+├── core/                        ← Domain layer (framework-free)
+│   ├── entities/                ← 15 entity types (User, Conversation, Message, Theme, etc.)
+│   ├── use-cases/               ← ~20 interactors (Auth, Chat, Book, Conversation, Tool)
+│   │   └── tools/               ← 15 tool descriptors with RBAC metadata
+│   ├── tool-registry/           ← Registry + middleware chain (RBAC guard, logging)
+│   ├── search/                  ← Hybrid search engine (BM25 + Vector + RRF)
+│   │   ├── ports/               ← Embedder, VectorStore, BM25IndexStore, Chunker, etc.
+│   │   └── query-steps/         ← Query processing pipeline
+│   ├── commands/                ← Command pattern (navigation, theme)
+│   └── common/                  ← UseCase interface, LoggingDecorator
+├── adapters/                    ← Interface adapters (Ports & Adapters)
+│   ├── *DataMapper.ts           ← SQLite data mappers (User, Session, Conversation, Message)
+│   ├── *Repository.ts           ← FileSystem + Cached book repositories
+│   ├── *Store.ts                ← SQLite vector/BM25 stores
+│   └── LocalEmbedder.ts         ← HuggingFace transformer embedder
+├── frameworks/ui/               ← React chat components
+├── components/                  ← 18 shared UI components
+├── hooks/                       ← 6 React hooks (chat, auth, commands, etc.)
+├── lib/                         ← Infrastructure (DB, auth, streaming, observability)
+└── app/                         ← Next.js App Router (pages + 13 API routes)
+```
+
+### API Surface
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/chat/stream` | POST | SSE streaming chat with tool use |
+| `/api/conversations` | GET/POST | List / create conversations |
+| `/api/conversations/[id]` | GET/DELETE | Get / delete conversation |
+| `/api/auth/login` | POST | Login |
+| `/api/auth/register` | POST | Register |
+| `/api/auth/logout` | POST | Logout |
+| `/api/auth/me` | GET | Current user |
+| `/api/tts` | POST | Text-to-speech generation |
+| `/api/web-search` | POST | Admin web search |
+| `/api/health/live` | GET | Liveness probe |
+| `/api/health/ready` | GET | Readiness probe |
 
 ---
 
-## Sprint Archive
+## Features
 
-This project's evolution is fully documented across **23 sprint artifacts** in [`sprints/completed/`](sprints/completed/). The four-phase sequence from [Chapter 10](docs/_corpus/software-engineering/chapters/ch10-case-study-is601-demo.md):
+### Tool System
 
-| Phase | Sprints | What was built |
-| --- | --- | --- |
-| **Feature Delivery** | 00–03 | Testing foundation, secret safety, chat policy, calculator tool |
-| **Structural Cleanup** | 04–07 | SRP refactor, streaming hardening, UI hook separation, type safety |
-| **12-Factor Hardening** | 12f-01–09 | Config/secrets, backing services, build/release/run, disposability, parity, logs, admin |
-| **GoF Extensibility** | gof-01–02 | Observer + Decorator + Chain of Responsibility, Template Method + Facade |
+15 tools registered with RBAC guards. The AI selects tools autonomously based on conversation context.
+
+| Tool | Access | Description |
+|------|--------|-------------|
+| `calculator` | All | Math calculations |
+| `search_books` | All | Hybrid BM25 + vector corpus search |
+| `get_chapter` | All | Full chapter content retrieval |
+| `get_checklist` | All | Chapter checklists |
+| `list_practitioners` | All | Key people from chapters |
+| `get_book_summary` | All | Book overviews |
+| `set_theme` | All | Switch UI design theme |
+| `adjust_ui` | All | UI adjustments |
+| `navigate` | All | Client-side navigation |
+| `generate_chart` | All | Mermaid diagram generation |
+| `generate_audio` | Authenticated+ | TTS audio generation |
+| `admin_web_search` | Admin | Live web search with citations |
+
+### Search Engine
+
+The hybrid search engine combines two ranking strategies:
+
+1. **BM25** — keyword-level scoring with tf-idf weighting, built at `npm run build:search-index`
+2. **Vector** — semantic similarity via `all-MiniLM-L6-v2` embeddings (384 dimensions, local inference)
+3. **Fusion** — Reciprocal Rank Fusion merges both ranked lists into a single result set
+
+Query processing pipeline: lowercasing → stopword removal → synonym expansion.
+
+### Auth & RBAC
+
+- Cookie-based sessions with `bcryptjs` password hashing
+- Three roles: **ANONYMOUS** (demo mode, limited tools), **AUTHENTICATED** (full access), **ADMIN** (web search, corpus management)
+- Role-aware system prompt directives — the AI adjusts its behavior and tool recommendations per role
+- Edge middleware for route protection
 
 ---
 
-## Operational Scripts
+## The Corpus
 
-| Script | Command | Purpose |
-| --- | --- | --- |
-| Environment validation | `npm run admin:validate-env` | Startup config check |
-| Secret scanning | `npm run scan:secrets` | CI-ready secret detection |
-| Stateless runtime assertion | `npm run check:stateless` | Verify no local state leaks |
-| Environment parity | `npm run parity:env` | Dev/staging/prod config alignment |
-| Health sweep | `npm run admin:health` | Readiness + liveness endpoints |
-| Diagnostics | `npm run admin:diagnostics` | Full system diagnostic |
-| Release manifest | `npm run release:prepare` | Build + generate manifest |
-| Release verify | `npm run release:verify` | Validate manifest before deploy |
+Ten books, 104 chapters covering the full product development lifecycle. Each chapter follows: **Practitioner Story → Principle → Engineering Connection → Checklist.**
 
-See [`docs/operations/`](docs/operations/) for runbooks, environment matrix, and process model.
+| Book | Topic | Chapters |
+|------|-------|:--------:|
+| I | Software Engineering | 14 |
+| II | Design History | 10 |
+| III | UI Design | 10 |
+| IV | UX Design | 10 |
+| V | Product Management | 10 |
+| VI | Accessibility | 10 |
+| VII | Entrepreneurship | 10 |
+| VIII | Marketing & Branding | 10 |
+| IX | Content Strategy | 10 |
+| X | Data & Analytics | 10 |
+
+Book I includes **14 prompt companion documents** (71 prompt pairs) with good/bad examples and "Behind the Curtain" model commentary.
+
+Books are auto-discovered via `book.json` manifests in `docs/_corpus/`. The search index is built at build time via `npm run build:search-index`.
 
 ---
 
-## Reference Materials
+## Development
 
-| Resource | Location |
-| --- | --- |
-| Model preface (fourth wall) | [`PREFACE-FROM-THE-MODEL.md`](docs/_corpus/software-engineering/PREFACE-FROM-THE-MODEL.md) |
-| Book QA report | [`BOOK-QA.md`](docs/_corpus/software-engineering/BOOK-QA.md) |
-| Audience value audit | [`BOOK-AUDIENCE-AUDIT.md`](docs/_corpus/software-engineering/BOOK-AUDIENCE-AUDIT.md) |
-| Editorial — Book I (14 chapters) | [`docs/_corpus/software-engineering/editorial/`](docs/_corpus/software-engineering/editorial/) |
-| Editorial — Book II (10 chapters) | [`docs/_corpus/design-history/editorial/`](docs/_corpus/design-history/editorial/) |
-| Design research images | [`docs/_corpus/design-history/research/`](docs/_corpus/design-history/research/) |
-| Series architecture & plans | [`docs/_planning/`](docs/_planning/) |
-| Operations runbooks | [`docs/operations/`](docs/operations/) |
-| Sprint archive (23 sprints) | [`sprints/completed/`](sprints/completed/) |
-| Runtime scripts (10) | [`scripts/`](scripts/) |
+### Quality Gates
+
+Enforced on every commit via `npm run quality`:
+
+| Gate | Command | Target |
+|------|---------|--------|
+| TypeScript strict | `npm run typecheck` | 0 errors |
+| ESLint zero-warnings | `npm run lint:strict` | 0 warnings |
+| Test suite | `npm test` | 376+ passing |
+| Lighthouse | `npm run lhci:dev` | 98+ perf, 100 a11y/bp/seo |
+
+### Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Development server (Turbopack) |
+| `npm run build` | Production build (includes search index) |
+| `npm run quality` | Typecheck + lint + test |
+| `npm run build:search-index` | Rebuild BM25 + vector indexes |
+| `npm run admin:health` | Health endpoint sweep |
+| `npm run admin:diagnostics` | Full system diagnostic |
+| `npm run scan:secrets` | Secret detection scan |
+| `npm run check:stateless` | 12-factor stateless verification |
+| `npm run release:prepare` | Build + generate release manifest |
+
+### Testing
+
+376+ tests across 65 files using Vitest 4 + Testing Library:
+
+- **Unit tests** — Entities, interactors, tools, search engine, query processing, data mappers
+- **Integration tests** — API routes, streaming, auth flows, conversation CRUD
+- **Policy tests** — RBAC enforcement, system prompt directives, tool visibility
+
+### Docker
+
+Multi-stage Dockerfile (`deps` → `builder` → `runner`) on `node:22-alpine`. Kubernetes-ready with liveness/readiness probes.
+
+```bash
+docker compose up --build
+```
+
+### Feature Specs
+
+Development follows a four-phase process: **Spec → Sprint Doc → Implementation → QA**. All specs live in [`docs/_specs/`](docs/_specs/).
+
+| Feature | Status | Sprints |
+|---------|--------|---------|
+| RBAC | Complete | 6 |
+| Tool Architecture | Complete | 5 |
+| Vector Search | Complete | 6 |
+| Web Search | Complete | 1 |
+| Librarian (corpus management) | Complete | 3 |
+| Conversation Memory | Draft | 3 |
+
+### Sprint Archive
+
+24 sprint artifacts documenting the project's evolution in [`sprints/completed/`](sprints/completed/).
+
+---
+
+## License
+
+See repository for license details.

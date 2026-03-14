@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ChatPolicyInteractor } from "@/core/use-cases/ChatPolicyInteractor";
 import { getToolRegistry } from "@/lib/chat/tool-composition-root";
+import { createAdminWebSearchTool } from "@/core/use-cases/tools/admin-web-search.tool";
 
 describe("ChatPolicyInteractor", () => {
   const basePrompt = "You are an advisor.";
@@ -62,8 +63,18 @@ describe("ToolRegistry RBAC", () => {
     expect(schemas).toHaveLength(11);
   });
 
-  it("ADMIN gets all 11 tool schemas", () => {
+  it("ADMIN gets 12 tool schemas (11 base + admin_web_search)", () => {
     const schemas = registry.getSchemasForRole("ADMIN");
-    expect(schemas).toHaveLength(11);
+    expect(schemas).toHaveLength(12);
+    const names = schemas.map((s) => s.name);
+    expect(names).toContain("admin_web_search");
+  });
+
+  it("ADMIN gets admin_web_search descriptor with correct RBAC", () => {
+    const descriptor = createAdminWebSearchTool();
+    expect(descriptor.name).toBe("admin_web_search");
+    expect(descriptor.roles).toEqual(["ADMIN"]);
+    expect(descriptor.category).toBe("content");
+    expect(descriptor.schema.input_schema.required).toEqual(["query"]);
   });
 });

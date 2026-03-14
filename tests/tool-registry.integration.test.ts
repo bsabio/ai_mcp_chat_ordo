@@ -44,9 +44,9 @@ describe("Tool Registry Integration", () => {
   });
 
   // TEST-REG-01
-  it("registry has exactly 11 tools after full composition", () => {
+  it("registry has exactly 12 tools after full composition", () => {
     const { registry } = buildStack();
-    expect(registry.getToolNames()).toHaveLength(11);
+    expect(registry.getToolNames()).toHaveLength(12);
   });
 
   // TEST-REG-02

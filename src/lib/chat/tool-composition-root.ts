@@ -39,6 +39,7 @@ import { createGetChapterTool } from "@/core/use-cases/tools/get-chapter.tool";
 import { createGetChecklistTool } from "@/core/use-cases/tools/get-checklist.tool";
 import { createListPractitionersTool } from "@/core/use-cases/tools/list-practitioners.tool";
 import { createGetBookSummaryTool } from "@/core/use-cases/tools/get-book-summary.tool";
+import { createAdminWebSearchTool } from "@/core/use-cases/tools/admin-web-search.tool";
 
 let registry: ToolRegistry | null = null;
 let composedExecute: ToolExecuteFn | null = null;
@@ -64,6 +65,9 @@ export function createToolRegistry(bookRepo: BookRepository, handler?: SearchHan
   reg.register(createGetChecklistTool(bookRepo));
   reg.register(createListPractitionersTool(bookRepo));
   reg.register(createGetBookSummaryTool(bookRepo));
+
+  // Admin-only: web search (UI component does the real work via /api/web-search)
+  reg.register(createAdminWebSearchTool());
 
   return reg;
 }

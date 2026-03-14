@@ -35,6 +35,8 @@ docs/_specs/
 | [Tool Architecture](tool-architecture/) | **Complete** | 5 (0–4) | Registry-based tool system with SOLID/GoF alignment |
 | [Vector Search](vector-search/) | **Complete** | 6 (0–5) | BM25+vector hybrid search, embedding pipeline, MCP server |
 | [Librarian](librarian/) | **Draft** | 2 (0–1) | `_corpus/` auto-discovery, MCP librarian tools, zip import |
+| [Web Search](web-search/) | **Complete** | 1 (0) | Admin web search via OpenAI GPT-5, rich UI, citations |
+| [Conversation Memory](conversation-memory/) | **Draft** | 3 (0–2) | Anonymous persistence, auto-resume, rolling summaries, conversation search |
 
 ### Roadmap
 

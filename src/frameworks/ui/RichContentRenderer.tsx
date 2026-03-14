@@ -34,6 +34,21 @@ const AudioPlayer = dynamic(
   },
 );
 
+const WebSearchResultCard = dynamic(
+  () =>
+    import("../../components/WebSearchResultCard").then(
+      (mod) => mod.WebSearchResultCard,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[72px] w-full max-w-2xl flex items-center justify-center text-xs opacity-50 animate-pulse bg-[var(--surface-muted)] rounded-xl border-theme my-2">
+        Loading Web Search...
+      </div>
+    ),
+  },
+);
+
 interface Props {
   content: RichContent;
   onLinkClick?: (slug: string) => void;
@@ -53,6 +68,8 @@ export const RichContentRenderer: React.FC<Props> = ({
           key = `audio-${block.title}-${block.text.substring(0, 50)}`;
         else if (block.type === "code-block" && block.language === "mermaid")
           key = `mermaid-${block.code.substring(0, 50)}`;
+        else if (block.type === "web-search")
+          key = `websearch-${block.query.substring(0, 60)}`;
         return <BlockRenderer key={key} block={block} onLinkClick={onLinkClick} />;
       })}
     </div>
@@ -113,6 +130,13 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
     <div className="my-2 max-w-sm">
       <AudioPlayer text={block.text} title={block.title} />
     </div>
+  ),
+  "web-search": ({ block }) => (
+    <WebSearchResultCard
+      query={block.query}
+      allowed_domains={block.allowed_domains}
+      model={block.model}
+    />
   ),
 };
 

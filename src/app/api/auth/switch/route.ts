@@ -1,23 +1,18 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { setMockSession, validateSession, type RoleName } from "@/lib/auth";
+import { getSessionUser, setMockSession, type RoleName } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
-    // Validate session — middleware ensures cookie is present
-    const cookieStore = await cookies();
-    const token = cookieStore.get("lms_session_token")?.value;
+    const user = await getSessionUser();
 
-    if (!token) {
+    if (user.roles.includes("ANONYMOUS")) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
       );
     }
 
-    const user = await validateSession(token);
-
-    // ADMIN or dev mode required
+    // ADMIN (real or simulated) or dev mode required
     const isAdmin = user.roles.includes("ADMIN");
     const isDevMode = process.env.NODE_ENV === "development";
 
