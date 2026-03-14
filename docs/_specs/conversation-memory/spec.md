@@ -594,7 +594,7 @@ filtering by both fields.
 
 6. **Library integration** — conversation search results connect back to
    the library. When a user discussed a topic from the corpus, the search
-   result can link to the relevant chapter. `[CONVO-060]`
+   result can link to the relevant chapter. `[CONVO-045]`
 
 7. **Runtime prompt management** — system prompts (base prompt and per-role
    directives) are stored in the database, versioned, and editable via MCP
@@ -670,6 +670,19 @@ filtering by both fields.
 │    → EmbeddingPipeline.indexDocument() reused from vector search     │
 │    → source_type: "conversation", source_id: "{userId}/{convId}"    │
 │    → searchable via HybridSearchEngine with VectorQuery filter      │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│               MCP Tool Servers (stdio, admin)                       │
+│                                                                     │
+│  embedding-server.ts                                                │
+│    → Corpus tools: corpus_list, corpus_search, ...                  │
+│    → Embedding tools: embed_source, reindex, ...                    │
+│    → Prompt tools: prompt_list, prompt_set, prompt_rollback (S3)    │
+│    → Analytics tools: conversation_analytics, inspect, cohort (S4)  │
+│    → Each server: own better-sqlite3 connection via getDb()         │
+│                                                                     │
+│  calculator-mcp-server.ts (standalone, 1 tool)                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -778,6 +791,14 @@ constant.
 - Garbage collection: conversations where `user_id LIKE 'anon_%' AND
   updated_at < datetime('now', '-30 days')` can be periodically pruned
 - Anonymous conversations are **not embedded** (no search indexing)
+
+**Expired session UX (_Krug_):** When an anonymous user returns after
+their session has been pruned (no active conversation found), the UI
+shows the default hero message. No error state, no alarming language.
+This is indistinguishable from a first visit — which is the correct
+behavior. Anonymous users have no expectation of permanent storage.
+If future analytics show returning-anonymous drop-off is significant,
+consider a soft message: "Welcome back! Start a new conversation below."
 
 ### 5.6 Anonymous → Authenticated Migration `[CONVO-080]`
 
@@ -936,15 +957,34 @@ with multiple existing conversations will have multiple "active" ones
 initially — the `GET /api/conversations/active` route uses `LIMIT 1` so
 this is safe. The first archive action normalizes the state.
 
+**Migration rollback strategy (_Booch_):** All schema migrations in this
+spec use `ALTER TABLE ... ADD COLUMN` (additive) or `CREATE TABLE`
+(new). These are forward-only — SQLite does not support `DROP COLUMN`
+prior to 3.35.0. Rollback approach:
+- New columns with defaults are harmless to old code (ignored)
+- New tables are harmless to old code (not queried)
+- If a sprint must be reverted, deploy the previous code version; the
+  extra columns/tables remain but are inert
+- Destructive rollback (dropping columns/tables) is never required for
+  any sprint in this spec
+- Data-only rollback: `conversation_events` is append-only; deleting
+  events doesn't affect core conversation functionality
+
 ### 7.3 "New Conversation" Flow
 
-1. Client calls `POST /api/conversations/active/archive`
-2. Server: `interactor.archiveActive(userId)`:
+1. Client shows a brief inline confirmation: **"Start fresh? Your
+   current conversation will be saved and searchable."** with
+   **[Start fresh]** / **[Cancel]** actions. This prevents accidental
+   loss of long conversations. (_Krug_: users need a safety net for
+   irreversible actions, but a modal dialog is overkill — an inline
+   prompt beneath the button is sufficient.)
+2. On confirm → client calls `POST /api/conversations/active/archive`
+3. Server: `interactor.archiveActive(userId)`:
    - Sets current active conversation's status to `"archived"`
    - If the conversation has unembedded turns → enqueue for embedding (Sprint 2)
-3. Response: `200` (or `404` if no active conversation)
-4. Client: `setConversationId(null)`, `dispatch({ type: "REPLACE_ALL", messages: [] })`
-5. Next user message → stream route auto-creates a new active conversation
+4. Response: `200` (or `404` if no active conversation)
+5. Client: `setConversationId(null)`, `dispatch({ type: "REPLACE_ALL", messages: [] })`
+6. Next user message → stream route auto-creates a new active conversation
 
 ### 7.4 Constants Adjustment
 
@@ -1055,6 +1095,13 @@ When building the message history for an LLM call in the stream route:
 This keeps the context window bounded. The raw messages remain in the
 database for full-fidelity search indexing.
 
+**Trust signal (_Krug_):** When the context window includes a summary,
+the system prompt appends a brief note: `"[I have context from our
+earlier discussion.]"` This gives the user a signal that the advisor
+remembered without requiring any user action or UI chrome. The note
+is part of the system prompt, not a visible UI element — it surfaces
+only when Claude naturally references prior context.
+
 **Implementation location:** The stream route currently passes the full
 `messages` array to `runClaudeAgentLoopStream()`. The context window
 builder will be a new function that filters messages based on the most
@@ -1131,6 +1178,19 @@ if (sourceType === "conversation") {
 - **On archive** — when a conversation is archived via
   `POST /api/conversations/active/archive`, embed all its turns
 - **Not on every message** — too expensive; archives are stable
+
+**Embedding model version tracking (_Hinton_):** Each embedding record
+already stores `model_version` (Section 2.11). When the embedding model
+is changed (e.g., from `all-MiniLM-L6-v2@1.0` to a new version), old
+conversation embeddings become incomparable with new query embeddings.
+Re-indexing strategy:
+- The existing `ChangeDetector` compares `model_version` on stored
+  embeddings against the current model. Mismatches trigger re-embedding.
+- For conversations: a batch re-index job (already available via MCP
+  `reindex` tool) processes all `source_type = 'conversation'` records
+  with stale `model_version`.
+- This is the same strategy used for corpus content — no special
+  conversation-specific logic needed.
 
 **Source ID:** `"{userId}/{conversationId}"` — the `source_id` prefix
 enables user-scoped search queries.
@@ -1224,6 +1284,16 @@ or asks "what did we talk about."
 
 **ANONYMOUS** — no change (conversations not embedded; no search tool).
 
+**Discoverability (_Krug_):** The role directive tells Claude the tool
+exists, but users need a nudge too. In the hero message (shown when no
+active conversation exists or after archiving), include a brief hint:
+*"Tip: You can ask me to recall past discussions — try 'What did we
+talk about regarding [topic]?'"* This appears once and teaches the
+capability without adding persistent UI. Also: the first time Claude
+returns a `search_my_conversations` result, the response should
+naturally reference the source: *"From our conversation on [date]..."*
+to establish the pattern.
+
 ---
 
 ## 11. Security & Privacy
@@ -1297,8 +1367,9 @@ CREATE INDEX IF NOT EXISTS idx_conv_events_created ON conversation_events(create
 
 ### 12.4 Emitter
 
-A lightweight `ConversationEventEmitter` utility, not a full domain
-event bus. Used inline at the point of action:
+A lightweight `ConversationEventRecorder` utility — a synchronous
+append-only writer, not a pub/sub event bus. Used inline at the point
+of action:
 
 ```typescript
 // src/core/use-cases/ConversationEventEmitter.ts
@@ -1310,10 +1381,10 @@ export interface ConversationEventRepository {
   }): Promise<void>;
 }
 
-export class ConversationEventEmitter {
+export class ConversationEventRecorder {
   constructor(private readonly repo: ConversationEventRepository) {}
 
-  async emit(
+  async record(
     conversationId: string,
     eventType: string,
     metadata: Record<string, unknown> = {},
@@ -1325,6 +1396,11 @@ export class ConversationEventEmitter {
 
 **Adapter:** `ConversationEventDataMapper` implements the repository
 with a simple INSERT into `conversation_events`.
+
+> **Naming note (_Booch_):** This is a recorder, not an emitter. There
+> are no subscribers, no event bus, no decoupled listeners — just a
+> synchronous write to an append-only table. The name
+> `ConversationEventRecorder` reflects the actual pattern.
 
 ### 12.5 Extended Conversation Metadata
 
@@ -1360,6 +1436,28 @@ ALTER TABLE messages ADD COLUMN token_estimate INTEGER NOT NULL DEFAULT 0;
 Estimated as `Math.ceil(content.length / 4)` — a simple chars÷4
 heuristic. No `tiktoken` dependency needed. Accurate enough for
 analytics and context-window budgeting.
+
+### 12.7 Summarization Quality Gate `[CONVO-030]`
+
+LLM summaries can hallucinate or drop critical details. To mitigate:
+
+1. **Mechanical verification** — after generating a summary, verify that
+   it preserves: (a) the count of user messages covered (±1), (b) any
+   tool names referenced in the original messages. If the summary
+   mentions a tool not present in the source messages, or omits a tool
+   that was used, log a warning. This is a heuristic, not a hard gate.
+
+2. **Original messages retained** — summaries never delete the source
+   messages. They remain in the database for search indexing and for
+   auditing the summary against the original content.
+
+3. **`coversUpToMessageId`** — the summary part records which message
+   it covers through, enabling verification of coverage.
+
+> **Note (_Hinton_):** The summary is a lossy compression. The quality
+> gate is intentionally lightweight — a full semantic equivalence check
+> would require a second LLM call and isn't worth the cost. The key
+> safety net is that originals are never deleted.
 
 ---
 
@@ -1465,26 +1563,48 @@ export class ChatPolicyInteractor {
 }
 ```
 
-New:
+New (uses Null Object pattern via `DefaultingSystemPromptRepository`):
+
 ```typescript
-export class ChatPolicyInteractor {
+// Decorator that returns fallback content when the DB has no active prompt
+export class DefaultingSystemPromptRepository implements SystemPromptRepository {
   constructor(
-    private readonly promptRepo: SystemPromptRepository,
-    private readonly fallbackBasePrompt: string,
+    private readonly inner: SystemPromptRepository,
+    private readonly fallbackBase: string,
     private readonly fallbackDirectives: Record<RoleName, string>,
   ) {}
+
+  async getActive(role: string, promptType: string): Promise<SystemPrompt> {
+    const result = await this.inner.getActive(role, promptType);
+    if (result) return result;
+    // Return a Null Object with fallback content
+    const content = promptType === "base"
+      ? this.fallbackBase
+      : this.fallbackDirectives[role as RoleName] ?? "";
+    return {
+      id: "fallback", role, promptType: promptType as "base" | "role_directive",
+      content, version: 0, isActive: true, createdAt: "", createdBy: null, notes: "hardcoded fallback",
+    };
+  }
+  // delegate all other methods to this.inner
+}
+
+export class ChatPolicyInteractor {
+  constructor(private readonly promptRepo: SystemPromptRepository) {}
 
   async execute({ role }: { role: RoleName }): Promise<string> {
     const base = await this.promptRepo.getActive("ALL", "base");
     const directive = await this.promptRepo.getActive(role, "role_directive");
-
-    const baseText = base?.content ?? this.fallbackBasePrompt;
-    const directiveText = directive?.content ?? this.fallbackDirectives[role] ?? "";
-
-    return baseText + directiveText;
+    return base!.content + directive!.content;
   }
 }
 ```
+
+> **Pattern note (_GoF_):** Fallback logic lives in a Decorator
+> (`DefaultingSystemPromptRepository`), not in the interactor. The
+> interactor has a single responsibility: assemble base + directive.
+> The Null Object guarantee means `getActive()` never returns null,
+> so the interactor contains zero null-check logic.
 
 The hardcoded prompts become fallback defaults — the system works even
 if the database is empty. Once the seed migration runs, all prompts are
@@ -1497,9 +1617,12 @@ served from the database.
 ```typescript
 export async function buildSystemPrompt(role: RoleName): Promise<string> {
   const db = getDb();
-  const promptRepo = new SystemPromptDataMapper(db);
+  const innerRepo = new SystemPromptDataMapper(db);
+  const promptRepo = new DefaultingSystemPromptRepository(
+    innerRepo, BASE_PROMPT, ROLE_DIRECTIVES,
+  );
   const interactor = new LoggingDecorator(
-    new ChatPolicyInteractor(promptRepo, BASE_PROMPT, ROLE_DIRECTIVES),
+    new ChatPolicyInteractor(promptRepo),
     "ChatPolicy",
   );
   return interactor.execute({ role });
@@ -1601,7 +1724,7 @@ Returns aggregate metrics:
 | `funnel` | Stage counts: anonymous sessions → first message → 5+ messages → registration → continued authenticated usage. Drop-off rate per stage. |
 | `engagement` | Message count distribution (histogram buckets), return rate (sessions with conversations updated on >1 distinct day), top conversation titles |
 | `tool_usage` | Tool call counts by name, tool calls by role, tools that precede registration events (correlation), tools that precede session abandonment |
-| `drop_off` | Conversations with no messages in last 7 days, last message content preview (first 100 chars), tool usage pattern before drop-off, grouped by anonymous vs authenticated |
+| `drop_off` | Conversations inactive for >2× the user's median inter-session gap (or >7 days if <3 sessions), last message content preview (first 100 chars), tool usage pattern before drop-off, grouped by anonymous vs authenticated. For anonymous users with a single session, uses absolute 48-hour inactivity threshold. |
 
 **SQL examples:**
 
@@ -1636,14 +1759,20 @@ SELECT COUNT(*) FROM conversations
 SELECT COUNT(*) FROM conversations
   WHERE converted_from IS NOT NULL AND created_at > ?;
 
--- Stage 5: Continued after conversion (authenticated messages after conversion event)
+-- Stage 5: Continued after conversion (messages exist after conversion event)
+-- Uses rowid for ordering (monotonic in SQLite) instead of datetime
+-- to avoid second-granularity collisions
 SELECT COUNT(DISTINCT c.id) FROM conversations c
   JOIN conversation_events ce ON ce.conversation_id = c.id
   WHERE ce.event_type = 'converted'
-  AND c.message_count > (
-    SELECT COUNT(*) FROM messages m
+  AND EXISTS (
+    SELECT 1 FROM messages m
     WHERE m.conversation_id = c.id
-    AND m.created_at < ce.created_at
+    AND m.rowid > (
+      SELECT MAX(m2.rowid) FROM messages m2
+      WHERE m2.conversation_id = c.id
+      AND m2.created_at <= ce.created_at
+    )
   )
   AND c.created_at > ?;
 ```
@@ -1682,8 +1811,19 @@ Compares behavior across user groups:
 | `converted` | `converted_from IS NOT NULL` |
 
 Returns side-by-side statistics for the two cohorts on the requested
-metric. Key question this answers: "Do users who convert use different
+metric. Each cohort result includes: `count` (sample size), `mean`,
+`median`, `stddev`, and `p95`. When the smaller cohort has fewer than
+30 samples, the result includes a `low_sample_warning: true` flag so
+admins know the comparison lacks statistical power.
+
+Key question this answers: "Do users who convert use different
 tools or engage differently than those who don't?"
+
+> **Note (_Hinton_):** Without sample sizes and variance measures,
+> aggregate comparisons are misleading. An admin seeing "converted
+> users average 12 messages vs 8 for anonymous" needs to know if
+> that's N=500 or N=5. The `low_sample_warning` flag prevents
+> premature optimization decisions based on insufficient data.
 
 ### 14.3 Implementation Location
 
@@ -1716,7 +1856,7 @@ access.
 | `ConversationChunker` | 4 | Turn pairing; context prefix; summary as document chunk; empty conversation |
 | `SearchMyConversationsCommand` | 2 | User-scoped results; no cross-user leakage |
 | `MessagePart` summary type | 1 | Round-trip serialize/deserialize of summary part |
-| `ConversationEventEmitter` | 3 | Records event; stores metadata as JSON; handles missing conversation gracefully |
+| `ConversationEventRecorder` | 3 | Records event; stores metadata as JSON; handles missing conversation gracefully |
 | `migrateAnonymousConversations` | 3 | Updates user_id; sets converted_from; records conversion event |
 | `SystemPromptRepository` | 5 | getActive returns active; createVersion increments; activate swaps; listVersions ordered; getByVersion specific |
 | `ChatPolicyInteractor` (DB) | 3 | Uses DB prompt when available; falls back to hardcoded; combines base + directive |
@@ -1756,7 +1896,7 @@ ensures no data is lost on registration.
 | 0.4 | Schema migration: `token_estimate` column on `messages` | CONVO-070 |
 | 0.5 | Add `findActiveByUser()` and `archiveByUser()` to `ConversationRepository` port | CONVO-010, CONVO-050 |
 | 0.6 | Implement in `ConversationDataMapper` | CONVO-010, CONVO-050 |
-| 0.7 | Implement `ConversationEventEmitter` use-case + `ConversationEventDataMapper` adapter | CONVO-070 |
+| 0.7 | Implement `ConversationEventRecorder` use-case + `ConversationEventDataMapper` adapter | CONVO-070 |
 | 0.8 | Implement `resolveUserId()` helper with `lms_anon_session` cookie | CONVO-020 |
 | 0.9 | Implement `migrateAnonymousConversations()` in `ConversationInteractor` | CONVO-080 |
 | 0.10 | Wire migration into registration flow (NextAuth callback or register route) | CONVO-080 |
@@ -1830,7 +1970,8 @@ the anonymous user experience.
 | 3.3 | Seed migration: insert each `ROLE_DIRECTIVES[role]` as version 1 (`prompt_type = 'role_directive'`) | CONVO-060 |
 | 3.4 | Define `SystemPromptRepository` port | CONVO-060 |
 | 3.5 | Implement `SystemPromptDataMapper` adapter | CONVO-060 |
-| 3.6 | Refactor `ChatPolicyInteractor`: constructor takes `SystemPromptRepository` + fallback constants | CONVO-060 |
+| 3.6 | Create `DefaultingSystemPromptRepository` decorator (Null Object pattern for fallbacks) | CONVO-060 |
+| 3.6a | Refactor `ChatPolicyInteractor`: constructor takes `SystemPromptRepository` only (no fallback args) | CONVO-060 |
 | 3.7 | Update `buildSystemPrompt()` in `policy.ts` to wire `SystemPromptDataMapper` | CONVO-060 |
 | 3.8 | Implement `prompt_list` MCP tool in `mcp/embedding-server.ts` | CONVO-060 |
 | 3.9 | Implement `prompt_get` MCP tool | CONVO-060 |
