@@ -106,7 +106,7 @@ describe("Sprint 4 — Tool Integration", () => {
 
     it("strips hybrid fields for ANONYMOUS", async () => {
       const rawResult = await command.execute({ query: "bauhaus" }, authCtx);
-      const formatted = formatter.format("search_books", rawResult, anonCtx) as Record<string, unknown>[];
+      const formatted = formatter.format("search_corpus", rawResult, anonCtx) as Record<string, unknown>[];
       expect(formatted).toHaveLength(1);
       expect(formatted[0]).toHaveProperty("book");
       expect(formatted[0]).toHaveProperty("matchSection", "Origins");
@@ -123,7 +123,7 @@ describe("Sprint 4 — Tool Integration", () => {
 
     it("preserves hybrid fields for AUTHENTICATED", async () => {
       const rawResult = await command.execute({ query: "bauhaus" }, authCtx);
-      const formatted = formatter.format("search_books", rawResult, authCtx) as Record<string, unknown>[];
+      const formatted = formatter.format("search_corpus", rawResult, authCtx) as Record<string, unknown>[];
       expect(formatted).toHaveLength(1);
       expect(formatted[0]).toHaveProperty("matchPassage");
       expect(formatted[0]).toHaveProperty("matchHighlight");

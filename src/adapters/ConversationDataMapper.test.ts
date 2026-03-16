@@ -170,8 +170,8 @@ describe("MessageDataMapper", () => {
   it("parts JSON round-trip with tool_call and tool_result", async () => {
     const parts = [
       { type: "text" as const, text: "Let me search" },
-      { type: "tool_call" as const, name: "search_books", args: { query: "design" } },
-      { type: "tool_result" as const, name: "search_books", result: [{ title: "Design Book" }] },
+      { type: "tool_call" as const, name: "search_corpus", args: { query: "design" } },
+      { type: "tool_result" as const, name: "search_corpus", result: [{ title: "Design Book" }] },
       { type: "text" as const, text: "I found it" },
     ];
 

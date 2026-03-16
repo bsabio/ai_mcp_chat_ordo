@@ -1,9 +1,5 @@
 import type { Document, Section } from "@/core/entities/corpus";
-import {
-	asCorpusRepository,
-	type CorpusCompatibleRepository,
-	type CorpusRepository,
-} from "@/core/use-cases/CorpusRepository";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 
 export class CachedCorpusRepository implements CorpusRepository {
 	private allDocumentsCache: Document[] | null = null;
@@ -14,8 +10,8 @@ export class CachedCorpusRepository implements CorpusRepository {
 
 	private readonly inner: CorpusRepository;
 
-	constructor(inner: CorpusCompatibleRepository) {
-		this.inner = asCorpusRepository(inner);
+	constructor(inner: CorpusRepository) {
+		this.inner = inner;
 	}
 
 	clearCache(): void {
@@ -72,25 +68,5 @@ export class CachedCorpusRepository implements CorpusRepository {
 		const section = await this.inner.getSection(documentSlug, sectionSlug);
 		this.sectionCache.set(key, section);
 		return section;
-	}
-
-	async getAllBooks(): Promise<Document[]> {
-		return this.getAllDocuments();
-	}
-
-	async getBook(slug: string): Promise<Document | null> {
-		return this.getDocument(slug);
-	}
-
-	async getChaptersByBook(bookSlug: string): Promise<Section[]> {
-		return this.getSectionsByDocument(bookSlug);
-	}
-
-	async getAllChapters(): Promise<Section[]> {
-		return this.getAllSections();
-	}
-
-	async getChapter(bookSlug: string, chapterSlug: string): Promise<Section> {
-		return this.getSection(bookSlug, chapterSlug);
 	}
 }

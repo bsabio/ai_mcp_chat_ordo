@@ -1,10 +1,10 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { CorpusCompatibleRepository } from "../CorpusRepository";
+import type { CorpusRepository } from "../CorpusRepository";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import { SearchCorpusCommand } from "./CorpusTools";
 import { getCorpusSearchDescription } from "@/lib/corpus-config";
 
-export function createSearchCorpusTool(repo: CorpusCompatibleRepository, searchHandler?: SearchHandler): ToolDescriptor {
+export function createSearchCorpusTool(repo: CorpusRepository, searchHandler?: SearchHandler): ToolDescriptor {
   return {
     name: "search_corpus",
     schema: {

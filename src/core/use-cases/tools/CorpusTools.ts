@@ -1,5 +1,5 @@
 import type { ToolCommand } from "../ToolCommand";
-import type { CorpusCompatibleRepository } from "../CorpusRepository";
+import type { CorpusRepository } from "../CorpusRepository";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import { corpusConfig } from "@/lib/corpus-config";
@@ -12,7 +12,7 @@ import { CorpusSummaryInteractor } from "../CorpusSummaryInteractor";
 export class SearchCorpusCommand implements ToolCommand<{ query: string; max_results?: number }, unknown> {
   private readonly search: LibrarySearchInteractor;
 
-  constructor(repo: CorpusCompatibleRepository, searchHandler?: SearchHandler) {
+  constructor(repo: CorpusRepository, searchHandler?: SearchHandler) {
     this.search = new LibrarySearchInteractor(repo, searchHandler);
   }
 
@@ -49,7 +49,7 @@ export class SearchCorpusCommand implements ToolCommand<{ query: string; max_res
 export class GetSectionCommand implements ToolCommand<{ document_slug: string; section_slug: string }, string> {
   private readonly getSection: GetChapterInteractor;
 
-  constructor(repo: CorpusCompatibleRepository) {
+  constructor(repo: CorpusRepository) {
     this.getSection = new GetChapterInteractor(repo);
   }
 
@@ -68,7 +68,7 @@ export class GetSectionCommand implements ToolCommand<{ document_slug: string; s
 export class GetChecklistCommand implements ToolCommand<{ book_slug?: string }, string> {
   private readonly checklists: ChecklistInteractor;
 
-  constructor(repo: CorpusCompatibleRepository) {
+  constructor(repo: CorpusRepository) {
     this.checklists = new ChecklistInteractor(repo);
   }
 
@@ -85,7 +85,7 @@ export class GetChecklistCommand implements ToolCommand<{ book_slug?: string }, 
 export class ListPractitionersCommand implements ToolCommand<{ query?: string }, string> {
   private readonly practitioners: PractitionerInteractor;
 
-  constructor(repo: CorpusCompatibleRepository) {
+  constructor(repo: CorpusRepository) {
     this.practitioners = new PractitionerInteractor(repo);
   }
 
@@ -103,7 +103,7 @@ export class ListPractitionersCommand implements ToolCommand<{ query?: string },
 export class GetCorpusSummaryCommand implements ToolCommand<Record<string, never>, string> {
   private readonly summaries: CorpusSummaryInteractor;
 
-  constructor(repo: CorpusCompatibleRepository) {
+  constructor(repo: CorpusRepository) {
     this.summaries = new CorpusSummaryInteractor(repo);
   }
 

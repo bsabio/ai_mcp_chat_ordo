@@ -1,9 +1,9 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { CorpusCompatibleRepository } from "../CorpusRepository";
+import type { CorpusRepository } from "../CorpusRepository";
 import { GetCorpusSummaryCommand } from "./CorpusTools";
 import { getCorpusSummaryDescription } from "@/lib/corpus-config";
 
-export function createGetCorpusSummaryTool(repo: CorpusCompatibleRepository): ToolDescriptor {
+export function createGetCorpusSummaryTool(repo: CorpusRepository): ToolDescriptor {
   return {
     name: "get_corpus_summary",
     schema: {

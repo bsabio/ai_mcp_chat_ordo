@@ -184,26 +184,6 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 		}
 	}
 
-	async getAllBooks(): Promise<Document[]> {
-		return this.getAllDocuments();
-	}
-
-	async getBook(slug: string): Promise<Document | null> {
-		return this.getDocument(slug);
-	}
-
-	async getChaptersByBook(bookSlug: string): Promise<Section[]> {
-		return this.getSectionsByDocument(bookSlug);
-	}
-
-	async getAllChapters(): Promise<Section[]> {
-		return this.getAllSections();
-	}
-
-	async getChapter(bookSlug: string, chapterSlug: string): Promise<Section> {
-		return this.getSection(bookSlug, chapterSlug);
-	}
-
 	private parseSection(
 		documentSlug: string,
 		sectionSlug: string,

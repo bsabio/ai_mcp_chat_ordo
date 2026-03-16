@@ -1,9 +1,5 @@
 import type { UseCase } from "../common/UseCase";
-import {
-  asCorpusRepository,
-  type CorpusCompatibleRepository,
-  type CorpusRepository,
-} from "./CorpusRepository";
+import type { CorpusRepository } from "./CorpusRepository";
 import type { LibrarySearchResult } from "../entities/library";
 import type { SearchHandler } from "../search/ports/SearchHandler";
 
@@ -16,10 +12,10 @@ export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySe
   private readonly corpusRepository: CorpusRepository;
 
   constructor(
-    repo: CorpusCompatibleRepository,
+    repo: CorpusRepository,
     private searchHandler?: SearchHandler,
   ) {
-    this.corpusRepository = asCorpusRepository(repo);
+    this.corpusRepository = repo;
   }
 
   async execute(request: SearchRequest): Promise<LibrarySearchResult[]> {

@@ -1,9 +1,5 @@
 import type { UseCase } from "../common/UseCase";
-import {
-  asCorpusRepository,
-  type CorpusCompatibleRepository,
-  type CorpusRepository,
-} from "./CorpusRepository";
+import type { CorpusRepository } from "./CorpusRepository";
 
 export interface CorpusSummary {
   id: string;
@@ -21,8 +17,8 @@ export interface CorpusSummary {
 export class CorpusSummaryInteractor implements UseCase<void, CorpusSummary[]> {
   private readonly corpusRepository: CorpusRepository;
 
-  constructor(repo: CorpusCompatibleRepository) {
-    this.corpusRepository = asCorpusRepository(repo);
+  constructor(repo: CorpusRepository) {
+    this.corpusRepository = repo;
   }
 
   async execute(): Promise<CorpusSummary[]> {

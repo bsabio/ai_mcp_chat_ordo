@@ -1,8 +1,8 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { CorpusCompatibleRepository } from "../CorpusRepository";
+import type { CorpusRepository } from "../CorpusRepository";
 import { ListPractitionersCommand } from "./CorpusTools";
 
-export function createListPractitionersTool(repo: CorpusCompatibleRepository): ToolDescriptor {
+export function createListPractitionersTool(repo: CorpusRepository): ToolDescriptor {
   return {
     name: "list_practitioners",
     schema: {

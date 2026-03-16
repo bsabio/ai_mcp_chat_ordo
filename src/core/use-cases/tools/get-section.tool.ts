@@ -1,8 +1,8 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { CorpusCompatibleRepository } from "../CorpusRepository";
+import type { CorpusRepository } from "../CorpusRepository";
 import { GetSectionCommand } from "./CorpusTools";
 
-export function createGetSectionTool(repo: CorpusCompatibleRepository): ToolDescriptor {
+export function createGetSectionTool(repo: CorpusRepository): ToolDescriptor {
   return {
     name: "get_section",
     schema: {

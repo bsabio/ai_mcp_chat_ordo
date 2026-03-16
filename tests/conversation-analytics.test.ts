@@ -201,7 +201,7 @@ describe("conversation analytics tools", () => {
       id: "evt_2",
       conversationId: "conv_anon_a",
       eventType: "tool_used",
-      metadata: { tool_name: "search_books", role: "ANONYMOUS" },
+      metadata: { tool_name: "search_corpus", role: "ANONYMOUS" },
       createdAt: "2026-03-10 10:20:00",
     });
     seedEvent(db, {
@@ -264,7 +264,7 @@ describe("conversation analytics tools", () => {
       id: "evt_11",
       conversationId: "conv_auth_archived",
       eventType: "tool_used",
-      metadata: { tool_name: "get_chapter", role: "STAFF" },
+      metadata: { tool_name: "get_section", role: "STAFF" },
       createdAt: "2026-03-08 08:20:00",
     });
     seedEvent(db, {
@@ -323,7 +323,7 @@ describe("conversation analytics tools", () => {
       tools_preceding_registration: Record<string, number>;
     };
 
-    expect(result.tool_calls_by_name.search_books).toBe(1);
+    expect(result.tool_calls_by_name.search_corpus).toBe(1);
     expect(result.tool_calls_by_name.calculator).toBe(1);
     expect(result.tools_preceding_registration.search_my_conversations).toBe(1);
   });

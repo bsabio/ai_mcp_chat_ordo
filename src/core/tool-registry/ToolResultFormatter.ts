@@ -6,7 +6,7 @@ export interface ToolResultFormatter {
 
 export class RoleAwareSearchFormatter implements ToolResultFormatter {
   format(toolName: string, result: unknown, context: ToolExecutionContext): unknown {
-    if (toolName !== "search_books" && toolName !== "search_corpus") return result;
+    if (toolName !== "search_corpus") return result;
     if (!Array.isArray(result)) return result;
     if (context.role === "ANONYMOUS") {
       return result.map((r: Record<string, unknown>) => ({

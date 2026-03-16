@@ -4,7 +4,7 @@ import { LoggingMiddleware } from "@/core/tool-registry/LoggingMiddleware";
 import { RbacGuardMiddleware } from "@/core/tool-registry/RbacGuardMiddleware";
 import { RoleAwareSearchFormatter } from "@/core/tool-registry/ToolResultFormatter";
 import { getCorpusRepository } from "@/adapters/RepositoryFactory";
-import type { CorpusCompatibleRepository } from "@/core/use-cases/CorpusRepository";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 
 import { LocalEmbedder } from "@/adapters/LocalEmbedder";
 import { SQLiteVectorStore } from "@/adapters/SQLiteVectorStore";
@@ -50,7 +50,7 @@ let searchHandler: SearchHandler | null = null;
 
 const MODEL_VERSION = "all-MiniLM-L6-v2@1.0";
 
-export function createToolRegistry(bookRepo: CorpusCompatibleRepository, handler?: SearchHandler): ToolRegistry {
+export function createToolRegistry(corpusRepo: CorpusRepository, handler?: SearchHandler): ToolRegistry {
   const reg = new ToolRegistry(new RoleAwareSearchFormatter());
 
   // Stateless tools (no deps)
@@ -62,12 +62,12 @@ export function createToolRegistry(bookRepo: CorpusCompatibleRepository, handler
   reg.register(generateAudioTool);
 
   // Canonical corpus tools
-  reg.register(createSearchCorpusTool(bookRepo, handler));
-  reg.register(createGetSectionTool(bookRepo));
-  reg.register(createGetCorpusSummaryTool(bookRepo));
+  reg.register(createSearchCorpusTool(corpusRepo, handler));
+  reg.register(createGetSectionTool(corpusRepo));
+  reg.register(createGetCorpusSummaryTool(corpusRepo));
 
-  reg.register(createGetChecklistTool(bookRepo));
-  reg.register(createListPractitionersTool(bookRepo));
+  reg.register(createGetChecklistTool(corpusRepo));
+  reg.register(createListPractitionersTool(corpusRepo));
 
   // Conversation search (authenticated+ only)
   const db = getDb();

@@ -130,12 +130,7 @@ export class BM25SearchHandler extends BaseSearchHandler {
 }
 
 export class LegacyKeywordHandler extends BaseSearchHandler {
-  constructor(
-    private readonly corpusRepository: (CorpusQuery & SectionQuery) | {
-      getAllBooks(): Promise<Array<{ slug: string; title: string; number: string; id?: string }>>;
-      getAllChapters(): Promise<Array<{ documentSlug: string; sectionSlug: string; title: string; calculateSearchScore(queryLower: string, queryTerms: string[]): { score: number; matchContext: string } }>>;
-    },
-  ) {
+  constructor(private readonly corpusRepository: CorpusQuery & SectionQuery) {
     super();
   }
 
@@ -144,12 +139,8 @@ export class LegacyKeywordHandler extends BaseSearchHandler {
   }
 
   async search(query: string): Promise<HybridSearchResult[]> {
-    const documents = "getAllDocuments" in this.corpusRepository
-      ? await this.corpusRepository.getAllDocuments()
-      : await this.corpusRepository.getAllBooks();
-    const sections = "getAllSections" in this.corpusRepository
-      ? await this.corpusRepository.getAllSections()
-      : await this.corpusRepository.getAllChapters();
+    const documents = await this.corpusRepository.getAllDocuments();
+    const sections = await this.corpusRepository.getAllSections();
     const results: HybridSearchResult[] = [];
 
     const queryLower = query.toLowerCase();

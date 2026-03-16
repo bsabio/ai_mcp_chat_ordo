@@ -1,9 +1,5 @@
 import type { UseCase } from "../common/UseCase";
-import {
-  asCorpusRepository,
-  type CorpusCompatibleRepository,
-  type CorpusRepository,
-} from "./CorpusRepository";
+import type { CorpusRepository } from "./CorpusRepository";
 import type { Checklist } from "../entities/library";
 
 export interface ChecklistRequest {
@@ -13,8 +9,8 @@ export interface ChecklistRequest {
 export class ChecklistInteractor implements UseCase<ChecklistRequest, Checklist[]> {
   private readonly corpusRepository: CorpusRepository;
 
-  constructor(repo: CorpusCompatibleRepository) {
-    this.corpusRepository = asCorpusRepository(repo);
+  constructor(repo: CorpusRepository) {
+    this.corpusRepository = repo;
   }
 
   async execute(request: ChecklistRequest): Promise<Checklist[]> {

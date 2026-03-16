@@ -41,7 +41,7 @@ describe("RoleAwareSearchFormatter", () => {
 
   // TEST-FMT-01
   it("ANON search result strips matchContext, bookSlug, chapterSlug", () => {
-    const result = formatter.format("search_books", fullResults, anonCtx) as Record<string, unknown>[];
+    const result = formatter.format("search_corpus", fullResults, anonCtx) as Record<string, unknown>[];
     expect(result).toHaveLength(1);
     expect(result[0]).toHaveProperty("book");
     expect(result[0]).toHaveProperty("bookNumber");
@@ -54,7 +54,7 @@ describe("RoleAwareSearchFormatter", () => {
 
   // TEST-FMT-02
   it("AUTH search result preserves full data", () => {
-    const result = formatter.format("search_books", fullResults, authCtx);
+    const result = formatter.format("search_corpus", fullResults, authCtx);
     expect(result).toEqual(fullResults);
   });
 
@@ -67,13 +67,13 @@ describe("RoleAwareSearchFormatter", () => {
 
   // TEST-FMT-04
   it("AUTH search result preserves hybrid fields unchanged", () => {
-    const result = formatter.format("search_books", hybridResults, authCtx);
+    const result = formatter.format("search_corpus", hybridResults, authCtx);
     expect(result).toEqual(hybridResults);
   });
 
   // TEST-FMT-05
   it("ANON search result strips hybrid fields but preserves matchSection", () => {
-    const result = formatter.format("search_books", hybridResults, anonCtx) as Record<string, unknown>[];
+    const result = formatter.format("search_corpus", hybridResults, anonCtx) as Record<string, unknown>[];
     expect(result).toHaveLength(1);
     expect(result[0]).toHaveProperty("matchSection", "Introduction");
     expect(result[0]).not.toHaveProperty("matchPassage");
@@ -90,7 +90,7 @@ describe("RoleAwareSearchFormatter", () => {
   // TEST-FMT-06
   it("ANON search result has matchSection null when not present", () => {
     const noSectionResults = [{ ...hybridResults[0], matchSection: undefined }];
-    const result = formatter.format("search_books", noSectionResults, anonCtx) as Record<string, unknown>[];
+    const result = formatter.format("search_corpus", noSectionResults, anonCtx) as Record<string, unknown>[];
     expect(result[0]).toHaveProperty("matchSection", null);
   });
 });

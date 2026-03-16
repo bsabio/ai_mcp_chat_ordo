@@ -1,9 +1,5 @@
 import type { UseCase } from "../common/UseCase";
-import {
-  asCorpusRepository,
-  type CorpusCompatibleRepository,
-  type CorpusRepository,
-} from "./CorpusRepository";
+import type { CorpusRepository } from "./CorpusRepository";
 import type { Book, Practitioner } from "../entities/library";
 
 export interface PractitionerRequest {
@@ -13,8 +9,8 @@ export interface PractitionerRequest {
 export class PractitionerInteractor implements UseCase<PractitionerRequest, Practitioner[]> {
   private readonly corpusRepository: CorpusRepository;
 
-  constructor(repo: CorpusCompatibleRepository) {
-    this.corpusRepository = asCorpusRepository(repo);
+  constructor(repo: CorpusRepository) {
+    this.corpusRepository = repo;
   }
 
   async execute(request: PractitionerRequest): Promise<Practitioner[]> {

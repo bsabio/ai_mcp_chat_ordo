@@ -1,9 +1,5 @@
 import type { UseCase } from "../common/UseCase";
-import {
-  asCorpusRepository,
-  type CorpusCompatibleRepository,
-  type CorpusRepository,
-} from "./CorpusRepository";
+import type { CorpusRepository } from "./CorpusRepository";
 
 export interface GetChapterRequest {
   bookSlug: string;
@@ -19,8 +15,8 @@ export interface ChapterDetails {
 export class GetChapterInteractor implements UseCase<GetChapterRequest, ChapterDetails | null> {
   private readonly corpusRepository: CorpusRepository;
 
-  constructor(repo: CorpusCompatibleRepository) {
-    this.corpusRepository = asCorpusRepository(repo);
+  constructor(repo: CorpusRepository) {
+    this.corpusRepository = repo;
   }
 
   async execute(request: GetChapterRequest): Promise<ChapterDetails | null> {
