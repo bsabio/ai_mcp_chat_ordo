@@ -45,23 +45,22 @@ export async function embedDocument(
   const pipeline = deps.pipelineFactory.createForSource(
     args.source_type,
   );
-  const [bookSlug, chapterSlug] = args.source_id.split("/");
+  const [documentSlug, sectionSlug] = args.source_id.split("/");
   const firstSentence = args.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "";
   const metadata: DocumentChunkMetadata = {
     sourceType: args.source_type,
-    documentSlug: bookSlug ?? args.source_id,
-    sectionSlug: chapterSlug ?? "",
-    documentTitle: bookSlug ?? "",
-    documentId: bookSlug ?? args.source_id,
-    sectionTitle: chapterSlug ?? "",
+    documentSlug: documentSlug ?? args.source_id,
+    sectionSlug: sectionSlug ?? "",
+    documentTitle: "",
+    documentId: documentSlug ?? args.source_id,
+    sectionTitle: "",
     sectionFirstSentence: firstSentence,
-    bookSlug: bookSlug ?? args.source_id,
-    chapterSlug: chapterSlug ?? "",
-    bookTitle: bookSlug ?? "",
-    bookNumber: bookSlug ?? args.source_id,
-    chapterTitle: chapterSlug ?? "",
-    chapterFirstSentence:
-      args.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
+    bookSlug: documentSlug ?? args.source_id,
+    chapterSlug: sectionSlug ?? "",
+    bookTitle: "",
+    bookNumber: documentSlug ?? args.source_id,
+    chapterTitle: "",
+    chapterFirstSentence: firstSentence,
   };
   const contentHash = createHash("sha256")
     .update(args.content)

@@ -141,6 +141,32 @@ describe("embedDocument (VSEARCH-31)", () => {
       createForSource: ReturnType<typeof vi.fn>;
     };
     expect(factory.createForSource).toHaveBeenCalledWith("book_chunk");
+
+    const pipeline = factory.createForSource.mock.results[0]?.value as {
+      indexDocument: ReturnType<typeof vi.fn>;
+    };
+    expect(pipeline.indexDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceType: "book_chunk",
+        sourceId: "test-book/ch-1",
+        content: "Some chapter content here.",
+        metadata: expect.objectContaining({
+          sourceType: "book_chunk",
+          documentSlug: "test-book",
+          sectionSlug: "ch-1",
+          documentTitle: "",
+          documentId: "test-book",
+          sectionTitle: "",
+          sectionFirstSentence: "Some chapter content here.",
+          bookSlug: "test-book",
+          chapterSlug: "ch-1",
+          bookTitle: "",
+          bookNumber: "test-book",
+          chapterTitle: "",
+          chapterFirstSentence: "Some chapter content here.",
+        }),
+      }),
+    );
   });
 
   it("throws when required fields are missing", async () => {
