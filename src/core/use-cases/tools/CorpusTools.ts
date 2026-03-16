@@ -1,5 +1,5 @@
 import type { ToolCommand } from "../ToolCommand";
-import type { BookRepository } from "../BookRepository";
+import type { CorpusCompatibleRepository } from "../CorpusRepository";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import { corpusConfig } from "@/lib/corpus-config";
@@ -7,12 +7,12 @@ import { LibrarySearchInteractor } from "../LibrarySearchInteractor";
 import { GetChapterInteractor } from "../GetChapterInteractor";
 import { ChecklistInteractor } from "../ChecklistInteractor";
 import { PractitionerInteractor } from "../PractitionerInteractor";
-import { BookSummaryInteractor } from "../BookSummaryInteractor";
+import { CorpusSummaryInteractor } from "../CorpusSummaryInteractor";
 
 export class SearchCorpusCommand implements ToolCommand<{ query: string; max_results?: number }, unknown> {
   private readonly search: LibrarySearchInteractor;
 
-  constructor(repo: BookRepository, searchHandler?: SearchHandler) {
+  constructor(repo: CorpusCompatibleRepository, searchHandler?: SearchHandler) {
     this.search = new LibrarySearchInteractor(repo, searchHandler);
   }
 
@@ -49,7 +49,7 @@ export class SearchCorpusCommand implements ToolCommand<{ query: string; max_res
 export class GetSectionCommand implements ToolCommand<{ document_slug: string; section_slug: string }, string> {
   private readonly getSection: GetChapterInteractor;
 
-  constructor(repo: BookRepository) {
+  constructor(repo: CorpusCompatibleRepository) {
     this.getSection = new GetChapterInteractor(repo);
   }
 
@@ -68,7 +68,7 @@ export class GetSectionCommand implements ToolCommand<{ document_slug: string; s
 export class GetChecklistCommand implements ToolCommand<{ book_slug?: string }, string> {
   private readonly checklists: ChecklistInteractor;
 
-  constructor(repo: BookRepository) {
+  constructor(repo: CorpusCompatibleRepository) {
     this.checklists = new ChecklistInteractor(repo);
   }
 
@@ -85,7 +85,7 @@ export class GetChecklistCommand implements ToolCommand<{ book_slug?: string }, 
 export class ListPractitionersCommand implements ToolCommand<{ query?: string }, string> {
   private readonly practitioners: PractitionerInteractor;
 
-  constructor(repo: BookRepository) {
+  constructor(repo: CorpusCompatibleRepository) {
     this.practitioners = new PractitionerInteractor(repo);
   }
 
@@ -101,20 +101,23 @@ export class ListPractitionersCommand implements ToolCommand<{ query?: string },
 }
 
 export class GetCorpusSummaryCommand implements ToolCommand<Record<string, never>, string> {
-  private readonly summaries: BookSummaryInteractor;
+  private readonly summaries: CorpusSummaryInteractor;
 
-  constructor(repo: BookRepository) {
-    this.summaries = new BookSummaryInteractor(repo);
+  constructor(repo: CorpusCompatibleRepository) {
+    this.summaries = new CorpusSummaryInteractor(repo);
   }
 
   async execute(_input: Record<string, never>, _context?: ToolExecutionContext) {
     const results = await this.summaries.execute();
     return results.map((summary) => {
-      const sectionList = summary.chapters.map((title, index) => {
-        const slug = summary.chapterSlugs?.[index];
+      const sections = summary.chapters ?? summary.sections;
+      const sectionSlugs = summary.chapterSlugs ?? summary.sectionSlugs;
+      const sectionList = sections.map((title, index) => {
+        const slug = sectionSlugs?.[index];
         return slug ? `- ${title} (slug: \`${slug}\`)` : `- ${title}`;
       }).join("\n");
-      return `### ${corpusConfig.documentLabel} ${summary.number}: ${summary.title} (document_slug: \`${summary.slug}\`)\n${summary.chapterCount} ${corpusConfig.sectionLabelPlural}:\n${sectionList}`;
+      const sectionCount = summary.chapterCount ?? summary.sectionCount;
+      return `### ${corpusConfig.documentLabel} ${summary.number}: ${summary.title} (document_slug: \`${summary.slug}\`)\n${sectionCount} ${corpusConfig.sectionLabelPlural}:\n${sectionList}`;
     }).join("\n\n");
   }
 }
@@ -124,7 +127,7 @@ export class SearchBooksCommand extends SearchCorpusCommand {}
 export class GetChapterCommand implements ToolCommand<{ book_slug: string; chapter_slug: string }, string> {
   private readonly getSection: GetSectionCommand;
 
-  constructor(repo: BookRepository) {
+  constructor(repo: CorpusCompatibleRepository) {
     this.getSection = new GetSectionCommand(repo);
   }
 

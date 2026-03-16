@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { PractitionerInteractor } from "./PractitionerInteractor";
 import { ChecklistInteractor } from "./ChecklistInteractor";
-import { BookSummaryInteractor } from "./BookSummaryInteractor";
-import type { BookRepository } from "./BookRepository";
-import { Chapter } from "../entities/library";
+import { CorpusSummaryInteractor } from "./CorpusSummaryInteractor";
+import type { CorpusRepository } from "./CorpusRepository";
+import { Section } from "../entities/corpus";
 
-const mockChapters: Chapter[] = [
-  new Chapter(
+const mockSections: Section[] = [
+  new Section(
     "clean-code",
     "srp",
     "Single Responsibility",
@@ -15,7 +15,7 @@ const mockChapters: Chapter[] = [
     ["One reason to change"],
     ["Intro", "Rule"]
   ),
-  new Chapter(
+  new Section(
     "clean-code",
     "dip",
     "Dependency Inversion",
@@ -26,16 +26,16 @@ const mockChapters: Chapter[] = [
   ),
 ];
 
-const mockBooks = [
+const mockDocuments = [
   { slug: "clean-code", title: "Clean Code", number: "1" }
 ];
 
-const mockRepo: BookRepository = {
-  getAllBooks: vi.fn().mockResolvedValue(mockBooks),
-  getAllChapters: vi.fn().mockResolvedValue(mockChapters),
-  getChaptersByBook: vi.fn(),
-  getChapter: vi.fn(),
-  getBook: vi.fn().mockResolvedValue(mockBooks[0]),
+const mockRepo: CorpusRepository = {
+  getAllDocuments: vi.fn().mockResolvedValue(mockDocuments),
+  getAllSections: vi.fn().mockResolvedValue(mockSections),
+  getSectionsByDocument: vi.fn(),
+  getSection: vi.fn(),
+  getDocument: vi.fn().mockResolvedValue(mockDocuments[0]),
 };
 
 describe("Library Interactors", () => {
@@ -56,8 +56,8 @@ describe("Library Interactors", () => {
     expect(results[0].items).toContain("One reason to change");
   });
 
-  it("BookSummaryInteractor should provide counts", async () => {
-    const interactor = new BookSummaryInteractor(mockRepo);
+  it("CorpusSummaryInteractor should provide counts", async () => {
+    const interactor = new CorpusSummaryInteractor(mockRepo);
     const results = await interactor.execute();
     
     expect(results).toHaveLength(1);

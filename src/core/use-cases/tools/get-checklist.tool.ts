@@ -1,8 +1,8 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { BookRepository } from "../BookRepository";
+import type { CorpusCompatibleRepository } from "../CorpusRepository";
 import { GetChecklistCommand } from "./CorpusTools";
 
-export function createGetChecklistTool(repo: BookRepository): ToolDescriptor {
+export function createGetChecklistTool(repo: CorpusCompatibleRepository): ToolDescriptor {
   return {
     name: "get_checklist",
     schema: {

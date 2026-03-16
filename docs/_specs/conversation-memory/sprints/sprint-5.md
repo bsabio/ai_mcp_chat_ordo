@@ -37,21 +37,23 @@ The following are already in place and define the full rename surface area.
   `mcp/embedding-server.ts` (2), `mcp/embedding-tool.ts` (7),
   plus ~12 each in `in-memory-stores.test.ts`, `sqlite-stores.test.ts`,
   ~20 in `embedding-pipeline.test.ts`, 1 in `markdown-chunker.test.ts`.
-- **Adapters** — `src/adapters/FileSystemBookRepository.ts`
-  (implements `BookRepository`, reads markdown from `DEFAULT_DOCS_DIR`),
-  `CachedBookRepository.ts` (decorator with cache),
-  `RepositoryFactory.ts` (`getBookRepository()` singleton).
-- **Lib facades** — `src/lib/book-library.ts` (instantiates all
-  interactors via `getBookRepository()`), `src/lib/book-actions.ts`
-  (server action delegates to `book-library.getChapterFull()`),
-  `src/lib/chat/tool-composition-root.ts` (`createToolRegistry(bookRepo)`
-  creates all book tools + search handler with `"book_chunk"`).
-- **Tool files** — `src/core/use-cases/tools/` contains 6 book-related
-  files: `BookTools.ts` (hub), `search-books.tool.ts` (`search_books`),
-  `get-book-summary.tool.ts` (`get_book_summary`),
-  `get-chapter.tool.ts` (`get_chapter`, params book_slug/chapter_slug),
-  `get-checklist.tool.ts` (`get_checklist`),
-  `list-practitioners.tool.ts` (`list_practitioners`).
+- **Adapters** — `src/adapters/FileSystemCorpusRepository.ts`
+  (canonical corpus repository, reads markdown from `DEFAULT_DOCS_DIR`),
+  `CachedCorpusRepository.ts` (decorator with cache),
+  `RepositoryFactory.ts` (`getCorpusRepository()` singleton).
+- **Lib facades** — `src/lib/corpus-library.ts` (instantiates all
+  interactors via `getCorpusRepository()`), `src/lib/book-actions.ts`
+  (server action delegates to the canonical corpus facade),
+  `src/lib/chat/tool-composition-root.ts` (`createToolRegistry(corpusRepo)`
+  creates all corpus tools + search handler with the configured source type).
+- **Tool files** — `src/core/use-cases/tools/` contains the canonical
+  corpus files: `CorpusTools.ts` (hub), `search-corpus.tool.ts`
+  (`search_corpus`), `get-corpus-summary.tool.ts`
+  (`get_corpus_summary`), `get-section.tool.ts` (`get_section`, params
+  document_slug/section_slug), `get-checklist.tool.ts`
+  (`get_checklist`), `list-practitioners.tool.ts`
+  (`list_practitioners`). `BookTools.ts` remains as a compatibility
+  re-export only.
 - **System prompt references** — `src/lib/chat/policy.ts` and
   `src/lib/db/schema.ts` both contain hardcoded tool name strings
   (`search_books`, `get_chapter`, `get_checklist`, `list_practitioners`,
@@ -113,8 +115,8 @@ Tests update accordingly. No behavioral changes — pure rename refactor.
 | Change | Details |
 | ------ | ------- |
 | Create `corpus-config.ts` or `corpus-config.json` | Externalize: corpus name, document count, section count, corpus description, source type string |
-| Auto-generate tool descriptions | `search-books.tool.ts` → `search-corpus.tool.ts`; description reads from config: `"Search across all ${config.documentCount} documents (${config.sectionCount} sections)"` |
-| Auto-generate `get-book-summary.tool.ts` | → `get-corpus-summary.tool.ts`; summary comes from config, not hardcoded |
+| Auto-generate tool descriptions | Canonical `search-corpus.tool.ts`; description reads from config: `"Search across all ${config.documentCount} documents (${config.sectionCount} sections)"` |
+| Auto-generate corpus summary descriptor | Canonical `get-corpus-summary.tool.ts`; summary comes from config, not hardcoded |
 | Rename tool identifiers | `search_books` → `search_corpus`, `get_book_summary` → `get_corpus_summary`, `get_chapter` → `get_section` |
 | Update `BASE_PROMPT` seed | Sprint 3's seed migration already has the prompt in the DB; update the fallback constant to use config-derived text |
 

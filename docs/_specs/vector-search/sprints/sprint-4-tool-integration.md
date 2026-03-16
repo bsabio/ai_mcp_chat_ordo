@@ -77,21 +77,21 @@ pass it to `LibrarySearchInteractor`, and surface the enhanced
 
 | Item | Detail |
 | --- | --- |
-| **Modify** | `src/core/use-cases/tools/BookTools.ts` |
-| **Modify** | `src/core/use-cases/tools/search-books.tool.ts` |
+| **Modify** | `src/core/use-cases/tools/CorpusTools.ts` |
+| **Modify** | `src/core/use-cases/tools/search-corpus.tool.ts` |
 | **Spec** | §8, Phase 5.20 |
 | **Reqs** | VSEARCH-38 (API contract preserved), VSEARCH-05, VSEARCH-06, VSEARCH-07 |
 
-### Changes to `SearchBooksCommand`
+### Changes to `SearchCorpusCommand`
 
 Add a second optional constructor parameter for the search handler:
 
 ```typescript
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 
-export class SearchBooksCommand implements ToolCommand<{ query: string; max_results?: number }, unknown> {
+export class SearchCorpusCommand implements ToolCommand<{ query: string; max_results?: number }, unknown> {
   private readonly search: LibrarySearchInteractor;
-  constructor(repo: BookRepository, searchHandler?: SearchHandler) {
+  constructor(repo: CorpusRepository, searchHandler?: SearchHandler) {
     this.search = new LibrarySearchInteractor(repo, searchHandler);
   }
 
@@ -125,7 +125,7 @@ export class SearchBooksCommand implements ToolCommand<{ query: string; max_resu
 
 > **Import note:** `SearchHandler` is a port interface in `src/core/search/ports/`
 > — this import is core→core and does NOT violate the dependency rule. The
-> `search-books.tool.ts` factory must NEVER import from
+> `search-corpus.tool.ts` factory must NEVER import from
 > `src/lib/chat/tool-composition-root.ts` (core must not depend on lib).
 > The composition root passes the handler in via parameter injection.
 
@@ -151,7 +151,7 @@ export interface LibrarySearchResult {
 }
 ```
 
-### Changes to `search-books.tool.ts`
+### Changes to `search-corpus.tool.ts`
 
 Accept `searchHandler` as a parameter — do NOT import from composition root
 (core must not depend on lib):
@@ -159,10 +159,10 @@ Accept `searchHandler` as a parameter — do NOT import from composition root
 ```typescript
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 
-export function createSearchBooksTool(repo: BookRepository, searchHandler?: SearchHandler): ToolDescriptor {
+export function createSearchCorpusTool(repo: CorpusRepository, searchHandler?: SearchHandler): ToolDescriptor {
   return {
     // ... schema unchanged ...
-    command: new SearchBooksCommand(repo, searchHandler),
+    command: new SearchCorpusCommand(repo, searchHandler),
     // ...
   };
 }
@@ -370,9 +370,9 @@ npm run build && npm test                               # all tests green
 
 - [ ] `LibrarySearchResult` extended with optional hybrid fields (additive)
 - [ ] `LibrarySearchInteractor` hybrid path populates new optional fields
-- [ ] `SearchBooksCommand` accepts optional `SearchHandler` via constructor
-- [ ] `search-books.tool.ts` accepts optional `searchHandler` param, passes to command
-- [ ] `SearchBooksCommand` output includes hybrid fields when present
+- [ ] `SearchCorpusCommand` accepts optional `SearchHandler` via constructor
+- [ ] `search-corpus.tool.ts` accepts optional `searchHandler` param, passes to command
+- [ ] `SearchCorpusCommand` output includes hybrid fields when present
 - [ ] `RoleAwareSearchFormatter` strips hybrid fields for ANONYMOUS
 - [ ] `createToolRegistry(bookRepo, searchHandler?)` — optional param, backward-compatible
 - [ ] `getToolRegistry()` singleton wires `getSearchHandler()` at call site

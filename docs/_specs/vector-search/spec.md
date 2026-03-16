@@ -1272,7 +1272,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 | File | Change |
 | --- | --- |
 | `src/core/use-cases/LibrarySearchInteractor.ts` | Accept optional `HybridSearchEngine`; delegate when available |
-| `src/core/use-cases/tools/BookTools.ts` | `SearchBooksCommand` returns `HybridSearchResult` fields |
+| `src/core/use-cases/tools/CorpusTools.ts` | `SearchCorpusCommand` returns `HybridSearchResult` fields |
 | `src/lib/chat/tool-composition-root.ts` | Wire via `EmbeddingPipelineFactory` (GoF-2), construct `SearchHandlerChain` (GoF-1) |
 | `src/core/tool-registry/ToolResultFormatter.ts` | Format new result fields (`matchPassage`, `matchSection`, `matchHighlight`) |
 | `src/lib/db/schema.ts` | Add `embeddings` table (with `model_version`) + `bm25_stats` table to `ensureSchema()` |

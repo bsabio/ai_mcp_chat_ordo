@@ -4,7 +4,7 @@ import { LoggingMiddleware } from "@/core/tool-registry/LoggingMiddleware";
 import { RbacGuardMiddleware } from "@/core/tool-registry/RbacGuardMiddleware";
 import { RoleAwareSearchFormatter } from "@/core/tool-registry/ToolResultFormatter";
 import { getCorpusRepository } from "@/adapters/RepositoryFactory";
-import type { BookRepository } from "@/core/use-cases/BookRepository";
+import type { CorpusCompatibleRepository } from "@/core/use-cases/CorpusRepository";
 
 import { LocalEmbedder } from "@/adapters/LocalEmbedder";
 import { SQLiteVectorStore } from "@/adapters/SQLiteVectorStore";
@@ -50,7 +50,7 @@ let searchHandler: SearchHandler | null = null;
 
 const MODEL_VERSION = "all-MiniLM-L6-v2@1.0";
 
-export function createToolRegistry(bookRepo: BookRepository, handler?: SearchHandler): ToolRegistry {
+export function createToolRegistry(bookRepo: CorpusCompatibleRepository, handler?: SearchHandler): ToolRegistry {
   const reg = new ToolRegistry(new RoleAwareSearchFormatter());
 
   // Stateless tools (no deps)

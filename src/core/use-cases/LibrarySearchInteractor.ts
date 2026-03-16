@@ -1,5 +1,9 @@
 import type { UseCase } from "../common/UseCase";
-import type { BookQuery, ChapterQuery } from "./BookRepository";
+import {
+  asCorpusRepository,
+  type CorpusCompatibleRepository,
+  type CorpusRepository,
+} from "./CorpusRepository";
 import type { LibrarySearchResult } from "../entities/library";
 import type { SearchHandler } from "../search/ports/SearchHandler";
 
@@ -9,10 +13,14 @@ export interface SearchRequest {
 }
 
 export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySearchResult[]> {
+  private readonly corpusRepository: CorpusRepository;
+
   constructor(
-    private bookRepository: BookQuery & ChapterQuery,
+    repo: CorpusCompatibleRepository,
     private searchHandler?: SearchHandler,
-  ) {}
+  ) {
+    this.corpusRepository = asCorpusRepository(repo);
+  }
 
   async execute(request: SearchRequest): Promise<LibrarySearchResult[]> {
     const { query, maxResults = 10 } = request;
@@ -50,31 +58,31 @@ export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySe
       return [];
     }
 
-    const books = await this.bookRepository.getAllBooks();
-    const chapters = await this.bookRepository.getAllChapters();
+    const documents = await this.corpusRepository.getAllDocuments();
+    const sections = await this.corpusRepository.getAllSections();
     const results: LibrarySearchResult[] = [];
 
-    for (const chapter of chapters) {
-      const book = books.find((b) => b.slug === chapter.bookSlug);
-      if (!book) continue;
+    for (const section of sections) {
+      const document = documents.find((candidate) => candidate.slug === section.documentSlug);
+      if (!document) continue;
 
-      const { score, matchContext } = chapter.calculateSearchScore(
+      const { score, matchContext } = section.calculateSearchScore(
         queryLower,
         queryTerms,
       );
 
       if (score > 0) {
         results.push({
-          documentTitle: book.title,
-          documentId: book.number,
-          documentSlug: book.slug,
-          sectionTitle: chapter.title,
-          sectionSlug: chapter.chapterSlug,
-          bookTitle: book.title,
-          bookNumber: book.number,
-          bookSlug: book.slug,
-          chapterTitle: chapter.title,
-          chapterSlug: chapter.chapterSlug,
+          documentTitle: document.title,
+          documentId: document.number,
+          documentSlug: document.slug,
+          sectionTitle: section.title,
+          sectionSlug: section.sectionSlug,
+          bookTitle: document.title,
+          bookNumber: document.number,
+          bookSlug: document.slug,
+          chapterTitle: section.title,
+          chapterSlug: section.sectionSlug,
           matchContext,
           relevance: score >= 8 ? "high" : score >= 4 ? "medium" : "low",
           score,
@@ -83,16 +91,5 @@ export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySe
     }
 
     return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
-  }
-
-  private extractContext(content: string, query: string): string {
-    const lowerContent = content.toLowerCase();
-    const idx = lowerContent.indexOf(query.toLowerCase());
-    if (idx === -1) return content.slice(0, 200);
-
-    const start = Math.max(0, idx - 100);
-    const end = Math.min(content.length, idx + query.length + 200);
-    const snippet = content.slice(start, end).replace(/\n/g, " ").trim();
-    return start > 0 ? `...${snippet}...` : `${snippet}...`;
   }
 }

@@ -42,44 +42,44 @@ async function main() {
   );
   const pipeline = factory.createForSource(corpusConfig.sourceType);
 
-  // Load all books (for title lookup) and chapters
-  const bookRepo = getCorpusRepository();
-  const [books, chapters] = await Promise.all([
-    bookRepo.getAllBooks(),
-    bookRepo.getAllChapters(),
+  // Load all documents (for title lookup) and sections
+  const corpusRepo = getCorpusRepository();
+  const [documentsIndex, sections] = await Promise.all([
+    corpusRepo.getAllDocuments(),
+    corpusRepo.getAllSections(),
   ]);
-  const bookTitleMap = new Map(books.map((b) => [b.slug, b.title]));
-  const bookIdMap = new Map(books.map((b) => [b.slug, b.id]));
+  const documentTitleMap = new Map(documentsIndex.map((document) => [document.slug, document.title]));
+  const documentIdMap = new Map(documentsIndex.map((document) => [document.slug, document.id]));
 
-  console.log(`Loading ${chapters.length} chapters from ${books.length} books...`);
+  console.log(`Loading ${sections.length} sections from ${documentsIndex.length} documents...`);
 
   // If --force, delete all embeddings first
   if (force) {
     console.log("Force rebuild: clearing all embeddings...");
-    for (const ch of chapters) {
-      vectorStore.delete(`${ch.bookSlug}/${ch.chapterSlug}`);
+    for (const section of sections) {
+      vectorStore.delete(`${section.documentSlug}/${section.sectionSlug}`);
     }
   }
 
   // Build documents array for rebuildAll
-  const documents = chapters.map((ch) => ({
-    sourceId: `${ch.bookSlug}/${ch.chapterSlug}`,
-    content: ch.content,
-    contentHash: sha256(ch.content),
+  const documents = sections.map((section) => ({
+    sourceId: `${section.documentSlug}/${section.sectionSlug}`,
+    content: section.content,
+    contentHash: sha256(section.content),
     metadata: {
       sourceType: corpusConfig.sourceType,
-      documentSlug: ch.bookSlug,
-      sectionSlug: ch.chapterSlug,
-      documentTitle: bookTitleMap.get(ch.bookSlug) ?? ch.bookSlug,
-      documentId: bookIdMap.get(ch.bookSlug) ?? ch.bookSlug,
-      sectionTitle: ch.title,
-      sectionFirstSentence: ch.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
-      bookSlug: ch.bookSlug,
-      chapterSlug: ch.chapterSlug,
-      bookTitle: bookTitleMap.get(ch.bookSlug) ?? ch.bookSlug,
-      bookNumber: bookIdMap.get(ch.bookSlug) ?? ch.bookSlug,
-      chapterTitle: ch.title,
-      chapterFirstSentence: ch.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
+      documentSlug: section.documentSlug,
+      sectionSlug: section.sectionSlug,
+      documentTitle: documentTitleMap.get(section.documentSlug) ?? section.documentSlug,
+      documentId: documentIdMap.get(section.documentSlug) ?? section.documentSlug,
+      sectionTitle: section.title,
+      sectionFirstSentence: section.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
+      bookSlug: section.documentSlug,
+      chapterSlug: section.sectionSlug,
+      bookTitle: documentTitleMap.get(section.documentSlug) ?? section.documentSlug,
+      bookNumber: documentIdMap.get(section.documentSlug) ?? section.documentSlug,
+      chapterTitle: section.title,
+      chapterFirstSentence: section.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
     } satisfies DocumentChunkMetadata,
   }));
 
@@ -87,7 +87,7 @@ async function main() {
   const result = await pipeline.rebuildAll(corpusConfig.sourceType, documents);
 
   console.log(`\nEmbedding Results:`);
-  console.log(`  Chapters: ${chapters.length} (${result.created} new, ${result.updated} updated, ${result.unchanged} unchanged)`);
+  console.log(`  Sections: ${sections.length} (${result.created} new, ${result.updated} updated, ${result.unchanged} unchanged)`);
   console.log(`  Chunks:   ${result.totalChunks} total`);
   console.log(`  Orphans:  ${result.orphansDeleted} deleted`);
   console.log(`  Model:    ${MODEL_VERSION}`);

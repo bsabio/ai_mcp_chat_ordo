@@ -101,42 +101,42 @@ npm run build   # all 6 descriptor files compile with correct types
 
 ---
 
-## Task 1.2 — Book tool descriptors (5 tools, factory pattern)
+## Task 1.2 — Corpus tool descriptors (5 tools, factory pattern)
 
-**What:** Create descriptor files for the 5 tools that depend on `BookRepository`.
+**What:** Create descriptor files for the 5 tools that depend on `CorpusRepository`.
 These use **factory functions** instead of static constants because the command
-classes need `BookRepository` injected via constructor.
+classes need `CorpusRepository` injected via constructor.
 
 | Item | Detail |
 | --- | --- |
-| **Create** | `src/core/use-cases/tools/search-books.tool.ts` |
-| **Create** | `src/core/use-cases/tools/get-chapter.tool.ts` |
+| **Create** | `src/core/use-cases/tools/search-corpus.tool.ts` |
+| **Create** | `src/core/use-cases/tools/get-section.tool.ts` |
 | **Create** | `src/core/use-cases/tools/get-checklist.tool.ts` |
 | **Create** | `src/core/use-cases/tools/list-practitioners.tool.ts` |
-| **Create** | `src/core/use-cases/tools/get-book-summary.tool.ts` |
+| **Create** | `src/core/use-cases/tools/get-corpus-summary.tool.ts` |
 | **Spec** | §3.4 factory method pattern |
 
 ### Role assignments (from §6 and `ToolAccessPolicy.ts` whitelist)
 
 | Tool | Roles | Category |
 | --- | --- | --- |
-| `search_books` | `"ALL"` (ANON sees truncated results via formatter in Sprint 3) | `"content"` |
-| `get_book_summary` | `"ALL"` | `"content"` |
-| `get_chapter` | `["AUTHENTICATED", "STAFF", "ADMIN"]` | `"content"` |
+| `search_corpus` | `"ALL"` (ANON sees truncated results via formatter in Sprint 3) | `"content"` |
+| `get_corpus_summary` | `"ALL"` | `"content"` |
+| `get_section` | `["AUTHENTICATED", "STAFF", "ADMIN"]` | `"content"` |
 | `get_checklist` | `["AUTHENTICATED", "STAFF", "ADMIN"]` | `"content"` |
 | `list_practitioners` | `["AUTHENTICATED", "STAFF", "ADMIN"]` | `"content"` |
 
 ### Factory pattern
 
 ```typescript
-// src/core/use-cases/tools/search-books.tool.ts
+// src/core/use-cases/tools/search-corpus.tool.ts
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { BookRepository } from "../BookRepository";
-import { SearchBooksCommand } from "./BookTools";
+import type { CorpusRepository } from "../CorpusRepository";
+import { SearchCorpusCommand } from "./CorpusTools";
 
-export function createSearchBooksTool(repo: BookRepository): ToolDescriptor {
+export function createSearchCorpusTool(repo: CorpusRepository): ToolDescriptor {
   return {
-    name: "search_books",
+    name: "search_corpus",
     schema: {
       description: "Search across all 10 books (104 chapters) in the Product Development Library.",
       input_schema: {
@@ -148,14 +148,14 @@ export function createSearchBooksTool(repo: BookRepository): ToolDescriptor {
         required: ["query"],
       },
     },
-    command: new SearchBooksCommand(repo),
+    command: new SearchCorpusCommand(repo),
     roles: "ALL",
     category: "content",
   };
 }
 ```
 
-All 5 book tool factories follow the same pattern: accept `BookRepository`,
+All 5 corpus tool factories follow the same pattern: accept `CorpusRepository`,
 return `ToolDescriptor` with the appropriate schema, command, and roles.
 
 ### Verify

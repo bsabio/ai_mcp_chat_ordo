@@ -1,5 +1,9 @@
 import type { UseCase } from "../common/UseCase";
-import type { BookRepository } from "./BookRepository";
+import {
+  asCorpusRepository,
+  type CorpusCompatibleRepository,
+  type CorpusRepository,
+} from "./CorpusRepository";
 import type { Checklist } from "../entities/library";
 
 export interface ChecklistRequest {
@@ -7,24 +11,28 @@ export interface ChecklistRequest {
 }
 
 export class ChecklistInteractor implements UseCase<ChecklistRequest, Checklist[]> {
-  constructor(private bookRepository: BookRepository) {}
+  private readonly corpusRepository: CorpusRepository;
+
+  constructor(repo: CorpusCompatibleRepository) {
+    this.corpusRepository = asCorpusRepository(repo);
+  }
 
   async execute(request: ChecklistRequest): Promise<Checklist[]> {
-    const chapters = await this.bookRepository.getAllChapters();
-    const books = await this.bookRepository.getAllBooks();
+    const sections = await this.corpusRepository.getAllSections();
+    const documents = await this.corpusRepository.getAllDocuments();
 
-    const filteredChapters = request.bookSlug
-      ? chapters.filter((c) => c.bookSlug === request.bookSlug)
-      : chapters;
+    const filteredSections = request.bookSlug
+      ? sections.filter((section) => section.documentSlug === request.bookSlug)
+      : sections;
 
-    return filteredChapters
-      .filter((c) => c.checklistItems.length > 0)
-      .map((c) => {
-        const book = books.find((b) => b.slug === c.bookSlug);
+    return filteredSections
+      .filter((section) => section.supplements.length > 0)
+      .map((section) => {
+        const document = documents.find((candidate) => candidate.slug === section.documentSlug);
         return {
-          bookTitle: book ? `${book.number}. ${book.title}` : c.bookSlug,
-          chapterTitle: c.title,
-          items: c.checklistItems,
+          bookTitle: document ? `${document.number}. ${document.title}` : section.documentSlug,
+          chapterTitle: section.title,
+          items: section.supplements,
         };
       });
   }

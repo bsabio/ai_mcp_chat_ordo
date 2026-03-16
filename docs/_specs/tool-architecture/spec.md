@@ -66,25 +66,25 @@ A tool architecture where:
 | --- | --- | --- | --- |
 | `src/core/use-cases/ToolCommand.ts` | `ToolCommand<TInput, TOutput>` interface | Core | `any` defaults |
 | `src/core/use-cases/ToolAccessPolicy.ts` | `getToolNamesForRole()` — ANON whitelist | Core | Function, not composable. Not consulted at dispatch. |
-| `src/core/use-cases/tools/BookTools.ts` | 5 book commands | Core | Clean DI via BookRepository. `SearchBooksCommand` has inline RBAC formatting. |
+| `src/core/use-cases/tools/CorpusTools.ts` | 5 corpus commands | Core | Clean DI via CorpusRepository. `BookTools.ts` is a compatibility re-export. |
 | `src/core/use-cases/tools/CalculatorTool.ts` | Calculator command | Core | Clean — pure domain entity. |
 | `src/core/use-cases/tools/UiTools.ts` | 5 UI commands | Core | Zero dependencies, return static strings. No shared contract. |
 | `src/lib/chat/tools.ts` | Schemas + registry + wiring + dispatch | Lib (infra) | God file: 4 responsibilities, 231 lines. Eagerly constructs all commands at module load. |
 | `src/lib/chat/orchestrator.ts` | Non-streaming tool loop | Lib | Passes `role` to `createToolResults()` |
 | `src/lib/chat/anthropic-stream.ts` | Streaming tool loop | Lib | Same role pass-through |
-| `src/adapters/FileSystemBookRepository.ts` | Reads chapters from disk | Adapter | No caching — reads all 104 files per search |
-| `src/adapters/RepositoryFactory.ts` | `getBookRepository()` singleton | Adapter | Eagerly constructs, no cache layer |
+| `src/adapters/FileSystemCorpusRepository.ts` | Reads sections from disk | Adapter | Canonical repository implementation |
+| `src/adapters/RepositoryFactory.ts` | `getCorpusRepository()` singleton | Adapter | Returns the cached corpus repository |
 
 ### 2B. Current Tool Inventory (11 Tools)
 
 | Tool | Command Class | Dependencies | RBAC | Real Work | Client Effect |
 | --- | --- | --- | --- | --- | --- |
 | `calculator` | `CalculatorCommand` | None (pure entity) | ANON ✅ | Arithmetic | None |
-| `search_books` | `SearchBooksCommand` | `BookRepository` | ANON ✅ (truncated output) | FS read + search | None |
-| `get_chapter` | `GetChapterCommand` | `BookRepository` | AUTH+ only | FS read | None |
-| `get_checklist` | `GetChecklistCommand` | `BookRepository` | AUTH+ only | FS read | None |
-| `list_practitioners` | `ListPractitionersCommand` | `BookRepository` | AUTH+ only | FS read | None |
-| `get_book_summary` | `GetBookSummaryCommand` | `BookRepository` | ANON ✅ | FS read | None |
+| `search_corpus` | `SearchCorpusCommand` | `CorpusRepository` | ANON ✅ (truncated output) | FS read + search | None |
+| `get_section` | `GetSectionCommand` | `CorpusRepository` | AUTH+ only | FS read | None |
+| `get_checklist` | `GetChecklistCommand` | `CorpusRepository` | AUTH+ only | FS read | None |
+| `list_practitioners` | `ListPractitionersCommand` | `CorpusRepository` | AUTH+ only | FS read | None |
+| `get_corpus_summary` | `GetCorpusSummaryCommand` | `CorpusRepository` | ANON ✅ | FS read | None |
 | `set_theme` | `SetThemeCommand` | None | ANON ✅ | Returns string | Client sets theme |
 | `adjust_ui` | `AdjustUICommand` | None | ANON ✅ | Returns string | Client adjusts UI |
 | `navigate` | `NavigateCommand` | None | ANON ✅ | Returns string | Client navigates |
@@ -97,11 +97,11 @@ A tool architecture where:
 | --- | --- | --- |
 | **Open/Closed** | Adding a tool requires 5 edit points across 2–3 files | High |
 | **Single Responsibility** | `tools.ts` has 4 jobs; `SearchBooksCommand` mixes data + RBAC formatting | Medium |
-| **Dependency Inversion** | `tools.ts` calls `getBookRepository()` at import time — untestable | Medium |
+| **Dependency Inversion** | Composition must stay injected through the corpus-first registry instead of import-time repository creation | Medium |
 | **Security** | No RBAC check at dispatch — only at schema filtering | High |
 | **Security** | `role` merged into LLM input object — trust boundary violation | Medium |
 | **Type Safety** | `ToolCommand<any, any>` defaults | Medium |
-| **Performance** | No caching on `FileSystemBookRepository` | High |
+| **Performance** | File-system corpus reads still rely on repository caching for scale | High |
 | **Observability** | Zero logging/timing on tool execution | Medium |
 
 ---
@@ -374,17 +374,17 @@ RBAC formatting reusable, testable, and swappable.
 | `src/core/tool-registry/errors.ts` | Core | `ToolAccessDeniedError`, `UnknownToolError` error classes |
 | `src/core/tool-registry/ToolResultFormatter.ts` | Core | Result formatting strategy (role-aware search) |
 | `src/core/use-cases/tools/calculator.tool.ts` | Core | Calculator descriptor |
-| `src/core/use-cases/tools/search-books.tool.ts` | Core | Search books descriptor (factory, needs BookRepo) |
-| `src/core/use-cases/tools/get-chapter.tool.ts` | Core | Get chapter descriptor |
+| `src/core/use-cases/tools/search-corpus.tool.ts` | Core | Search corpus descriptor (factory, needs CorpusRepo) |
+| `src/core/use-cases/tools/get-section.tool.ts` | Core | Get section descriptor |
 | `src/core/use-cases/tools/get-checklist.tool.ts` | Core | Get checklist descriptor |
 | `src/core/use-cases/tools/list-practitioners.tool.ts` | Core | List practitioners descriptor |
-| `src/core/use-cases/tools/get-book-summary.tool.ts` | Core | Book summary descriptor |
+| `src/core/use-cases/tools/get-corpus-summary.tool.ts` | Core | Corpus summary descriptor |
 | `src/core/use-cases/tools/set-theme.tool.ts` | Core | Set theme descriptor |
 | `src/core/use-cases/tools/adjust-ui.tool.ts` | Core | Adjust UI descriptor |
 | `src/core/use-cases/tools/navigate.tool.ts` | Core | Navigate descriptor |
 | `src/core/use-cases/tools/generate-chart.tool.ts` | Core | Generate chart descriptor |
 | `src/core/use-cases/tools/generate-audio.tool.ts` | Core | Generate audio descriptor |
-| `src/adapters/CachedBookRepository.ts` | Adapter | Caching decorator |
+| `src/adapters/CachedCorpusRepository.ts` | Adapter | Caching decorator |
 | `src/lib/chat/tool-composition-root.ts` | Lib | Wires registry + middleware + cached repo |
 
 ### Modified Files
@@ -392,7 +392,7 @@ RBAC formatting reusable, testable, and swappable.
 | File | Change |
 | --- | --- |
 | `src/core/use-cases/ToolCommand.ts` | Remove `any` defaults → `unknown` |
-| `src/core/use-cases/tools/BookTools.ts` | `SearchBooksCommand` drops inline RBAC formatting; all commands accept optional `ToolExecutionContext` |
+| `src/core/use-cases/tools/CorpusTools.ts` | `SearchCorpusCommand` drops inline RBAC formatting; all commands accept optional `ToolExecutionContext` |
 | `src/core/use-cases/tools/UiTools.ts` | Commands accept optional `ToolExecutionContext` |
 | `src/core/use-cases/tools/CalculatorTool.ts` | Accept optional `ToolExecutionContext` |
 | `src/core/use-cases/ToolAccessPolicy.ts` | Deprecated → logic moves into `ToolRegistry.canExecute()` |
@@ -401,7 +401,7 @@ RBAC formatting reusable, testable, and swappable.
 | `src/lib/chat/orchestrator.ts` | Use `registry.execute()` instead of `createToolResults()` |
 | `src/app/api/chat/stream/route.ts` | Build `ToolExecutionContext`, pass to registry |
 | `src/app/api/chat/route.ts` | Build `ToolExecutionContext`, pass to registry |
-| `src/adapters/RepositoryFactory.ts` | Return `CachedBookRepository` wrapping `FileSystemBookRepository` |
+| `src/adapters/RepositoryFactory.ts` | Return `CachedCorpusRepository` wrapping `FileSystemCorpusRepository` |
 
 ### Deleted Files
 
@@ -592,8 +592,8 @@ When forking this codebase for a new project:
 
 1. **Keep:** `src/core/tool-registry/` (entire directory), calculator tool,
    all UI tools, `ToolMiddleware` stack.
-2. **Replace:** Book-specific tools (`search-books.tool.ts`, `get-chapter.tool.ts`,
-   etc.) with domain-specific tools.
+2. **Replace:** Domain-specific corpus tools (`search-corpus.tool.ts`, `get-section.tool.ts`,
+   etc.) with the equivalents for the new domain.
 3. **Update:** `tool-composition-root.ts` — register new domain tools, remove
    old ones.
 4. **Done.** RBAC, logging, caching infrastructure, and the middleware stack

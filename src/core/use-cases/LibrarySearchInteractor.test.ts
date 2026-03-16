@@ -1,15 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import { LibrarySearchInteractor } from "./LibrarySearchInteractor";
-import type { BookRepository } from "./BookRepository";
-import type { Book} from "../entities/library";
-import { Chapter } from "../entities/library";
+import type { CorpusRepository } from "./CorpusRepository";
+import type { Document } from "../entities/corpus";
+import { Section } from "../entities/corpus";
 
 describe("LibrarySearchInteractor", () => {
-  const mockBooks: Book[] = [
+  const mockDocuments: Document[] = [
     { slug: "book-1", title: "Book One", number: "1" },
   ];
-  const mockChapters: Chapter[] = [
-    new Chapter(
+  const mockSections: Section[] = [
+    new Section(
       "book-1",
       "ch-1",
       "Bauhaus History",
@@ -20,12 +20,12 @@ describe("LibrarySearchInteractor", () => {
     ),
   ];
 
-  const mockRepo: BookRepository = {
-    getAllBooks: vi.fn().mockResolvedValue(mockBooks),
-    getAllChapters: vi.fn().mockResolvedValue(mockChapters),
-    getChaptersByBook: vi.fn(),
-    getChapter: vi.fn(),
-    getBook: vi.fn(),
+  const mockRepo: CorpusRepository = {
+    getAllDocuments: vi.fn().mockResolvedValue(mockDocuments),
+    getAllSections: vi.fn().mockResolvedValue(mockSections),
+    getSectionsByDocument: vi.fn(),
+    getSection: vi.fn(),
+    getDocument: vi.fn(),
   };
 
   it("should find results with exact phrase match", async () => {
@@ -53,9 +53,9 @@ describe("LibrarySearchInteractor", () => {
   });
 
   it("should sort results by score", async () => {
-    const multiChapters: Chapter[] = [
-      ...mockChapters,
-      new Chapter(
+    const multiSections: Section[] = [
+      ...mockSections,
+      new Section(
         "book-1",
         "ch-2",
         "Other stuff",
@@ -65,9 +65,9 @@ describe("LibrarySearchInteractor", () => {
         []
       ),
     ];
-    const repoWithMulti: BookRepository = {
+    const repoWithMulti: CorpusRepository = {
       ...mockRepo,
-      getAllChapters: vi.fn().mockResolvedValue(multiChapters),
+      getAllSections: vi.fn().mockResolvedValue(multiSections),
     };
     const interactor = new LibrarySearchInteractor(repoWithMulti);
     const results = await interactor.execute({ query: "Bauhaus" });

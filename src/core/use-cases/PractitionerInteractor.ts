@@ -1,5 +1,9 @@
 import type { UseCase } from "../common/UseCase";
-import type { BookRepository } from "./BookRepository";
+import {
+  asCorpusRepository,
+  type CorpusCompatibleRepository,
+  type CorpusRepository,
+} from "./CorpusRepository";
 import type { Book, Practitioner } from "../entities/library";
 
 export interface PractitionerRequest {
@@ -7,16 +11,20 @@ export interface PractitionerRequest {
 }
 
 export class PractitionerInteractor implements UseCase<PractitionerRequest, Practitioner[]> {
-  constructor(private bookRepository: BookRepository) {}
+  private readonly corpusRepository: CorpusRepository;
+
+  constructor(repo: CorpusCompatibleRepository) {
+    this.corpusRepository = asCorpusRepository(repo);
+  }
 
   async execute(request: PractitionerRequest): Promise<Practitioner[]> {
-    const chapters = await this.bookRepository.getAllChapters();
-    const books = await this.bookRepository.getAllBooks();
+    const sections = await this.corpusRepository.getAllSections();
+    const documents = await this.corpusRepository.getAllDocuments();
     
     const practitionerMap = new Map<string, { books: Set<string>; chapters: Set<string>; bookData: Book[] }>();
 
-    for (const chapter of chapters) {
-      for (const name of chapter.practitioners) {
+    for (const section of sections) {
+      for (const name of section.contributors) {
         const key = name.toLowerCase();
         if (request.query && !key.includes(request.query.toLowerCase())) continue;
 
@@ -26,15 +34,14 @@ export class PractitionerInteractor implements UseCase<PractitionerRequest, Prac
           practitionerMap.set(key, record);
         }
         
-        const book = books.find((candidate) => candidate.slug === chapter.bookSlug);
-        if (book) {
-          record.books.add(book.slug);
-          if (!record.bookData.find((candidate) => candidate.slug === book.slug)) {
-            record.bookData.push(book);
+        const document = documents.find((candidate) => candidate.slug === section.documentSlug);
+        if (document) {
+          record.books.add(document.slug);
+          if (!record.bookData.find((candidate) => candidate.slug === document.slug)) {
+            record.bookData.push(document);
           }
         }
-        // Store chapter details
-        record.chapters.add(JSON.stringify({ slug: chapter.chapterSlug, title: chapter.title }));
+        record.chapters.add(JSON.stringify({ slug: section.sectionSlug, title: section.title }));
       }
     }
 

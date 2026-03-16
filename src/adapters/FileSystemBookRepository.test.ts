@@ -1,28 +1,28 @@
 import { describe, it, expect } from "vitest";
-import { FileSystemBookRepository } from "./FileSystemBookRepository";
+import { FileSystemCorpusRepository } from "./FileSystemCorpusRepository";
 import { ResourceNotFoundError } from "../core/entities/errors";
 
 
-describe("FileSystemBookRepository", () => {
+describe("FileSystemCorpusRepository", () => {
   it("should instantiate successfully", () => {
-    const repo = new FileSystemBookRepository();
+    const repo = new FileSystemCorpusRepository();
     expect(repo).toBeDefined();
   });
 
-  it("should return all books", async () => {
-    const repo = new FileSystemBookRepository();
-    const books = await repo.getAllBooks();
-    expect(books.length).toBe(10);
-    expect(books[0].title).toBe("Software Engineering");
+  it("should return all documents", async () => {
+    const repo = new FileSystemCorpusRepository();
+    const documents = await repo.getAllDocuments();
+    expect(documents.length).toBe(10);
+    expect(documents[0].title).toBe("Software Engineering");
   });
 
-  it("should throw ResourceNotFoundError when getting chapters for non-existent book", async () => {
-    const repo = new FileSystemBookRepository();
-    await expect(repo.getChaptersByBook("non-existent-book")).rejects.toThrow(ResourceNotFoundError);
+  it("should throw ResourceNotFoundError when getting sections for non-existent document", async () => {
+    const repo = new FileSystemCorpusRepository();
+    await expect(repo.getSectionsByDocument("non-existent-book")).rejects.toThrow(ResourceNotFoundError);
   });
 
-  it("should throw ResourceNotFoundError when getting non-existent chapter", async () => {
-    const repo = new FileSystemBookRepository();
-    await expect(repo.getChapter("book-1", "non-existent-chapter")).rejects.toThrow(ResourceNotFoundError);
+  it("should throw ResourceNotFoundError when getting non-existent section", async () => {
+    const repo = new FileSystemCorpusRepository();
+    await expect(repo.getSection("book-1", "non-existent-chapter")).rejects.toThrow(ResourceNotFoundError);
   });
 });
