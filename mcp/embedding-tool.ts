@@ -5,7 +5,7 @@ import type { BM25IndexStore } from "@/core/search/ports/BM25IndexStore";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import type { EmbeddingPipelineFactory } from "@/core/search/EmbeddingPipelineFactory";
 import type { DocumentChunkMetadata } from "@/core/search/ports/Chunker";
-import type { BookRepository } from "@/core/use-cases/BookRepository";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 import { corpusConfig } from "@/lib/corpus-config";
 
 export interface EmbeddingToolDeps {
@@ -14,7 +14,7 @@ export interface EmbeddingToolDeps {
   bm25IndexStore: BM25IndexStore;
   searchHandler: SearchHandler;
   pipelineFactory: EmbeddingPipelineFactory;
-  bookRepo: BookRepository;
+  corpusRepo: CorpusRepository;
 }
 
 // --- embed_text (VSEARCH-30) ---
@@ -106,42 +106,42 @@ export async function rebuildIndex(
   }
 
   const pipeline = deps.pipelineFactory.createForSource(corpusConfig.sourceType);
-  const [books, chapters] = await Promise.all([
-    deps.bookRepo.getAllBooks(),
-    deps.bookRepo.getAllChapters(),
+  const [documents, sections] = await Promise.all([
+    deps.corpusRepo.getAllDocuments(),
+    deps.corpusRepo.getAllSections(),
   ]);
-  const bookTitleMap = new Map(books.map((b) => [b.slug, b.title]));
-  const bookIdMap = new Map(books.map((b) => [b.slug, b.id]));
+  const documentTitleMap = new Map(documents.map((document) => [document.slug, document.title]));
+  const documentIdMap = new Map(documents.map((document) => [document.slug, document.id]));
 
   if (args.force) {
-    for (const ch of chapters) {
-      deps.vectorStore.delete(`${ch.bookSlug}/${ch.chapterSlug}`);
+    for (const section of sections) {
+      deps.vectorStore.delete(`${section.documentSlug}/${section.sectionSlug}`);
     }
   }
 
-  const documents = chapters.map((ch) => ({
-    sourceId: `${ch.bookSlug}/${ch.chapterSlug}`,
-    content: ch.content,
-    contentHash: createHash("sha256").update(ch.content).digest("hex"),
+  const indexedDocuments = sections.map((section) => ({
+    sourceId: `${section.documentSlug}/${section.sectionSlug}`,
+    content: section.content,
+    contentHash: createHash("sha256").update(section.content).digest("hex"),
     metadata: {
       sourceType: corpusConfig.sourceType,
-      documentSlug: ch.bookSlug,
-      sectionSlug: ch.chapterSlug,
-      documentTitle: bookTitleMap.get(ch.bookSlug) ?? ch.bookSlug,
-      documentId: bookIdMap.get(ch.bookSlug) ?? ch.bookSlug,
-      sectionTitle: ch.title,
+      documentSlug: section.documentSlug,
+      sectionSlug: section.sectionSlug,
+      documentTitle: documentTitleMap.get(section.documentSlug) ?? section.documentSlug,
+      documentId: documentIdMap.get(section.documentSlug) ?? section.documentSlug,
+      sectionTitle: section.title,
       sectionFirstSentence:
-        ch.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
-      bookSlug: ch.bookSlug,
-      chapterSlug: ch.chapterSlug,
-      bookTitle: bookTitleMap.get(ch.bookSlug) ?? ch.bookSlug,
-      bookNumber: bookIdMap.get(ch.bookSlug) ?? ch.bookSlug,
-      chapterTitle: ch.title,
-      chapterFirstSentence: ch.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
+        section.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
+      bookSlug: section.documentSlug,
+      chapterSlug: section.sectionSlug,
+      bookTitle: documentTitleMap.get(section.documentSlug) ?? section.documentSlug,
+      bookNumber: documentIdMap.get(section.documentSlug) ?? section.documentSlug,
+      chapterTitle: section.title,
+      chapterFirstSentence: section.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
     } satisfies DocumentChunkMetadata,
   }));
 
-  const result = await pipeline.rebuildAll(corpusConfig.sourceType, documents);
+  const result = await pipeline.rebuildAll(corpusConfig.sourceType, indexedDocuments);
   return result;
 }
 

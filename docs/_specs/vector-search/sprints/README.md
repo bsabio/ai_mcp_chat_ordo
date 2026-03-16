@@ -32,7 +32,7 @@ degrading gracefully through the fallback chain:
 
 ```text
 Sprint 5 → Full hybrid + MCP server
-Sprint 4 → Full hybrid (BM25 + Vector + RRF) via search_books tool
+Sprint 4 → Full hybrid (BM25 + Vector + RRF) via search_corpus tool
 Sprint 3 → Hybrid search works but not wired to tool
 Sprint 2 → Embeddings exist but search unchanged
 Sprint 1 → Storage ready, no embeddings yet

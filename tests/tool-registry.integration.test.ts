@@ -5,19 +5,19 @@ import { LoggingMiddleware } from "@/core/tool-registry/LoggingMiddleware";
 import { RbacGuardMiddleware } from "@/core/tool-registry/RbacGuardMiddleware";
 import { ToolAccessDeniedError, UnknownToolError } from "@/core/tool-registry/errors";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
-import type { BookRepository } from "@/core/use-cases/BookRepository";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 
-// Minimal mock BookRepository — returns canned data, no filesystem
-const mockBookRepo: BookRepository = {
-  getAllBooks: vi.fn().mockResolvedValue([]),
-  getBook: vi.fn().mockResolvedValue(null),
-  getAllChapters: vi.fn().mockResolvedValue([]),
-  getChaptersByBook: vi.fn().mockResolvedValue([]),
-  getChapter: vi.fn().mockResolvedValue({ bookSlug: "", chapterSlug: "", bookTitle: "", title: "", content: "", slug: "" }),
+// Minimal mock CorpusRepository — returns canned data, no filesystem
+const mockCorpusRepo: CorpusRepository = {
+  getAllDocuments: vi.fn().mockResolvedValue([]),
+  getDocument: vi.fn().mockResolvedValue(null),
+  getAllSections: vi.fn().mockResolvedValue([]),
+  getSectionsByDocument: vi.fn().mockResolvedValue([]),
+  getSection: vi.fn().mockResolvedValue({ documentSlug: "", sectionSlug: "", title: "", content: "", contributors: [], supplements: [], headings: [] }),
 };
 
 function buildStack() {
-  const registry = createToolRegistry(mockBookRepo);
+  const registry = createToolRegistry(mockCorpusRepo);
   const executor: ToolExecuteFn = composeMiddleware(
     [new LoggingMiddleware(), new RbacGuardMiddleware(registry)],
     registry.execute.bind(registry),
@@ -156,7 +156,7 @@ describe("Security Verification", () => {
 
   // TEST-SEC-03: Per-descriptor role arrays work for custom tools
   it("custom ADMIN-only tool rejects non-ADMIN roles", async () => {
-    const registry = createToolRegistry(mockBookRepo);
+    const registry = createToolRegistry(mockCorpusRepo);
     registry.register({
       name: "admin_secret",
       schema: { description: "Admin only", input_schema: { type: "object", properties: {} } },

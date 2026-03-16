@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { getChapter } from "@/lib/book-actions"; // Need to create this action
+import { getSectionContentAction } from "@/lib/corpus-actions";
 
 interface ContentModalProps {
   bookSlug: string;
@@ -22,9 +22,8 @@ export function ContentModal({
     async function load() {
       setLoading(true);
       try {
-        // In a real app, this would be a server action or API call
-        const chapter = await getChapter(bookSlug, chapterSlug);
-        setContent(chapter?.content || "Content not found.");
+        const section = await getSectionContentAction(bookSlug, chapterSlug);
+        setContent(section?.content || "Content not found.");
       } catch {
         setContent("Failed to load content.");
       } finally {

@@ -11,10 +11,10 @@
 |---|------|----------|-------------|----------|
 | 01 | [Vector Search & Embedding Infrastructure](01-vector-search-engine.md) | **Critical** | BM25+vector hybrid via RRF, markdown-aware chunking, SQLite BLOB storage, source-agnostic pipeline, MCP embedding server, on-demand indexing | `@huggingface/transformers` |
 | 02 | [Knowledge Graph](02-knowledge-graph.md) | **High** | Curated practitioner registry, relationships, co-occurrence graph, BFS path finding | — |
-| 03 | [Smart Content Delivery](03-smart-content-delivery.md) | **High** | Chapter pagination, heading-aware chunking, extractive summaries, checklist progress tracking | — |
+| 03 | [Smart Content Delivery](03-smart-content-delivery.md) | **High** | Section pagination, heading-aware chunking, extractive summaries, checklist progress tracking | — |
 | 04 | [Advanced Calculator](04-advanced-calculator.md) | **Medium** | Expression evaluator, unit conversion, statistics, WCAG contrast ratio | `mathjs` |
 | 05 | [Intelligent UI Tools](05-intelligent-ui-tools.md) | **Medium** | Theme intelligence, accessibility persistence, semantic route navigation | — |
-| 06 | [Media Generation](06-media-generation.md) | **Medium** | Mermaid validation + templates, server-side TTS, chapter narration | `mermaid`, `edge-tts` |
+| 06 | [Media Generation](06-media-generation.md) | **Medium** | Mermaid validation + templates, server-side TTS, section narration | `mermaid`, `edge-tts` |
 | 07 | [Cross-Cutting Platform](07-cross-cutting-platform.md) | **Medium** | Conversation awareness, tool chaining hints, analytics, rate limiting | — |
 
 ---
@@ -28,7 +28,7 @@ interaction starts with search or reading — these must be excellent first.
 
 ```text
 01 Vector Search Engine    ← highest-impact single change
-03 Smart Content Delivery  ← chapters+checklists become interactive
+03 Smart Content Delivery  ← sections+checklists become interactive
 ```
 
 ### Phase 2 — Enrichment (Specs 02, 07)

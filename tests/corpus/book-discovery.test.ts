@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { FileSystemBookRepository } from "@/adapters/FileSystemBookRepository";
+import { FileSystemCorpusRepository } from "@/adapters/FileSystemCorpusRepository";
 
 /**
- * Sprint 0 — Auto-discovery tests for FileSystemBookRepository.
+ * Sprint 0 — Auto-discovery tests for FileSystemCorpusRepository.
  * Uses temp directories with test fixtures — no dependency on real corpus data.
  */
 
@@ -55,13 +55,13 @@ afterEach(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
-describe("FileSystemBookRepository — auto-discovery", () => {
+describe("FileSystemCorpusRepository — auto-discovery", () => {
   it("discovers books with valid book.json", async () => {
     await writeManifest("alpha", { sortOrder: 2, title: "Alpha Book" });
     await writeManifest("beta", { sortOrder: 1, title: "Beta Book" });
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books).toHaveLength(2);
     // sorted by sortOrder, not alphabetical
@@ -76,8 +76,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
       recursive: true,
     });
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books).toHaveLength(1);
     expect(books[0].slug).toBe("valid-book");
@@ -89,8 +89,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
     await fs.mkdir(path.join(badDir, "chapters"), { recursive: true });
     await fs.writeFile(path.join(badDir, "book.json"), "{invalid json");
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books).toHaveLength(1);
   });
@@ -104,8 +104,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
       JSON.stringify({ slug: "missing-fields" }),
     );
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books).toHaveLength(0);
   });
@@ -123,8 +123,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
       }),
     );
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books).toHaveLength(0);
   });
@@ -143,8 +143,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
       }),
     );
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books).toHaveLength(0);
   });
@@ -164,8 +164,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
       }),
     );
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books).toHaveLength(0);
   });
@@ -176,8 +176,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
       path.join(os.tmpdir(), "librarian-empty-"),
     );
     try {
-      const repo = new FileSystemBookRepository(emptyDir);
-      const books = await repo.getAllBooks();
+      const repo = new FileSystemCorpusRepository(emptyDir);
+      const books = await repo.getAllDocuments();
       expect(books).toHaveLength(0);
     } finally {
       await fs.rm(emptyDir, { recursive: true, force: true });
@@ -189,8 +189,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
     await writeManifest("first", { sortOrder: 1, title: "First" });
     await writeManifest("second", { sortOrder: 2, title: "Second" });
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const books = await repo.getAllBooks();
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const books = await repo.getAllDocuments();
 
     expect(books.map((b) => b.slug)).toEqual(["first", "second", "third"]);
   });
@@ -208,8 +208,8 @@ describe("FileSystemBookRepository — auto-discovery", () => {
       "# The Basics\n\nFundamentals.",
     );
 
-    const repo = new FileSystemBookRepository(tmpDir);
-    const chapters = await repo.getChaptersByBook("test-book");
+    const repo = new FileSystemCorpusRepository(tmpDir);
+    const chapters = await repo.getSectionsByDocument("test-book");
 
     expect(chapters).toHaveLength(2);
     expect(chapters[0].chapterSlug).toBe("ch00-intro");
@@ -221,22 +221,22 @@ describe("FileSystemBookRepository — auto-discovery", () => {
   it("clearDiscoveryCache forces re-scan", async () => {
     await writeManifest("original", { sortOrder: 1 });
 
-    const repo = new FileSystemBookRepository(tmpDir);
+    const repo = new FileSystemCorpusRepository(tmpDir);
 
     // First scan — 1 book
-    let books = await repo.getAllBooks();
+    let books = await repo.getAllDocuments();
     expect(books).toHaveLength(1);
 
     // Add another book on disk
     await writeManifest("added-later", { sortOrder: 2 });
 
     // Still cached — still 1 book
-    books = await repo.getAllBooks();
+    books = await repo.getAllDocuments();
     expect(books).toHaveLength(1);
 
     // Clear cache, re-discover — now 2 books
     repo.clearDiscoveryCache();
-    books = await repo.getAllBooks();
+    books = await repo.getAllDocuments();
     expect(books).toHaveLength(2);
   });
 });

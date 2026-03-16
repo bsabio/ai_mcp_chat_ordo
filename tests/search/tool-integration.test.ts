@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { SearchBooksCommand } from "@/core/use-cases/tools/BookTools";
+import { SearchCorpusCommand } from "@/core/use-cases/tools/CorpusTools";
 import { RoleAwareSearchFormatter } from "@/core/tool-registry/ToolResultFormatter";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import type { HybridSearchResult } from "@/core/search/types";
-import type { BookRepository } from "@/core/use-cases/BookRepository";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 
 const sampleHybridResults: HybridSearchResult[] = [
@@ -33,24 +33,24 @@ function makeMockSearchHandler(results: HybridSearchResult[]): SearchHandler {
   return handler;
 }
 
-function makeMockBookRepo(): BookRepository {
+function makeMockCorpusRepo(): CorpusRepository {
   return {
-    getAllBooks: vi.fn().mockResolvedValue([]),
-    getAllChapters: vi.fn().mockResolvedValue([]),
-    getChaptersByBook: vi.fn().mockResolvedValue([]),
-    getChapter: vi.fn().mockResolvedValue(null),
-    getBook: vi.fn().mockResolvedValue(null),
+    getAllDocuments: vi.fn().mockResolvedValue([]),
+    getAllSections: vi.fn().mockResolvedValue([]),
+    getSectionsByDocument: vi.fn().mockResolvedValue([]),
+    getSection: vi.fn().mockResolvedValue(null),
+    getDocument: vi.fn().mockResolvedValue(null),
   };
 }
 
 describe("Sprint 4 — Tool Integration", () => {
-  const mockRepo = makeMockBookRepo();
+  const mockRepo = makeMockCorpusRepo();
   const authCtx: ToolExecutionContext = { role: "AUTHENTICATED", userId: "user-1" };
   const anonCtx: ToolExecutionContext = { role: "ANONYMOUS", userId: "anon" };
 
-  describe("SearchBooksCommand with hybrid handler", () => {
+  describe("SearchCorpusCommand with hybrid handler", () => {
     const handler = makeMockSearchHandler(sampleHybridResults);
-    const command = new SearchBooksCommand(mockRepo, handler);
+    const command = new SearchCorpusCommand(mockRepo, handler);
 
     // VSEARCH-38 — backward compatible existing fields
     it("returns existing fields (book, chapter, etc.) — backward compatible", async () => {
@@ -90,9 +90,9 @@ describe("Sprint 4 — Tool Integration", () => {
     });
   });
 
-  describe("SearchBooksCommand without handler (legacy fallback)", () => {
+  describe("SearchCorpusCommand without handler (legacy fallback)", () => {
     it("falls back to legacy keyword scoring", async () => {
-      const legacyCommand = new SearchBooksCommand(mockRepo);
+      const legacyCommand = new SearchCorpusCommand(mockRepo);
       const result = await legacyCommand.execute({ query: "bauhaus" }, authCtx);
       // With empty mock repo, no results
       expect(result).toBe('No results found for "bauhaus".');
@@ -102,7 +102,7 @@ describe("Sprint 4 — Tool Integration", () => {
   describe("RoleAwareSearchFormatter with hybrid fields", () => {
     const formatter = new RoleAwareSearchFormatter();
     const handler = makeMockSearchHandler(sampleHybridResults);
-    const command = new SearchBooksCommand(mockRepo, handler);
+    const command = new SearchCorpusCommand(mockRepo, handler);
 
     it("strips hybrid fields for ANONYMOUS", async () => {
       const rawResult = await command.execute({ query: "bauhaus" }, authCtx);

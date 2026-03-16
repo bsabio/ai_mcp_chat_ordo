@@ -31,9 +31,9 @@ scale as the platform is reused across projects:
 - **No observability** — Auth interactors have `LoggingDecorator`. Tool execution
   has zero logging, timing, or error tracking. In a streaming agent loop,
   tool calls can take seconds with no visibility.
-- **No caching** — `FileSystemBookRepository` reads the entire filesystem on every
-  call. A single agent loop can trigger `search_books` + `get_chapter` +
-  `get_checklist`, causing 3 full traversals of 104 chapter files.
+- **No caching** — `FileSystemCorpusRepository` reads the entire filesystem on every
+  call. A single agent loop can trigger `search_corpus` + `get_section` +
+  `get_checklist`, causing 3 full traversals of 104 section files.
 - **`ToolCommand` uses `any`** — `ToolCommand<TInput = any, TOutput = any>`
   defeats type safety at the dispatch boundary.
 - **God file** — `tools.ts` holds tool schemas, the command registry, dependency
@@ -448,12 +448,12 @@ Layer 3: Command-level context (NEW)
 | Tool | ANON | AUTH | STAFF | ADMIN |
 | --- | --- | --- | --- | --- |
 | `calculator` | ✅ | ✅ | ✅ | ✅ |
-| `search_books` | ✅ (truncated) | ✅ | ✅ | ✅ |
-| `get_book_summary` | ✅ | ✅ | ✅ | ✅ |
+| `search_corpus` | ✅ (truncated) | ✅ | ✅ | ✅ |
+| `get_corpus_summary` | ✅ | ✅ | ✅ | ✅ |
 | `set_theme` | ✅ | ✅ | ✅ | ✅ |
 | `navigate` | ✅ | ✅ | ✅ | ✅ |
 | `adjust_ui` | ✅ | ✅ | ✅ | ✅ |
-| `get_chapter` | ❌ | ✅ | ✅ | ✅ |
+| `get_section` | ❌ | ✅ | ✅ | ✅ |
 | `get_checklist` | ❌ | ✅ | ✅ | ✅ |
 | `list_practitioners` | ❌ | ✅ | ✅ | ✅ |
 | `generate_chart` | ❌ | ✅ | ✅ | ✅ |
@@ -467,12 +467,12 @@ Layer 3: Command-level context (NEW)
 
 | Operation | Before | After |
 | --- | --- | --- |
-| `search_books` (104 chapters) | ~200-400ms (full FS read) | ~1ms (cached after first call) |
-| `get_chapter` + `get_checklist` in same loop | ~100ms + ~200ms | ~1ms + ~1ms (cached) |
+| `search_corpus` (104 sections) | ~200-400ms (full FS read) | ~1ms (cached after first call) |
+| `get_section` + `get_checklist` in same loop | ~100ms + ~200ms | ~1ms + ~1ms (cached) |
 | First request after cold start | Same as above | Same (cache cold) |
 | Second+ request in same process | Same as above | Near-instant (memory cache) |
 
-Book content is static markdown bundled with the deployment. In-memory caching
+Corpus content is static markdown bundled with the deployment. In-memory caching
 is safe with no invalidation needed for the server lifecycle.
 
 ---
@@ -491,11 +491,11 @@ is safe with no invalidation needed for the server lifecycle.
 | TOOL-SEC-1 | `ToolExecutionContext` is never merged with LLM input |
 | TOOL-SEC-2 | `RbacGuardMiddleware` blocks execution before command runs |
 | TOOL-SEC-3 | Role override via LLM input is impossible (no spread) |
-| TOOL-PERF-1 | `getAllChapters()` hits filesystem at most once per process lifecycle |
-| TOOL-PERF-2 | `getChapter()` hits filesystem at most once per unique book+chapter key |
+| TOOL-PERF-1 | `getAllSections()` hits filesystem at most once per process lifecycle |
+| TOOL-PERF-2 | `getSection()` hits filesystem at most once per unique document+section key |
 | TOOL-OBS-1 | Every tool execution is logged with: tool name, role, duration, success/error |
 | TOOL-OBS-2 | `LoggingMiddleware` uses structured log format matching existing `LoggingDecorator` |
-| TOOL-SRP-1 | `SearchBooksCommand` does not contain role-conditional formatting logic |
+| TOOL-SRP-1 | `SearchCorpusCommand` does not contain role-conditional formatting logic |
 | TOOL-SRP-2 | Tool schemas live alongside their command (not in a separate god file) |
 | TOOL-TYPE-1 | `ToolCommand` interface has no `any` type parameters |
 | TOOL-TYPE-2 | Tool dispatch does not use `as any` or `as unknown` type casts |
@@ -519,11 +519,11 @@ is safe with no invalidation needed for the server lifecycle.
 ```text
 TEST-REG-01: Register calculator → getToolNames() includes "calculator"
 TEST-REG-02: Register duplicate name → throws
-TEST-REG-03: getSchemasForRole("ANONYMOUS") → 6 tools (calculator, search_books,
-             get_book_summary, set_theme, navigate, adjust_ui)
+TEST-REG-03: getSchemasForRole("ANONYMOUS") → 6 tools (calculator, search_corpus,
+             get_corpus_summary, set_theme, navigate, adjust_ui)
 TEST-REG-04: getSchemasForRole("AUTHENTICATED") → all 11 tools
 TEST-REG-05: execute("calculator", {op:"add",a:2,b:3}, ctx) → {operation:"add",a:2,b:3,result:5}
-TEST-REG-06: execute("get_chapter", input, {role:"ANONYMOUS"}) → ToolAccessDeniedError
+TEST-REG-06: execute("get_section", input, {role:"ANONYMOUS"}) → ToolAccessDeniedError
 TEST-REG-07: execute("unknown_tool", input, ctx) → UnknownToolError
 ```
 
@@ -532,8 +532,8 @@ TEST-REG-07: execute("unknown_tool", input, ctx) → UnknownToolError
 ```text
 TEST-MW-01: LoggingMiddleware logs tool name + duration on success
 TEST-MW-02: LoggingMiddleware logs tool name + error on failure
-TEST-MW-03: RbacGuardMiddleware blocks ANONYMOUS from get_chapter → ToolAccessDeniedError
-TEST-MW-04: RbacGuardMiddleware allows AUTHENTICATED to get_chapter → passes through
+TEST-MW-03: RbacGuardMiddleware blocks ANONYMOUS from get_section → ToolAccessDeniedError
+TEST-MW-04: RbacGuardMiddleware allows AUTHENTICATED to get_section → passes through
 TEST-MW-05: Middleware chain: logging → rbac → execute → logs include rbac rejection
 ```
 

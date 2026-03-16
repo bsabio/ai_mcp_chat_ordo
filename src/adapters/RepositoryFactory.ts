@@ -1,5 +1,4 @@
 import type { CorpusRepository } from "../core/use-cases/CorpusRepository";
-import type { BookRepository } from "../core/use-cases/BookRepository";
 import { FileSystemCorpusRepository } from "./FileSystemCorpusRepository";
 import { CachedCorpusRepository } from "./CachedCorpusRepository";
 
@@ -19,8 +18,4 @@ export function getCorpusRepository(): CorpusRepository {
     repository = new CachedCorpusRepository(new FileSystemCorpusRepository());
   }
   return repository;
-}
-
-export function getBookRepository(): BookRepository {
-  return getCorpusRepository() as BookRepository;
 }

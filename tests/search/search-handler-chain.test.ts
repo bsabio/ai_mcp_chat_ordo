@@ -12,29 +12,29 @@ import { LowercaseStep } from "@/core/search/query-steps/LowercaseStep";
 import { InMemoryBM25IndexStore } from "@/adapters/InMemoryBM25IndexStore";
 import type { Embedder } from "@/core/search/ports/Embedder";
 import type { VectorStore, EmbeddingRecord } from "@/core/search/ports/VectorStore";
-import type { BookRepository } from "@/core/use-cases/BookRepository";
-import type { Book } from "@/core/entities/library";
-import { Chapter } from "@/core/entities/library";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
+import type { Document } from "@/core/entities/corpus";
+import { Section } from "@/core/entities/corpus";
 
-const mockBooks: Book[] = [
+const mockDocuments: Document[] = [
   { slug: "book-1", title: "Book One", number: "1", id: "1" },
 ];
 
-const mockChapters: Chapter[] = [
-  new Chapter(
+const mockSections: Section[] = [
+  new Section(
     "book-1", "ch-1", "Bauhaus History",
     "The Bauhaus movement was founded by Walter Gropius. It focused on functional design.",
     ["Walter Gropius"], ["Check functionality"], ["Founding"],
   ),
 ];
 
-function makeMockRepo(): BookRepository {
+function makeMockRepo(): CorpusRepository {
   return {
-    getAllBooks: vi.fn().mockResolvedValue(mockBooks),
-    getAllChapters: vi.fn().mockResolvedValue(mockChapters),
-    getChaptersByBook: vi.fn().mockResolvedValue(mockChapters),
-    getChapter: vi.fn().mockResolvedValue(mockChapters[0]),
-    getBook: vi.fn().mockResolvedValue(mockBooks[0]),
+    getAllDocuments: vi.fn().mockResolvedValue(mockDocuments),
+    getAllSections: vi.fn().mockResolvedValue(mockSections),
+    getSectionsByDocument: vi.fn().mockResolvedValue(mockSections),
+    getSection: vi.fn().mockResolvedValue(mockSections[0]),
+    getDocument: vi.fn().mockResolvedValue(mockDocuments[0]),
   };
 }
 

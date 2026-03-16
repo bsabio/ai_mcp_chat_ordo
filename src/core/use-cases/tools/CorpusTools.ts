@@ -121,22 +121,3 @@ export class GetCorpusSummaryCommand implements ToolCommand<Record<string, never
     }).join("\n\n");
   }
 }
-
-export class SearchBooksCommand extends SearchCorpusCommand {}
-
-export class GetChapterCommand implements ToolCommand<{ book_slug: string; chapter_slug: string }, string> {
-  private readonly getSection: GetSectionCommand;
-
-  constructor(repo: CorpusCompatibleRepository) {
-    this.getSection = new GetSectionCommand(repo);
-  }
-
-  async execute({ book_slug, chapter_slug }: { book_slug: string; chapter_slug: string }, context?: ToolExecutionContext) {
-    return this.getSection.execute(
-      { document_slug: book_slug, section_slug: chapter_slug },
-      context,
-    );
-  }
-}
-
-export class GetBookSummaryCommand extends GetCorpusSummaryCommand {}

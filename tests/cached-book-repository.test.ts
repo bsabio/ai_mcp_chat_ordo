@@ -1,76 +1,76 @@
 import { describe, it, expect } from "vitest";
-import { CachedBookRepository } from "@/adapters/CachedBookRepository";
-import type { BookRepository } from "@/core/use-cases/BookRepository";
-import type { Book } from "@/core/entities/library";
-import { Chapter } from "@/core/entities/library";
+import { CachedCorpusRepository } from "@/adapters/CachedCorpusRepository";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
+import type { Document } from "@/core/entities/corpus";
+import { Section } from "@/core/entities/corpus";
 
-function createMockRepo(): BookRepository & { callCounts: Record<string, number> } {
+function createMockRepo(): CorpusRepository & { callCounts: Record<string, number> } {
   const callCounts: Record<string, number> = {
-    getAllBooks: 0,
-    getBook: 0,
-    getChaptersByBook: 0,
-    getAllChapters: 0,
-    getChapter: 0,
+    getAllDocuments: 0,
+    getDocument: 0,
+    getSectionsByDocument: 0,
+    getAllSections: 0,
+    getSection: 0,
   };
 
-  const book: Book = { slug: "book-1", title: "Book One", number: "1" };
-  const chapter = new Chapter("book-1", "ch-1", "Chapter One", "Content", [], [], []);
+  const document: Document = { slug: "book-1", title: "Book One", number: "1" };
+  const section = new Section("book-1", "ch-1", "Chapter One", "Content", [], [], []);
 
   return {
     callCounts,
-    async getAllBooks() { callCounts.getAllBooks++; return [book]; },
-    async getBook(slug: string) { callCounts.getBook++; return slug === "book-1" ? book : null; },
-    async getChaptersByBook() { callCounts.getChaptersByBook++; return [chapter]; },
-    async getAllChapters() { callCounts.getAllChapters++; return [chapter]; },
-    async getChapter() { callCounts.getChapter++; return chapter; },
+    async getAllDocuments() { callCounts.getAllDocuments++; return [document]; },
+    async getDocument(slug: string) { callCounts.getDocument++; return slug === "book-1" ? document : null; },
+    async getSectionsByDocument() { callCounts.getSectionsByDocument++; return [section]; },
+    async getAllSections() { callCounts.getAllSections++; return [section]; },
+    async getSection() { callCounts.getSection++; return section; },
   };
 }
 
-describe("CachedBookRepository", () => {
+describe("CachedCorpusRepository", () => {
   // TEST-CACHE-01
-  it("getAllChapters called twice → inner called once", async () => {
+  it("getAllSections called twice → inner called once", async () => {
     const mock = createMockRepo();
-    const cached = new CachedBookRepository(mock);
+    const cached = new CachedCorpusRepository(mock);
 
-    await cached.getAllChapters();
-    await cached.getAllChapters();
+    await cached.getAllSections();
+    await cached.getAllSections();
 
-    expect(mock.callCounts.getAllChapters).toBe(1);
+    expect(mock.callCounts.getAllSections).toBe(1);
   });
 
   // TEST-CACHE-02
-  it("getChapter with same key called twice → inner called once", async () => {
+  it("getSection with same key called twice → inner called once", async () => {
     const mock = createMockRepo();
-    const cached = new CachedBookRepository(mock);
+    const cached = new CachedCorpusRepository(mock);
 
-    await cached.getChapter("book-1", "ch-1");
-    await cached.getChapter("book-1", "ch-1");
+    await cached.getSection("book-1", "ch-1");
+    await cached.getSection("book-1", "ch-1");
 
-    expect(mock.callCounts.getChapter).toBe(1);
+    expect(mock.callCounts.getSection).toBe(1);
   });
 
   // TEST-CACHE-03
-  it("getChapter with different keys → inner called for each unique key", async () => {
+  it("getSection with different keys → inner called for each unique key", async () => {
     const mock = createMockRepo();
-    const cached = new CachedBookRepository(mock);
+    const cached = new CachedCorpusRepository(mock);
 
-    await cached.getChapter("book-1", "ch-1");
-    await cached.getChapter("book-1", "ch-2");
+    await cached.getSection("book-1", "ch-1");
+    await cached.getSection("book-1", "ch-2");
 
-    expect(mock.callCounts.getChapter).toBe(2);
+    expect(mock.callCounts.getSection).toBe(2);
   });
 
   // TEST-CACHE-04
-  it("getAllBooks cached independently from getAllChapters", async () => {
+  it("getAllDocuments cached independently from getAllSections", async () => {
     const mock = createMockRepo();
-    const cached = new CachedBookRepository(mock);
+    const cached = new CachedCorpusRepository(mock);
 
-    await cached.getAllBooks();
-    await cached.getAllChapters();
-    await cached.getAllBooks();
-    await cached.getAllChapters();
+    await cached.getAllDocuments();
+    await cached.getAllSections();
+    await cached.getAllDocuments();
+    await cached.getAllSections();
 
-    expect(mock.callCounts.getAllBooks).toBe(1);
-    expect(mock.callCounts.getAllChapters).toBe(1);
+    expect(mock.callCounts.getAllDocuments).toBe(1);
+    expect(mock.callCounts.getAllSections).toBe(1);
   });
 });

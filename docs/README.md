@@ -8,7 +8,7 @@ This directory is organized by role so feature docs, operational docs, corpus co
 | --- | --- |
 | `_specs/` | Feature specs, sprint plans, and feature-owned artifacts |
 | `_refactor/` | Cross-cutting remediation and refactor workstreams |
-| `_corpus/` | Book and content corpus source material |
+| `_corpus/` | Canonical corpus source material and structured content manifests |
 | `_reference/` | External or ad hoc reference notes |
 | `operations/` | Runbooks and operational process docs |
 

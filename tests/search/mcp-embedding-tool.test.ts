@@ -5,7 +5,7 @@ import type { Embedder } from "@/core/search/ports/Embedder";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import type { EmbeddingPipelineFactory } from "@/core/search/EmbeddingPipelineFactory";
 import type { EmbeddingPipeline } from "@/core/search/EmbeddingPipeline";
-import type { BookRepository } from "@/core/use-cases/BookRepository";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 import type { HybridSearchResult, IndexResult, RebuildResult } from "@/core/search/types";
 import type { EmbeddingToolDeps } from "../../mcp/embedding-tool";
 import {
@@ -62,35 +62,35 @@ function createMockPipelineFactory(): EmbeddingPipelineFactory {
   } as unknown as EmbeddingPipelineFactory;
 }
 
-function createMockBookRepo(): BookRepository {
+function createMockCorpusRepo(): CorpusRepository {
   return {
-    getAllBooks: vi.fn().mockResolvedValue([
+    getAllDocuments: vi.fn().mockResolvedValue([
       { slug: "lean-startup", title: "The Lean Startup", number: "1" },
       { slug: "zero-to-one", title: "Zero to One", number: "2" },
     ]),
-    getAllChapters: vi.fn().mockResolvedValue([
+    getAllSections: vi.fn().mockResolvedValue([
       {
-        bookSlug: "lean-startup",
-        chapterSlug: "ch-1",
+        documentSlug: "lean-startup",
+        sectionSlug: "ch-1",
         title: "Vision",
         content: "Start with a vision. Build iteratively.",
-        practitioners: [],
-        checklistItems: [],
+        contributors: [],
+        supplements: [],
         headings: [],
       },
       {
-        bookSlug: "zero-to-one",
-        chapterSlug: "ch-1",
+        documentSlug: "zero-to-one",
+        sectionSlug: "ch-1",
         title: "The Future",
         content: "Every moment in business happens only once.",
-        practitioners: [],
-        checklistItems: [],
+        contributors: [],
+        supplements: [],
         headings: [],
       },
     ]),
-    getBook: vi.fn(),
-    getChaptersByBook: vi.fn(),
-    getChapter: vi.fn(),
+    getDocument: vi.fn(),
+    getSectionsByDocument: vi.fn(),
+    getSection: vi.fn(),
   };
 }
 
@@ -101,7 +101,7 @@ function createDeps(overrides?: Partial<EmbeddingToolDeps>): EmbeddingToolDeps {
     bm25IndexStore: new InMemoryBM25IndexStore(),
     searchHandler: createMockSearchHandler(),
     pipelineFactory: createMockPipelineFactory(),
-    bookRepo: createMockBookRepo(),
+    corpusRepo: createMockCorpusRepo(),
     ...overrides,
   };
 }

@@ -81,7 +81,7 @@ function buildDeps(): AllDeps {
   // Build repo graph directly to capture concrete types for cache clearing
   const fsRepo = new FileSystemCorpusRepository();
   const cached = new CachedCorpusRepository(fsRepo);
-  const bookRepo = cached;
+  const corpusRepo = cached;
 
   const pipelineFactory = new EmbeddingPipelineFactory(
     embedder,
@@ -116,7 +116,7 @@ function buildDeps(): AllDeps {
     bm25Processor,
     corpusConfig.sourceType,
   );
-  const legacy = new LegacyKeywordHandler(bookRepo);
+  const legacy = new LegacyKeywordHandler(corpusRepo);
   const empty = new EmptyResultHandler();
   hybrid.setNext(bm25);
   bm25.setNext(legacy);
@@ -129,7 +129,7 @@ function buildDeps(): AllDeps {
       bm25IndexStore,
       searchHandler: hybrid,
       pipelineFactory,
-      bookRepo,
+      corpusRepo,
     },
     librarian: {
       corpusDir: path.resolve(process.cwd(), "docs/_corpus"),
