@@ -22,12 +22,15 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
 
+RUN mkdir -p /app/.data && chown -R nextjs:nodejs /app
+
 # Copy standalone server + trimmed node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
 # Copy static assets and public dir (not included in standalone output)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
 
 # Copy release manifest for health/version endpoints
 COPY --from=builder --chown=nextjs:nodejs /app/release ./release
