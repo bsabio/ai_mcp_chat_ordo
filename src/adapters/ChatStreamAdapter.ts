@@ -6,6 +6,7 @@ import type {
 } from "../core/use-cases/ChatStreamProvider";
 import { 
   EventParser, 
+  ErrorParser,
   TextDeltaParser, 
   ToolCallParser, 
   ToolResultParser,
@@ -17,7 +18,8 @@ export class ChatStreamAdapter implements ChatStreamProvider {
     new TextDeltaParser(),
     new ToolCallParser(),
     new ToolResultParser(),
-    new ConversationIdParser()
+    new ConversationIdParser(),
+    new ErrorParser()
   ]);
 
   async fetchStream(

@@ -48,6 +48,13 @@ export class ConversationIdParser implements EventParserStrategy {
   }
 }
 
+export class ErrorParser implements EventParserStrategy {
+  canParse(data: RawSSEData) { return typeof data.error === "string"; }
+  parse(data: RawSSEData): StreamEvent {
+    return { type: "error", message: data.error as string };
+  }
+}
+
 export class EventParser {
   constructor(private strategies: EventParserStrategy[]) {}
 

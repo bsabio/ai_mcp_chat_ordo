@@ -51,6 +51,17 @@ function sseChunk(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
+function toStreamErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("credit balance is too low")) {
+    return "The configured Anthropic account has insufficient credits. Update the production AI key or billing, then retry.";
+  }
+
+  return message;
+}
+
 export async function POST(request: NextRequest) {
   return runRouteTemplate({
     route: "/api/chat/stream",
@@ -283,9 +294,12 @@ export async function POST(request: NextRequest) {
             controller.close();
           } catch (err) {
             console.error("[stream] error", err);
-            controller.error(
-              err instanceof Error ? err : new Error(String(err)),
+            controller.enqueue(
+              encoder.encode(
+                sseChunk({ error: toStreamErrorMessage(err) }),
+              ),
             );
+            controller.close();
           }
         },
         cancel() {
