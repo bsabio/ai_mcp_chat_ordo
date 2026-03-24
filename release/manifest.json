@@ -1,8 +1,8 @@
 {
-  "appName": "is601_demo",
+  "appName": "studio-ordo",
   "version": "0.1.0",
-  "gitSha": "477b3a7",
+  "gitSha": "6369b9e",
   "gitBranch": "main",
-  "builtAt": "2026-03-02T22:13:20.749Z",
+  "builtAt": "2026-03-20T16:27:23.204Z",
   "nodeVersion": "v25.1.0"
 }

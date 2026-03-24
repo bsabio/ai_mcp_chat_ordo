@@ -1,4 +1,5 @@
 import type { StreamEvent } from "../entities/chat-stream";
+import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
 /**
  * Core Interface for AI Streaming
@@ -19,6 +20,7 @@ export interface FetchChatStreamOptions {
     mimeType: string;
     fileSize: number;
   }>;
+  taskOriginHandoff?: TaskOriginHandoff;
 }
 
 export interface ChatStreamProvider {

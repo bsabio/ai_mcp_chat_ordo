@@ -29,7 +29,7 @@ describe("SystemPromptDataMapper", () => {
     expect(base).not.toBeNull();
     expect(base!.version).toBe(1);
     expect(base!.isActive).toBe(true);
-    expect(base!.content).toContain("Product Development Advisor");
+    expect(base!.content).toContain("strategic workflow, implementation, and training advisor");
   });
 
   it("createVersion increments version number", async () => {
@@ -96,8 +96,8 @@ describe("ChatPolicyInteractor (DB-backed)", () => {
     const defaulting = new DefaultingSystemPromptRepository(repo, "FALLBACK", {});
     const interactor = new ChatPolicyInteractor(defaulting);
     const prompt = await interactor.execute({ role: "ANONYMOUS" });
-    // DB has seeded prompts, so should contain "Product Development Advisor", not "FALLBACK"
-    expect(prompt).toContain("Product Development Advisor");
+    // DB has seeded prompts, so should contain the seeded base prompt, not "FALLBACK"
+    expect(prompt).toContain("strategic workflow, implementation, and training advisor");
     expect(prompt).toContain("DEMO MODE");
   });
 
@@ -118,8 +118,25 @@ describe("ChatPolicyInteractor (DB-backed)", () => {
     const defaulting = new DefaultingSystemPromptRepository(repo, "unused", {});
     const interactor = new ChatPolicyInteractor(defaulting);
     const prompt = await interactor.execute({ role: "ADMIN" });
-    expect(prompt).toContain("Product Development Advisor");
+    expect(prompt).toContain("strategic workflow, implementation, and training advisor");
     expect(prompt).toContain("SYSTEM ADMINISTRATOR");
+    expect(prompt).toContain("internal operator brief");
+    expect(prompt).toContain("admin_prioritize_offer");
+    expect(prompt).toContain("admin_triage_routing_risk");
+    expect(prompt).toContain("NOW, NEXT, WAIT");
+  });
+
+  it("uses customer-friendly directive for authenticated users", async () => {
+    const defaulting = new DefaultingSystemPromptRepository(repo, "unused", {});
+    const interactor = new ChatPolicyInteractor(defaulting);
+    const prompt = await interactor.execute({ role: "AUTHENTICATED" });
+
+    expect(prompt).toContain("REGISTERED USER");
+    expect(prompt).toContain("customer or practitioner");
+    expect(prompt).toContain("customer-friendly");
+    expect(prompt).toContain("Do not fall back to marketing language");
+    expect(prompt).toContain("workflow bottlenecks, implementation decisions, customer handoffs, or training outcomes");
+    expect(prompt).toContain("Do not reframe the first reply as generic product strategy");
   });
 });
 
@@ -142,7 +159,7 @@ describe("Prompt management operations", () => {
     const active = await repo.getActive("ALL", "base");
     expect(active).not.toBeNull();
     expect(active!.version).toBe(1);
-    expect(active!.content).toContain("Product Development Advisor");
+    expect(active!.content).toContain("strategic workflow, implementation, and training advisor");
   });
 
   it("set creates and activates new version", async () => {

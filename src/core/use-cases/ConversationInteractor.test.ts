@@ -3,6 +3,7 @@ import { ConversationInteractor, NotFoundError, MessageLimitError } from "./Conv
 import type { ConversationRepository } from "./ConversationRepository";
 import type { MessageRepository } from "./MessageRepository";
 import type { Conversation, ConversationSummary, Message, NewMessage } from "../entities/conversation";
+import { createConversationRoutingSnapshot } from "../entities/conversation-routing";
 
 function makeConversation(overrides: Partial<Conversation> = {}): Conversation {
   return {
@@ -18,6 +19,8 @@ function makeConversation(overrides: Partial<Conversation> = {}): Conversation {
     lastToolUsed: null,
     sessionSource: "authenticated",
     promptVersion: null,
+    routingSnapshot: createConversationRoutingSnapshot(),
+    referralSource: null,
     ...overrides,
   };
 }
@@ -36,7 +39,7 @@ function makeMessage(overrides: Partial<Message> = {}): Message {
 }
 
 function createMockRepos() {
-  const convRepo: ConversationRepository = {
+  const convRepo = {
     create: vi.fn().mockResolvedValue(makeConversation()),
     listByUser: vi.fn().mockResolvedValue([]),
     findById: vi.fn().mockResolvedValue(null),
@@ -47,22 +50,26 @@ function createMockRepos() {
     touch: vi.fn().mockResolvedValue(undefined),
     incrementMessageCount: vi.fn().mockResolvedValue(undefined),
     setFirstMessageAt: vi.fn().mockResolvedValue(undefined),
+    recordMessageAppended: vi.fn().mockResolvedValue(undefined),
     setLastToolUsed: vi.fn().mockResolvedValue(undefined),
     setConvertedFrom: vi.fn().mockResolvedValue(undefined),
+    setReferralSource: vi.fn().mockResolvedValue(undefined),
+    updateRoutingSnapshot: vi.fn().mockResolvedValue(undefined),
     transferOwnership: vi.fn().mockResolvedValue([]),
-  };
-  const msgRepo: MessageRepository = {
+  } as ConversationRepository & { recordUserMessageAppendedWithEvent?: ReturnType<typeof vi.fn> };
+  const msgRepo = {
     create: vi.fn().mockResolvedValue(makeMessage()),
     listByConversation: vi.fn().mockResolvedValue([]),
+    listRecentByConversation: vi.fn().mockResolvedValue([]),
     countByConversation: vi.fn().mockResolvedValue(0),
-  };
+  } as MessageRepository & { createWithinConversationLimit?: ReturnType<typeof vi.fn> };
   return { convRepo, msgRepo };
 }
 
 describe("ConversationInteractor", () => {
   let interactor: ConversationInteractor;
-  let convRepo: ConversationRepository;
-  let msgRepo: MessageRepository;
+  let convRepo: ConversationRepository & { recordUserMessageAppendedWithEvent?: ReturnType<typeof vi.fn> };
+  let msgRepo: MessageRepository & { createWithinConversationLimit?: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     const mocks = createMockRepos();
@@ -71,19 +78,23 @@ describe("ConversationInteractor", () => {
     interactor = new ConversationInteractor(convRepo, msgRepo);
   });
 
-  describe("create", () => {
-    it("creates a new conversation with generated id", async () => {
-      await interactor.create("usr_1", "My Chat");
+  describe("ensureActive", () => {
+    it("creates a new conversation when none exists", async () => {
+      await interactor.ensureActive("usr_1");
       expect(convRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: "usr_1", title: "My Chat" }),
+        expect.objectContaining({ userId: "usr_1", title: "" }),
       );
       expect((convRepo.create as ReturnType<typeof vi.fn>).mock.calls[0][0].id).toMatch(/^conv_/);
     });
 
-    it("archives existing active conversation before creating new", async () => {
-      await interactor.create("usr_1");
-      expect(convRepo.archiveByUser).toHaveBeenCalledWith("usr_1");
-      expect(convRepo.create).toHaveBeenCalled();
+    it("returns existing active conversation without creating", async () => {
+      const existing = makeConversation({ id: "conv_existing", userId: "usr_1" });
+      (convRepo.findActiveByUser as ReturnType<typeof vi.fn>).mockResolvedValue(existing);
+
+      const result = await interactor.ensureActive("usr_1");
+      expect(result.id).toBe("conv_existing");
+      expect(convRepo.create).not.toHaveBeenCalled();
+      expect(convRepo.archiveByUser).not.toHaveBeenCalled();
     });
   });
 
@@ -110,6 +121,48 @@ describe("ConversationInteractor", () => {
     it("throws NotFoundError for nonexistent conversation", async () => {
       (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
       await expect(interactor.get("conv_999", "usr_1")).rejects.toThrow(NotFoundError);
+    });
+
+    it("uses the recent message path for streaming context when the summary boundary is present", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", messageCount: 120 }),
+      );
+      (msgRepo.listRecentByConversation as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeMessage({
+          id: "msg_summary",
+          role: "system",
+          parts: [{ type: "summary", text: "Earlier summary", coversUpToMessageId: "msg_40" }],
+          content: "Earlier summary",
+        }),
+        makeMessage({ id: "msg_recent", role: "user", content: "Latest", parts: [{ type: "text", text: "Latest" }] }),
+      ]);
+
+      const result = await interactor.getForStreamingContext("conv_1", "usr_1");
+
+      expect(msgRepo.listRecentByConversation).toHaveBeenCalledWith("conv_1", 50);
+      expect(msgRepo.listByConversation).not.toHaveBeenCalled();
+      expect(result.usedFullHistory).toBe(false);
+      expect(result.messages).toHaveLength(2);
+    });
+
+    it("falls back to full history for streaming context when the recent slice has no summary boundary", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", messageCount: 120 }),
+      );
+      (msgRepo.listRecentByConversation as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeMessage({ id: "msg_recent", role: "assistant", content: "Latest reply", parts: [{ type: "text", text: "Latest reply" }] }),
+      ]);
+      (msgRepo.listByConversation as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeMessage({ id: "msg_old", role: "user", content: "Older", parts: [{ type: "text", text: "Older" }] }),
+        makeMessage({ id: "msg_recent", role: "assistant", content: "Latest reply", parts: [{ type: "text", text: "Latest reply" }] }),
+      ]);
+
+      const result = await interactor.getForStreamingContext("conv_1", "usr_1");
+
+      expect(msgRepo.listRecentByConversation).toHaveBeenCalledWith("conv_1", 50);
+      expect(msgRepo.listByConversation).toHaveBeenCalledWith("conv_1");
+      expect(result.usedFullHistory).toBe(true);
+      expect(result.messages).toHaveLength(2);
     });
   });
 
@@ -139,7 +192,7 @@ describe("ConversationInteractor", () => {
       );
     });
 
-    it("appends message and calls touch + incrementMessageCount", async () => {
+    it("appends message and records denormalized metadata in one repository call", async () => {
       const newMsg: NewMessage = {
         conversationId: "conv_1",
         role: "user",
@@ -153,8 +206,54 @@ describe("ConversationInteractor", () => {
         role: "user",
         content: "Hello",
       }));
-      expect(convRepo.touch).toHaveBeenCalledWith("conv_1");
-      expect(convRepo.incrementMessageCount).toHaveBeenCalledWith("conv_1");
+      expect(convRepo.recordMessageAppended).toHaveBeenCalledWith(
+        "conv_1",
+        expect.any(String),
+      );
+      expect(convRepo.touch).not.toHaveBeenCalled();
+      expect(convRepo.incrementMessageCount).not.toHaveBeenCalled();
+      expect(convRepo.setFirstMessageAt).not.toHaveBeenCalled();
+    });
+
+    it("records user append metadata and message_sent in one repo transaction when supported", async () => {
+      convRepo.recordUserMessageAppendedWithEvent = vi.fn().mockResolvedValue(undefined);
+
+      const newMsg: NewMessage = {
+        conversationId: "conv_1",
+        role: "user",
+        content: "Hello",
+        parts: [],
+      };
+
+      await interactor.appendMessage(newMsg, "usr_1");
+
+      expect(convRepo.recordUserMessageAppendedWithEvent).toHaveBeenCalledWith(
+        "conv_1",
+        expect.any(String),
+        { role: "user", token_estimate: expect.any(Number) },
+      );
+      expect(convRepo.recordMessageAppended).not.toHaveBeenCalled();
+    });
+
+    it("uses the atomic limited-create path when the repository supports it", async () => {
+      const createdMessage = makeMessage({ id: "msg_atomic" });
+      msgRepo.createWithinConversationLimit = vi.fn().mockResolvedValue(createdMessage);
+
+      const newMsg: NewMessage = {
+        conversationId: "conv_1",
+        role: "user",
+        content: "Hello",
+        parts: [],
+      };
+
+      await interactor.appendMessage(newMsg, "usr_1");
+
+      expect(msgRepo.createWithinConversationLimit).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: "conv_1", content: "Hello" }),
+        200,
+      );
+      expect(msgRepo.countByConversation).not.toHaveBeenCalled();
+      expect(msgRepo.create).not.toHaveBeenCalled();
     });
 
     it("auto-titles from first user message when title is empty", async () => {
@@ -221,6 +320,21 @@ describe("ConversationInteractor", () => {
       };
 
       await expect(interactor.appendMessage(newMsg, "usr_1")).rejects.toThrow(MessageLimitError);
+      expect(msgRepo.create).not.toHaveBeenCalled();
+    });
+
+    it("throws MessageLimitError when the atomic limited-create path rejects the insert", async () => {
+      msgRepo.createWithinConversationLimit = vi.fn().mockResolvedValue(null);
+
+      const newMsg: NewMessage = {
+        conversationId: "conv_1",
+        role: "user",
+        content: "Over limit",
+        parts: [],
+      };
+
+      await expect(interactor.appendMessage(newMsg, "usr_1")).rejects.toThrow(MessageLimitError);
+      expect(msgRepo.countByConversation).not.toHaveBeenCalled();
       expect(msgRepo.create).not.toHaveBeenCalled();
     });
 
@@ -300,6 +414,37 @@ describe("ConversationInteractor", () => {
     });
   });
 
+  describe("updateRoutingSnapshot", () => {
+    it("persists routing state for the owning user", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1" }),
+      );
+
+      const snapshot = createConversationRoutingSnapshot({
+        lane: "organization",
+        confidence: 0.88,
+        recommendedNextStep: "Offer discovery call",
+        detectedNeedSummary: "Team needs workflow design support.",
+        lastAnalyzedAt: "2026-03-18T12:00:00.000Z",
+      });
+
+      await interactor.updateRoutingSnapshot("conv_1", "usr_1", snapshot);
+
+      expect(convRepo.updateRoutingSnapshot).toHaveBeenCalledWith("conv_1", snapshot);
+      expect(convRepo.touch).toHaveBeenCalledWith("conv_1");
+    });
+
+    it("throws NotFoundError for wrong user", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1" }),
+      );
+
+      await expect(
+        interactor.updateRoutingSnapshot("conv_1", "usr_other", createConversationRoutingSnapshot()),
+      ).rejects.toThrow(NotFoundError);
+    });
+  });
+
   describe("migrateAnonymousConversations", () => {
     it("transfers ownership and returns migrated ids", async () => {
       (convRepo.transferOwnership as ReturnType<typeof vi.fn>).mockResolvedValue(["conv_a", "conv_b"]);
@@ -328,8 +473,9 @@ describe("ConversationInteractor", () => {
       interactor = new ConversationInteractor(convRepo, msgRepo, eventRecorder as never);
     });
 
-    it("emits 'started' event on create", async () => {
-      await interactor.create("usr_1");
+    it("emits 'started' event on create via ensureActive", async () => {
+      (convRepo.findActiveByUser as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      await interactor.ensureActive("usr_1");
       expect(eventRecorder.record).toHaveBeenCalledWith(
         expect.stringMatching(/^conv_/),
         "started",
@@ -338,7 +484,8 @@ describe("ConversationInteractor", () => {
     });
 
     it("emits 'started' with anonymous_cookie session_source for anon users", async () => {
-      await interactor.create("anon_abc123");
+      (convRepo.findActiveByUser as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      await interactor.ensureActive("anon_abc123");
       expect(eventRecorder.record).toHaveBeenCalledWith(
         expect.stringMatching(/^conv_/),
         "started",
@@ -367,6 +514,42 @@ describe("ConversationInteractor", () => {
       );
     });
 
+    it("emits 'message_sent' for user appends when the repo does not support atomic append effects", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", title: "" }),
+      );
+
+      await interactor.appendMessage(
+        { conversationId: "conv_1", role: "user", content: "Hello", parts: [] },
+        "usr_1",
+      );
+
+      expect(eventRecorder.record).toHaveBeenCalledWith(
+        "conv_1",
+        "message_sent",
+        { role: "user", token_estimate: expect.any(Number) },
+      );
+    });
+
+    it("skips eventRecorder message_sent when the repo handles atomic append effects", async () => {
+      convRepo.recordUserMessageAppendedWithEvent = vi.fn().mockResolvedValue(undefined);
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", title: "" }),
+      );
+
+      await interactor.appendMessage(
+        { conversationId: "conv_1", role: "user", content: "Hello", parts: [] },
+        "usr_1",
+      );
+
+      expect(convRepo.recordUserMessageAppendedWithEvent).toHaveBeenCalled();
+      expect(eventRecorder.record).not.toHaveBeenCalledWith(
+        "conv_1",
+        "message_sent",
+        expect.anything(),
+      );
+    });
+
     it("emits 'converted' events only for migrated conversations", async () => {
       (convRepo.transferOwnership as ReturnType<typeof vi.fn>).mockResolvedValue(["conv_a"]);
 
@@ -376,6 +559,98 @@ describe("ConversationInteractor", () => {
         "conv_a",
         "converted",
         { from: "anon_123", to: "usr_1" },
+      );
+    });
+
+    it("emits lane_analyzed and lane_changed when routing lane changes", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({
+          id: "conv_1",
+          userId: "usr_1",
+          routingSnapshot: createConversationRoutingSnapshot({ lane: "uncertain" }),
+        }),
+      );
+
+      await interactor.updateRoutingSnapshot(
+        "conv_1",
+        "usr_1",
+        createConversationRoutingSnapshot({
+          lane: "organization",
+          confidence: 0.93,
+          recommendedNextStep: "Schedule an intake call",
+          detectedNeedSummary: "Cross-functional workflow redesign.",
+          lastAnalyzedAt: "2026-03-18T13:00:00.000Z",
+        }),
+      );
+
+      expect(eventRecorder.record).toHaveBeenNthCalledWith(
+        1,
+        "conv_1",
+        "lane_analyzed",
+        {
+          lane: "organization",
+          confidence: 0.93,
+          recommended_next_step: "Schedule an intake call",
+          detected_need_summary: "Cross-functional workflow redesign.",
+          analyzed_at: "2026-03-18T13:00:00.000Z",
+        },
+      );
+      expect(eventRecorder.record).toHaveBeenNthCalledWith(
+        2,
+        "conv_1",
+        "lane_changed",
+        {
+          from_lane: "uncertain",
+          to_lane: "organization",
+          confidence: 0.93,
+          analyzed_at: "2026-03-18T13:00:00.000Z",
+        },
+      );
+    });
+
+    it("emits lane_uncertain when analysis remains uncertain", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({
+          id: "conv_1",
+          userId: "usr_1",
+          routingSnapshot: createConversationRoutingSnapshot({ lane: "uncertain" }),
+        }),
+      );
+
+      await interactor.updateRoutingSnapshot(
+        "conv_1",
+        "usr_1",
+        createConversationRoutingSnapshot({
+          lane: "uncertain",
+          confidence: 0.41,
+          detectedNeedSummary: "Need is still ambiguous.",
+          lastAnalyzedAt: "2026-03-18T14:00:00.000Z",
+        }),
+      );
+
+      expect(eventRecorder.record).toHaveBeenNthCalledWith(
+        1,
+        "conv_1",
+        "lane_analyzed",
+        {
+          lane: "uncertain",
+          confidence: 0.41,
+          recommended_next_step: null,
+          detected_need_summary: "Need is still ambiguous.",
+          analyzed_at: "2026-03-18T14:00:00.000Z",
+        },
+      );
+      expect(eventRecorder.record).toHaveBeenNthCalledWith(
+        2,
+        "conv_1",
+        "lane_uncertain",
+        {
+          lane: "uncertain",
+          confidence: 0.41,
+          recommended_next_step: null,
+          detected_need_summary: "Need is still ambiguous.",
+          analyzed_at: "2026-03-18T14:00:00.000Z",
+        },
       );
     });
   });

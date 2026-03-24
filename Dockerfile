@@ -35,6 +35,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
 # Copy release manifest for health/version endpoints
 COPY --from=builder --chown=nextjs:nodejs /app/release ./release
 
+# Copy config directory for identity and prompt customization
+COPY --from=builder --chown=nextjs:nodejs /app/config ./config
+
 USER nextjs
 EXPOSE 3000
 

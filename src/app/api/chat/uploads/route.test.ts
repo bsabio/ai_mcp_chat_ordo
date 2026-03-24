@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createConversationInteractorMock } from "../../../../../tests/helpers/conversation-interactor-fixture";
 
 const {
   resolveUserIdMock,
@@ -19,9 +20,11 @@ vi.mock("@/lib/chat/resolve-user", () => ({
 }));
 
 vi.mock("@/lib/chat/conversation-root", () => ({
-  getConversationInteractor: vi.fn(() => ({
-    get: getConversationMock,
-  })),
+  getConversationInteractor: vi.fn(() =>
+    createConversationInteractorMock({
+      get: getConversationMock,
+    }),
+  ),
 }));
 
 vi.mock("@/lib/chat/upload-reaper", () => ({

@@ -5,7 +5,7 @@ import {
   successJson,
   errorJson,
 } from "@/lib/chat/http-facade";
-import { getConversationInteractor } from "@/lib/chat/conversation-root";
+import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 
 const SESSION_COOKIE = "lms_session_token";
 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       }
 
       const user = await validateSession(token);
-      const interactor = getConversationInteractor();
+    const { interactor } = createConversationRouteServices();
       const conversations = await interactor.list(user.id);
 
       return successJson(context, { conversations });
@@ -41,9 +41,8 @@ export async function POST(request: NextRequest) {
       }
 
       const user = await validateSession(token);
-      const body = (await request.json()) as { title?: string };
-      const interactor = getConversationInteractor();
-      const conversation = await interactor.create(user.id, body.title || "");
+    const { interactor } = createConversationRouteServices();
+      const conversation = await interactor.ensureActive(user.id);
 
       return successJson(context, { conversation }, { status: 201 });
     },

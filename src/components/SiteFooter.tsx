@@ -7,24 +7,27 @@ import { ShellBrand } from "@/components/shell/ShellBrand";
 import {
   resolveFooterGroups,
   resolveFooterGroupRoutes,
+  resolveShellHomeHref,
 } from "@/lib/shell/shell-navigation";
 import type { User as SessionUser } from "@/core/entities/user";
+import { useInstanceIdentity } from "@/lib/config/InstanceConfigContext";
 
 interface SiteFooterProps {
   user: SessionUser;
 }
 
 export function SiteFooter({ user }: SiteFooterProps) {
+  const identity = useInstanceIdentity();
   const footerGroups = resolveFooterGroups(user);
+  const homeHref = resolveShellHomeHref();
 
   return (
     <footer className="shell-footer-frame border-t border-color-theme bg-background px-(--container-padding)">
       <div className="site-container flex flex-col items-start justify-between shell-section-gap md:flex-row">
         <div className="flex max-w-xs flex-col shell-section-gap">
-          <ShellBrand />
+          <ShellBrand href={homeHref} />
           <p className="shell-supporting-text max-w-xs opacity-60">
-            Structured retrieval, operator workflows, and systems analysis for
-            teams building with intelligence systems.
+            {identity.tagline}
           </p>
         </div>
 
@@ -35,7 +38,9 @@ export function SiteFooter({ user }: SiteFooterProps) {
               <ul className="space-y-(--phi-3) shell-nav-label opacity-70 transition-opacity hover:opacity-100">
                 {resolveFooterGroupRoutes(group, user).map((route) => (
                   <li key={route.id}>
-                    <Link href={route.href}>{route.label}</Link>
+                    <Link href={route.href} className="shell-nav-label">
+                      {route.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -46,7 +51,7 @@ export function SiteFooter({ user }: SiteFooterProps) {
       
       <div className="site-container mt-(--phi-2p) pt-(--phi-1p) border-t border-color-theme">
         <span className="shell-micro-text opacity-70">
-          © 2026 Studio Ordo. All rights reserved.
+          {identity.copyright ?? `© ${new Date().getFullYear()} ${identity.name}. All rights reserved.`}
         </span>
       </div>
     </footer>

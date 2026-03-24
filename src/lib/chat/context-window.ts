@@ -21,7 +21,7 @@ export function buildContextWindow(messages: Message[]): {
   let lastSummaryIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg.role === "system" && msg.parts.some((p) => p.type === "summary")) {
+    if (msg.role === "system" && msg.parts.some((p) => p.type === "summary" || p.type === "meta_summary")) {
       lastSummaryIndex = i;
       break;
     }

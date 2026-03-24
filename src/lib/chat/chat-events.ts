@@ -1,0 +1,1 @@
+export const OPEN_GLOBAL_CHAT_EVENT = "studio-ordo:open-chat";

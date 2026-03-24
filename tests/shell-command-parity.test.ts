@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -17,8 +17,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
+const setThemeSpy = vi.hoisted(() => vi.fn());
+
 vi.mock("@/components/ThemeProvider", () => ({
-  useTheme: () => ({ setTheme: () => undefined }),
+  useTheme: () => ({ setTheme: setThemeSpy }),
 }));
 
 function RegistryHarness() {
@@ -93,5 +95,39 @@ describe("shell command parity", () => {
     expect(screen.getByTestId("command-results")).toHaveTextContent(
       JSON.stringify(createCommandMentions().filter((command) => command.description === "Themes")),
     );
+  });
+
+  it("routes theme command execution through the setTheme setter", () => {
+    setThemeSpy.mockClear();
+
+    function ExecuteHarness() {
+      const { executeCommand } = useCommandRegistry();
+      return createElement("button", {
+        "data-testid": "exec",
+        onClick: () => executeCommand("theme-bauhaus"),
+      });
+    }
+
+    render(createElement(ExecuteHarness));
+    fireEvent.click(screen.getByTestId("exec"));
+
+    expect(setThemeSpy).toHaveBeenCalledWith("bauhaus");
+  });
+
+  it("returns false for an unrecognized command id without calling setTheme", () => {
+    setThemeSpy.mockClear();
+
+    function RejectHarness() {
+      const { executeCommand } = useCommandRegistry();
+      return createElement("button", {
+        "data-testid": "exec-bad",
+        onClick: () => executeCommand("nonexistent-command"),
+      });
+    }
+
+    render(createElement(RejectHarness));
+    fireEvent.click(screen.getByTestId("exec-bad"));
+
+    expect(setThemeSpy).not.toHaveBeenCalled();
   });
 });

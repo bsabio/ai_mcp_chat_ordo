@@ -62,3 +62,7 @@ lighthouse-*.json
 
 # lint/build output
 lint_results.txt
+
+# Playwright artifacts
+/playwright-report/
+/test-results/

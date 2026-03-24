@@ -5,7 +5,7 @@ import type { MentionItem } from "@/core/entities/mentions";
 import type { Theme } from "@/core/entities/theme";
 import type { User as SessionUser } from "@/core/entities/user";
 
-import { resolvePrimaryNavRoutes } from "./shell-navigation";
+import { resolveCommandRoutes } from "./shell-navigation";
 
 export interface ShellNavigationCommandDefinition {
   id: string;
@@ -61,8 +61,8 @@ export const SHELL_THEME_DEFINITIONS: readonly ShellThemeCommandDefinition[] = [
 export function resolveShellNavigationCommandDefinitions(
   user?: Pick<SessionUser, "roles"> | null,
 ): ShellNavigationCommandDefinition[] {
-  return resolvePrimaryNavRoutes(user)
-    .filter((route) => route.showInCommandPalette)
+  return resolveCommandRoutes(user)
+    .filter((route) => route.showInCommands)
     .map((route) => ({
       id: `nav-${route.id}`,
       title: route.label,

@@ -5,6 +5,7 @@ import { useChatScroll } from "@/hooks/useChatScroll";
 import { useMessageScrollBoundaryLock } from "@/hooks/useMessageScrollBoundaryLock";
 
 import { MessageList } from "./MessageList";
+import type { ActionLinkType } from "@/core/entities/rich-content";
 
 interface ChatMessageViewportProps {
   dynamicSuggestions: string[];
@@ -15,6 +16,7 @@ interface ChatMessageViewportProps {
   isSending: boolean;
   messages: PresentedMessage[];
   onLinkClick: (slug: string) => void;
+  onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
   onSuggestionClick: (text: string) => void;
   scrollDependency: string;
   searchQuery: string;
@@ -29,6 +31,7 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
   isSending,
   messages,
   onLinkClick,
+  onActionClick,
   onSuggestionClick,
   scrollDependency,
   searchQuery,
@@ -40,22 +43,17 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
 
   return (
     <div
-      className="relative flex min-h-0 w-full flex-col overflow-hidden"
-      data-chat-message-region={isEmbedded ? "true" : undefined}
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden"
+      data-chat-message-region="true"
     >
-      {isHeroState && (
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.035] pointer-events-none select-none">
-          <img src="/ordo-avatar.png" alt="" width={288} height={288} className="h-40 w-40 sm:h-56 sm:w-56 lg:h-72 lg:w-72" />
-        </div>
-      )}
-
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--highlight-base)_45%,transparent),transparent_72%)] opacity-70" aria-hidden="true" />
+      <div className={`pointer-events-none absolute inset-x-0 top-0 ${isHeroState ? "h-24 opacity-45" : "h-32 opacity-70"} bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--highlight-base)_28%,transparent),transparent_72%)]`} aria-hidden="true" />
 
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`z-10 flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-2 sm:px-6 sm:py-3 ${isEmbedded ? "pt-1 pb-1 sm:pb-2" : ""}`}
-        data-chat-message-viewport={isEmbedded ? "true" : undefined}
+        className={`z-10 flex h-full flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-2 sm:px-6 sm:py-3 ${isEmbedded ? "pt-1 pb-1 sm:pb-2" : ""}`}
+        data-chat-message-viewport="true"
+        data-chat-transcript-plane={!isEmbedded ? "true" : undefined}
       >
         {isLoadingMessages ? (
           <div className="flex h-32 items-center justify-center text-xs opacity-40 animate-pulse">
@@ -63,7 +61,7 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
           </div>
         ) : (
           <div
-            className={`${isFullScreen ? "mx-auto w-full max-w-4xl" : "w-full"} ${isEmbedded ? `flex min-h-full flex-col ${isHeroState ? "justify-end" : "justify-end"}` : ""}`}
+            className={`${isFullScreen ? "mx-auto w-full max-w-4xl" : "w-full"} ${isEmbedded ? `flex min-h-full flex-col ${isHeroState ? "justify-center" : "justify-end"}` : ""}`}
             data-chat-message-stack={isEmbedded ? "true" : undefined}
           >
             <MessageList
@@ -73,6 +71,7 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
               isHeroState={isHeroState}
               onSuggestionClick={onSuggestionClick}
               onLinkClick={onLinkClick}
+              onActionClick={onActionClick}
               searchQuery={searchQuery}
               isEmbedded={isEmbedded}
             />

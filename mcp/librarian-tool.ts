@@ -2,6 +2,13 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import AdmZip from "adm-zip";
 import type { VectorStore } from "@/core/search/ports/VectorStore";
+import {
+  assertSafePath,
+  assertValidSlug,
+  pathExists,
+  validateZipSafety,
+  VALID_DOMAINS,
+} from "./librarian-safety";
 
 // ---------------------------------------------------------------------------
 // Deps
@@ -14,111 +21,6 @@ export interface CorpusToolDeps {
 }
 
 export type LibrarianToolDeps = CorpusToolDeps;
-
-// ---------------------------------------------------------------------------
-// Security helpers (LIBRARIAN-070, LIBRARIAN-080)
-// ---------------------------------------------------------------------------
-
-function assertSafePath(corpusDir: string, ...segments: string[]): string {
-  const resolved = path.resolve(corpusDir, ...segments);
-  const rel = path.relative(path.resolve(corpusDir), resolved);
-  if (rel.startsWith("..") || path.isAbsolute(rel)) {
-    throw new Error(
-      "Path traversal detected — path escapes corpus directory.",
-    );
-  }
-  return resolved;
-}
-
-function assertValidSlug(slug: string): void {
-  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug) || slug.length > 100) {
-    throw new Error(
-      `Invalid slug: "${slug}". Must be lowercase alphanumeric with hyphens, 2–100 chars.`,
-    );
-  }
-}
-
-const VALID_DOMAINS = new Set([
-  "teaching",
-  "sales",
-  "customer-service",
-  "reference",
-  "internal",
-]);
-
-async function pathExists(p: string): Promise<boolean> {
-  try {
-    await fs.access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Zip safety validation (LIBRARIAN-040, LIBRARIAN-070)
-// ---------------------------------------------------------------------------
-
-const MAX_UNCOMPRESSED_SIZE = 50 * 1024 * 1024; // 50 MB
-const MAX_FILE_COUNT = 500;
-const MAX_COMPRESSION_RATIO = 100;
-
-function validateZipSafety(entries: AdmZip.IZipEntry[]): void {
-  if (entries.length > MAX_FILE_COUNT) {
-    throw new Error(`Zip exceeds maximum file count (${MAX_FILE_COUNT}).`);
-  }
-
-  let totalUncompressed = 0;
-  let totalCompressed = 0;
-
-  for (const entry of entries) {
-    if (entry.entryName.includes("..")) {
-      throw new Error(
-        `Path traversal in zip entry: "${entry.entryName}"`,
-      );
-    }
-    if (path.isAbsolute(entry.entryName)) {
-      throw new Error(
-        `Absolute path in zip entry: "${entry.entryName}"`,
-      );
-    }
-
-    // UTF-8 filename validation
-    try {
-      decodeURIComponent(encodeURIComponent(entry.entryName));
-    } catch {
-      throw new Error(
-        `Non-UTF-8 filename in zip: "${entry.entryName}"`,
-      );
-    }
-
-    // Size tracking
-    totalUncompressed += entry.header.size;
-    totalCompressed += entry.header.compressedSize;
-
-    if (totalUncompressed > MAX_UNCOMPRESSED_SIZE) {
-      throw new Error(
-        `Zip exceeds ${MAX_UNCOMPRESSED_SIZE / 1024 / 1024} MB uncompressed limit.`,
-      );
-    }
-
-    // Symlink check (Unix external attributes)
-    const externalAttr = entry.header.attr >>> 16;
-    if ((externalAttr & 0o170000) === 0o120000) {
-      throw new Error(
-        `Symlinks not allowed in zip: "${entry.entryName}"`,
-      );
-    }
-  }
-
-  // Zip bomb detection
-  if (
-    totalCompressed > 0 &&
-    totalUncompressed / totalCompressed > MAX_COMPRESSION_RATIO
-  ) {
-    throw new Error("Suspicious compression ratio — possible zip bomb.");
-  }
-}
 
 // ---------------------------------------------------------------------------
 // addDocumentFromZip (Sprint 2 — LIBRARIAN-040)
@@ -241,8 +143,8 @@ async function addDocumentFromZip(
     // Rollback: remove temp directory on any failure
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {
-      // Best-effort cleanup
+    } catch (cleanupError) {
+      console.warn("[librarian] temp cleanup failed", cleanupError);
     }
     throw err;
   }
@@ -268,7 +170,7 @@ export async function corpusList(deps: CorpusToolDeps) {
   try {
     entries = await fs.readdir(deps.corpusDir);
   } catch {
-    // corpus dir missing → empty corpus
+    // Missing corpus directory is a valid empty-state for local/bootstrap setups.
   }
 
   const dirChecks = await Promise.all(
@@ -306,7 +208,7 @@ export async function corpusList(deps: CorpusToolDeps) {
           .filter((f) => f.endsWith(".md"))
           .map((f) => f.replace(/\.md$/, ""));
       } catch {
-        // no chapters dir
+        // Missing chapters directory is allowed so partially-authored documents still list.
       }
 
       // Check indexing status — any chapter has embeddings?
@@ -324,8 +226,8 @@ export async function corpusList(deps: CorpusToolDeps) {
         indexed,
         sortOrder: sortOrder as number,
       });
-    } catch {
-      // invalid manifest — skip
+    } catch (error) {
+      console.warn(`[librarian] skipping invalid manifest: ${manifestPath}`, error);
     }
   }
 
@@ -404,7 +306,7 @@ export async function corpusGetDocument(
       });
     }
   } catch {
-    // no chapters dir — valid (book with zero chapters)
+    // Books may be created before any chapter files exist.
   }
 
   const document = {
@@ -583,7 +485,7 @@ export async function corpusRemoveDocument(
       .filter((f) => f.endsWith(".md"))
       .map((f) => f.replace(/\.md$/, ""));
   } catch {
-    // no chapters dir
+    // Missing chapters directory means there is nothing to de-index.
   }
 
   // LIBRARIAN-060: delete embeddings for each chapter

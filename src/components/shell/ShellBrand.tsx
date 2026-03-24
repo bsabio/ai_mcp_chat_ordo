@@ -1,6 +1,11 @@
+"use client";
+
+import Image from "next/image";
+
 import Link from "next/link";
 
 import { SHELL_BRAND } from "@/lib/shell/shell-navigation";
+import { useInstanceIdentity } from "@/lib/config/InstanceConfigContext";
 
 interface EyeOfOrdoMarkProps {
   className?: string;
@@ -47,6 +52,7 @@ export function ShellBrand({
   showWordmark = true,
   className,
 }: ShellBrandProps) {
+  const identity = useInstanceIdentity();
   const classes = [
     "shell-brand-row shrink-0 whitespace-nowrap",
     className,
@@ -57,7 +63,7 @@ export function ShellBrand({
   return (
     <Link
       href={href}
-      aria-label={SHELL_BRAND.ariaLabel}
+      aria-label={`${identity.name} home`}
       className={classes}
       data-shell-brand="true"
     >
@@ -66,12 +72,12 @@ export function ShellBrand({
         aria-hidden="true"
         data-shell-brand-mark="true"
       >
-        <img src="/ordo-avatar.png" alt="" width={26} height={26} className="h-full w-full object-cover" />
+        <Image src={identity.logoPath} alt="" width={26} height={26} className="h-full w-full object-cover" />
       </div>
       {showWordmark ? (
-        <span className="theme-display font-semibold tracking-[-0.06em] text-foreground" data-shell-brand-wordmark="true">{SHELL_BRAND.name}</span>
+        <span className="theme-display font-semibold tracking-[-0.06em] text-foreground" data-shell-brand-wordmark="true">{identity.name}</span>
       ) : (
-        <span className="sr-only">{SHELL_BRAND.name}</span>
+        <span className="sr-only">{identity.name}</span>
       )}
     </Link>
   );

@@ -1,0 +1,313 @@
+import type Database from "better-sqlite3";
+
+export function createTables(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS roles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS user_roles (
+      user_id TEXT NOT NULL,
+      role_id TEXT NOT NULL,
+      PRIMARY KEY (user_id, role_id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (role_id) REFERENCES roles(id)
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id);
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      parts TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conversation_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conversation_events (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_conv_events_conv ON conversation_events(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_conv_events_type ON conversation_events(event_type);
+    CREATE INDEX IF NOT EXISTS idx_conv_events_created ON conversation_events(created_at);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS lead_records (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL UNIQUE,
+      lane TEXT NOT NULL DEFAULT 'uncertain',
+      name TEXT DEFAULT NULL,
+      email TEXT DEFAULT NULL,
+      organization TEXT DEFAULT NULL,
+      role_or_title TEXT DEFAULT NULL,
+      training_goal TEXT DEFAULT NULL,
+      authority_level TEXT DEFAULT NULL,
+      urgency TEXT DEFAULT NULL,
+      budget_signal TEXT DEFAULT NULL,
+      technical_environment TEXT DEFAULT NULL,
+      training_fit TEXT DEFAULT NULL,
+      problem_summary TEXT DEFAULT NULL,
+      recommended_next_action TEXT DEFAULT NULL,
+      capture_status TEXT NOT NULL DEFAULT 'not_started',
+      triage_state TEXT NOT NULL DEFAULT 'new',
+      founder_note TEXT DEFAULT NULL,
+      last_contacted_at TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      submitted_at TEXT DEFAULT NULL,
+      triaged_at TEXT DEFAULT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_lead_records_conversation ON lead_records(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_lead_records_status ON lead_records(capture_status);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS consultation_requests (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL UNIQUE,
+      user_id TEXT NOT NULL,
+      lane TEXT NOT NULL DEFAULT 'uncertain',
+      request_summary TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      founder_note TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_cr_conversation ON consultation_requests(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_cr_user ON consultation_requests(user_id);
+    CREATE INDEX IF NOT EXISTS idx_cr_status ON consultation_requests(status);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS deal_records (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      consultation_request_id TEXT DEFAULT NULL UNIQUE,
+      lead_record_id TEXT DEFAULT NULL UNIQUE,
+      user_id TEXT NOT NULL,
+      lane TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      organization_name TEXT DEFAULT NULL,
+      problem_summary TEXT NOT NULL DEFAULT '',
+      proposed_scope TEXT NOT NULL DEFAULT '',
+      recommended_service_type TEXT NOT NULL DEFAULT '',
+      estimated_hours REAL DEFAULT NULL,
+      estimated_training_days REAL DEFAULT NULL,
+      estimated_price INTEGER DEFAULT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      next_action TEXT DEFAULT NULL,
+      assumptions TEXT DEFAULT NULL,
+      open_questions TEXT DEFAULT NULL,
+      founder_note TEXT DEFAULT NULL,
+      customer_response_note TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (consultation_request_id) REFERENCES consultation_requests(id) ON DELETE SET NULL,
+      FOREIGN KEY (lead_record_id) REFERENCES lead_records(id) ON DELETE SET NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      CHECK (consultation_request_id IS NOT NULL OR lead_record_id IS NOT NULL)
+    );
+    CREATE INDEX IF NOT EXISTS idx_deal_records_user ON deal_records(user_id);
+    CREATE INDEX IF NOT EXISTS idx_deal_records_status ON deal_records(status);
+    CREATE INDEX IF NOT EXISTS idx_deal_records_lane ON deal_records(lane);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS training_path_records (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      lead_record_id TEXT DEFAULT NULL UNIQUE,
+      consultation_request_id TEXT DEFAULT NULL UNIQUE,
+      user_id TEXT NOT NULL,
+      lane TEXT NOT NULL,
+      current_role_or_background TEXT DEFAULT NULL,
+      technical_depth TEXT DEFAULT NULL,
+      primary_goal TEXT DEFAULT NULL,
+      preferred_format TEXT DEFAULT NULL,
+      apprenticeship_interest TEXT DEFAULT NULL,
+      recommended_path TEXT NOT NULL DEFAULT 'continue_conversation',
+      fit_rationale TEXT DEFAULT NULL,
+      customer_summary TEXT DEFAULT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      next_action TEXT DEFAULT NULL,
+      founder_note TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (lead_record_id) REFERENCES lead_records(id) ON DELETE SET NULL,
+      FOREIGN KEY (consultation_request_id) REFERENCES consultation_requests(id) ON DELETE SET NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      CHECK (lane = 'individual'),
+      CHECK (lead_record_id IS NOT NULL OR consultation_request_id IS NOT NULL)
+    );
+    CREATE INDEX IF NOT EXISTS idx_training_path_records_user ON training_path_records(user_id);
+    CREATE INDEX IF NOT EXISTS idx_training_path_records_status ON training_path_records(status);
+    CREATE INDEX IF NOT EXISTS idx_training_path_records_recommended_path ON training_path_records(recommended_path);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS embeddings (
+      id TEXT PRIMARY KEY,
+      source_type TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      chunk_index INTEGER NOT NULL,
+      chunk_level TEXT NOT NULL,
+      heading TEXT,
+      content TEXT NOT NULL,
+      embedding_input TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      model_version TEXT NOT NULL,
+      embedding BLOB NOT NULL,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_emb_source_type ON embeddings(source_type);
+    CREATE INDEX IF NOT EXISTS idx_emb_source_id ON embeddings(source_id);
+    CREATE INDEX IF NOT EXISTS idx_emb_level ON embeddings(chunk_level);
+    CREATE INDEX IF NOT EXISTS idx_emb_hash ON embeddings(source_id, content_hash);
+    CREATE INDEX IF NOT EXISTS idx_emb_model ON embeddings(model_version);
+
+    CREATE TABLE IF NOT EXISTS bm25_stats (
+      source_type TEXT PRIMARY KEY,
+      stats_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_files (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      conversation_id TEXT,
+      content_hash TEXT NOT NULL,
+      file_type TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      file_size INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_uf_user ON user_files(user_id);
+    CREATE INDEX IF NOT EXISTS idx_uf_hash ON user_files(user_id, content_hash, file_type);
+    CREATE INDEX IF NOT EXISTS idx_uf_conv ON user_files(conversation_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS referrals (
+      id TEXT PRIMARY KEY,
+      referrer_user_id TEXT NOT NULL,
+      conversation_id TEXT,
+      referral_code TEXT NOT NULL,
+      scanned_at TEXT,
+      converted_at TEXT,
+      outcome TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (referrer_user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals(referral_code);
+    CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_user_id);
+    CREATE INDEX IF NOT EXISTS idx_referrals_conversation ON referrals(conversation_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_pref_key
+      ON user_preferences(user_id, key);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS system_prompts (
+      id TEXT PRIMARY KEY,
+      role TEXT NOT NULL,
+      prompt_type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by TEXT DEFAULT NULL,
+      notes TEXT NOT NULL DEFAULT ''
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_prompt_active
+      ON system_prompts(role, prompt_type) WHERE is_active = 1;
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS blog_posts (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      published_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by_user_id TEXT NOT NULL,
+      published_by_user_id TEXT,
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id),
+      FOREIGN KEY (published_by_user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_blog_posts_slug ON blog_posts(slug);
+    CREATE INDEX IF NOT EXISTS idx_blog_posts_status ON blog_posts(status);
+  `);
+}

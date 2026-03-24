@@ -1,0 +1,225 @@
+import { renderHook, act } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+import { useChatSurfaceState } from "@/frameworks/ui/useChatSurfaceState";
+
+const { pushMock, chatState, setComposerTextMock, setConversationIdMock, refreshConversationMock } = vi.hoisted(() => ({
+  pushMock: vi.fn(),
+  chatState: {
+    messages: [],
+    isSending: false,
+    sendMessage: vi.fn(),
+    conversationId: null as string | null,
+    isLoadingMessages: false,
+    setConversationId: vi.fn(),
+    refreshConversation: vi.fn(),
+  },
+  setComposerTextMock: vi.fn(),
+  setConversationIdMock: vi.fn(),
+  refreshConversationMock: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
+vi.mock("@/hooks/useGlobalChat", () => ({
+  useGlobalChat: () => ({
+    ...chatState,
+    setConversationId: setConversationIdMock,
+    refreshConversation: refreshConversationMock,
+  }),
+}));
+
+vi.mock("@/hooks/useChatScroll", () => ({
+  useChatScroll: () => ({
+    scrollRef: { current: null },
+    isAtBottom: true,
+    scrollToBottom: vi.fn(),
+    handleScroll: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/useMentions", () => ({
+  useMentions: () => ({
+    activeTrigger: null,
+    suggestions: [],
+    handleInput: vi.fn(),
+    insertMention: vi.fn(() => ""),
+  }),
+}));
+
+vi.mock("@/hooks/useUICommands", () => ({
+  useUICommands: vi.fn(),
+}));
+
+vi.mock("@/hooks/useCommandRegistry", () => ({
+  useCommandRegistry: () => ({
+    executeCommand: vi.fn(() => false),
+    findCommands: vi.fn(() => []),
+  }),
+}));
+
+vi.mock("@/hooks/usePresentedChatMessages", () => ({
+  usePresentedChatMessages: () => ({
+    presentedMessages: [],
+    dynamicSuggestions: [],
+    scrollDependency: "",
+  }),
+}));
+
+vi.mock("@/hooks/chat/useChatComposerController", () => ({
+  useChatComposerController: () => ({
+    activeTrigger: null,
+    canSend: false,
+    handleFileRemove: vi.fn(),
+    handleFileSelect: vi.fn(),
+    handleInputChange: vi.fn(),
+    handleSend: vi.fn(),
+    handleSuggestionSelect: vi.fn(),
+    input: "",
+    setComposerText: setComposerTextMock,
+    mentionIndex: 0,
+    pendingFiles: [],
+    setMentionIndex: vi.fn(),
+    suggestions: [],
+  }),
+}));
+
+describe("handleActionClick", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    setComposerTextMock.mockReset();
+    setConversationIdMock.mockReset();
+    refreshConversationMock.mockReset();
+    chatState.conversationId = null;
+  });
+
+  it("dispatches route action via router.push for valid paths", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("route", "/library");
+    });
+    expect(pushMock).toHaveBeenCalledWith("/library");
+  });
+
+  it("rejects route action for external URLs (security)", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("route", "https://evil.com");
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("pre-fills composer text on send action without sending", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("send", "Draft advisory offer");
+    });
+    expect(setComposerTextMock).toHaveBeenCalledWith("Draft advisory offer");
+    expect(chatState.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("falls back to params.text on send action when value is empty", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("send", "", { text: "Fallback text" });
+    });
+    expect(setComposerTextMock).toHaveBeenCalledWith("Fallback text");
+  });
+
+  it("navigates to library section on corpus action", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("corpus", "audit-to-sprint");
+    });
+    expect(pushMock).toHaveBeenCalledWith("/library/section/audit-to-sprint");
+  });
+
+  it("calls setConversationId and refreshConversation on conversation action", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("conversation", "conv_001");
+    });
+    expect(setConversationIdMock).toHaveBeenCalledWith("conv_001");
+    expect(refreshConversationMock).toHaveBeenCalledWith("conv_001");
+  });
+
+  it("shows confirmation dialog when switching from an active conversation", () => {
+    chatState.conversationId = "conv_existing";
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("conversation", "conv_new");
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(setConversationIdMock).toHaveBeenCalledWith("conv_new");
+    expect(refreshConversationMock).toHaveBeenCalledWith("conv_new");
+    confirmSpy.mockRestore();
+  });
+
+  it("does not switch conversation when user declines confirmation", () => {
+    chatState.conversationId = "conv_existing";
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("conversation", "conv_new");
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(setConversationIdMock).not.toHaveBeenCalled();
+    expect(refreshConversationMock).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("is a no-op when conversation action has empty ID", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("conversation", "");
+    });
+    expect(setConversationIdMock).not.toHaveBeenCalled();
+    expect(refreshConversationMock).not.toHaveBeenCalled();
+  });
+
+  describe("action dispatch security", () => {
+    it("ignores route action with protocol-relative URL", () => {
+      const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+      act(() => {
+        result.current.handleActionClick("route", "//evil.com");
+      });
+      expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    it("ignores conversation action with undefined params", () => {
+      const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+      act(() => {
+        result.current.handleActionClick("conversation", "", undefined);
+      });
+      expect(setConversationIdMock).not.toHaveBeenCalled();
+      expect(refreshConversationMock).not.toHaveBeenCalled();
+    });
+
+    it("sets empty string on send action with empty value and no params.text", () => {
+      const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+      act(() => {
+        result.current.handleActionClick("send", "", {});
+      });
+      expect(setComposerTextMock).toHaveBeenCalledWith("");
+    });
+
+    it("does not crash on unknown action type", () => {
+      const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+      expect(() => {
+        act(() => {
+          result.current.handleActionClick("unknown" as never, "value");
+        });
+      }).not.toThrow();
+      expect(pushMock).not.toHaveBeenCalled();
+      expect(setComposerTextMock).not.toHaveBeenCalled();
+      expect(setConversationIdMock).not.toHaveBeenCalled();
+    });
+  });
+});

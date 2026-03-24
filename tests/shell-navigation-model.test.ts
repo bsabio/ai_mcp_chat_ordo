@@ -7,12 +7,12 @@ import {
   resolveFooterGroups,
   resolveFooterGroupRoutes,
   resolvePrimaryNavRoutes,
+  resolveShellHomeHref,
 } from "@/lib/shell/shell-navigation";
 import type { User } from "@/core/entities/user";
 
 const allowedInternalRoutes = new Set([
   "/",
-  "/dashboard",
   "/profile",
   "/login",
   "/register",
@@ -42,8 +42,8 @@ describe("shell navigation model", () => {
     );
 
     expect(invalidRoutes).toEqual([]);
-    expect(resolvePrimaryNavRoutes(anonymousUser).map((route) => route.id)).toEqual(["corpus"]);
-    expect(resolvePrimaryNavRoutes(authenticatedUser).map((route) => route.id)).toEqual(["corpus"]);
+    expect(resolvePrimaryNavRoutes(anonymousUser).map((route) => route.id)).toEqual([]);
+    expect(resolvePrimaryNavRoutes(authenticatedUser).map((route) => route.id)).toEqual([]);
   });
 
   it("keeps footer group routes inside the verified route surface for each audience", () => {
@@ -57,17 +57,17 @@ describe("shell navigation model", () => {
 
     expect(invalidRoutes).toEqual([]);
     expect(resolveFooterGroups(anonymousUser).map((group) => group.id)).toEqual([
-      "explore",
+      "information",
       "access",
     ]);
     expect(resolveFooterGroups(authenticatedUser).map((group) => group.id)).toEqual([
-      "explore",
+      "information",
       "workspace",
     ]);
     expect(resolveAccountMenuRoutes(authenticatedUser).map((route) => route.id)).toEqual([
-      "dashboard",
       "profile",
     ]);
+    expect(resolveShellHomeHref()).toBe("/");
   });
 
   it("marks legacy compatibility routes without exposing them in primary navigation", () => {

@@ -1,4 +1,5 @@
 import type { RoleName, User as SessionUser } from "@/core/entities/user";
+import { DEFAULT_IDENTITY } from "@/lib/config/defaults";
 
 export type ShellRouteKind = "internal" | "external";
 
@@ -10,7 +11,7 @@ export interface ShellRouteDefinition {
   href: string;
   kind: ShellRouteKind;
   isLegacy?: boolean;
-  showInCommandPalette?: boolean;
+  showInCommands?: boolean;
   headerVisibility?: ShellVisibility;
   footerVisibility?: ShellVisibility;
   accountVisibility?: ShellVisibility;
@@ -32,11 +33,11 @@ export interface ShellBrandMetadata {
 }
 
 export const SHELL_BRAND: ShellBrandMetadata = {
-  name: "Studio Ordo",
-  shortName: "Ordo",
+  name: DEFAULT_IDENTITY.name,
+  shortName: DEFAULT_IDENTITY.shortName,
   homeHref: "/",
-  ariaLabel: "Studio Ordo home",
-  markText: "O",
+  ariaLabel: `${DEFAULT_IDENTITY.name} home`,
+  markText: DEFAULT_IDENTITY.markText,
 };
 
 const SIGNED_IN_ROLES = ["AUTHENTICATED", "STAFF", "ADMIN"] as const;
@@ -53,18 +54,10 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     label: "Library",
     href: "/library",
     kind: "internal",
-    headerVisibility: "all",
     footerVisibility: "all",
-    showInCommandPalette: true,
+    showInCommands: true,
   },
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    href: "/dashboard",
-    kind: "internal",
-    footerVisibility: SIGNED_IN_ROLES,
-    accountVisibility: SIGNED_IN_ROLES,
-  },
+
   {
     id: "profile",
     label: "Profile",
@@ -129,19 +122,32 @@ export function resolvePrimaryNavRoutes(
   return SHELL_ROUTES.filter((route) => matchesVisibility(route.headerVisibility, user));
 }
 
+export function resolveCommandRoutes(
+  user?: Pick<SessionUser, "roles"> | null,
+): ShellRouteDefinition[] {
+  return SHELL_ROUTES.filter(
+    (route) =>
+      route.showInCommands &&
+      matchesVisibility(
+        route.footerVisibility ?? route.headerVisibility ?? route.accountVisibility,
+        user,
+      ),
+  );
+}
+
 export const PRIMARY_NAV_ITEMS: readonly ShellRouteDefinition[] = resolvePrimaryNavRoutes();
 
 export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   {
-    id: "explore",
-    label: "Explore",
+    id: "information",
+    label: "Information",
     routeIds: ["corpus"],
     visibility: "all",
   },
   {
     id: "workspace",
     label: "Workspace",
-    routeIds: ["dashboard", "profile"],
+    routeIds: ["profile"],
     visibility: SIGNED_IN_ROLES,
   },
   {
@@ -152,7 +158,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   },
 ] as const;
 
-export const ACCOUNT_MENU_ROUTE_IDS = ["dashboard", "profile"] as const;
+export const ACCOUNT_MENU_ROUTE_IDS = ["profile"] as const;
 
 export const SHELL_ROUTE_BY_ID = new Map(
   SHELL_ROUTES.map((route) => [route.id, route] as const),
@@ -192,6 +198,10 @@ export function resolveAccountMenuRoutes(
   return ACCOUNT_MENU_ROUTE_IDS
     .map(getShellRouteById)
     .filter((route) => matchesVisibility(route.accountVisibility, user));
+}
+
+export function resolveShellHomeHref(): string {
+  return SHELL_BRAND.homeHref;
 }
 
 export function isShellRouteActive(

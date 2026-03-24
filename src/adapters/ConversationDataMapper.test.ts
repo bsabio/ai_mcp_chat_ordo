@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { ensureSchema } from "../lib/db/schema";
 import { ConversationDataMapper } from "./ConversationDataMapper";
 import { MessageDataMapper } from "./MessageDataMapper";
+import { createConversationRoutingSnapshot } from "../core/entities/conversation-routing";
 
 function requireValue<T>(value: T | null | undefined): T {
   expect(value).toBeTruthy();
@@ -44,9 +45,11 @@ describe("ConversationDataMapper", () => {
     expect(conv.id).toBe("conv_1");
     expect(conv.userId).toBe("usr_test");
     expect(conv.title).toBe("Hello");
+    expect(conv.routingSnapshot).toEqual(createConversationRoutingSnapshot());
 
     const found = requireValue(await mapper.findById("conv_1"));
     expect(found.title).toBe("Hello");
+    expect(found.routingSnapshot).toEqual(createConversationRoutingSnapshot());
   });
 
   it("listByUser returns summaries with messageCount ordered by updated_at desc", async () => {
@@ -136,6 +139,53 @@ describe("ConversationDataMapper", () => {
     expect(found.userId).toBe("usr_new");
     expect(found.convertedFrom).toBe("usr_test");
   });
+
+  it("updateRoutingSnapshot round-trips lane state", async () => {
+    await mapper.create({ id: "conv_lane", userId: "usr_test", title: "Lane test" });
+
+    await mapper.updateRoutingSnapshot(
+      "conv_lane",
+      createConversationRoutingSnapshot({
+        lane: "individual",
+        confidence: 0.72,
+        recommendedNextStep: "Recommend operator training",
+        detectedNeedSummary: "Solo operator needs guided implementation.",
+        lastAnalyzedAt: "2026-03-18T15:00:00.000Z",
+      }),
+    );
+
+    const found = requireValue(await mapper.findById("conv_lane"));
+    expect(found.routingSnapshot).toEqual(
+      createConversationRoutingSnapshot({
+        lane: "individual",
+        confidence: 0.72,
+        recommendedNextStep: "Recommend operator training",
+        detectedNeedSummary: "Solo operator needs guided implementation.",
+        lastAnalyzedAt: "2026-03-18T15:00:00.000Z",
+      }),
+    );
+  });
+
+  it("records user append metadata and message_sent event in one transaction", async () => {
+    await mapper.create({ id: "conv_evt_tx", userId: "usr_test", title: "Tx" });
+
+    await mapper.recordUserMessageAppendedWithEvent(
+      "conv_evt_tx",
+      "2026-03-23T23:00:00.000Z",
+      { role: "user", token_estimate: 12 },
+    );
+
+    const conversation = requireValue(await mapper.findById("conv_evt_tx"));
+    expect(conversation.messageCount).toBe(1);
+    expect(conversation.firstMessageAt).toBe("2026-03-23T23:00:00.000Z");
+
+    const eventRow = db
+      .prepare(`SELECT event_type, metadata FROM conversation_events WHERE conversation_id = ?`)
+      .get("conv_evt_tx") as { event_type: string; metadata: string };
+
+    expect(eventRow.event_type).toBe("message_sent");
+    expect(JSON.parse(eventRow.metadata)).toEqual({ role: "user", token_estimate: 12 });
+  });
 });
 
 describe("MessageDataMapper", () => {
@@ -161,10 +211,12 @@ describe("MessageDataMapper", () => {
     expect(msg.id).toMatch(/^msg_/);
     expect(msg.content).toBe("Hello world");
     expect(msg.parts).toEqual([{ type: "text", text: "Hello world" }]);
+    expect(msg.createdAt).toBeTruthy();
 
     const list = await mapper.listByConversation("conv_msg");
     expect(list.length).toBe(1);
     expect(list[0].content).toBe("Hello world");
+    expect(list[0].createdAt).toBe(msg.createdAt);
   });
 
   it("parts JSON round-trip with tool_call and tool_result", async () => {
@@ -200,5 +252,20 @@ describe("MessageDataMapper", () => {
     await mapper.create({ conversationId: "conv_msg", role: "user", content: "a", parts: [] });
     await mapper.create({ conversationId: "conv_msg", role: "assistant", content: "b", parts: [] });
     expect(await mapper.countByConversation("conv_msg")).toBe(2);
+  });
+
+  it("createWithinConversationLimit inserts only while the conversation is below the limit", async () => {
+    const first = await mapper.createWithinConversationLimit(
+      { conversationId: "conv_msg", role: "user", content: "a", parts: [] },
+      1,
+    );
+    const second = await mapper.createWithinConversationLimit(
+      { conversationId: "conv_msg", role: "assistant", content: "b", parts: [] },
+      1,
+    );
+
+    expect(first).toBeTruthy();
+    expect(second).toBeNull();
+    expect(await mapper.countByConversation("conv_msg")).toBe(1);
   });
 });

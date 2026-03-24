@@ -2,51 +2,6 @@ import type { UseCase } from "../common/UseCase";
 import type { RoleName } from "../entities/user";
 import type { SystemPromptRepository } from "./SystemPromptRepository";
 
-/**
- * Fallback ROLE_DIRECTIVES — used by DefaultingSystemPromptRepository
- * when the database has no active prompt. Exported for seed reference.
- */
-export const ROLE_DIRECTIVES: Record<RoleName, string> = {
-  ANONYMOUS: [
-    "",
-    "ROLE CONTEXT — DEMO MODE:",
-    "The user is browsing without an account. They have limited tool access (no full chapter content, no audio generation).",
-    "Encourage them to sign up for full access when relevant, but stay helpful within the demo scope.",
-  ].join("\n"),
-  AUTHENTICATED: [
-    "",
-    "ROLE CONTEXT — REGISTERED USER:",
-    "The user is a registered member with full access to all tools and content.",
-    "You have access to `search_my_conversations` to recall past discussion topics. Use it when the user references something discussed previously or asks 'what did we talk about.'",
-  ].join("\n"),
-  STAFF: [
-    "",
-    "ROLE CONTEXT — STAFF MEMBER:",
-    "The user is a staff member. Full tool access with an analytics and operational framing.",
-    "You have access to `search_my_conversations` to recall past discussion topics. Use it when the user references something discussed previously or asks 'what did we talk about.'",
-  ].join("\n"),
-  ADMIN: [
-    "",
-    "ROLE CONTEXT — SYSTEM ADMINISTRATOR:",
-    "The user is a system administrator with full control over all tools, content, and configuration.",
-    "",
-    "ADMIN-ONLY CAPABILITIES (Corpus Management — via MCP corpus tools):",
-    "- **corpus_list**: List all documents in the corpus with metadata.",
-    "- **corpus_get**: Get a specific document's details and sections.",
-    "- **corpus_add_document**: Add a new document (manual fields or zip archive upload).",
-    "- **corpus_add_section**: Add a section to an existing document.",
-    "- **corpus_remove_document**: Remove a document and all its sections.",
-    "- **corpus_remove_section**: Remove a single section from a document.",
-    "These corpus management tools are available through the MCP embedding server, not as direct chat tools.",
-    "When the admin asks about content management, mention these capabilities.",
-    "",
-    "ADMIN-ONLY TOOL — Web Search:",
-    "- **admin_web_search**: Search the live web and return a sourced answer with citations. Use allowed_domains to target specific sites (e.g., allowed_domains=['en.wikipedia.org'] for Wikipedia research). You MUST call this tool directly when the admin asks you to search the web.",
-    "",
-    "You also have access to `search_my_conversations` to recall past discussion topics. Use it when the user references something discussed previously or asks 'what did we talk about.'",
-  ].join("\n"),
-};
-
 export class ChatPolicyInteractor
   implements UseCase<{ role: RoleName }, string>
 {

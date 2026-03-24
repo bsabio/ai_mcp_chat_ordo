@@ -2,9 +2,49 @@ import type { ConversationRepository } from "./ConversationRepository";
 import type { MessageRepository } from "./MessageRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
 import type { Conversation, ConversationSummary, Message, NewMessage } from "../entities/conversation";
+import {
+  createConversationRoutingSnapshot,
+  type ConversationRoutingSnapshot,
+} from "../entities/conversation-routing";
 
 const MAX_MESSAGES_PER_CONVERSATION = 200;
 const AUTO_TITLE_MAX_LENGTH = 80;
+const STREAM_CONTEXT_RECENT_MESSAGE_LIMIT = 50;
+
+interface AtomicLimitedMessageRepository extends MessageRepository {
+  createWithinConversationLimit(
+    msg: NewMessage & { tokenEstimate?: number },
+    maxMessages: number,
+  ): Promise<Message | null>;
+}
+
+interface AtomicUserAppendConversationRepository extends ConversationRepository {
+  recordUserMessageAppendedWithEvent(
+    id: string,
+    timestamp: string,
+    metadata: { role: "user"; token_estimate: number },
+  ): Promise<void>;
+}
+
+function hasSummaryBoundary(messages: Message[]): boolean {
+  return messages.some(
+    (message) =>
+      message.role === "system" &&
+      message.parts.some((part) => part.type === "summary" || part.type === "meta_summary"),
+  );
+}
+
+function supportsAtomicLimitedCreate(
+  messageRepo: MessageRepository,
+): messageRepo is AtomicLimitedMessageRepository {
+  return typeof (messageRepo as Partial<AtomicLimitedMessageRepository>).createWithinConversationLimit === "function";
+}
+
+function supportsAtomicUserAppendEffects(
+  conversationRepo: ConversationRepository,
+): conversationRepo is AtomicUserAppendConversationRepository {
+  return typeof (conversationRepo as Partial<AtomicUserAppendConversationRepository>).recordUserMessageAppendedWithEvent === "function";
+}
 
 export class ConversationInteractor {
   constructor(
@@ -13,22 +53,34 @@ export class ConversationInteractor {
     private readonly eventRecorder?: ConversationEventRecorder,
   ) {}
 
-  async create(
+  async ensureActive(
+    userId: string,
+    options?: { sessionSource?: string; referralSource?: string },
+  ): Promise<Conversation> {
+    const existing = await this.conversationRepo.findActiveByUser(userId);
+    if (existing) return existing;
+
+    return this.create(userId, "", options);
+  }
+
+  private async create(
     userId: string,
     title: string = "",
-    options?: { sessionSource?: string },
+    options?: { sessionSource?: string; referralSource?: string },
   ): Promise<Conversation> {
     // Archive any existing active conversation before creating a new one
     await this.conversationRepo.archiveByUser(userId);
 
     const id = `conv_${crypto.randomUUID()}`;
     const sessionSource = options?.sessionSource ?? (userId.startsWith("anon_") ? "anonymous_cookie" : "authenticated");
+    const referralSource = options?.referralSource;
     const conversation = await this.conversationRepo.create({
       id,
       userId,
       title,
       status: "active",
       sessionSource,
+      referralSource,
     });
 
     await this.eventRecorder?.record(id, "started", { session_source: sessionSource });
@@ -43,6 +95,33 @@ export class ConversationInteractor {
     }
     const messages = await this.messageRepo.listByConversation(conversationId);
     return { conversation, messages };
+  }
+
+  async getForStreamingContext(
+    conversationId: string,
+    userId: string,
+  ): Promise<{ conversation: Conversation; messages: Message[]; usedFullHistory: boolean }> {
+    const conversation = await this.conversationRepo.findById(conversationId);
+    if (!conversation || conversation.userId !== userId) {
+      throw new NotFoundError("Conversation not found");
+    }
+
+    if (conversation.messageCount <= STREAM_CONTEXT_RECENT_MESSAGE_LIMIT) {
+      const messages = await this.messageRepo.listByConversation(conversationId);
+      return { conversation, messages, usedFullHistory: true };
+    }
+
+    const recentMessages = await this.messageRepo.listRecentByConversation(
+      conversationId,
+      STREAM_CONTEXT_RECENT_MESSAGE_LIMIT,
+    );
+
+    if (hasSummaryBoundary(recentMessages)) {
+      return { conversation, messages: recentMessages, usedFullHistory: false };
+    }
+
+    const messages = await this.messageRepo.listByConversation(conversationId);
+    return { conversation, messages, usedFullHistory: true };
   }
 
   async getActiveForUser(userId: string): Promise<{ conversation: Conversation; messages: Message[] } | null> {
@@ -87,13 +166,17 @@ export class ConversationInteractor {
       throw new NotFoundError("Conversation not found");
     }
 
-    const count = await this.messageRepo.countByConversation(msg.conversationId);
-    if (count >= MAX_MESSAGES_PER_CONVERSATION) {
+    const tokenEstimate = Math.ceil(msg.content.length / 4);
+    const message = supportsAtomicLimitedCreate(this.messageRepo)
+      ? await this.messageRepo.createWithinConversationLimit(
+          { ...msg, tokenEstimate },
+          MAX_MESSAGES_PER_CONVERSATION,
+        )
+      : await this.createMessageWithFallbackLimitCheck(msg, tokenEstimate);
+
+    if (!message) {
       throw new MessageLimitError(`Conversation has reached the ${MAX_MESSAGES_PER_CONVERSATION}-message limit`);
     }
-
-    const tokenEstimate = Math.ceil(msg.content.length / 4);
-    const message = await this.messageRepo.create({ ...msg, tokenEstimate });
 
     // Auto-title from first user message
     if (msg.role === "user" && !conversation.title) {
@@ -101,20 +184,37 @@ export class ConversationInteractor {
       await this.conversationRepo.updateTitle(msg.conversationId, title);
     }
 
-    // Update denormalized metadata
-    await this.conversationRepo.incrementMessageCount(msg.conversationId);
-    await this.conversationRepo.setFirstMessageAt(msg.conversationId, message.createdAt);
-    await this.conversationRepo.touch(msg.conversationId);
+    if (msg.role === "user" && supportsAtomicUserAppendEffects(this.conversationRepo)) {
+      await this.conversationRepo.recordUserMessageAppendedWithEvent(
+        msg.conversationId,
+        message.createdAt,
+        { role: "user", token_estimate: tokenEstimate },
+      );
+    } else {
+      // Update denormalized metadata in one repository operation.
+      await this.conversationRepo.recordMessageAppended(msg.conversationId, message.createdAt);
 
-    // Record event
-    if (msg.role === "user") {
-      await this.eventRecorder?.record(msg.conversationId, "message_sent", {
-        role: "user",
-        token_estimate: tokenEstimate,
-      });
+      if (msg.role === "user") {
+        await this.eventRecorder?.record(msg.conversationId, "message_sent", {
+          role: "user",
+          token_estimate: tokenEstimate,
+        });
+      }
     }
 
     return message;
+  }
+
+  private async createMessageWithFallbackLimitCheck(
+    msg: NewMessage,
+    tokenEstimate: number,
+  ): Promise<Message | null> {
+    const count = await this.messageRepo.countByConversation(msg.conversationId);
+    if (count >= MAX_MESSAGES_PER_CONVERSATION) {
+      return null;
+    }
+
+    return this.messageRepo.create({ ...msg, tokenEstimate });
   }
 
   async recordToolUsed(conversationId: string, toolName: string, role: string): Promise<void> {
@@ -125,10 +225,54 @@ export class ConversationInteractor {
     });
   }
 
+  async updateRoutingSnapshot(
+    conversationId: string,
+    userId: string,
+    snapshot: ConversationRoutingSnapshot,
+  ): Promise<void> {
+    const conversation = await this.conversationRepo.findById(conversationId);
+    if (!conversation || conversation.userId !== userId) {
+      throw new NotFoundError("Conversation not found");
+    }
+
+    const normalizedSnapshot = createConversationRoutingSnapshot(snapshot);
+    const previousLane = conversation.routingSnapshot.lane;
+
+    await this.conversationRepo.updateRoutingSnapshot(conversationId, normalizedSnapshot);
+    await this.conversationRepo.touch(conversationId);
+
+    const eventMetadata = {
+      lane: normalizedSnapshot.lane,
+      confidence: normalizedSnapshot.confidence,
+      recommended_next_step: normalizedSnapshot.recommendedNextStep,
+      detected_need_summary: normalizedSnapshot.detectedNeedSummary,
+      analyzed_at: normalizedSnapshot.lastAnalyzedAt,
+    };
+
+    await this.eventRecorder?.record(conversationId, "lane_analyzed", eventMetadata);
+
+    if (previousLane !== normalizedSnapshot.lane) {
+      await this.eventRecorder?.record(conversationId, "lane_changed", {
+        from_lane: previousLane,
+        to_lane: normalizedSnapshot.lane,
+        confidence: normalizedSnapshot.confidence,
+        analyzed_at: normalizedSnapshot.lastAnalyzedAt,
+      });
+    }
+
+    if (normalizedSnapshot.lane === "uncertain") {
+      await this.eventRecorder?.record(conversationId, "lane_uncertain", eventMetadata);
+    }
+  }
+
   async migrateAnonymousConversations(
     anonUserId: string,
     newUserId: string,
   ): Promise<string[]> {
+    // Archive any existing active conversation for the authenticated user
+    // so the transferred anonymous conversation becomes the active one.
+    await this.conversationRepo.archiveByUser(newUserId);
+
     const migratedIds = await this.conversationRepo.transferOwnership(anonUserId, newUserId);
 
     for (const convId of migratedIds) {

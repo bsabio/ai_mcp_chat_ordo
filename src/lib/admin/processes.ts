@@ -9,6 +9,63 @@ import { getMetricsSnapshot } from "@/lib/observability/metrics";
 
 export type AdminStatus = "ok" | "error";
 
+export interface ReleaseManifestReport {
+  present: boolean;
+  error?: string;
+  manifest: {
+    appName: string;
+    version: string;
+    gitSha: string | null;
+    gitBranch: string | null;
+    builtAt: string | null;
+    nodeVersion: string | null;
+  } | null;
+}
+
+export function getReleaseManifestReport(): ReleaseManifestReport {
+  const releaseManifestPath = path.join(process.cwd(), "release", "manifest.json");
+
+  if (!fs.existsSync(releaseManifestPath)) {
+    return {
+      present: false,
+      manifest: null,
+      error: "Release manifest is missing.",
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(releaseManifestPath, "utf8")) as {
+      appName?: string;
+      version?: string;
+      gitSha?: string;
+      gitBranch?: string;
+      builtAt?: string;
+      nodeVersion?: string;
+    };
+
+    return {
+      present: true,
+      manifest: {
+        appName: parsed.appName ?? "unknown",
+        version: parsed.version ?? "unknown",
+        gitSha: parsed.gitSha ?? null,
+        gitBranch: parsed.gitBranch ?? null,
+        builtAt: parsed.builtAt ?? null,
+        nodeVersion: parsed.nodeVersion ?? null,
+      },
+    };
+  } catch (error) {
+    return {
+      present: false,
+      manifest: null,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Release manifest could not be parsed.",
+    };
+  }
+}
+
 export function getDiagnosticsReport() {
   const packageJsonPath = path.join(process.cwd(), "package.json");
   const releaseManifestPath = path.join(

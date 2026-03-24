@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { AccountMenu } from "@/components/AccountMenu";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ChatHeader } from "@/frameworks/ui/ChatHeader";
+import { ChatSurfaceHeader } from "@/frameworks/ui/ChatSurfaceHeader";
 import type { User } from "@/core/entities/user";
 
 let pathname = "/dashboard";
@@ -98,11 +99,13 @@ describe("shell visual system", () => {
     }
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
-    expect(within(nav).getByRole("link", { name: "Library" }).className).toContain("shell-nav-label");
     expect(within(nav).getByRole("link", { name: /studio ordo home/i }).className).toContain("whitespace-nowrap");
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
+    expect(nav.firstElementChild?.className).toContain("justify-between");
 
     const footer = screen.getByRole("contentinfo");
-    expect(within(footer).getByText("Explore").className).toContain("shell-section-heading");
+    expect(within(footer).getByText("Information").className).toContain("shell-section-heading");
+    expect(within(footer).getByRole("link", { name: "Library" }).className).toContain("shell-nav-label");
     expect(within(footer).getByText(/© 2026 Studio Ordo/i).className).toContain("shell-micro-text");
   });
 
@@ -118,10 +121,9 @@ describe("shell visual system", () => {
     const legibilityToggle = await screen.findByRole("button", { name: "System Legibility" });
     expect(screen.getByRole("button", { name: /test user/i }).className).toContain("shell-account-trigger");
     expect(legibilityToggle.className).toContain("shell-account-label");
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
-    expect(screen.getByRole("link", { name: "Dashboard" }).className).toContain("shell-account-label");
     expect(screen.getByRole("link", { name: "Profile" }).className).toContain("shell-account-label");
+    expect(screen.queryByRole("link", { name: "Dashboard" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Profile Settings" })).toBeNull();
 
     fireEvent.click(legibilityToggle);
@@ -135,9 +137,6 @@ describe("shell visual system", () => {
       <ChatHeader
         title="PD Advisor"
         subtitle="Intelligent Orchestrator"
-        isFloating={false}
-        onFullScreenToggle={() => undefined}
-        isFullScreen={false}
         searchQuery=""
         onSearchChange={() => undefined}
         density="normal"
@@ -181,23 +180,82 @@ describe("shell visual system", () => {
 
   it("applies shared shell meta roles in the floating chat header variant", () => {
     render(
-      <ChatHeader
-        title="PD Advisor"
-        subtitle="Intelligent Orchestrator"
-        isFloating
+      <ChatSurfaceHeader
+        mode="floating"
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
         isFullScreen={false}
-        searchQuery=""
-        onSearchChange={() => undefined}
-        density="normal"
-        onDensityChange={() => undefined}
-        gridEnabled={false}
-        onGridToggle={() => undefined}
       />,
     );
 
-    expect(screen.getByText("Intelligent Orchestrator").className).toContain("shell-meta-text");
+    expect(screen.queryByText("PD Advisor")).not.toBeInTheDocument();
+    expect(screen.queryByText("Intelligent Orchestrator")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enter Full Screen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Minimize Chat" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /set density to compact/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /toggle design grid/i })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/filter session/i)).not.toBeInTheDocument();
+  });
+
+  it("renders embedded and floating headers in the same tree without prop leakage", () => {
+    render(
+      <div>
+        <ChatHeader
+          title="PD Advisor"
+          subtitle="Intelligent Orchestrator"
+          searchQuery=""
+          onSearchChange={() => undefined}
+          density="normal"
+          onDensityChange={() => undefined}
+          gridEnabled={false}
+          onGridToggle={() => undefined}
+        />
+        <ChatSurfaceHeader
+          mode="floating"
+          onMinimize={() => undefined}
+          onFullScreenToggle={() => undefined}
+          isFullScreen={false}
+        />
+      </div>,
+    );
+
+    // Embedded header retains its controls
+    expect(screen.getByRole("heading", { name: "PD Advisor" })).toBeInTheDocument();
+    expect(screen.getByText("Intelligent Orchestrator")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set density to compact" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Toggle Design Grid" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Filter session...")).toBeInTheDocument();
+
+    // Floating header retains only its controls
+    expect(screen.getByRole("button", { name: "Enter Full Screen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Minimize Chat" })).toBeInTheDocument();
+
+    // Only one heading, one subtitle, one search — all from the embedded header
+    expect(screen.getAllByRole("heading", { name: "PD Advisor" })).toHaveLength(1);
+    expect(screen.getAllByPlaceholderText("Filter session...")).toHaveLength(1);
+  });
+
+  it("confirms ChatSurfaceHeader does not consume useTheme for local header rendering", () => {
+    // The useTheme mock returns density: "compact" and gridEnabled: false.
+    // If ChatSurfaceHeader were forwarding theme state to the floating header,
+    // we would see density controls or grid toggles in the output.
+    render(
+      <ChatSurfaceHeader
+        mode="floating"
+        onMinimize={() => undefined}
+        onFullScreenToggle={() => undefined}
+        isFullScreen={false}
+      />,
+    );
+
+    // Floating header must not expose any theme-derived controls
+    expect(screen.queryByRole("button", { name: /set density/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /toggle design grid/i })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/filter session/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/compact/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/relaxed/i)).not.toBeInTheDocument();
+
+    // Only window-chrome controls exist
     expect(screen.getByRole("button", { name: "Enter Full Screen" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Minimize Chat" })).toBeInTheDocument();
   });

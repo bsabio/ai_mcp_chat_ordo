@@ -1,11 +1,18 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getDocuments, getCorpusSummaries } from "@/lib/corpus-library";
+import { buildLibraryIndexMetadata, buildLibraryIndexSeo } from "@/lib/seo/library-metadata";
+import { getInstanceIdentity } from "@/lib/config/instance";
 
-export const metadata = {
-  title: "Library",
-  description: "Browse the library of books and chapters backing the product experience.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const [documents, summaries] = await Promise.all([getDocuments(), getCorpusSummaries()]);
+  const totalChapters = documents.reduce((sum, doc) => {
+    const s = summaries.find((item) => item.slug === doc.slug);
+    return sum + (s?.chapterCount ?? s?.sectionCount ?? 0);
+  }, 0);
+  return buildLibraryIndexMetadata(documents.length, totalChapters);
+}
 
 export default async function LibraryIndexPage() {
   const [documents, summaries] = await Promise.all([getDocuments(), getCorpusSummaries()]);
@@ -21,12 +28,14 @@ export default async function LibraryIndexPage() {
     .sort((left, right) => left.number.localeCompare(right.number, undefined, { numeric: true }));
 
   const totalChapters = books.reduce((sum, book) => sum + book.chapterCount, 0);
+  const identity = getInstanceIdentity();
+  const { jsonLd } = buildLibraryIndexSeo(books.length, totalChapters);
 
   return (
     <div className="library-page-shell min-h-screen text-foreground">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-(--container-padding) py-12 sm:py-16">
         <header className="flex flex-col gap-6">
-          <span className="library-kicker">Studio Ordo Library</span>
+          <span className="library-kicker">{identity.name} Library</span>
           <h1 className="library-title max-w-4xl">Books, chapters, and reusable reference material.</h1>
           <p className="library-dek">
             The library is organized as books with chapter-level routes so readers can move through the collection deliberately instead of landing in isolated markdown pages.
@@ -60,6 +69,13 @@ export default async function LibraryIndexPage() {
             </Link>
           ))}
         </section>
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd),
+          }}
+        />
       </div>
     </div>
   );

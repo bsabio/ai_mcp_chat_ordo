@@ -57,10 +57,55 @@ export function getAnthropicApiKey(): string {
   return requireNonEmpty(value, "ANTHROPIC_API_KEY/API__ANTHROPIC_API_KEY");
 }
 
+export function getOpenaiApiKey(): string {
+  const value = readPrimaryThenLegacy(
+    "OPENAI_API_KEY",
+    "API__OPENAI_API_KEY",
+  );
+  return requireNonEmpty(value, "OPENAI_API_KEY/API__OPENAI_API_KEY");
+}
+
 export function getAnthropicModel(): string {
   return (
     readPrimaryThenLegacy("ANTHROPIC_MODEL", "API__ANTHROPIC_MODEL") ??
     "claude-haiku-4-5"
+  );
+}
+
+function parsePositiveIntegerEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+export function getAnthropicRequestTimeoutMs(): number {
+  return parsePositiveIntegerEnv(
+    readPrimaryThenLegacy("ANTHROPIC_REQUEST_TIMEOUT_MS", "API__ANTHROPIC_REQUEST_TIMEOUT_MS"),
+    12000,
+  );
+}
+
+export function getAnthropicRequestRetryAttempts(): number {
+  return parsePositiveIntegerEnv(
+    readPrimaryThenLegacy("ANTHROPIC_RETRY_ATTEMPTS", "API__ANTHROPIC_RETRY_ATTEMPTS"),
+    3,
+  );
+}
+
+export function getAnthropicRequestRetryDelayMs(): number {
+  return parsePositiveIntegerEnv(
+    readPrimaryThenLegacy("ANTHROPIC_RETRY_DELAY_MS", "API__ANTHROPIC_RETRY_DELAY_MS"),
+    150,
   );
 }
 

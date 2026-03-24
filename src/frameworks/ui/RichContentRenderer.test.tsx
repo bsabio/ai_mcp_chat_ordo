@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { RichContentRenderer } from "./RichContentRenderer";
-import type { RichContent } from "../../core/entities/rich-content";
+import type { RichContent, InlineNode } from "../../core/entities/rich-content";
 
 describe("RichContentRenderer", () => {
   it("should render a paragraph", () => {
@@ -71,5 +71,289 @@ describe("RichContentRenderer", () => {
     expect(screen.getByText("item 1")).toBeDefined();
     expect(screen.getByText("item 2")).toBeDefined();
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("should render an operator brief as section cards", () => {
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "operator-brief",
+          sections: [
+            {
+              label: "NOW",
+              summary: [{ type: "text", text: "Handle the founder response first." }],
+              items: [[{ type: "text", text: "Reply to Alex" }]],
+            },
+            {
+              label: "NEXT",
+              summary: [{ type: "text", text: "Review routing drift." }],
+            },
+            {
+              label: "WAIT",
+              summary: [{ type: "text", text: "Leave funnel cleanup for later." }],
+            },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} />);
+    expect(screen.getByLabelText("NOW")).toBeInTheDocument();
+    expect(screen.getByLabelText("NEXT")).toBeInTheDocument();
+    expect(screen.getByLabelText("WAIT")).toBeInTheDocument();
+    expect(screen.getByText("Reply to Alex")).toBeInTheDocument();
+  });
+
+  it("should render an action link as a button and dispatch onActionClick", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "action-link", label: "Morgan Lee", actionType: "conversation", value: "conv_001" },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    const button = screen.getByRole("button", { name: "Morgan Lee (conversation)" });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute("data-chat-action-link", "conversation");
+    fireEvent.click(button);
+    expect(onActionClick).toHaveBeenCalledWith("conversation", "conv_001", undefined);
+  });
+
+  it("should render action link with params and dispatch them on click", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "action-link", label: "Send offer", actionType: "send", value: "Draft offer", params: { tone: "formal" } },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    fireEvent.click(screen.getByRole("button", { name: "Send offer (send)" }));
+    expect(onActionClick).toHaveBeenCalledWith("send", "Draft offer", { tone: "formal" });
+  });
+
+  it("should render action link as no-op when onActionClick is not provided", () => {
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "action-link", label: "Go home", actionType: "route", value: "/home" },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} />);
+    const button = screen.getByRole("button", { name: "Go home (route)" });
+    // Should not throw when clicked without handler
+    fireEvent.click(button);
+    expect(button).toBeInTheDocument();
+  });
+
+  it("should render multiple action links in the same paragraph", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "action-link", label: "Thread A", actionType: "conversation", value: "conv_a" },
+            { type: "text", text: " or " },
+            { type: "action-link", label: "Thread B", actionType: "conversation", value: "conv_b" },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[0]);
+    expect(onActionClick).toHaveBeenCalledWith("conversation", "conv_a", undefined);
+    fireEvent.click(buttons[1]);
+    expect(onActionClick).toHaveBeenCalledWith("conversation", "conv_b", undefined);
+  });
+
+  it("should render action link adjacent to library-link in same sentence", () => {
+    const onActionClick = vi.fn();
+    const onLinkClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "See " },
+            { type: "library-link", slug: "audit-guide" },
+            { type: "text", text: " then " },
+            { type: "action-link", label: "Run audit", actionType: "send", value: "run audit" },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onLinkClick={onLinkClick} onActionClick={onActionClick} />);
+    fireEvent.click(screen.getByText("audit guide"));
+    expect(onLinkClick).toHaveBeenCalledWith("audit-guide");
+    fireEvent.click(screen.getByRole("button", { name: "Run audit (send)" }));
+    expect(onActionClick).toHaveBeenCalledWith("send", "run audit", undefined);
+  });
+
+  it("should render action link inside a list item", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "list",
+          items: [
+            [
+              { type: "text", text: "Step 1: " },
+              { type: "action-link", label: "Open library", actionType: "route", value: "/library" },
+            ],
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    const button = screen.getByRole("button", { name: "Open library (route)" });
+    expect(button.closest("li")).not.toBeNull();
+    fireEvent.click(button);
+    expect(onActionClick).toHaveBeenCalledWith("route", "/library", undefined);
+  });
+
+  it("should render action link inside operator brief card", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "operator-brief",
+          sections: [
+            {
+              label: "NOW",
+              summary: [
+                { type: "text", text: "Reply to " },
+                { type: "action-link", label: "Morgan Lee", actionType: "conversation", value: "conv_morgan" },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    const button = screen.getByRole("button", { name: "Morgan Lee (conversation)" });
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(onActionClick).toHaveBeenCalledWith("conversation", "conv_morgan", undefined);
+  });
+
+  describe("operator brief with action links", () => {
+    it("renders action links inside NOW/NEXT/WAIT card sections", () => {
+      const onActionClick = vi.fn();
+      const content: RichContent = {
+        blocks: [
+          {
+            type: "operator-brief",
+            sections: [
+              {
+                label: "NOW",
+                summary: [
+                  { type: "text", text: "Reply to " },
+                  { type: "action-link", label: "Morgan Lee", actionType: "conversation", value: "conv_001" },
+                ],
+              },
+              {
+                label: "NEXT",
+                summary: [
+                  { type: "text", text: "Review " },
+                  { type: "action-link", label: "audit report", actionType: "route", value: "/reports/audit" },
+                ],
+              },
+              {
+                label: "WAIT",
+                summary: [
+                  { type: "text", text: "Pending " },
+                  { type: "action-link", label: "design review", actionType: "corpus", value: "design-review" },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+      expect(screen.getByRole("button", { name: "Morgan Lee (conversation)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "audit report (route)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "design review (corpus)" })).toBeInTheDocument();
+    });
+
+    it("action links are visually distinct from bold text (different node type)", () => {
+      const content: RichContent = {
+        blocks: [
+          {
+            type: "operator-brief",
+            sections: [
+              {
+                label: "NOW",
+                summary: [
+                  { type: "bold", text: "Important" },
+                  { type: "text", text: " — contact " },
+                  { type: "action-link", label: "Morgan Lee", actionType: "conversation", value: "conv_001" },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { container } = render(<RichContentRenderer content={content} />);
+      const bold = container.querySelector("strong");
+      const actionButton = container.querySelector('[data-chat-action-link="conversation"]');
+      expect(bold).not.toBeNull();
+      expect(actionButton).not.toBeNull();
+      expect(bold?.tagName).toBe("STRONG");
+      expect(actionButton?.tagName.toLowerCase()).toBe("button");
+    });
+
+    it("operator brief with 3 cards each containing 2 action links produces correct node count", () => {
+      const onActionClick = vi.fn();
+      const makeSection = (label: "NOW" | "NEXT" | "WAIT", slug1: string, slug2: string): { label: "NOW" | "NEXT" | "WAIT"; summary: InlineNode[] } => ({
+        label,
+        summary: [
+          { type: "action-link" as const, label: `Link ${slug1}`, actionType: "conversation" as const, value: slug1 },
+          { type: "text" as const, text: " and " },
+          { type: "action-link" as const, label: `Link ${slug2}`, actionType: "route" as const, value: `/${slug2}` },
+        ],
+      });
+
+      const content: RichContent = {
+        blocks: [
+          {
+            type: "operator-brief",
+            sections: [
+              makeSection("NOW", "a", "b"),
+              makeSection("NEXT", "c", "d"),
+              makeSection("WAIT", "e", "f"),
+            ],
+          },
+        ],
+      };
+
+      const { container } = render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+      const actionLinks = container.querySelectorAll('[data-chat-action-link]');
+      expect(actionLinks).toHaveLength(6);
+    });
   });
 });

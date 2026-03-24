@@ -1,12 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/AppShell";
-import CommandPalette from "@/components/CommandPalette";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import type { User } from "@/core/entities/user";
 
-let pathname = "/dashboard";
+let pathname = "/";
 
 const pushMock = vi.fn();
 const switchRoleMock = vi.fn();
@@ -57,7 +56,7 @@ vi.mock("@/hooks/useMockAuth", () => ({
 }));
 
 beforeEach(() => {
-  pathname = "/dashboard";
+  pathname = "/";
   pushMock.mockReset();
   switchRoleMock.mockReset();
   logoutMock.mockReset();
@@ -81,7 +80,6 @@ function renderShellAcceptance() {
       <AppShell user={authenticatedUser}>
         <div>Acceptance Content</div>
       </AppShell>
-      <CommandPalette />
     </ThemeProvider>,
   );
 }
@@ -92,7 +90,6 @@ function renderAnonymousShellAcceptance() {
       <AppShell user={anonymousUser}>
         <div>Acceptance Content</div>
       </AppShell>
-      <CommandPalette />
     </ThemeProvider>,
   );
 }
@@ -110,12 +107,13 @@ describe("shell acceptance", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const navLinks = getLinkNames(nav);
 
-    expect(navLinks).toEqual(["Studio Ordo home", "Library"]);
+    expect(navLinks).toEqual(["Studio Ordo home"]);
     expect(nav).toHaveAttribute("data-shell-nav-rail", "true");
     expect(nav.querySelector('[data-shell-nav-region="brand"]')).not.toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
-    expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
+    expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Training" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Studio" })).toBeNull();
   });
@@ -128,8 +126,9 @@ describe("shell acceptance", () => {
     const footer = screen.getByRole("contentinfo");
     const footerLinks = getLinkNames(footer);
 
-    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Dashboard", "Profile"]);
-    expect(within(footer).getByText("Explore")).toBeInTheDocument();
+    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Profile"]);
+    expect(within(footer).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
+    expect(within(footer).getByText("Information")).toBeInTheDocument();
     expect(within(footer).getByText("Workspace")).toBeInTheDocument();
   });
 
@@ -140,48 +139,8 @@ describe("shell acceptance", () => {
     const footerLinks = getLinkNames(footer);
 
     expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Login", "Register"]);
-    expect(within(footer).getByText("Explore")).toBeInTheDocument();
+    expect(within(footer).getByText("Information")).toBeInTheDocument();
     expect(within(footer).getByText("Access")).toBeInTheDocument();
     expect(within(footer).queryByText("Workspace")).toBeNull();
-  });
-
-  it("keeps the command palette aligned to the canonical shell destinations and themes", async () => {
-    renderShellAcceptance();
-
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-
-    expect(await screen.findByPlaceholderText("Search navigation or theme commands...")).toBeInTheDocument();
-
-    const dialog = screen.getByRole("dialog", { name: /command palette/i });
-
-    expect(within(dialog).getByText("Library")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Home")).toBeNull();
-    expect(within(dialog).queryByText("Dashboard")).toBeNull();
-    expect(within(dialog).getByText("Set Theme: Bauhaus")).toBeInTheDocument();
-    expect(within(dialog).getByText("Set Theme: Modern Fluid")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Go to Library")).toBeNull();
-    expect(within(dialog).queryByText("Search Library")).toBeNull();
-  });
-
-  it("does not reintroduce dead, deprecated, or misleading shell surface labels", async () => {
-    renderShellAcceptance();
-
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-    await screen.findByPlaceholderText("Search navigation or theme commands...");
-
-    for (const label of [
-      "Training",
-      "Studio",
-      "Documentation",
-      "Patterns",
-      "API",
-      "Privacy",
-      "Terms",
-      "Legacy Books Index",
-      "Legacy Book Chapter Redirect",
-      "Global Status: Optimal",
-    ]) {
-      expect(screen.queryByText(label)).toBeNull();
-    }
   });
 });

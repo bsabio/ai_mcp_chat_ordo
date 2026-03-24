@@ -1,98 +1,35 @@
+import Image from "next/image";
+
 import React from "react";
 
 interface ChatHeaderProps {
   title: string;
   subtitle: string;
-  isFloating: boolean;
-  onMinimize?: () => void;
-  onFullScreenToggle: () => void;
-  isFullScreen: boolean;
-
-  // Search
   searchQuery: string;
   onSearchChange: (query: string) => void;
-
-  // Density
   density: "compact" | "normal" | "relaxed";
   onDensityChange: (density: "compact" | "normal" | "relaxed") => void;
-
-  // Grid
   gridEnabled: boolean;
   onGridToggle: () => void;
+  logoPath?: string;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   title,
   subtitle,
-  isFloating,
-  onMinimize,
-  onFullScreenToggle,
-  isFullScreen,
   searchQuery,
   onSearchChange,
   density,
   onDensityChange,
   gridEnabled,
   onGridToggle,
+  logoPath = "/ordo-avatar.png",
 }) => {
-  const floatingHeaderClasses = isFullScreen
-    ? "glass-surface safe-area-pt safe-area-px relative z-10 flex shrink-0 items-center justify-between border-b border-color-theme pb-4 pt-3 shadow-[0_10px_30px_color-mix(in_srgb,var(--shadow-base)_10%,transparent)] transition-colors duration-500"
-    : "glass-surface relative z-10 flex shrink-0 items-center justify-between border-b border-color-theme px-(--container-padding) py-4 shadow-[0_10px_30px_color-mix(in_srgb,var(--shadow-base)_10%,transparent)] transition-colors duration-500";
-
-  if (isFloating) {
-    return (
-      <div className={floatingHeaderClasses}>
-        <div className="shell-action-row">
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]">
-            <img src="/ordo-avatar.png" alt="" width={32} height={32} className="h-full w-full object-cover" />
-          </div>
-          <div>
-            <h3 className="shell-panel-heading">{title}</h3>
-            <div className="shell-action-row leading-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-status-success animate-pulse" />
-              <span className="shell-meta-text opacity-40">
-                {subtitle}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="shell-action-row">
-          <button
-            onClick={onFullScreenToggle}
-            className="icon-btn"
-            aria-label={isFullScreen ? "Exit Full Screen" : "Enter Full Screen"}
-          >
-            {isFullScreen ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M8 3v5H3M21 8h-5V3M3 16h5v5M16 21v-5h5" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h6v6M9 21H3v-6M21 15v6h-6M3 9V3h6" />
-              </svg>
-            )}
-          </button>
-          
-          <button
-            onClick={onMinimize}
-            className="icon-btn"
-            aria-label="Minimize Chat"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-      <header className="glass-surface sticky top-0 z-30 flex h-14 items-center justify-between border-b border-color-theme px-(--container-padding) shadow-[0_10px_30px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-colors duration-500">
+    <header className="glass-surface sticky top-0 z-30 flex h-14 items-center justify-between border-b border-color-theme px-(--container-padding) shadow-[0_10px_30px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-colors duration-500">
       <div className="shell-action-row">
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]">
-          <img src="/ordo-avatar.png" alt="" width={32} height={32} className="h-full w-full object-cover" />
+        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]">
+          <Image src={logoPath} alt="" width={32} height={32} className="object-cover" style={{ width: "100%", height: "100%" }} />
         </div>
         <div className="flex flex-col">
           <h1 className="shell-panel-heading leading-none">{title}</h1>

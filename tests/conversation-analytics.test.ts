@@ -32,12 +32,18 @@ function seedConversation(
     convertedFrom?: string | null;
     messageCount?: number;
     sessionSource?: string;
+    lane?: "organization" | "individual" | "uncertain";
+    laneConfidence?: number | null;
+    recommendedNextStep?: string | null;
+    detectedNeedSummary?: string | null;
+    laneLastAnalyzedAt?: string | null;
   },
 ) {
   db.prepare(
     `INSERT INTO conversations (
-      id, user_id, title, status, created_at, updated_at, converted_from, message_count, session_source
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, user_id, title, status, created_at, updated_at, converted_from, message_count, session_source,
+      lane, lane_confidence, recommended_next_step, detected_need_summary, lane_last_analyzed_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     row.id,
     row.userId,
@@ -48,6 +54,11 @@ function seedConversation(
     row.convertedFrom ?? null,
     row.messageCount ?? 0,
     row.sessionSource ?? (row.userId.startsWith("anon_") ? "anonymous_cookie" : "authenticated"),
+    row.lane ?? "uncertain",
+    row.laneConfidence ?? null,
+    row.recommendedNextStep ?? null,
+    row.detectedNeedSummary ?? null,
+    row.laneLastAnalyzedAt ?? null,
   );
 }
 
@@ -135,6 +146,11 @@ describe("conversation analytics tools", () => {
       updatedAt: "2026-03-15 08:00:00",
       messageCount: 10,
       sessionSource: "authenticated",
+      lane: "organization",
+      laneConfidence: 0.95,
+      recommendedNextStep: "Move to advisory scoping",
+      detectedNeedSummary: "Product team needs process redesign.",
+      laneLastAnalyzedAt: "2026-03-15 08:30:00",
     });
     seedConversation(db, {
       id: "conv_auth_archived",
@@ -261,6 +277,13 @@ describe("conversation analytics tools", () => {
       createdAt: "2026-03-13 08:20:00",
     });
     seedEvent(db, {
+      id: "evt_10b",
+      conversationId: "conv_auth_active",
+      eventType: "lane_changed",
+      metadata: { from_lane: "uncertain", to_lane: "organization" },
+      createdAt: "2026-03-13 08:25:00",
+    });
+    seedEvent(db, {
       id: "evt_11",
       conversationId: "conv_auth_archived",
       eventType: "tool_used",
@@ -273,6 +296,13 @@ describe("conversation analytics tools", () => {
       eventType: "archived",
       metadata: { message_count: 4, duration_hours: 24 },
       createdAt: "2026-03-09 08:00:00",
+    });
+    seedEvent(db, {
+      id: "evt_13",
+      conversationId: "conv_anon_b",
+      eventType: "lane_uncertain",
+      metadata: { lane: "uncertain", confidence: 0.33 },
+      createdAt: "2026-03-11 09:10:00",
     });
   });
 
@@ -287,6 +317,14 @@ describe("conversation analytics tools", () => {
     expect(result.authenticated_conversations).toBe(3);
     expect(result.converted_conversations).toBe(1);
     expect(result.avg_message_count).toBeGreaterThan(0);
+    expect(result.lane_distribution).toEqual({
+      organization: 1,
+      individual: 0,
+      uncertain: 4,
+    });
+    expect(result.uncertain_conversations).toBe(4);
+    expect(result.lane_changed_events).toBe(1);
+    expect(result.lane_uncertain_events).toBe(1);
   });
 
   it("returns funnel stage counts", async () => {
@@ -354,14 +392,130 @@ describe("conversation analytics tools", () => {
       { db },
       { conversation_id: "conv_converted" },
     ) as {
-      conversation: { id: string };
+      conversation: { id: string; lane: string };
       messages: Array<{ content_preview: string }>;
       events: Array<{ event_type: string }>;
+      routing_events: { lane_changed_count: number; lane_uncertain_count: number };
     };
 
     expect(result.conversation.id).toBe("conv_converted");
+    expect(result.conversation.lane).toBe("uncertain");
     expect(result.messages[0].content_preview).toContain("Anonymous origin");
     expect(result.events.some((event) => event.event_type === "converted")).toBe(true);
+    expect(result.routing_events).toEqual({ lane_changed_count: 0, lane_uncertain_count: 0 });
+  });
+
+  it("inspects routing metadata when lane state has been persisted", async () => {
+    const result = await conversationInspect(
+      { db },
+      { conversation_id: "conv_auth_active" },
+    ) as {
+      conversation: {
+        id: string;
+        lane: string;
+        lane_confidence: number | null;
+        recommended_next_step: string | null;
+      };
+    };
+
+    expect(result.conversation.id).toBe("conv_auth_active");
+    expect(result.conversation.lane).toBe("organization");
+    expect(result.conversation.lane_confidence).toBe(0.95);
+    expect(result.conversation.recommended_next_step).toBe("Move to advisory scoping");
+  });
+
+  it("reports routing event counts in conversation inspection", async () => {
+    const result = await conversationInspect(
+      { db },
+      { conversation_id: "conv_auth_active" },
+    ) as {
+      routing_events: { lane_changed_count: number; lane_uncertain_count: number };
+    };
+
+    expect(result.routing_events).toEqual({ lane_changed_count: 1, lane_uncertain_count: 0 });
+  });
+
+  it("returns founder review queues for routing operations", async () => {
+    seedConversation(db, {
+      id: "conv_individual_ready",
+      userId: "usr_1",
+      title: "Individual coaching follow-up",
+      status: "active",
+      createdAt: "2026-03-15 09:00:00",
+      updatedAt: "2026-03-18 09:00:00",
+      messageCount: 5,
+      lane: "individual",
+      laneConfidence: 0.88,
+      recommendedNextStep: "Offer training follow-up",
+      detectedNeedSummary: "Solo operator wants implementation coaching.",
+      laneLastAnalyzedAt: "2026-03-18 09:05:00",
+    });
+    seedConversation(db, {
+      id: "conv_uncertain_recent",
+      userId: "usr_3",
+      title: "Needs manual routing review",
+      status: "active",
+      createdAt: "2026-03-17 12:00:00",
+      updatedAt: "2026-03-18 08:55:00",
+      messageCount: 3,
+      lane: "uncertain",
+      laneConfidence: 0.41,
+      detectedNeedSummary: "Signals are mixed between personal learning and team workflow.",
+      laneLastAnalyzedAt: "2026-03-18 08:58:00",
+    });
+    seedEvent(db, {
+      id: "evt_14",
+      conversationId: "conv_uncertain_recent",
+      eventType: "lane_uncertain",
+      metadata: { lane: "uncertain", confidence: 0.41 },
+      createdAt: "2026-03-18 08:58:00",
+    });
+    seedEvent(db, {
+      id: "evt_15",
+      conversationId: "conv_individual_ready",
+      eventType: "lane_changed",
+      metadata: { from_lane: "uncertain", to_lane: "individual" },
+      createdAt: "2026-03-18 09:05:00",
+    });
+
+    const result = await conversationAnalytics(
+      { db },
+      { metric: "routing_review", time_range: "all", limit: 2 },
+    ) as {
+      summary: {
+        recently_changed_count: number;
+        uncertain_count: number;
+        follow_up_ready_count: number;
+      };
+      recently_changed: Array<{ conversation_id: string; from_lane: string; to_lane: string }>;
+      uncertain_conversations: Array<{ conversation_id: string }>;
+      follow_up_ready: Array<{ conversation_id: string; lane: string }>;
+      limits: { per_queue: number };
+    };
+
+    expect(result.limits.per_queue).toBe(2);
+    expect(result.summary.recently_changed_count).toBe(2);
+    expect(result.summary.uncertain_count).toBe(5);
+    expect(result.summary.follow_up_ready_count).toBe(2);
+    expect(result.recently_changed[0]).toMatchObject({
+      conversation_id: "conv_individual_ready",
+      from_lane: "uncertain",
+      to_lane: "individual",
+    });
+    expect(result.uncertain_conversations[0]?.conversation_id).toBe("conv_uncertain_recent");
+    expect(result.follow_up_ready.map((row) => row.conversation_id)).toEqual([
+      "conv_individual_ready",
+      "conv_auth_active",
+    ]);
+  });
+
+  it("caps routing review queue length to a safe upper bound", async () => {
+    const result = await conversationAnalytics(
+      { db },
+      { metric: "routing_review", time_range: "all", limit: 999 },
+    ) as { limits: { per_queue: number } };
+
+    expect(result.limits.per_queue).toBe(50);
   });
 
   it("compares cohorts and flags low sample size", async () => {

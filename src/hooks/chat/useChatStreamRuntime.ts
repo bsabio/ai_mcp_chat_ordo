@@ -1,31 +1,17 @@
 import { useCallback, type Dispatch } from "react";
 
-import { getChatStreamProvider } from "@/adapters/StreamProviderFactory";
-import {
-  ConversationIdStrategy,
-  ErrorStrategy,
-  StreamProcessor,
-  TextDeltaStrategy,
-  ToolCallStrategy,
-  ToolResultStrategy,
-} from "@/lib/chat/StreamStrategy";
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
+import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
+import { getChatStreamAdapter } from "./chatStreamAdapter";
+import { createChatStreamDispatcher } from "./chatStreamDispatch";
+import { createChatStreamProcessor } from "./chatStreamProcessor";
+import { runChatStream } from "./chatStreamRunner";
+import { createChatStreamTextBuffer } from "./chatStreamTextBuffer";
 import type { ChatAction } from "./chatState";
 
-const streamAdapter = getChatStreamProvider();
-const streamProcessor = new StreamProcessor([
-  new TextDeltaStrategy(),
-  new ToolCallStrategy(),
-  new ToolResultStrategy(),
-  new ErrorStrategy(),
-  new ConversationIdStrategy(),
-]);
-
-interface StreamConversationIdAction {
-  type: "SET_CONVERSATION_ID";
-  conversationId: string;
-}
+const streamAdapter = getChatStreamAdapter();
+const streamProcessor = createChatStreamProcessor();
 
 interface UseChatStreamRuntimeOptions {
   conversationId: string | null;
@@ -43,29 +29,27 @@ export function useChatStreamRuntime({
       historyForBackend: Array<{ role: string; content: string }>,
       assistantIndex: number,
       attachments: AttachmentPart[],
-    ) => {
+      taskOriginHandoff?: TaskOriginHandoff,
+    ): Promise<string | null> => {
       const stream = await streamAdapter.fetchStream(historyForBackend, {
         conversationId: conversationId || undefined,
         attachments,
+        taskOriginHandoff,
+      });
+      const textBuffer = createChatStreamTextBuffer({ assistantIndex, dispatch });
+      const streamDispatch = createChatStreamDispatcher({
+        initialConversationId: conversationId,
+        dispatch,
+        setConversationId,
       });
 
-      const streamDispatch = (
-        action: ChatAction | StreamConversationIdAction,
-      ) => {
-        if (action.type === "SET_CONVERSATION_ID") {
-          setConversationId(action.conversationId);
-          return;
-        }
-
-        dispatch(action);
-      };
-
-      for await (const event of stream.events()) {
-        streamProcessor.process(event, {
-          dispatch: streamDispatch,
-          assistantIndex,
-        });
-      }
+      return runChatStream({
+        stream,
+        textBuffer,
+        streamDispatch,
+        streamProcessor,
+        assistantIndex,
+      });
     },
     [conversationId, dispatch, setConversationId],
   );

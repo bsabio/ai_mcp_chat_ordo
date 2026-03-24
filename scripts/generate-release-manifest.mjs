@@ -19,8 +19,22 @@ function getPackageVersion() {
   return pkg.version || "0.0.0";
 }
 
+function getAppName() {
+  const configPath = path.join(root, process.env.CONFIG_DIR || "config", "identity.json");
+  try {
+    const identity = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    if (identity.name && typeof identity.name === "string") {
+      return identity.name.toLowerCase().replace(/\s+/g, "-");
+    }
+  } catch {
+    // Config missing or invalid — fall back to package.json name
+  }
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  return pkg.name || "studio-ordo";
+}
+
 const manifest = {
-  appName: "is601_demo",
+  appName: getAppName(),
   version: getPackageVersion(),
   gitSha: safeGit("git rev-parse --short HEAD"),
   gitBranch: safeGit("git rev-parse --abbrev-ref HEAD"),

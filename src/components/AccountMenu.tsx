@@ -27,6 +27,11 @@ const ROLE_CONFIG: Record<
     dot: "bg-status-success",
     description: "Signed-in user — full library access",
   },
+  APPRENTICE: {
+    label: "Apprentice",
+    dot: "bg-emerald-500",
+    description: "Student — referral and assignment capabilities",
+  },
   STAFF: {
     label: "Staff",
     dot: "bg-blue-500",

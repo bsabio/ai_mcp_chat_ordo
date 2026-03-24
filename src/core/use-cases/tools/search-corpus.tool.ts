@@ -2,7 +2,7 @@ import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { CorpusRepository } from "../CorpusRepository";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import { SearchCorpusCommand } from "./CorpusTools";
-import { getCorpusSearchDescription } from "@/lib/corpus-config";
+import { getCorpusSearchDescription } from "@/lib/corpus-vocabulary";
 
 export function createSearchCorpusTool(repo: CorpusRepository, searchHandler?: SearchHandler): ToolDescriptor {
   return {

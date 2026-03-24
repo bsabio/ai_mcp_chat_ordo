@@ -2,10 +2,20 @@ import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/AppShell";
-import { ChatContainer } from "@/frameworks/ui/ChatContainer";
+import { ChatSurface } from "@/frameworks/ui/ChatSurface";
 import type { User } from "@/core/entities/user";
 
 let pathname = "/";
+let mockMessages = [
+  {
+    id: "hero-1",
+    role: "assistant" as const,
+    content:
+      "Describe the workflow problem, orchestration gap, or training goal.\n\n__suggestions__:[\"Audit this workflow\",\"Stress-test this AI plan\",\"Train my team\",\"Show me the weak point\"]",
+    timestamp: new Date("2026-03-18T10:00:00.000Z"),
+    parts: [{ type: "text" as const, text: "hero" }],
+  },
+];
 
 const baseUser: User = {
   id: "usr_1",
@@ -25,7 +35,7 @@ vi.mock("@/components/AccountMenu", () => ({
 
 vi.mock("@/components/ThemeProvider", () => ({
   useTheme: () => ({
-    accessibility: { density: "comfortable" },
+    accessibility: { density: "normal" },
     setAccessibility: vi.fn(),
     gridEnabled: false,
     setGridEnabled: vi.fn(),
@@ -34,7 +44,7 @@ vi.mock("@/components/ThemeProvider", () => ({
 
 vi.mock("@/hooks/useGlobalChat", () => ({
   useGlobalChat: () => ({
-    messages: [],
+    messages: mockMessages,
     isSending: false,
     sendMessage: vi.fn(),
     conversationId: null,
@@ -83,13 +93,19 @@ vi.mock("@/frameworks/ui/ChatInput", () => ({
   ChatInput: () => <div data-testid="chat-input" />,
 }));
 
-vi.mock("@/frameworks/ui/ConversationSidebar", () => ({
-  ConversationSidebar: () => <div data-testid="conversation-sidebar" />,
-}));
-
 describe("homepage shell ownership", () => {
   beforeEach(() => {
     pathname = "/";
+    mockMessages = [
+      {
+        id: "hero-1",
+        role: "assistant",
+        content:
+          "Describe the workflow problem, orchestration gap, or training goal.\n\n__suggestions__:[\"Audit this workflow\",\"Stress-test this AI plan\",\"Train my team\",\"Show me the weak point\"]",
+        timestamp: new Date("2026-03-18T10:00:00.000Z"),
+        parts: [{ type: "text", text: "hero" }],
+      },
+    ];
   });
 
   it("renders the real footer on the home route while keeping the home stage marker", () => {
@@ -148,15 +164,16 @@ describe("homepage shell ownership", () => {
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
-    expect(within(nav).getByRole("link", { name: "Library" })).toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
     expect(within(nav).getByTestId("account-menu")).toBeInTheDocument();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(within(nav).queryByText(/site links/i)).not.toBeInTheDocument();
   });
 
   it("does not render a footer substitute inside the embedded chat container", () => {
-    render(<ChatContainer isFloating={false} />);
+    render(<ChatSurface mode="embedded" />);
 
     expect(
       screen.queryByRole("button", { name: /open site links/i }),

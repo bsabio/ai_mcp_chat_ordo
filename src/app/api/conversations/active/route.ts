@@ -4,7 +4,7 @@ import {
   successJson,
   errorJson,
 } from "@/lib/chat/http-facade";
-import { getConversationInteractor } from "@/lib/chat/conversation-root";
+import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";
 
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     validationMessages: [],
     execute: async (context) => {
       const { userId } = await resolveUserId();
-      const interactor = getConversationInteractor();
+      const { interactor } = createConversationRouteServices();
       const result = await interactor.getActiveForUser(userId);
 
       if (!result) {

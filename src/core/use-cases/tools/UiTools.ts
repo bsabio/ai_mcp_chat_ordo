@@ -1,5 +1,6 @@
 import type { ToolCommand } from "../ToolCommand";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
+import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
 
 export class SetThemeCommand implements ToolCommand<{ theme: string }, string> {
   async execute({ theme }: { theme: string }, _context?: ToolExecutionContext) {
@@ -9,7 +10,9 @@ export class SetThemeCommand implements ToolCommand<{ theme: string }, string> {
 }
 
 export class AdjustUICommand implements ToolCommand<Record<string, unknown>, string> {
-  async execute(args: Record<string, unknown>, _context?: ToolExecutionContext) {
+  constructor(private readonly preferencesRepo?: UserPreferencesRepository) {}
+
+  async execute(args: Record<string, unknown>, context?: ToolExecutionContext) {
     const applied: string[] = [];
     if (args.preset) applied.push(`preset=${args.preset}`);
     if (args.fontSize) applied.push(`fontSize=${args.fontSize}`);
@@ -19,6 +22,20 @@ export class AdjustUICommand implements ToolCommand<Record<string, unknown>, str
     if (args.dark !== undefined) applied.push(`dark=${args.dark}`);
     if (args.theme) applied.push(`theme=${args.theme}`);
     if (args.colorBlindMode) applied.push(`colorBlindMode=${args.colorBlindMode}`);
+
+    // Dual-write: persist UI preferences server-side for authenticated users
+    if (context && context.role !== "ANONYMOUS" && this.preferencesRepo) {
+      try {
+        if (args.theme) await this.preferencesRepo.set(context.userId, "theme", String(args.theme));
+        if (args.dark !== undefined) await this.preferencesRepo.set(context.userId, "dark_mode", String(args.dark));
+        if (args.fontSize) await this.preferencesRepo.set(context.userId, "font_size", String(args.fontSize));
+        if (args.density) await this.preferencesRepo.set(context.userId, "density", String(args.density));
+        if (args.colorBlindMode) await this.preferencesRepo.set(context.userId, "color_blind_mode", String(args.colorBlindMode));
+      } catch {
+        // Server persistence failed — localStorage still works via client
+      }
+    }
+
     return `Success. UI adjusted: ${applied.join(", ")}.`;
   }
 }

@@ -1,4 +1,5 @@
 import type { Conversation, ConversationSummary } from "../entities/conversation";
+import type { ConversationRoutingSnapshot } from "../entities/conversation-routing";
 
 export interface ConversationRepository {
   create(conv: {
@@ -7,6 +8,7 @@ export interface ConversationRepository {
     title: string;
     status?: "active" | "archived";
     sessionSource?: string;
+    referralSource?: string;
   }): Promise<Conversation>;
   listByUser(userId: string): Promise<ConversationSummary[]>;
   findById(id: string): Promise<Conversation | null>;
@@ -17,7 +19,10 @@ export interface ConversationRepository {
   touch(id: string): Promise<void>;
   incrementMessageCount(id: string): Promise<void>;
   setFirstMessageAt(id: string, timestamp: string): Promise<void>;
+  recordMessageAppended(id: string, timestamp: string): Promise<void>;
   setLastToolUsed(id: string, toolName: string): Promise<void>;
   setConvertedFrom(id: string, anonUserId: string): Promise<void>;
+  setReferralSource(id: string, referralSource: string): Promise<void>;
+  updateRoutingSnapshot(id: string, snapshot: ConversationRoutingSnapshot): Promise<void>;
   transferOwnership(fromUserId: string, toUserId: string): Promise<string[]>;
 }

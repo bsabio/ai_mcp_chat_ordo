@@ -1,6 +1,11 @@
 import type { Document, Section } from "@/core/entities/corpus";
 import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 
+/**
+ * In-memory cache for corpus reads. Safe for unbounded growth because
+ * the corpus is fixed at build time — 10 books, 104 chapters, ~2–4 MB heap.
+ * If the corpus grows beyond ~500 documents, consider adding LRU eviction.
+ */
 export class CachedCorpusRepository implements CorpusRepository {
 	private allDocumentsCache: Document[] | null = null;
 	private allSectionsCache: Section[] | null = null;

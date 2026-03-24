@@ -6,7 +6,7 @@ import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import type { EmbeddingPipelineFactory } from "@/core/search/EmbeddingPipelineFactory";
 import type { DocumentChunkMetadata } from "@/core/search/ports/Chunker";
 import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
-import { corpusConfig } from "@/lib/corpus-config";
+import { corpusConfig } from "@/lib/corpus-vocabulary";
 
 export interface EmbeddingToolDeps {
   embedder: Embedder;

@@ -5,7 +5,21 @@ import { AppShell } from "@/components/AppShell";
 import Home from "@/app/page";
 import type { User } from "@/core/entities/user";
 
+const { getSessionUserMock } = vi.hoisted(() => ({
+  getSessionUserMock: vi.fn(),
+}));
+
 let pathname = "/";
+let mockMessages = [
+  {
+    id: "hero-1",
+    role: "assistant" as const,
+    content:
+      "Describe the workflow problem, orchestration gap, or training goal.\n\n__suggestions__:[\"Audit this workflow\",\"Stress-test this AI plan\",\"Train my team\",\"Show me the weak point\"]",
+    timestamp: new Date("2026-03-18T10:00:00.000Z"),
+    parts: [{ type: "text" as const, text: "hero" }],
+  },
+];
 
 const baseUser: User = {
   id: "usr_1",
@@ -25,16 +39,20 @@ vi.mock("@/components/AccountMenu", () => ({
 
 vi.mock("@/components/ThemeProvider", () => ({
   useTheme: () => ({
-    accessibility: { density: "comfortable" },
+    accessibility: { density: "normal" },
     setAccessibility: vi.fn(),
     gridEnabled: false,
     setGridEnabled: vi.fn(),
   }),
 }));
 
+vi.mock("@/lib/auth", () => ({
+  getSessionUser: getSessionUserMock,
+}));
+
 vi.mock("@/hooks/useGlobalChat", () => ({
   useGlobalChat: () => ({
-    messages: [],
+    messages: mockMessages,
     isSending: false,
     sendMessage: vi.fn(),
     conversationId: null,
@@ -85,56 +103,66 @@ vi.mock("@/frameworks/ui/ChatInput", () => ({
   ChatInput: () => <div data-testid="chat-input" />,
 }));
 
-vi.mock("@/frameworks/ui/ConversationSidebar", () => ({
-  ConversationSidebar: () => <div data-testid="conversation-sidebar" />,
-}));
-
 describe("homepage shell layout", () => {
   beforeEach(() => {
     pathname = "/";
+    getSessionUserMock.mockResolvedValue({
+      id: "usr_anonymous",
+      email: "anonymous@example.com",
+      name: "Anonymous User",
+      roles: ["ANONYMOUS"],
+    });
+    mockMessages = [
+      {
+        id: "hero-1",
+        role: "assistant",
+        content:
+          "Describe the workflow problem, orchestration gap, or training goal.\n\n__suggestions__:[\"Audit this workflow\",\"Stress-test this AI plan\",\"Train my team\",\"Show me the weak point\"]",
+        timestamp: new Date("2026-03-18T10:00:00.000Z"),
+        parts: [{ type: "text", text: "hero" }],
+      },
+    ];
   });
 
-  function renderHomeShell() {
+  async function renderHomeShell() {
     return render(
       <AppShell user={baseUser}>
-        <Home />
+        {await Home()}
       </AppShell>,
     );
   }
 
-  it("renders a dedicated homepage chat stage inside the home route main region", () => {
-    const { container } = renderHomeShell();
+  it("renders the embedded chat workspace directly inside the home route main region", async () => {
+    const { container } = await renderHomeShell();
 
-    const stage = container.querySelector<HTMLElement>(
-      '[data-homepage-chat-stage="true"]',
+    const chatContainer = container.querySelector<HTMLElement>(
+      '[data-chat-container-mode="embedded"]',
     );
-    expect(stage).not.toBeNull();
-    expect(screen.getByRole("main")).toContainElement(stage);
+    expect(chatContainer).not.toBeNull();
+    expect(screen.getByRole("main")).toContainElement(chatContainer);
   });
 
-  it("marks the homepage stage as a bounded interaction surface", () => {
-    const { container } = renderHomeShell();
+  it("does not render a separate route-level homepage hero stage wrapper", async () => {
+    const { container } = await renderHomeShell();
 
-    const stage = container.querySelector<HTMLElement>(
-      '[data-homepage-chat-stage="true"]',
-    );
-
-    expect(stage).toHaveAttribute("data-homepage-stage-behavior", "bounded");
+    expect(
+      container.querySelector('[data-homepage-chat-stage="true"]'),
+    ).toBeNull();
   });
 
-  it("keeps the footer outside the homepage stage", () => {
-    const { container } = renderHomeShell();
+  it("keeps the footer outside the homepage stage", async () => {
+    const { container } = await renderHomeShell();
 
-    const stage = container.querySelector<HTMLElement>(
-      '[data-homepage-chat-stage="true"]',
+    const chatContainer = container.querySelector<HTMLElement>(
+      '[data-chat-container-mode="embedded"]',
     );
     const footer = screen.getByRole("contentinfo");
 
-    expect(stage).not.toContainElement(footer);
+    expect(chatContainer).not.toContainElement(footer);
   });
 
-  it("keeps the viewport stage separate from the document scroll owner", () => {
-    const { container } = renderHomeShell();
+  it("keeps the viewport stage separate from the document scroll owner", async () => {
+    const { container } = await renderHomeShell();
 
     const shell = container.querySelector<HTMLElement>(
       '[data-shell-scroll-owner="document"]',
@@ -151,8 +179,8 @@ describe("homepage shell layout", () => {
     expect(viewportStage).not.toContainElement(footer);
   });
 
-  it("keeps the embedded workspace inside the viewport stage", () => {
-    const { container } = renderHomeShell();
+  it("keeps the embedded workspace inside the viewport stage", async () => {
+    const { container } = await renderHomeShell();
 
     const viewportStage = container.querySelector<HTMLElement>(
       '[data-shell-viewport-stage="true"]',
@@ -164,8 +192,8 @@ describe("homepage shell layout", () => {
     expect(viewportStage).toContainElement(chatContainer);
   });
 
-  it("renders embedded chat as a strict message/composer workspace", () => {
-    const { container } = renderHomeShell();
+  it("renders embedded chat as a strict message/composer workspace", async () => {
+    const { container } = await renderHomeShell();
 
     const chatContainer = container.querySelector<HTMLElement>(
       '[data-chat-container-mode="embedded"]',
@@ -187,8 +215,8 @@ describe("homepage shell layout", () => {
     );
   });
 
-  it("keeps the composer row outside the message viewport subtree", () => {
-    const { container } = renderHomeShell();
+  it("keeps the composer row outside the message viewport subtree", async () => {
+    const { container } = await renderHomeShell();
 
     const messageViewport = container.querySelector<HTMLElement>(
       '[data-chat-message-viewport="true"]',
@@ -202,12 +230,10 @@ describe("homepage shell layout", () => {
     expect(messageViewport).not.toContainElement(composerRow);
   });
 
-  it("keeps reduced-height pressure on the message viewport instead of the composer row", () => {
-    const { container } = renderHomeShell();
+  it("keeps reduced-height pressure on the message viewport instead of the composer row", async () => {
+    const { container } = await renderHomeShell();
 
-    const stage = container.querySelector<HTMLElement>(
-      '[data-homepage-chat-stage="true"]',
-    );
+    const main = screen.getByRole("main");
     const messageRegion = container.querySelector<HTMLElement>(
       '[data-chat-message-region="true"]',
     );
@@ -218,7 +244,7 @@ describe("homepage shell layout", () => {
       '[data-chat-composer-row="true"]',
     );
 
-    expect(stage?.className).toContain("overflow-hidden");
+    expect(main.className).toContain("overflow-hidden");
     expect(messageRegion?.className).toContain("flex");
     expect(messageRegion?.className).toContain("overflow-hidden");
     expect(messageViewport?.className).toContain("min-h-0");

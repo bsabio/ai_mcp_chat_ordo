@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import Database from "better-sqlite3";
 import { ensureSchema } from "@/lib/db/schema";
 
-// Mock the db module to use an in-memory database
-let testDb: ReturnType<typeof Database>;
+const authTestState = vi.hoisted(() => ({
+  testDb: undefined as ReturnType<typeof Database> | undefined,
+  cookieJar: new Map<string, string>(),
+}));
 
 vi.mock("@/lib/db", () => ({
-  getDb: () => testDb,
+  getDb: () => authTestState.testDb,
 }));
 
 const { repairConversationOwnershipIndex } = vi.hoisted(() => ({
@@ -18,23 +20,21 @@ vi.mock("@/lib/chat/embed-conversation", () => ({
 }));
 
 // Mock next/headers cookies
-let cookieJar: Map<string, string>;
-
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (name: string) => {
-      const val = cookieJar.get(name);
+      const val = authTestState.cookieJar.get(name);
       return val ? { name, value: val } : undefined;
     },
     set: (name: string, value: string, options?: { maxAge?: number }) => {
       if (options?.maxAge === 0 || value === "") {
-        cookieJar.delete(name);
+        authTestState.cookieJar.delete(name);
         return;
       }
-      cookieJar.set(name, value);
+      authTestState.cookieJar.set(name, value);
     },
     delete: (name: string) => {
-      cookieJar.delete(name);
+      authTestState.cookieJar.delete(name);
     },
   }),
 }));
@@ -56,21 +56,29 @@ function jsonRequest(body: Record<string, unknown>): Request {
 
 describe("Auth API routes — full lifecycle", () => {
   beforeEach(() => {
-    testDb = new Database(":memory:");
-    ensureSchema(testDb);
-    cookieJar = new Map();
+    authTestState.testDb = new Database(":memory:");
+    ensureSchema(authTestState.testDb);
+    authTestState.cookieJar = new Map();
     repairConversationOwnershipIndex.mockClear();
   });
 
+  function getTestDb() {
+    if (!authTestState.testDb) {
+      throw new Error("Test database has not been initialized.");
+    }
+
+    return authTestState.testDb;
+  }
+
   function seedAnonymousConversation(sessionId = "anon_seed") {
     const anonUserId = `anon_${sessionId}`;
-    testDb
+    getTestDb()
       .prepare(`INSERT OR IGNORE INTO users (id, email, name) VALUES (?, ?, ?)`)
       .run(anonUserId, `${anonUserId}@anonymous.local`, "Anonymous");
-    testDb
+    getTestDb()
       .prepare(`INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, 'role_anonymous')`)
       .run(anonUserId);
-    testDb
+    getTestDb()
       .prepare(`INSERT INTO conversations (id, user_id, title, status, session_source) VALUES (?, ?, ?, 'archived', 'anonymous_cookie')`)
       .run("conv_anon", anonUserId, "Anonymous chat");
     return anonUserId;
@@ -88,7 +96,7 @@ describe("Auth API routes — full lifecycle", () => {
     expect(regBody.user.roles).toContain("AUTHENTICATED");
 
     // Cookie should have been set
-    const sessionToken = cookieJar.get("lms_session_token");
+    const sessionToken = authTestState.cookieJar.get("lms_session_token");
     expect(sessionToken).toBeTruthy();
 
     // 2. Validate session via /me
@@ -100,23 +108,23 @@ describe("Auth API routes — full lifecycle", () => {
     // 3. Logout
     const logoutRes = await logoutRoute();
     expect(logoutRes.status).toBe(200);
-    expect(cookieJar.has("lms_session_token")).toBe(false);
+    expect(authTestState.cookieJar.has("lms_session_token")).toBe(false);
 
     // 4. /me should now return 401
     const meRes2 = await meRoute();
     expect(meRes2.status).toBe(401);
 
     // 5. Login with the registered credentials
-    cookieJar.clear();
+    authTestState.cookieJar.clear();
     const loginRes = await loginRoute(
       jsonRequest({ email: "test@example.com", password: "password123" }),
     );
     expect(loginRes.status).toBe(200);
     const loginBody = await loginRes.json();
     expect(loginBody.user.email).toBe("test@example.com");
-    expect(cookieJar.get("lms_session_token")).toBeTruthy();
+    expect(authTestState.cookieJar.get("lms_session_token")).toBeTruthy();
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("register with invalid email returns 400", async () => {
@@ -125,7 +133,7 @@ describe("Auth API routes — full lifecycle", () => {
     );
     expect(res.status).toBe(400);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("register with short password returns 400", async () => {
@@ -134,7 +142,7 @@ describe("Auth API routes — full lifecycle", () => {
     );
     expect(res.status).toBe(400);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("register with missing fields returns 400", async () => {
@@ -143,7 +151,7 @@ describe("Auth API routes — full lifecycle", () => {
     );
     expect(res.status).toBe(400);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("duplicate registration returns 409", async () => {
@@ -155,20 +163,20 @@ describe("Auth API routes — full lifecycle", () => {
     );
     expect(res.status).toBe(409);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("login with wrong password returns 401", async () => {
     await registerRoute(
       jsonRequest({ email: "user@test.com", password: "correct-pass", name: "User" }),
     );
-    cookieJar.clear();
+    authTestState.cookieJar.clear();
     const res = await loginRoute(
       jsonRequest({ email: "user@test.com", password: "wrong-pass" }),
     );
     expect(res.status).toBe(401);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("login with nonexistent email returns 401", async () => {
@@ -177,13 +185,13 @@ describe("Auth API routes — full lifecycle", () => {
     );
     expect(res.status).toBe(401);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("repairs migrated anonymous conversation indexes during registration", async () => {
     const anonSessionId = "anon_seed";
     const anonUserId = seedAnonymousConversation(anonSessionId);
-    cookieJar.set("lms_anon_session", anonSessionId);
+    authTestState.cookieJar.set("lms_anon_session", anonSessionId);
 
     const res = await registerRoute(
       jsonRequest({ email: "migrate@test.com", password: "password123", name: "Migrated User" }),
@@ -196,9 +204,9 @@ describe("Auth API routes — full lifecycle", () => {
       body.user.id,
       anonUserId,
     );
-    expect(cookieJar.has("lms_anon_session")).toBe(false);
+    expect(authTestState.cookieJar.has("lms_anon_session")).toBe(false);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("repairs migrated anonymous conversation indexes during login", async () => {
@@ -209,8 +217,8 @@ describe("Auth API routes — full lifecycle", () => {
 
     const anonSessionId = "anon_login_seed";
     const anonUserId = seedAnonymousConversation(anonSessionId);
-    cookieJar.clear();
-    cookieJar.set("lms_anon_session", anonSessionId);
+    authTestState.cookieJar.clear();
+    authTestState.cookieJar.set("lms_anon_session", anonSessionId);
 
     const res = await loginRoute(
       jsonRequest({ email: "login-migrate@test.com", password: "password123" }),
@@ -222,20 +230,20 @@ describe("Auth API routes — full lifecycle", () => {
       regBody.user.id,
       anonUserId,
     );
-    expect(cookieJar.has("lms_anon_session")).toBe(false);
+    expect(authTestState.cookieJar.has("lms_anon_session")).toBe(false);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("treats a mock-role cookie alone as anonymous", async () => {
-    cookieJar.set("lms_mock_session_role", "ADMIN");
+    authTestState.cookieJar.set("lms_mock_session_role", "ADMIN");
 
     const user = await getSessionUser();
 
     expect(user.roles).toEqual(["ANONYMOUS"]);
-    expect(cookieJar.has("lms_mock_session_role")).toBe(false);
+    expect(authTestState.cookieJar.has("lms_mock_session_role")).toBe(false);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("keeps role simulation as an overlay on a validated real session", async () => {
@@ -243,14 +251,14 @@ describe("Auth API routes — full lifecycle", () => {
       jsonRequest({ email: "overlay@test.com", password: "password123", name: "Overlay User" }),
     );
     const regBody = await regRes.json();
-    cookieJar.set("lms_mock_session_role", "ADMIN");
+    authTestState.cookieJar.set("lms_mock_session_role", "ADMIN");
 
     const user = await getSessionUser();
 
     expect(user.id).toBe(regBody.user.id);
     expect(user.roles).toEqual(["ADMIN"]);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 
   it("clears stale session and mock cookies when session validation fails", async () => {
@@ -258,15 +266,15 @@ describe("Auth API routes — full lifecycle", () => {
       jsonRequest({ email: "stale@test.com", password: "password123", name: "Stale User" }),
     );
 
-    cookieJar.set("lms_session_token", "invalid-session-token");
-    cookieJar.set("lms_mock_session_role", "ADMIN");
+    authTestState.cookieJar.set("lms_session_token", "invalid-session-token");
+    authTestState.cookieJar.set("lms_mock_session_role", "ADMIN");
 
     const user = await getSessionUser();
 
     expect(user.roles).toEqual(["ANONYMOUS"]);
-    expect(cookieJar.has("lms_session_token")).toBe(false);
-    expect(cookieJar.has("lms_mock_session_role")).toBe(false);
+    expect(authTestState.cookieJar.has("lms_session_token")).toBe(false);
+    expect(authTestState.cookieJar.has("lms_mock_session_role")).toBe(false);
 
-    testDb.close();
+    authTestState.testDb?.close();
   });
 });

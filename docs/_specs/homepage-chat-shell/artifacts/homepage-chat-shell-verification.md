@@ -9,6 +9,7 @@
 
 | Environment | Status | Evidence |
 | --- | --- | --- |
+| Deterministic eval harness via `npm run test:homepage-evals` | Pass | Scenario-based checks now confirm the home route renders embedded chat directly in `main`, keeps footer outside the viewport stage, keeps the composer separate from the message viewport, removes the legacy route-level hero wrapper, and only shows intro content in hero state |
 | Chrome desktop via Playwright against `http://localhost:3001/` | Partial pass | No runtime errors from Next.js MCP, footer starts at the initial fold boundary, composer is visible in the first screen, homepage stage and footer are separated correctly |
 | Safari desktop | Pending manual | Requires real trackpad momentum verification |
 | iOS Safari | Pending manual | Requires software keyboard and touch-scroll verification |
@@ -103,3 +104,4 @@ Pass when the footer is reachable intentionally.
 
 1. No further message-rhythm polish was required from the live Chrome QA pass.
 2. The remaining acceptance work is manual browser/device confirmation for Safari and mobile keyboard behavior.
+3. Sprint 4 added a deterministic eval harness so the chat-first route contract is checked before manual browser QA.

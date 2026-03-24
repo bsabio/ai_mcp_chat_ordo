@@ -2,7 +2,7 @@ import type { ToolCommand } from "../ToolCommand";
 import type { CorpusRepository } from "../CorpusRepository";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
-import { corpusConfig } from "@/lib/corpus-config";
+import { corpusConfig } from "@/lib/corpus-vocabulary";
 import { LibrarySearchInteractor } from "../LibrarySearchInteractor";
 import { GetChapterInteractor } from "../GetChapterInteractor";
 import { ChecklistInteractor } from "../ChecklistInteractor";

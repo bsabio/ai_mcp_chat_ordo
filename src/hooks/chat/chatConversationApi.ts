@@ -1,70 +1,95 @@
 import type { MessagePart } from "@/core/entities/message-parts";
 import type { ChatMessage } from "@/core/entities/chat-message";
+import type { Conversation } from "@/core/entities/conversation";
+import { requestJson, requestStatus } from "./chatRequest";
 
 export interface RestoredConversationPayload {
   conversationId: string;
+  conversation: Conversation;
   messages: ChatMessage[];
 }
 
 export interface RestoreConversationResult {
-  status: "restored" | "missing" | "unauthorized" | "error" | "network-error";
+  status: "restored" | "missing" | "unauthorized" | "error" | "network-error" | "aborted" | "unexpected-error";
   payload?: RestoredConversationPayload;
   statusCode?: number;
 }
 
-export async function restoreActiveConversation(): Promise<RestoreConversationResult> {
-  try {
-    const response = await fetch("/api/conversations/active");
+export interface ArchiveConversationResult {
+  status: "archived" | "rejected" | "network-error" | "aborted" | "unexpected-error";
+  statusCode?: number;
+}
 
-    if (response.status === 404) {
+interface RestoreConversationResponse {
+  conversation: Conversation;
+  messages: Array<{
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    parts: MessagePart[];
+    createdAt: string;
+  }>;
+}
+
+async function restoreConversationFromPath(path: string): Promise<RestoreConversationResult> {
+  const result = await requestJson<RestoreConversationResponse>(path);
+
+  if (result.status === "http-error") {
+    if (result.statusCode === 404) {
       return { status: "missing", statusCode: 404 };
     }
 
-    if (response.status === 401) {
+    if (result.statusCode === 401) {
       return { status: "unauthorized", statusCode: 401 };
     }
 
-    if (!response.ok) {
-      return { status: "error", statusCode: response.status };
-    }
-
-    const data = (await response.json()) as {
-      conversation: { id: string };
-      messages: Array<{
-        id: string;
-        role: "user" | "assistant";
-        content: string;
-        parts: MessagePart[];
-        createdAt: string;
-      }>;
-    };
-
-    return {
-      status: "restored",
-      payload: {
-        conversationId: data.conversation.id,
-        messages: data.messages.map((message) => ({
-          id: message.id,
-          role: message.role,
-          content: message.content,
-          parts: message.parts,
-          timestamp: new Date(message.createdAt),
-        })),
-      },
-    };
-  } catch {
-    return { status: "network-error" };
+    return { status: "error", statusCode: result.statusCode };
   }
+
+  if (result.status === "network-error" || result.status === "aborted" || result.status === "unexpected-error") {
+    return { status: result.status };
+  }
+
+  return {
+    status: "restored",
+    payload: {
+      conversationId: result.data.conversation.id,
+      conversation: result.data.conversation,
+      messages: result.data.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        parts: message.parts,
+        timestamp: new Date(message.createdAt),
+      })),
+    },
+  };
 }
 
-export async function archiveActiveConversation(): Promise<boolean> {
-  try {
-    const response = await fetch("/api/conversations/active/archive", {
-      method: "POST",
-    });
+export async function restoreActiveConversation(): Promise<RestoreConversationResult> {
+  return restoreConversationFromPath("/api/conversations/active");
+}
 
-    return response.ok;
-  } catch {
-    return false;
+export async function restoreConversationById(
+  conversationId: string,
+): Promise<RestoreConversationResult> {
+  return restoreConversationFromPath(
+    `/api/conversations/${encodeURIComponent(conversationId)}`,
+  );
+}
+
+export async function archiveActiveConversation(): Promise<ArchiveConversationResult> {
+  const result = await requestStatus("/api/conversations/active/archive", {
+    method: "POST",
+  });
+
+  if (result.status === "http-error") {
+    return { status: "rejected", statusCode: result.statusCode };
   }
+
+  if (result.status === "network-error" || result.status === "aborted" || result.status === "unexpected-error") {
+    return { status: result.status };
+  }
+
+  return { status: "archived", statusCode: result.statusCode };
 }

@@ -33,12 +33,30 @@ function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
+export function captureReferral(request: NextRequest, response: NextResponse): void {
+  const refCode = request.nextUrl.searchParams.get("ref");
+  if (refCode && refCode.length > 0 && refCode.length <= 30) {
+    // This cookie is attribution-only and never authorizes requests, so we keep SameSite=Lax
+    // to preserve referral capture on first-party landing navigations while accepting that
+    // the server must treat the value as advisory input rather than a CSRF defense boundary.
+    response.cookies.set("lms_referral_code", refCode, {
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only inspect API routes; pages always render and resolve auth server-side.
+  // Referral code capture: set cookie on any page route with ?ref= param
   if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    captureReferral(request, response);
+    return response;
   }
 
   if (isProtectedRoute(pathname)) {
@@ -55,5 +73,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

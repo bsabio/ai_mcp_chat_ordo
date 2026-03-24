@@ -61,7 +61,7 @@ import {
 import { SystemPromptDataMapper } from "@/adapters/SystemPromptDataMapper";
 import { ConversationEventDataMapper } from "@/adapters/ConversationEventDataMapper";
 import { ConversationEventRecorder } from "@/core/use-cases/ConversationEventRecorder";
-import { corpusConfig } from "@/lib/corpus-config";
+import { corpusConfig } from "@/lib/corpus-vocabulary";
 
 const MODEL_VERSION = "all-MiniLM-L6-v2@1.0";
 
@@ -486,17 +486,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "conversation_analytics",
-      description: "Aggregate conversation analytics for overview, funnel, engagement, tool usage, and drop-off review.",
+      description: "Aggregate conversation analytics for overview, funnel, engagement, tool usage, drop-off review, and routing review queues.",
       inputSchema: {
         type: "object" as const,
         properties: {
           metric: {
             type: "string",
-            description: "Analytics metric: overview, funnel, engagement, tool_usage, or drop_off.",
+            description: "Analytics metric: overview, funnel, engagement, tool_usage, drop_off, or routing_review.",
           },
           time_range: {
             type: "string",
             description: "Time window: 24h, 7d, 30d, or all.",
+          },
+          limit: {
+            type: "number",
+            description: "Optional per-queue limit for routing_review results.",
           },
         },
         required: ["metric"],
@@ -634,8 +638,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       break;
     case "conversation_analytics":
       result = await conversationAnalytics(d.analytics, a as {
-        metric: "overview" | "funnel" | "engagement" | "tool_usage" | "drop_off";
+        metric: "overview" | "funnel" | "engagement" | "tool_usage" | "drop_off" | "routing_review";
         time_range?: "24h" | "7d" | "30d" | "all";
+        limit?: number;
       });
       break;
     case "conversation_inspect":

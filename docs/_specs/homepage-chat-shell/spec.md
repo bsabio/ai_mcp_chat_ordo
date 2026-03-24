@@ -332,6 +332,16 @@ The critical scenarios are:
 
 `[HCS-076]`
 
+### 7.4 Eval Harness
+
+The homepage shell must also ship with a deterministic eval harness that exercises the route as a product surface rather than only as isolated unit tests.
+
+Required properties:
+
+1. The harness runs named homepage scenarios against the rendered shell. `[HCS-077]`
+2. It verifies the restored chat-first contract: embedded chat in `main`, footer outside the viewport stage, separate composer row, and no route-level hero wrapper. `[HCS-078]`
+3. It must cover both the default hero state and an active conversation state so the intro content appears only when appropriate. `[HCS-079]`
+
 ---
 
 ## 8. Sprint Plan
@@ -342,6 +352,7 @@ The critical scenarios are:
 | 1 | Implement dedicated homepage stage and two-row embedded chat workspace |
 | 2 | Add boundary-lock behavior and browser-focused interaction coverage |
 | 3 | Run browser QA, tighten spacing/rhythm, and finalize acceptance verification |
+| 4 | Restore direct chat-first route composition, move hero content into the message viewport, and add a reusable homepage eval harness |
 
 ---
 
@@ -356,6 +367,7 @@ The critical scenarios are:
 7. No home-route-specific footer substitutes remain. `[HCS-086]`
 8. Keyboard-open behavior on mobile keeps the composer visible and the stage usable. `[HCS-087]`
 9. Scroll-boundary logic, if implemented, preserves accessibility and does not block normal focus/navigation flows. `[HCS-088]`
+10. A reusable homepage eval harness can be run on demand to validate both hero-state and active-conversation homepage scenarios. `[HCS-089]`
 
 ---
 

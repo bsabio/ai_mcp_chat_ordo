@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { getModelCandidates, looksLikeMath, buildSystemPrompt } from "@/lib/chat/policy";
-
-const ORIGINAL_ENV = process.env;
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { looksLikeMath } from "@/lib/chat/math-classifier";
+import { buildSystemPrompt } from "@/lib/chat/policy";
+import { getModelFallbacks } from "@/lib/config/env";
 
 describe("chat policy", () => {
   afterEach(() => {
-    process.env = { ...ORIGINAL_ENV };
+    vi.unstubAllEnvs();
   });
 
   it("detects arithmetic expression syntax", () => {
@@ -26,21 +26,15 @@ describe("chat policy", () => {
   });
 
   it("returns configured model first and dedupes", () => {
-    process.env = {
-      ...ORIGINAL_ENV,
-      API__ANTHROPIC_MODEL: "claude-sonnet-4-6",
-    };
+    vi.stubEnv("API__ANTHROPIC_MODEL", "claude-sonnet-4-6");
 
-    expect(getModelCandidates()).toEqual(["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"]);
+    expect(getModelFallbacks()).toEqual(["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"]);
   });
 
   it("returns fallback list when model not configured", () => {
-    process.env = {
-      ...ORIGINAL_ENV,
-      ANTHROPIC_MODEL: "",
-      API__ANTHROPIC_MODEL: "",
-    };
+    vi.stubEnv("ANTHROPIC_MODEL", "");
+    vi.stubEnv("API__ANTHROPIC_MODEL", "");
 
-    expect(getModelCandidates()).toEqual(["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"]);
+    expect(getModelFallbacks()).toEqual(["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"]);
   });
 });

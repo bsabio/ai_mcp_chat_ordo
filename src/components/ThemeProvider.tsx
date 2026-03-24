@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   prefersDarkColorScheme,
   supportsReducedMotion,
@@ -78,7 +78,13 @@ const LETTER_SPACING_MAP: Record<SpacingLevel, string> = {
   relaxed: "0.05em",
 };
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({
+  children,
+  respectSystemDarkMode = true,
+}: {
+  children: React.ReactNode;
+  respectSystemDarkMode?: boolean;
+}) {
   const [theme, setTheme] = useState<Theme>("fluid");
   const [isDark, setIsDark] = useState(false);
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(
@@ -100,7 +106,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedDark = localStorage.getItem("pda-dark");
     if (storedDark !== null) {
       setIsDark(storedDark === "true");
-    } else if (prefersDarkColorScheme()) {
+    } else if (respectSystemDarkMode && prefersDarkColorScheme()) {
       setIsDark(true);
     }
 
@@ -120,7 +126,47 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Grid
     const storedGrid = localStorage.getItem("pda-grid-enabled");
     if (storedGrid === "true") setGridEnabled(true);
+  }, [respectSystemDarkMode]);
+
+  // Server hydration: fetch preferences for authenticated users (server wins)
+  const hydrateFromServer = useCallback(() => {
+    fetch("/api/preferences")
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        const prefs = data.preferences ?? [];
+        for (const { key, value } of prefs as Array<{ key: string; value: string }>) {
+          switch (key) {
+            case "theme":
+              setTheme(value as Theme);
+              break;
+            case "dark_mode":
+              setIsDark(value === "true");
+              break;
+            case "font_size":
+              setAccessibility((a) => ({ ...a, fontSize: value as FontSize }));
+              break;
+            case "density":
+              setAccessibility((a) => ({ ...a, density: value as Density }));
+              break;
+            case "color_blind_mode":
+              setAccessibility((a) => ({ ...a, colorBlindMode: value as ColorBlindMode }));
+              break;
+          }
+        }
+      })
+      .catch(() => {
+        /* Server unavailable — localStorage values remain */
+      });
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    hydrateFromServer();
+  }, [mounted, hydrateFromServer]);
 
   useEffect(() => {
     if (!mounted) return;

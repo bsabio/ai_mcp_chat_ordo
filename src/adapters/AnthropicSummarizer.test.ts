@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createMessageMock, getModelCandidatesMock } = vi.hoisted(() => ({
+const { createMessageMock } = vi.hoisted(() => ({
   createMessageMock: vi.fn(),
-  getModelCandidatesMock: vi.fn(),
 }));
 
 vi.mock("@anthropic-ai/sdk", () => ({
@@ -15,17 +14,11 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
-vi.mock("@/lib/chat/policy", () => ({
-  getModelCandidates: getModelCandidatesMock,
-}));
-
 import { AnthropicSummarizer } from "./AnthropicSummarizer";
 
 describe("AnthropicSummarizer", () => {
   beforeEach(() => {
     createMessageMock.mockReset();
-    getModelCandidatesMock.mockReset();
-    getModelCandidatesMock.mockReturnValue(["claude-test"]);
   });
 
   it("sends only user and assistant turns with the summary safety contract", async () => {
@@ -33,7 +26,7 @@ describe("AnthropicSummarizer", () => {
       content: [{ type: "text", text: "Topic: Search\n- User asked about recall" }],
     });
 
-    const summarizer = new AnthropicSummarizer("test-key");
+    const summarizer = new AnthropicSummarizer("test-key", "claude-test");
 
     const result = await summarizer.summarize([
       {
@@ -85,9 +78,7 @@ describe("AnthropicSummarizer", () => {
   });
 
   it("fails fast when no Anthropic model is configured", async () => {
-    getModelCandidatesMock.mockReturnValue([]);
-
-    const summarizer = new AnthropicSummarizer("test-key");
+    const summarizer = new AnthropicSummarizer("test-key", "");
 
     await expect(summarizer.summarize([])).rejects.toThrow(
       "No valid Anthropic model configured.",

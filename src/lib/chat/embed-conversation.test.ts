@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSchema } from "@/lib/db/schema";
+import { createConversationInteractorMock } from "../../../tests/helpers/conversation-interactor-fixture";
 
 const { getConversationInteractorMock, indexDocumentMock, getDbMock } = vi.hoisted(() => ({
   getConversationInteractorMock: vi.fn(),
@@ -9,7 +10,10 @@ const { getConversationInteractorMock, indexDocumentMock, getDbMock } = vi.hoist
 }));
 
 vi.mock("./conversation-root", () => ({
-  getConversationInteractor: getConversationInteractorMock,
+  getConversationInteractor: () =>
+    createConversationInteractorMock({
+      get: getConversationInteractorMock,
+    }),
 }));
 
 vi.mock("./tool-composition-root", () => ({
@@ -73,14 +77,12 @@ describe("conversation ownership repair", () => {
       }),
     );
 
-    getConversationInteractorMock.mockReturnValue({
-      get: vi.fn().mockResolvedValue({
-        conversation: { id: "conv_1", userId: "usr_1" },
-        messages: [
-          { role: "user", content: "Hello", parts: [{ type: "text", text: "Hello" }] },
-          { role: "assistant", content: "Hi", parts: [{ type: "text", text: "Hi" }] },
-        ],
-      }),
+    getConversationInteractorMock.mockResolvedValue({
+      conversation: { id: "conv_1", userId: "usr_1" },
+      messages: [
+        { role: "user", content: "Hello", parts: [{ type: "text", text: "Hello" }] },
+        { role: "assistant", content: "Hi", parts: [{ type: "text", text: "Hi" }] },
+      ],
     });
 
     await repairConversationOwnershipIndex("conv_1", "usr_1", "anon_123");
@@ -155,14 +157,14 @@ describe("conversation ownership repair", () => {
       }),
     );
 
-    getConversationInteractorMock.mockReturnValue({
-      get: vi.fn(async (conversationId: string, userId: string) => ({
+    getConversationInteractorMock.mockImplementation(
+      async (conversationId: string, userId: string) => ({
         conversation: { id: conversationId, userId },
         messages: [
           { role: "user", content: `Message for ${conversationId}`, parts: [{ type: "text", text: "Message" }] },
         ],
-      })),
-    });
+      }),
+    );
 
     const result = await repairConvertedConversationOwnershipIndexes();
 

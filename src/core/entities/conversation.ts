@@ -1,4 +1,5 @@
 import type { MessagePart } from "./message-parts";
+import type { ConversationRoutingSnapshot } from "./conversation-routing";
 
 export interface Conversation {
   id: string;
@@ -14,6 +15,8 @@ export interface Conversation {
   lastToolUsed: string | null;
   sessionSource: string;
   promptVersion: number | null;
+  routingSnapshot: ConversationRoutingSnapshot;
+  referralSource: string | null;
 }
 
 export interface ConversationSummary {

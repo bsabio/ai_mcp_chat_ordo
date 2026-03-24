@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { getModelCandidates } from "@/lib/chat/policy";
+import { getModelFallbacks } from "@/lib/config/env";
 import type { ToolChoice } from "@/lib/chat/types";
 import { ChatProviderError } from "@/lib/chat/provider-decorators";
 
@@ -143,7 +143,7 @@ export async function createMessageWithModelFallback({
   systemPrompt: string;
   tools: Anthropic.Tool[];
 }): Promise<Anthropic.Message> {
-  const models = getModelCandidates();
+  const models = getModelFallbacks();
   let lastError: unknown;
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const retryAttempts = options?.retryAttempts ?? DEFAULT_RETRY_ATTEMPTS;

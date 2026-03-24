@@ -6,12 +6,8 @@ import {
 } from "../../../../mcp/web-search-tool";
 import OpenAI from "openai";
 
-let cachedDeps: WebSearchToolDeps | null = null;
 function getDeps(): WebSearchToolDeps {
-  if (!cachedDeps) {
-    cachedDeps = { openai: new OpenAI() };
-  }
-  return cachedDeps;
+  return { openai: new OpenAI() };
 }
 
 export async function POST(req: Request) {

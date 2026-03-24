@@ -1,9 +1,12 @@
 import type { Embedder } from "./ports/Embedder";
 import type { VectorStore } from "./ports/VectorStore";
+import type { Chunker } from "./ports/Chunker";
 import { MarkdownChunker } from "./MarkdownChunker";
 import { ConversationChunker } from "./ConversationChunker";
 import { ChangeDetector } from "./ChangeDetector";
 import { EmbeddingPipeline } from "./EmbeddingPipeline";
+
+type ChunkerFactory = () => Chunker;
 
 /**
  * Factory for constructing EmbeddingPipeline instances per source type (GoF-2).
@@ -14,14 +17,19 @@ export class EmbeddingPipelineFactory {
     private embedder: Embedder,
     private vectorStore: VectorStore,
     private modelVersion: string,
+    private chunkerRegistry: Map<string, ChunkerFactory> = new Map<string, ChunkerFactory>([
+      ["markdown", () => new MarkdownChunker()],
+      ["conversation", () => new ConversationChunker()],
+    ]),
   ) {}
 
   createForSource(
     sourceType: string,
   ): EmbeddingPipeline {
-    const chunker = sourceType === "conversation"
-      ? new ConversationChunker()
-      : new MarkdownChunker();
+    const factory = this.chunkerRegistry.get(sourceType)
+      ?? this.chunkerRegistry.get("markdown")
+      ?? (() => new MarkdownChunker());
+    const chunker = factory();
     const changeDetector = new ChangeDetector(this.vectorStore);
     return new EmbeddingPipeline(
       chunker,

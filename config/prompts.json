@@ -1,0 +1,20 @@
+{
+  "heroHeading": "Bring me the workflow.",
+  "heroSubheading": "Paste a workflow, AI plan, or team handoff. I\u2019ll show you what to fix, what to train, and what to build.",
+  "firstMessage": {
+    "default": "Describe the workflow problem, orchestration gap, or training goal.",
+    "withReferral": "Welcome — I see you were introduced by {{referrer.name}}, a {{referrer.credential}} in the Enterprise AI program. How can {{brand.name}} help you today?"
+  },
+  "defaultSuggestions": [
+    "Audit this workflow",
+    "Stress-test this AI plan",
+    "Train my team",
+    "Show me the weak point"
+  ],
+  "referralSuggestions": [
+    "Tell me what {{referrer.name}} does",
+    "I'm interested in AI for my business",
+    "I want to learn AI orchestration",
+    "How does the referral program work?"
+  ]
+}

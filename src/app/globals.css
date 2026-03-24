@@ -27,7 +27,13 @@
   --shadow-sm: 0 4px 20px -2px rgb(0 0 0 / 0.05);
   --shadow-base: oklch(0.15 0.01 250);
   --highlight-base: white;
-  --font-base: var(--font-geist-sans, sans-serif);
+
+  /* ── Typography — 3 families ──────────────────────────── */
+  --font-body:    var(--font-ibm-plex-sans, sans-serif);
+  --font-display: var(--font-fraunces, serif);
+  --font-mono:    var(--font-ibm-plex-mono, monospace);
+  --font-base:    var(--font-body);
+  --font-label:   var(--font-body);
 
   /* ── Phi (φ) Spacing Scale — Golden Ratio 1.618 ───────── */
   --phi-4: 0.146rem;  /* φ⁻⁴  ≈  2.3px  */
@@ -71,18 +77,25 @@
   --chat-bubble-padding-block: var(--phi-1);           /* 0.618rem */
   --chat-bubble-tail-size: var(--phi-1);               /* 0.618rem */
   --chat-message-inline-offset: calc(var(--chat-avatar-size) + var(--phi-1));
-  --chat-suggestion-frame-padding-inline: var(--phi-1p);
-  --chat-suggestion-frame-padding-block: var(--phi-1);
-  --chat-suggestion-frame-inner-padding: var(--phi-1);
+  --chat-suggestion-frame-padding-inline: 0rem;
+  --chat-suggestion-frame-padding-block: 0rem;
+  --chat-suggestion-frame-inner-padding: 0rem;
   --chat-suggestion-frame-radius: calc(var(--phi-1p) + var(--phi-1));
-  --chat-composer-radius: calc(var(--phi-1p) + var(--phi-2));
+  --chat-followup-frame-padding-inline: var(--phi-1p);
+  --chat-followup-frame-padding-block: var(--phi-1);
+  --chat-followup-chip-height: 2.7rem;
+  --chat-followup-chip-padding-inline: 1.08rem;
+  --chat-followup-chip-padding-block: 0.58rem;
+  --chat-composer-radius: 2rem;
   --chat-meta-font-size: 0.63rem;
   --chat-meta-tracking: 0.14em;
   --chat-body-font-size: 0.92rem;
   --chat-body-line-height: 1.68;
-  --chat-composer-min-height: calc(var(--phi-2p) + var(--phi-1));
-  --chat-composer-button-padding-inline: var(--phi-1);
-  --chat-composer-button-padding-block: var(--phi-1);
+  --chat-composer-min-height: 5.1rem;
+  --chat-composer-button-padding-inline: var(--phi-1p);
+  --chat-composer-button-padding-block: 0.72rem;
+  --chat-composer-helper-font-size: 0.72rem;
+  --chat-composer-helper-line-height: 1.35;
   --safe-area-padding-top: max(var(--spacing-unit), var(--safe-area-inset-top));
   --safe-area-padding-right: max(var(--container-padding), var(--safe-area-inset-right));
   --safe-area-padding-bottom: max(var(--spacing-unit), var(--safe-area-inset-bottom));
@@ -94,7 +107,7 @@
 
   /* Shell Composition Tokens — phi-locked */
   --shell-nav-min-height: calc(var(--phi-2p) + var(--phi-1p)); /* 4.236rem */
-  --shell-nav-block-padding: var(--phi-0);    /* 1rem */
+  --shell-nav-block-padding: var(--phi-1);    /* 0.618rem */
   --shell-footer-block-padding: var(--phi-2p);/* 2.618rem */
   --shell-section-gap: var(--phi-1);          /* 0.618rem */
   --shell-action-gap: var(--phi-1);           /* 0.618rem */
@@ -107,18 +120,18 @@
   --shell-micro-tracking: 0.14em;
   --shell-support-font-size: 0.75rem;
   --shell-support-line-height: 1.618;
-  --shell-brand-gap: var(--phi-1);            /* 0.618rem */
+  --shell-brand-gap: var(--phi-0);            /* 1rem */
   --shell-brand-wordmark-size: calc(var(--phi-0) + var(--phi-2));
   --shell-brand-mark-size: var(--phi-1p);     /* 1.618rem */
   --shell-brand-mark-font-size: var(--phi-1); /* 0.618rem */
 
   /* Shell Rail Precision Tokens */
-  --shell-rail-gap: var(--phi-0);
+  --shell-rail-gap: var(--phi-1);
   --shell-nav-item-gap: var(--phi-1);
-  --shell-nav-item-padding-inline: var(--phi-1);
+  --shell-nav-item-padding-inline: var(--phi-0);
   --shell-nav-item-padding-block: var(--phi-2);
-  --shell-account-rail-gap: var(--phi-2);
-  --shell-account-trigger-padding-inline: var(--phi-2);
+  --shell-account-rail-gap: var(--phi-1);
+  --shell-account-trigger-padding-inline: var(--phi-1);
   --shell-account-trigger-padding-block: var(--phi-2);
   --shell-account-avatar-size: var(--phi-1p);
   --shell-account-avatar-font-size: 0.625rem;
@@ -127,25 +140,86 @@
   --shell-dropdown-section-padding-block: var(--phi-1);
 
   /* Homepage Hero Precision Tokens */
-  --hero-intro-stack-gap: var(--phi-0);
+  --hero-intro-stack-gap: 1.15rem;
   --hero-badge-gap: var(--phi-2);
-  --hero-title-max-width: 16ch;
-  --hero-greeting-max-width: 42rem;
-  --hero-chip-cluster-gap: var(--phi-2);
-  --hero-composer-offset: calc(var(--phi-1) + var(--phi-3));
+  --hero-badge-padding-inline: 0.8rem;
+  --hero-badge-padding-block: 0.28rem;
+  --hero-title-max-width: 10.2ch;
+  --hero-greeting-max-width: 37rem;
+  --hero-chip-cluster-gap: 0.7rem;
+  --hero-composer-offset: 0.9rem;
   --hero-chip-band-padding: var(--phi-1);
+  --hero-suggestion-stack-gap: 0.85rem;
+  --hero-suggestion-max-width: 40.5rem;
+  --hero-suggestion-frame-radius: 2.1rem;
+  --hero-suggestion-frame-padding-inline: 1.25rem;
+  --hero-suggestion-frame-padding-block: 1.2rem;
+  --hero-suggestion-row-gap: 0.85rem;
+  --hero-suggestion-chip-height: 3.2rem;
+  --hero-suggestion-chip-padding-inline: 1.4rem;
+  --hero-suggestion-chip-padding-block: 0.72rem;
+  --hero-composer-field-padding-inline: 0.5rem;
+  --hero-composer-field-padding-block: 0.9rem;
   --tier-micro-size: 0.64rem;
   --tier-micro-line-height: 1.15;
   --tier-micro-tracking: 0.14em;
-  --tier-body-size: 0.94rem;
+  --tier-body-size: 1.02rem;
   --tier-body-line-height: 1.68;
-  --tier-display-size: clamp(2.2rem, 4vw, 3.8rem);
-  --tier-display-line-height: 0.96;
+  --tier-display-size: clamp(3.2rem, 5.4vw, 4.65rem);
+  --tier-display-line-height: 0.94;
   --tier-display-tracking: -0.055em;
   --hero-badge-font-size: var(--tier-micro-size);
   --hero-title-font-size: var(--tier-display-size);
   --hero-title-line-height: var(--tier-display-line-height);
   --hero-body-font-size: var(--tier-body-size);
+  --hero-body-line-height: 1.42;
+
+  /* Floating Chat Visual Authority Tokens */
+  --fva-shell-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--surface) 98%, var(--background)) 0%,
+    color-mix(in oklab, var(--surface) 94%, var(--background)) 100%);
+  --fva-shell-panel-surface: color-mix(in oklab, var(--surface) 96%, var(--background));
+  --fva-shell-bubble-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--surface) 99%, var(--background)) 0%,
+    color-mix(in oklab, var(--surface) 95%, var(--background)) 100%);
+  --fva-shell-transcript-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--surface) 97%, var(--background)) 0%,
+    color-mix(in oklab, var(--surface) 93%, var(--background)) 100%);
+  --fva-shell-transcript-backdrop: radial-gradient(circle at top, color-mix(in oklab, var(--highlight-base) 12%, transparent), transparent 64%);
+  --fva-shell-assistant-anchor-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--surface) 100%, var(--background)) 0%,
+    color-mix(in oklab, var(--surface) 96%, var(--background)) 100%);
+  --fva-shell-user-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--accent) 8%, var(--surface)) 0%,
+    color-mix(in oklab, var(--accent) 4%, var(--surface)) 100%);
+  --fva-shell-chip-surface: color-mix(in oklab, var(--surface) 94%, var(--background));
+  --fva-shell-action-secondary-surface: color-mix(in oklab, var(--surface) 98%, var(--background));
+  --fva-shell-composer-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--background) 84%, transparent) 0%,
+    color-mix(in oklab, var(--background) 95%, transparent) 100%);
+  --fva-shell-composer-plane-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--background) 74%, transparent) 0%,
+    color-mix(in oklab, var(--background) 96%, transparent) 48%,
+    color-mix(in oklab, var(--surface) 96%, var(--background)) 100%);
+  --fva-shell-composer-field-surface: color-mix(in oklab, var(--surface) 88%, transparent);
+  --fva-shell-header-surface: linear-gradient(180deg,
+    color-mix(in oklab, var(--surface) 99%, var(--background)) 0%,
+    color-mix(in oklab, var(--surface) 93%, var(--background)) 100%);
+  --fva-shell-chrome-surface: color-mix(in oklab, var(--surface) 92%, var(--background));
+  --fva-shell-border-strong: color-mix(in oklab, var(--foreground) 12%, var(--border));
+  --fva-shell-border-soft: color-mix(in oklab, var(--foreground) 7%, var(--border));
+  --fva-shell-text-strong: color-mix(in oklab, var(--foreground) 92%, transparent);
+  --fva-shell-text-muted: color-mix(in oklab, var(--foreground) 48%, transparent);
+  --fva-shell-helper-muted: color-mix(in oklab, var(--foreground) 38%, transparent);
+  --fva-shell-action-primary: color-mix(in oklab, var(--foreground) 94%, var(--accent));
+  --fva-shell-action-muted: color-mix(in oklab, var(--foreground) 28%, transparent);
+  --fva-shell-send-ready: color-mix(in oklab, var(--foreground) 96%, var(--accent));
+  --fva-shell-radius-frame: 2rem;
+  --fva-shell-radius-panel: 1.45rem;
+  --fva-shell-radius-chip: 999px;
+  --fva-shell-radius-composer: 2rem;
+  --fva-shell-header-gap: var(--phi-1);
+  --fva-shell-stack-gap: var(--phi-1);
 }
 
 .dark {
@@ -174,6 +248,11 @@
   --chat-suggestion-frame-padding-inline: var(--phi-0);
   --chat-suggestion-frame-padding-block: var(--phi-1);
   --chat-suggestion-frame-inner-padding: var(--phi-2);
+  --chat-followup-frame-padding-inline: var(--phi-1);
+  --chat-followup-frame-padding-block: var(--phi-2);
+  --chat-followup-chip-height: 2.4rem;
+  --chat-followup-chip-padding-inline: 0.88rem;
+  --chat-followup-chip-padding-block: 0.48rem;
   --chat-composer-button-padding-inline: var(--phi-0);
   --chat-composer-button-padding-block: var(--phi-2);
 }
@@ -194,6 +273,11 @@
   --chat-suggestion-frame-padding-block: var(--phi-1p);
   --chat-suggestion-frame-inner-padding: var(--phi-1);
   --chat-body-font-size: 0.98rem;
+  --chat-followup-frame-padding-inline: var(--phi-1p);
+  --chat-followup-frame-padding-block: var(--phi-1);
+  --chat-followup-chip-height: 2.75rem;
+  --chat-followup-chip-padding-inline: 1.08rem;
+  --chat-followup-chip-padding-block: 0.62rem;
   --chat-composer-button-padding-inline: var(--phi-1p);
   --tier-body-size: 0.98rem;
   --tier-display-size: clamp(2.35rem, 4vw, 4rem);
@@ -518,8 +602,8 @@
   --color-text: var(--text);
   --color-status-success: var(--status-success);
   --color-status-error: var(--status-error);
-  --font-sans: var(--font-base);
-  --font-mono: var(--font-mono-theme);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
 /* =========================================================
@@ -535,7 +619,6 @@
   --accent-foreground: oklch(1 0 0);
   --shadow-sm: 0 8px 24px -18px oklch(0.18 0 0 / 0.28);
   --shadow-base: oklch(0.15 0.01 80);
-  --font-base: 'Syne', 'Helvetica', 'Arial', sans-serif;
 
   /* Semantic Tokens */
   --background: oklch(0.98 0.01 80);
@@ -568,7 +651,6 @@
   --shadow-sm: none;
   --shadow-base: transparent;
   --highlight-base: transparent;
-  --font-base: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
   /* Semantic Tokens */
   --background: oklch(1 0 0);
@@ -605,7 +687,6 @@
   --accent-foreground: oklch(1 0 0);
   --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.4);
   --shadow-base: oklch(0.15 0.02 240);
-  --font-base: var(--font-inter, sans-serif);
 
   /* Semantic Tokens */
   --background: oklch(0.88 0.02 240);
@@ -640,7 +721,6 @@
   --accent-foreground: oklch(1 0 0);
   --shadow-sm: 0 1px 1px oklch(0 0 0 / 0.05), 0 2px 2px oklch(0 0 0 / 0.05), 0 4px 4px oklch(0 0 0 / 0.05), 0 8px 8px oklch(0 0 0 / 0.05), 0 16px 16px oklch(0 0 0 / 0.05); /* Layered Shadow Bloom */
   --shadow-base: oklch(0.15 0.01 250);
-  --font-base: var(--font-geist-sans, sans-serif);
 
   /* Semantic Tokens */
   --background: oklch(0.98 0.01 250);
@@ -1078,5 +1158,250 @@ body {
     .library-sidebar-surface {
       position: static;
     }
+  }
+}
+
+/* Action link arrow indicators — navigation types get a subtle directional hint */
+[data-chat-action-link]::after {
+  content: " →";
+  opacity: 0.4;
+  font-size: 0.85em;
+}
+
+[data-chat-action-link="send"]::after {
+  content: none;
+}
+
+[data-chat-shell-kind="floating"] {
+  --fab-shell-inline-offset: max(1.5rem, var(--safe-area-inset-right));
+  --fab-shell-block-offset: max(1.5rem, var(--safe-area-inset-bottom));
+  --fab-shell-inline-size: min(30rem, calc(100vw - max(1.5rem, var(--safe-area-inset-left)) - max(1.5rem, var(--safe-area-inset-right))));
+  --fab-shell-block-size: min(820px, calc(var(--viewport-block-size) - max(1.5rem, var(--safe-area-inset-top)) - max(1.5rem, var(--safe-area-inset-bottom)) - 3rem));
+  --fab-shell-radius: var(--fva-shell-radius-frame);
+  background: var(--fva-shell-surface);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-floating-header="true"] {
+  gap: var(--fva-shell-header-gap);
+  border-color: var(--fva-shell-border-strong);
+  background: var(--fva-shell-header-surface);
+  box-shadow:
+    inset 0 -1px 0 color-mix(in oklab, var(--fva-shell-border-strong) 88%, transparent),
+    0 18px 40px -32px color-mix(in oklab, var(--shadow-base) 34%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-floating-header-leading="true"] {
+  gap: var(--fva-shell-stack-gap);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-floating-header-leading="true"] {
+  align-items: center;
+  gap: var(--phi-2);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-floating-header-chrome="true"] {
+  align-items: center;
+  align-self: flex-start;
+  border: 1px solid var(--fva-shell-border-strong);
+  border-radius: 999px;
+  background: var(--fva-shell-chrome-surface);
+  color: var(--fva-shell-action-muted);
+  padding: 0.2rem;
+}
+
+[data-chat-shell-kind="floating"] [data-chat-conversation-reset-trigger="true"] {
+  border: 1px solid var(--fva-shell-border-strong);
+  background: var(--fva-shell-panel-surface);
+  color: var(--fva-shell-action-primary);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-conversation-reset-confirmation="true"] {
+  color: var(--fva-shell-text-muted);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-conversation-reset-copy="true"] {
+  color: var(--fva-shell-text-muted);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-conversation-reset-confirm-action="true"] {
+  background: var(--fva-shell-send-ready);
+  color: var(--accent-foreground);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-conversation-reset-cancel="true"] {
+  color: var(--fva-shell-action-muted);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-message-region="true"] {
+  background: var(--fva-shell-transcript-backdrop);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-transcript-plane="true"] {
+  background: var(--fva-shell-transcript-surface);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-message-meta="true"] {
+  color: var(--fva-shell-text-muted);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-message-role="assistant"][data-chat-message-emphasis="anchor"] [data-chat-bubble-surface="true"] {
+  background: var(--fva-shell-assistant-anchor-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--fva-shell-border-soft),
+    0 18px 34px -26px color-mix(in oklab, var(--shadow-base) 28%, transparent);
+  color: var(--fva-shell-text-strong);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-message-role="assistant"][data-chat-message-emphasis="supporting"] [data-chat-bubble-surface="true"] {
+  background: var(--fva-shell-bubble-surface);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--fva-shell-border-soft) 78%, transparent),
+    0 12px 24px -24px color-mix(in oklab, var(--shadow-base) 20%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-message-role="user"] [data-chat-bubble-surface="true"] {
+  background: var(--fva-shell-user-surface);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--fva-shell-border-soft) 68%, transparent),
+    0 10px 22px -24px color-mix(in oklab, var(--shadow-base) 18%, transparent);
+  color: color-mix(in oklab, var(--fva-shell-text-strong) 84%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-suggestion-group="followup"] {
+  border-color: var(--fva-shell-border-strong);
+  background: var(--fva-shell-panel-surface);
+  border-radius: var(--fva-shell-radius-panel);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--highlight-base) 22%, transparent),
+    0 16px 30px -28px color-mix(in oklab, var(--shadow-base) 22%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-suggestion-rank="primary"] {
+  color: var(--accent-foreground);
+  background: var(--fva-shell-action-primary);
+  border-color: transparent;
+  box-shadow: 0 16px 24px -20px color-mix(in oklab, var(--shadow-base) 32%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-suggestion-rank="secondary"] {
+  background: var(--fva-shell-action-secondary-surface);
+  border-color: var(--fva-shell-border-strong);
+  color: var(--fva-shell-text-strong);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-suggestion-rank="neutral"] {
+  border-color: color-mix(in oklab, var(--fva-shell-border-soft) 82%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-composer-plane="true"] {
+  background: var(--fva-shell-composer-plane-surface);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--fva-shell-border-soft) 88%, transparent),
+    0 -12px 28px -30px color-mix(in oklab, var(--shadow-base) 20%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-composer-form="true"] {
+  border-color: var(--fva-shell-border-strong);
+  background: var(--fva-shell-composer-surface);
+  border-radius: var(--fva-shell-radius-composer);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--highlight-base) 18%, transparent),
+    0 22px 40px -34px color-mix(in oklab, var(--shadow-base) 26%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-composer-field="true"] {
+  background: var(--fva-shell-composer-field-surface);
+  box-shadow: inset 0 0 0 1px var(--fva-shell-border-soft);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-composer-helper="true"] {
+  color: var(--fva-shell-helper-muted);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-composer-state="ready"] [data-chat-composer-field="true"] {
+  box-shadow:
+    inset 0 0 0 1px var(--fva-shell-border-strong),
+    0 0 0 1px color-mix(in oklab, var(--fva-shell-border-soft) 50%, transparent);
+}
+
+[data-chat-shell-kind="floating"] [data-chat-composer-state="ready"] [data-chat-send-state="ready"] {
+  background: var(--fva-shell-send-ready);
+  color: var(--accent-foreground);
+  box-shadow: 0 16px 26px -18px color-mix(in oklab, var(--shadow-base) 32%, transparent);
+}
+
+[data-chat-shell-kind="floating"][data-chat-shell-size="default"] {
+  inset-inline-end: var(--fab-shell-inline-offset);
+  inset-block-end: var(--fab-shell-block-offset);
+  inset-inline-start: auto;
+  inset-block-start: auto;
+  inline-size: var(--fab-shell-inline-size);
+  block-size: var(--fab-shell-block-size);
+  border-radius: var(--fab-shell-radius);
+}
+
+[data-chat-shell-kind="floating"][data-chat-shell-size="fullscreen"] {
+  inset: 0;
+  inline-size: auto;
+  block-size: var(--viewport-block-size);
+  border-radius: 0;
+}
+
+@media (max-width: 640px) {
+  [data-chat-shell-kind="floating"] [data-chat-floating-header="true"] {
+    gap: var(--phi-2);
+  }
+
+  [data-chat-shell-kind="floating"] [data-chat-floating-header-leading="true"] {
+    align-items: stretch;
+  }
+
+  [data-chat-shell-kind="floating"][data-chat-shell-size="default"] {
+    --fab-shell-inline-offset: max(0.75rem, var(--safe-area-inset-right));
+    --fab-shell-block-offset: max(0.75rem, var(--safe-area-inset-bottom));
+    --fab-shell-block-size: min(42rem, calc(var(--viewport-block-size) - max(0.75rem, var(--safe-area-inset-top)) - max(0.75rem, var(--safe-area-inset-bottom)) - 1rem));
+    --fab-shell-radius: 1.4rem;
+    inset-inline-start: max(0.75rem, var(--safe-area-inset-left));
+    inline-size: auto;
+  }
+
+  [data-chat-shell-kind="floating"] [data-chat-message-viewport="true"] {
+    padding-inline: var(--phi-1);
+    padding-block-start: var(--phi-1);
+    padding-block-end: var(--phi-1);
+  }
+
+  [data-chat-shell-kind="floating"] [data-chat-composer-shell="true"] {
+    max-width: 100%;
+  }
+
+  [data-chat-composer-form="true"] {
+    gap: var(--phi-2);
+    padding: var(--phi-1);
+  }
+
+  [data-chat-composer-helper="true"] {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--phi-2);
+  }
+
+  [data-chat-composer-helper="true"] span:last-child {
+    text-align: left;
+  }
+
+  [data-chat-fab-launcher="true"] {
+    height: 3.75rem;
+    width: 3.75rem;
+  }
+
+  [data-chat-shell-kind="floating"] [data-chat-action-chip] {
+    padding-inline: var(--phi-2);
+    padding-block: var(--phi-1);
+    font-size: 0.75rem;
+  }
+
+  [data-chat-shell-kind="floating"] [data-chat-action-chips] {
+    gap: var(--phi-1);
   }
 }

@@ -1,4 +1,4 @@
-export type RoleName = "ANONYMOUS" | "AUTHENTICATED" | "STAFF" | "ADMIN";
+export type RoleName = "ANONYMOUS" | "AUTHENTICATED" | "APPRENTICE" | "STAFF" | "ADMIN";
 
 export interface User {
   id: string;

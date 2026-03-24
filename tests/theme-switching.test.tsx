@@ -336,4 +336,20 @@ describe("ThemeProvider — theme switching", () => {
     });
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
+
+  it("keeps anonymous visitors in light mode when system dark is preferred and no stored choice exists", async () => {
+    installMatchMedia(true);
+
+    render(
+      <ThemeProvider respectSystemDarkMode={false}>
+        <ThemeHarness onContext={() => {}} />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("theme-fluid")).toBe(true);
+    });
+
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
 });

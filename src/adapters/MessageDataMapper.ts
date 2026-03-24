@@ -7,22 +7,71 @@ export class MessageDataMapper implements MessageRepository {
   constructor(private db: Database.Database) {}
 
   async create(msg: NewMessage & { tokenEstimate?: number }): Promise<Message> {
-    const id = `msg_${crypto.randomUUID()}`;
-    const partsJson = JSON.stringify(msg.parts);
-    const tokenEstimate = msg.tokenEstimate ?? Math.ceil(msg.content.length / 4);
+    const record = createMessageRecord(msg);
 
     this.db
       .prepare(
-        `INSERT INTO messages (id, conversation_id, role, content, parts, token_estimate)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO messages (id, conversation_id, role, content, parts, created_at, token_estimate)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(id, msg.conversationId, msg.role, msg.content, partsJson, tokenEstimate);
+      .run(
+        record.id,
+        msg.conversationId,
+        msg.role,
+        msg.content,
+        record.partsJson,
+        record.createdAt,
+        record.tokenEstimate,
+      );
 
-    const row = this.db
-      .prepare(`SELECT id, conversation_id, role, content, parts, created_at, token_estimate FROM messages WHERE id = ?`)
-      .get(id) as MessageRow;
+    return {
+      id: record.id,
+      conversationId: msg.conversationId,
+      role: msg.role,
+      content: msg.content,
+      parts: msg.parts,
+      createdAt: record.createdAt,
+      tokenEstimate: record.tokenEstimate,
+    };
+  }
 
-    return mapRow(row);
+  async createWithinConversationLimit(
+    msg: NewMessage & { tokenEstimate?: number },
+    maxMessages: number,
+  ): Promise<Message | null> {
+    const record = createMessageRecord(msg);
+
+    const result = this.db
+      .prepare(
+        `INSERT INTO messages (id, conversation_id, role, content, parts, created_at, token_estimate)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE (SELECT COUNT(*) FROM messages WHERE conversation_id = ?) < ?`,
+      )
+      .run(
+        record.id,
+        msg.conversationId,
+        msg.role,
+        msg.content,
+        record.partsJson,
+        record.createdAt,
+        record.tokenEstimate,
+        msg.conversationId,
+        maxMessages,
+      );
+
+    if (result.changes === 0) {
+      return null;
+    }
+
+    return {
+      id: record.id,
+      conversationId: msg.conversationId,
+      role: msg.role,
+      content: msg.content,
+      parts: msg.parts,
+      createdAt: record.createdAt,
+      tokenEstimate: record.tokenEstimate,
+    };
   }
 
   async listByConversation(conversationId: string): Promise<Message[]> {
@@ -36,6 +85,20 @@ export class MessageDataMapper implements MessageRepository {
       .all(conversationId) as MessageRow[];
 
     return rows.map(mapRow);
+  }
+
+  async listRecentByConversation(conversationId: string, limit: number): Promise<Message[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT id, conversation_id, role, content, parts, created_at, token_estimate
+         FROM messages
+         WHERE conversation_id = ?
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all(conversationId, limit) as MessageRow[];
+
+    return rows.reverse().map(mapRow);
   }
 
   async countByConversation(conversationId: string): Promise<number> {
@@ -56,6 +119,20 @@ type MessageRow = {
   created_at: string;
   token_estimate: number;
 };
+
+function createMessageRecord(msg: NewMessage & { tokenEstimate?: number }): {
+  id: string;
+  createdAt: string;
+  partsJson: string;
+  tokenEstimate: number;
+} {
+  return {
+    id: `msg_${crypto.randomUUID()}`,
+    createdAt: new Date().toISOString(),
+    partsJson: JSON.stringify(msg.parts),
+    tokenEstimate: msg.tokenEstimate ?? Math.ceil(msg.content.length / 4),
+  };
+}
 
 function mapRow(row: MessageRow): Message {
   let parts: MessagePart[];

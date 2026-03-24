@@ -139,7 +139,14 @@ Open `http://localhost:3000` after the dev server starts.
 Minimum useful environment:
 
 - `ANTHROPIC_API_KEY` for core chat
+- `ANTHROPIC_REQUEST_TIMEOUT_MS`, `ANTHROPIC_RETRY_ATTEMPTS`, and `ANTHROPIC_RETRY_DELAY_MS` to control provider timeout and retry behavior
 - `OPENAI_API_KEY` only if you want web search or text-to-speech features
+
+Recommended production defaults:
+
+- `ANTHROPIC_REQUEST_TIMEOUT_MS=10000`
+- `ANTHROPIC_RETRY_ATTEMPTS=2`
+- `ANTHROPIC_RETRY_DELAY_MS=150`
 
 ## Commands That Matter
 
@@ -159,6 +166,7 @@ npm run lint:strict
 npm run test
 npm run quality
 npm run browser:verify
+npm run browser:smoke
 ```
 
 ### Operations and safety

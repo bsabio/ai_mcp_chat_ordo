@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -6,6 +7,39 @@ import remarkGfm from "remark-gfm";
 import { ResourceNotFoundError } from "@/core/entities/errors";
 import { BookSidebar } from "@/components/BookSidebar";
 import { getDocuments, getSectionFull, getCorpusSummaries } from "@/lib/corpus-library";
+import { buildChapterMetadata, buildChapterSeo } from "@/lib/seo/library-metadata";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ document: string; section: string }>;
+}): Promise<Metadata> {
+  const resolvedParams = await params;
+  const [documents, summaries] = await Promise.all([getDocuments(), getCorpusSummaries()]);
+  const book = documents.find((item) => item.slug === resolvedParams.document);
+  const summary = summaries.find((item) => item.slug === resolvedParams.document);
+  if (!book || !summary) return {};
+
+  const chapterSlugs = summary.chapterSlugs ?? summary.sectionSlugs;
+  const currentIndex = chapterSlugs.findIndex((slug) => slug === resolvedParams.section);
+  if (currentIndex === -1) return {};
+
+  try {
+    const result = await getSectionFull(resolvedParams.document, resolvedParams.section);
+    if (!result) return {};
+    return buildChapterMetadata({
+      chapterTitle: result.title,
+      bookTitle: book.title,
+      bookSlug: book.slug,
+      chapterSlug: resolvedParams.section,
+      content: result.content,
+      chapterNumber: currentIndex + 1,
+      totalChapters: chapterSlugs.length,
+    });
+  } catch {
+    return {};
+  }
+}
 
 export async function generateStaticParams() {
   const summaries = await getCorpusSummaries();
@@ -152,12 +186,29 @@ export default async function LibrarySectionPage({
               </div>
 
               <Link
-                href="/library"
-                className="tier-micro font-semibold uppercase tracking-[0.14em] text-accent transition-opacity hover:opacity-80"
+                href={`/?topic=${encodeURIComponent(result.title)}`}
+                className="tier-micro font-medium text-accent transition-colors hover:text-foreground"
               >
-                Back to library index
+                Have questions about this topic? Ask the AI.
               </Link>
             </footer>
+
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify(
+                  buildChapterSeo({
+                    chapterTitle: result.title,
+                    bookTitle: book.title,
+                    bookSlug: book.slug,
+                    chapterSlug: resolvedParams.section,
+                    content: result.content,
+                    chapterNumber: currentIndex + 1,
+                    totalChapters: chapters.length,
+                  }).jsonLd,
+                ),
+              }}
+            />
           </article>
         </main>
       </div>

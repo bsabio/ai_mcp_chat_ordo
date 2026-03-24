@@ -24,6 +24,13 @@ export function useChatComposerController({
   const { executeCommand, findCommands } = useCommandRegistry();
   const mentions = useMentions(textareaRef, { findCommands });
 
+  const setComposerText = useCallback(
+    (text: string) => {
+      composer.updateInput(text);
+    },
+    [composer],
+  );
+
   const handleInputChange = useCallback(
     (value: string, selectionStart: number) => {
       composer.updateInput(value);
@@ -75,6 +82,7 @@ export function useChatComposerController({
     handleSend,
     handleSuggestionSelect,
     input: composer.input,
+    setComposerText,
     mentionIndex: composer.mentionIndex,
     pendingFiles: composer.pendingFiles,
     setMentionIndex: composer.setMentionIndex,

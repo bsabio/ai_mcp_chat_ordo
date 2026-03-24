@@ -1,4 +1,7 @@
+import { loadLocalEnv } from "./load-local-env";
 import { getHealthSweepReport } from "../src/lib/admin/processes";
+
+loadLocalEnv();
 
 function main() {
   const report = getHealthSweepReport();

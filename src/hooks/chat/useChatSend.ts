@@ -1,17 +1,23 @@
 import { useCallback, useRef, type Dispatch } from "react";
 
 import type { ChatMessage } from "@/core/entities/chat-message";
-import { MessageFactory } from "@/core/entities/MessageFactory";
+import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
 import type { ChatAction } from "./chatState";
 import {
   cleanupChatAttachments,
   uploadChatAttachments,
 } from "./chatAttachmentApi";
+import {
+  prepareChatSend,
+  shouldRefreshConversationAfterStream,
+  validateChatSend,
+} from "./chatSendPolicy";
 import { useChatStreamRuntime } from "./useChatStreamRuntime";
 
 interface UseChatSendOptions {
   conversationId: string | null;
+  refreshConversation: (conversationIdOverride?: string | null) => Promise<void>;
   dispatch: Dispatch<ChatAction>;
   messages: ChatMessage[];
   setConversationId: (conversationId: string | null) => void;
@@ -20,6 +26,7 @@ interface UseChatSendOptions {
 
 export function useChatSend({
   conversationId,
+  refreshConversation,
   dispatch,
   messages,
   setConversationId,
@@ -33,15 +40,19 @@ export function useChatSend({
   });
 
   return useCallback(
-    async (messageText: string, files: File[] = []) => {
-      const trimmedMessage = messageText.trim();
+    async (
+      messageText: string,
+      files: File[] = [],
+      taskOriginHandoff?: TaskOriginHandoff,
+    ) => {
+      const { trimmedMessage, error } = validateChatSend(
+        messageText,
+        files.length,
+        inFlightRef.current,
+      );
 
-      if (!trimmedMessage && files.length === 0) {
-        return { ok: false, error: "Cannot send an empty message." };
-      }
-
-      if (inFlightRef.current) {
-        return { ok: false, error: "A message is already sending." };
+      if (error) {
+        return { ok: false, error };
       }
 
       inFlightRef.current = true;
@@ -53,28 +64,24 @@ export function useChatSend({
           ? await uploadChatAttachments(files, conversationId)
           : [];
         uploadedAttachmentIds = attachmentParts.map((attachment) => attachment.assetId);
-        const userParts = [
-          ...(trimmedMessage ? [{ type: "text" as const, text: trimmedMessage }] : []),
-          ...attachmentParts,
-        ];
-        const userMessage = MessageFactory.createUserMessage(
-          trimmedMessage,
-          userParts,
-        );
-        const nextMessages = [...messages, userMessage];
-        const assistantIndex = nextMessages.length;
+        const preparedSend = prepareChatSend(messages, trimmedMessage, attachmentParts);
 
         dispatch({
           type: "REPLACE_ALL",
-          messages: [...nextMessages, MessageFactory.createAssistantMessage()],
+          messages: preparedSend.optimisticMessages,
         });
 
-        const historyForBackend = nextMessages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        }));
+        const resolvedConversationId = await runStream(
+          preparedSend.historyForBackend,
+          preparedSend.assistantIndex,
+          attachmentParts,
+          taskOriginHandoff,
+        );
 
-        await runStream(historyForBackend, assistantIndex, attachmentParts);
+        if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId)) {
+          await refreshConversation(resolvedConversationId);
+        }
+
         return { ok: true };
       } catch (error) {
         const errorMessage =
@@ -93,6 +100,7 @@ export function useChatSend({
     },
     [
       conversationId,
+      refreshConversation,
       dispatch,
       messages,
       setIsSending,

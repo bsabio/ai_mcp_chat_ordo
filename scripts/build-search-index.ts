@@ -9,7 +9,7 @@ import { EmbeddingPipelineFactory } from "../src/core/search/EmbeddingPipelineFa
 import { validateEmbeddingQuality } from "../src/core/search/EmbeddingValidator";
 import type { BM25Index } from "../src/core/search/ports/BM25IndexStore";
 import type { DocumentChunkMetadata } from "../src/core/search/ports/Chunker";
-import { corpusConfig } from "../src/lib/corpus-config";
+import { corpusConfig } from "../src/lib/corpus-vocabulary";
 
 const MODEL_VERSION = "all-MiniLM-L6-v2@1.0";
 const force = process.argv.includes("--force");

@@ -3,12 +3,17 @@ import { extractToolCalls } from "../core/entities/chat-message";
 import type { RichContent } from "../core/entities/rich-content";
 import type { UICommand } from "../core/entities/ui-command";
 import { UI_COMMAND_TYPE } from "../core/entities/ui-command";
-import { BLOCK_TYPES } from "../core/entities/rich-content";
+import { BLOCK_TYPES, VALID_ACTION_TYPES } from "../core/entities/rich-content";
+import type { ActionLinkType } from "../core/entities/rich-content";
 import { getAttachmentParts, type AttachmentPart } from "@/lib/chat/message-attachments";
 import type { MarkdownParserService } from "./MarkdownParserService";
 import type { CommandParserService } from "./CommandParserService";
 
 const SUGGESTION_REGEX = /__suggestions__:\[([\s\S]*?)\]/;
+
+// The [\s\S]*? non-greedy quantifier stops at the first `]` character.
+// Action param values must not contain literal `]` characters.
+const ACTION_REGEX = /__actions__:\[([\s\S]*?)\]/;
 
 const TOOL_NAMES = {
   SET_THEME: "set_theme",
@@ -19,6 +24,12 @@ const TOOL_NAMES = {
   ADMIN_WEB_SEARCH: "admin_web_search",
 } as const;
 
+export interface MessageAction {
+  label: string;
+  action: ActionLinkType;
+  params: Record<string, string>;
+}
+
 export interface PresentedMessage {
   id: string;
   role: string;
@@ -26,6 +37,7 @@ export interface PresentedMessage {
   rawContent: string;
   commands: UICommand[];
   suggestions: string[];
+  actions: MessageAction[];
   attachments: AttachmentPart[];
   timestamp: string;
 }
@@ -39,18 +51,37 @@ export class ChatPresenter {
   present(message: ChatMessage): PresentedMessage {
     let textContent = message.content;
     let suggestions: string[] = [];
+    let actions: MessageAction[] = [];
 
     // Extract and remove suggestions
     const match = textContent.match(SUGGESTION_REGEX);
     if (match && match[1]) {
       try {
-        // Reconstruct JSON array string
         const jsonStr = `[${match[1]}]`;
         suggestions = JSON.parse(jsonStr);
       } catch (e) {
         console.error("Failed to parse suggestions", e);
       }
       textContent = textContent.replace(SUGGESTION_REGEX, "").trim();
+    }
+
+    // Extract and remove actions
+    const actionMatch = textContent.match(ACTION_REGEX);
+    if (actionMatch?.[1]) {
+      try {
+        const parsed: unknown[] = JSON.parse(`[${actionMatch[1]}]`);
+        actions = parsed.filter(
+          (entry): entry is MessageAction =>
+            typeof entry === "object" &&
+            entry !== null &&
+            "action" in entry &&
+            typeof (entry as MessageAction).action === "string" &&
+            VALID_ACTION_TYPES.has((entry as MessageAction).action),
+        );
+      } catch {
+        // Malformed JSON — silently produce empty array
+      }
+      textContent = textContent.replace(ACTION_REGEX, "").trim();
     }
 
     const richContent = this.markdownParser.parse(textContent);
@@ -113,6 +144,7 @@ export class ChatPresenter {
       rawContent: textContent,
       commands: commands,
       suggestions: suggestions,
+      actions,
       attachments,
       timestamp: (message.timestamp || new Date()).toLocaleTimeString([], {
         hour: "2-digit",

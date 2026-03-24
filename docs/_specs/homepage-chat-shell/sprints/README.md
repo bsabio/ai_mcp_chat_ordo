@@ -14,6 +14,7 @@
 | **1** | [sprint-1-home-stage-and-chat-layout.md](sprint-1-home-stage-and-chat-layout.md) | 4 | Implement the dedicated homepage stage, two-row embedded chat workspace, and stable composer pinning |
 | **2** | [sprint-2-scroll-boundary-lock-and-browser-coverage.md](sprint-2-scroll-boundary-lock-and-browser-coverage.md) | 4 | Add boundary-lock behavior, browser-focused interaction coverage, and mobile viewport handling |
 | **3** | [sprint-3-qa-acceptance-and-polish.md](sprint-3-qa-acceptance-and-polish.md) | 4 | Finalize acceptance coverage, browser verification evidence, and small UX polish within spec boundaries |
+| **4** | [sprint-4-chat-first-restoration-and-eval-harness.md](sprint-4-chat-first-restoration-and-eval-harness.md) | 4 | Remove the route-level hero wrapper, migrate hero content into the chat intro, and add a reusable homepage eval harness |
 
 ## Dependency Graph
 
@@ -22,6 +23,7 @@ Sprint 0 (ownership reset)
   -> Sprint 1 (homepage stage + two-row chat layout)
      -> Sprint 2 (scroll boundary lock + browser interaction coverage)
         -> Sprint 3 (QA, acceptance evidence, and polish)
+           -> Sprint 4 (chat-first restoration + eval harness)
 ```
 
 ## Summary
@@ -32,6 +34,7 @@ Sprint 0 (ownership reset)
 | **1** | Homepage still behaves like a flex-derived page instead of a dedicated chat stage |
 | **2** | Safari/mobile scroll chaining and keyboard viewport changes can still break the interaction contract |
 | **3** | Architecture lands without durable acceptance evidence or final homepage rhythm tuning |
+| **4** | Route-level hero composition can still bypass the chat scroll contract unless intro content is owned by the message viewport and checked by a reusable eval harness |
 
 ## Requirement Mapping
 
@@ -43,3 +46,4 @@ Sprint 0 (ownership reset)
 | `HCS-050` through `HCS-054B` | Sprints 0-2 |
 | `HCS-060` through `HCS-069` | Sprints 2-3 |
 | `HCS-070` through `HCS-088` | Sprints 1-3 |
+| `HCS-077` through `HCS-079`, `HCS-089` | Sprint 4 |

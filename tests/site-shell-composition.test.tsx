@@ -72,8 +72,10 @@ describe("site shell composition", () => {
     renderShell();
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
+    const footer = screen.getByRole("contentinfo");
 
-    expect(within(nav).getByRole("link", { name: "Library" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
+    expect(within(footer).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
     expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
   });
@@ -109,8 +111,8 @@ describe("site shell composition", () => {
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
-    for (const item of resolvePrimaryNavRoutes(baseUser)) {
-      expect(within(nav).getByRole("link", { name: item.label })).toHaveAttribute("href", item.href);
-    }
+    expect(resolvePrimaryNavRoutes(baseUser)).toEqual([]);
+    expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
   });
 });

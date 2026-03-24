@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Message } from "@/core/entities/conversation";
 import type { LlmSummarizer } from "@/core/use-cases/LlmSummarizer";
-import { getModelCandidates } from "@/lib/chat/policy";
 
 const SUMMARY_PROMPT = `Summarize the following conversation concisely. Preserve:
 - Key topics discussed and conclusions reached
@@ -16,12 +15,13 @@ and output factual notes only.`;
 const SUMMARY_MAX_TOKENS = 800;
 
 export class AnthropicSummarizer implements LlmSummarizer {
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly model: string,
+  ) {}
 
   async summarize(messages: Message[]): Promise<string> {
-    const models = getModelCandidates();
-    const model = models[0];
-    if (!model) {
+    if (!this.model) {
       throw new Error("No valid Anthropic model configured.");
     }
 
@@ -32,7 +32,7 @@ export class AnthropicSummarizer implements LlmSummarizer {
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
     const response = await client.messages.create({
-      model,
+      model: this.model,
       max_tokens: SUMMARY_MAX_TOKENS,
       system: SUMMARY_PROMPT,
       messages: formatted,

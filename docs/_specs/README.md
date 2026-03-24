@@ -9,7 +9,7 @@
 
 ## 1. Directory Layout
 
-```
+```text
 docs/_specs/
 ├── README.md                     ← this file (process guide)
 ├── {feature}/
@@ -30,26 +30,35 @@ docs/_specs/
 ## 2. Feature Specs
 
 | Feature | Status | Sprints | Description |
-|---------|--------|---------|-------------|
+| --- | --- | --- | --- |
 | [RBAC](rbac/) | **Complete** | 6 (0–5) | Multi-user auth, RBAC, chat persistence, role-aware LLM |
 | [Tool Architecture](tool-architecture/) | **Complete** | 5 (0–4) | Registry-based tool system with SOLID/GoF alignment |
 | [Vector Search](vector-search/) | **Complete** | 6 (0–5) | BM25+vector hybrid search, embedding pipeline, MCP server |
+| [Platform V0](platform-v0/) | **Draft** | 4 (0–3) | Foundational prompt, preference, conversation, and chat-surface refactors that Platform V1 builds on |
 | [Librarian](librarian/) | **Draft** | 2 (0–1) | `_corpus/` auto-discovery, MCP librarian tools, zip import |
 | [Web Search](web-search/) | **Complete** | 1 (0) | Admin web search via OpenAI GPT-5, rich UI, citations |
 | [Conversation Memory](conversation-memory/) | **Draft** | 3 (0–2) | Anonymous persistence, auto-resume, rolling summaries, conversation search |
 | [Browser UI Hardening](browser-ui-hardening/) | **Draft** | 7 (0–6) | Cross-browser shell, overlay, motion, media, and regression hardening for Safari, Chrome, Firefox, and mobile browsers |
 | [Homepage Chat Shell](homepage-chat-shell/) | **Draft** | 4 (0–3) | Homepage-first chat stage architecture with below-the-fold footer, exclusive message scrolling, and pinned composer behavior |
 | [Chat Experience](chat-experience/) | **In Progress** | 3 (0–2) | Message semantics, inline navigation, composer ergonomics, scroll intent, and calmer conversation presentation |
+| [Interactive Chat Actions](interactive-chat-actions/) | **Draft** | 0 planned | Inline action links, per-message chips, and shorter action-oriented assistant replies inside the chat surface |
 | [Chat Runtime Hardening](chat-runtime-hardening/) | **Complete** | 4 (0–3) | Documentation alignment, local command dependencies, stale attachment reaping, and failed-send regression coverage for the chat runtime |
 | [Shell Navigation And Design System](shell-navigation-and-design-system/) | **Complete** | 5 (0–4) | Canonical shell route truth, shared brand/navigation primitives, command-surface unification, shell token discipline, and final QA evidence |
-| [Swiss Layout Precision](swiss-layout-precision/) | **Draft** | 4 (0–3) | Swiss-inspired shell and homepage refinement for precise spacing, typography hierarchy, hero-stage composition, and account-rail discipline |
+| [Footer Information Architecture](footer-information-architecture/) | **Draft** | 0 planned | Footer-only informational navigation contract, command-surface parity, and truthful page inventory rules for chat-first UX |
+| [Conversation Lane Routing](conversation-lane-routing/) | **Draft** | 0 planned | Durable organization-vs-individual routing state for prompts, analytics, and next-step recommendation |
+| [Progressive Contact Capture](progressive-contact-capture/) | **Draft** | 0 planned | In-thread, lane-aware contact capture with structured persistence and event telemetry |
+| [FAB Shell Refactor](fab-shell-refactor/) | **Draft** | 4 planned (0–3) | Floating chat FAB refactor with explicit shell ownership, command-driven theme controls, styling contract cleanup, and stable browser verification |
+| [Floating Chat Visual Authority](floating-chat-visual-authority/) | **Draft** | 4 planned (0–3) | Floating chat shell refinement for stronger hierarchy, action priority, composer anchoring, and a calmer but more decisive visual contract |
+| [Customer Workflow And Deal Flow](customer-workflow-and-deal-flow/) | **Draft** | 5 planned (0–4) | Unified runtime contract for organization, individual, and development workflows from routing through qualification, founder review, and downstream deal or training handling |
+| [Live Eval And Funnel Validation](live-eval-and-funnel-validation/) | **In Progress** | 4 planned (0–3) | Real-model, seeded-data, tool-aware evaluation program for MCP reliability, customer funnel completion, and anonymous-to-signed-in continuity |
+| [Platform Convergence And Spec Rationalization](platform-convergence-and-spec-rationalization/) | **Draft** | 5 planned (0–4) | Consolidate Platform V1 into a coherent active spec set, preserve the content/knowledge substrate, retire dashboard-first legacy modality, and archive superseded specs without losing historical context |
 
 ### Roadmap
 
 Future tool specs not yet scheduled for implementation:
 
 | # | Spec | Priority |
-|---|------|----------|
+| --- | --- | --- |
 | 02 | [Knowledge Graph](tool-roadmap/02-knowledge-graph.md) | High |
 | 03 | [Smart Content Delivery](tool-roadmap/03-smart-content-delivery.md) | High |
 | 04 | [Advanced Calculator](tool-roadmap/04-advanced-calculator.md) | Medium |
@@ -59,7 +68,11 @@ Future tool specs not yet scheduled for implementation:
 
 ### Archive
 
-Historical planning documents: [archive/](archive/)
+Historical planning documents and superseded feature batches: [archive/](archive/)
+
+Current archive batch:
+
+1. [2026-platform-v1-superseded](archive/2026-platform-v1-superseded/)
 
 ---
 
@@ -87,7 +100,7 @@ that belongs in sprint docs.
 A spec must include:
 
 | Section | Purpose |
-|---------|---------|
+| --- | --- |
 | Problem Statement | What's broken or missing — with concrete evidence |
 | Design Goals | Numbered principles guiding all decisions |
 | Architecture | Interfaces, data flow, key types, directory conventions |
@@ -97,6 +110,7 @@ A spec must include:
 | Future Considerations | Out-of-scope items explicitly deferred |
 
 **Rules:**
+
 - Reference existing codebase APIs by their actual signatures (read the code
   first, don't guess).
 - Every type, interface, and function mentioned must be verified against the
@@ -115,7 +129,7 @@ detail that an LLM agent can execute it without asking clarifying questions.
 A sprint doc must include:
 
 | Section | Purpose |
-|---------|---------|
+| --- | --- |
 | Header | Goal, spec section references, prerequisite (prior sprint commit) |
 | Available Assets | Table of existing files/APIs that this sprint uses — with actual signatures |
 | Tasks (numbered) | One per logical unit of work. Each has: what to create/modify, code snippets, key implementation details, verify steps |
@@ -159,11 +173,13 @@ The implementing agent follows the sprint doc task by task:
    completed.
 4. **After each task**, run the Verify step from the doc.
 5. **After all tasks**, run the full verification:
+
    ```bash
    npx tsc --noEmit          # type-check (ignore pre-existing test errors)
    npx vitest run             # full test suite — ALL must pass
    npm run build              # production build — must be clean
    ```
+
 6. **Record the result in docs.** Update the sprint checklist, QA Deviations,
    and any feature-owned artifacts needed to preserve the real state.
 
@@ -193,7 +209,7 @@ agent context. The QA agent:
 4. **Audits each item against the spec and sprint doc:**
 
    | Check | What to verify |
-   |-------|----------------|
+   | --- | --- |
    | **Signatures** | Every function, method, and constructor matches the actual interface/type definitions in the codebase |
    | **Import paths** | Correct alias (`@/`) or relative paths per convention |
    | **Type safety** | No `any` types, no unsafe casts, `satisfies` used where appropriate |
@@ -203,6 +219,7 @@ agent context. The QA agent:
    | **Security** | Input validation, path traversal prevention, RBAC roles — whatever the spec mandates |
 
 5. **Runs the full verification suite:**
+
    ```bash
    npx vitest run tests/path/to/new-tests   # targeted sprint tests
    npx vitest run                            # full suite
@@ -242,13 +259,14 @@ code.
 ## 5. Checkpoint Conventions
 
 | Type | When |
-|------|------|
+| --- | --- |
 | `feat: implement Sprint N — {summary}` | Sprint implementation complete |
 | `fix: Sprint N QA — {description}` | QA fixes after implementation |
 | `docs: Sprint N doc QA — {description}` | Fixing the sprint doc itself |
 | `chore: {description}` | Reorganization, cleanup, non-functional changes |
 
 Commit messages should include:
+
 - Which files were created/modified
 - How many tests were added
 - The verification result (e.g., "307 tests / 59 files all passing, build clean")
@@ -315,7 +333,7 @@ These principles govern all specs and implementations in this project:
 
 ### Starting a new feature
 
-```
+```text
 1. Discuss requirements with the user
 2. Write or update spec.md
 3. QA spec against codebase and fix issues
@@ -329,7 +347,7 @@ These principles govern all specs and implementations in this project:
 
 ### Picking up an existing feature
 
-```
+```text
 1. Read the spec.md
 2. Read all completed sprint docs (in order) to understand what's built
 3. Read the next sprint doc to implement
@@ -340,7 +358,7 @@ These principles govern all specs and implementations in this project:
 
 ### QA-ing someone else's implementation
 
-```
+```text
 1. Read spec.md
 2. Read the sprint doc that was implemented
 3. Read every new/modified file

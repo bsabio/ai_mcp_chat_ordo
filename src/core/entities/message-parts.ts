@@ -14,4 +14,5 @@ export type MessagePart =
       mimeType: string;
       fileSize: number;
     }
-  | { type: "summary"; text: string; coversUpToMessageId: string };
+  | { type: "summary"; text: string; coversUpToMessageId: string }
+  | { type: "meta_summary"; text: string; coversUpToSummaryId: string; summariesCompacted: number };

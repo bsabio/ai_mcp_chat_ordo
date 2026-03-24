@@ -3,33 +3,70 @@ import { useRouter } from "next/navigation";
 import { useTheme, type Theme, type AccessibilitySettings, type FontSize, type SpacingLevel, type Density, type ColorBlindMode, type UIPreset, UI_PRESETS } from "@/components/ThemeProvider";
 import type { PresentedMessage } from "../adapters/ChatPresenter";
 
-export function useUICommands(presentedMessages: PresentedMessage[]) {
+export function useUICommands(
+  presentedMessages: PresentedMessage[],
+  isLoadingMessages = false,
+) {
   const router = useRouter();
   const { setTheme, setIsDark, accessibility, setAccessibility } = useTheme();
   const lastExecutedCommandRef = useRef<string>("");
+  const hasEstablishedBaselineRef = useRef(false);
+  const seenAssistantMessageIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const lastMsg = presentedMessages[presentedMessages.length - 1];
-    if (lastMsg && lastMsg.role === "assistant") {
-      if (lastMsg.commands.length > 0) {
-        lastMsg.commands.forEach((cmd: Record<string, unknown>) => {
-          const cmdKey = `${JSON.stringify(cmd)}-${presentedMessages.length}`;
-          if (cmdKey !== lastExecutedCommandRef.current) {
-            lastExecutedCommandRef.current = cmdKey;
-            if (cmd.type === "set_theme") {
-              setTheme(cmd.theme as Theme);
-            } else if (cmd.type === "navigate" && typeof cmd.path === "string") {
-              if (cmd.path.startsWith("/")) router.push(cmd.path);
-              else window.location.href = cmd.path;
-            } else if (cmd.type === "adjust_ui") {
-              const settings = cmd.settings as Record<string, unknown>;
-              applyUIAdjustment(settings, accessibility, setAccessibility, setTheme, setIsDark);
-            }
-          }
-        });
-      }
+    if (isLoadingMessages) {
+      seenAssistantMessageIdsRef.current = new Set(
+        presentedMessages
+          .filter((message) => message.role === "assistant")
+          .map((message) => message.id),
+      );
+      hasEstablishedBaselineRef.current = false;
+      return;
     }
-  }, [presentedMessages, setTheme, setIsDark, accessibility, setAccessibility, router]);
+
+    if (!hasEstablishedBaselineRef.current) {
+      seenAssistantMessageIdsRef.current = new Set(
+        presentedMessages
+          .filter((message) => message.role === "assistant")
+          .map((message) => message.id),
+      );
+      hasEstablishedBaselineRef.current = true;
+      return;
+    }
+
+    if (!lastMsg || lastMsg.role !== "assistant") {
+      return;
+    }
+
+    if (seenAssistantMessageIdsRef.current.has(lastMsg.id)) {
+      return;
+    }
+
+    seenAssistantMessageIdsRef.current.add(lastMsg.id);
+
+    if (lastMsg.commands.length === 0) {
+      return;
+    }
+
+    lastMsg.commands.forEach((cmd: Record<string, unknown>) => {
+      const cmdKey = `${lastMsg.id}-${JSON.stringify(cmd)}`;
+      if (cmdKey === lastExecutedCommandRef.current) {
+        return;
+      }
+
+      lastExecutedCommandRef.current = cmdKey;
+      if (cmd.type === "set_theme") {
+        setTheme(cmd.theme as Theme);
+      } else if (cmd.type === "navigate" && typeof cmd.path === "string") {
+        if (cmd.path.startsWith("/")) router.push(cmd.path);
+        else window.location.href = cmd.path;
+      } else if (cmd.type === "adjust_ui") {
+        const settings = cmd.settings as Record<string, unknown>;
+        applyUIAdjustment(settings, accessibility, setAccessibility, setTheme, setIsDark);
+      }
+    });
+  }, [presentedMessages, isLoadingMessages, setTheme, setIsDark, accessibility, setAccessibility, router]);
 }
 
 function applyUIAdjustment(

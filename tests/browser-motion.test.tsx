@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SiteNav } from "@/components/SiteNav";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { ChatContainer } from "@/frameworks/ui/ChatContainer";
+import { ChatSurface } from "@/frameworks/ui/ChatSurface";
 import type { User } from "@/core/entities/user";
 
 const localStorageMock = {
@@ -109,10 +109,6 @@ vi.mock("@/frameworks/ui/ChatInput", () => ({
   ChatInput: () => <div data-testid="chat-input" />,
 }));
 
-vi.mock("@/frameworks/ui/ConversationSidebar", () => ({
-  ConversationSidebar: () => <div data-testid="conversation-sidebar" />,
-}));
-
 beforeEach(() => {
   localStorageMock.getItem.mockReset();
   localStorageMock.getItem.mockReturnValue(null);
@@ -180,7 +176,7 @@ describe("browser motion hardening", () => {
 
     const { container } = render(
       <ThemeProvider>
-        <ChatContainer />
+        <ChatSurface mode="embedded" />
       </ThemeProvider>,
     );
 

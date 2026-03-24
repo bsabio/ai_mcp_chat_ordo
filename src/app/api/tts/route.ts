@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import { getSessionUser } from "@/lib/auth";
+import { getOpenaiApiKey } from "@/lib/config/env";
 import { getDb } from "@/lib/db";
 import { UserFileDataMapper } from "@/adapters/UserFileDataMapper";
 import { UserFileSystem } from "@/lib/user-files";
-
-// --- ElevenLabs (disabled — uncomment to re-enable as primary provider) ---
-// const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY ?? "";
-// const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID ?? "NNl6r8mD7vthiJatiJt1";
 
 export async function POST(req: Request) {
   try {
@@ -48,8 +45,10 @@ export async function POST(req: Request) {
     }
 
     // --- OpenAI TTS (default) — generate, cache, and return ---
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_API_KEY) {
+    let openaiApiKey: string;
+    try {
+      openaiApiKey = getOpenaiApiKey();
+    } catch {
       return NextResponse.json(
         { error: "No OPENAI_API_KEY configured. Add it to .env.local to enable TTS." },
         { status: 500 },
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
     const oaResponse = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${openaiApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

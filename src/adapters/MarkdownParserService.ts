@@ -3,7 +3,8 @@ import type {
   BlockNode,
   InlineNode,
 } from "../core/entities/rich-content";
-import { BLOCK_TYPES, INLINE_TYPES } from "../core/entities/rich-content";
+import { BLOCK_TYPES, INLINE_TYPES, VALID_ACTION_TYPES } from "../core/entities/rich-content";
+import type { ActionLinkType } from "../core/entities/rich-content";
 
 export class MarkdownParserService {
   parse(markdown: string): RichContent {
@@ -70,6 +71,19 @@ export class MarkdownParserService {
         continue;
       }
 
+      const operatorHeading = this.getOperatorSectionHeading(trimmed);
+      if (operatorHeading === "NOW") {
+        flushList();
+        flushTable();
+
+        const operatorBrief = this.parseOperatorBrief(lines, i);
+        if (operatorBrief) {
+          blocks.push(operatorBrief.block);
+          i = operatorBrief.endIndex;
+          continue;
+        }
+      }
+
       if (trimmed.startsWith("|")) {
         if (this.isTableSeparator(trimmed)) {
           tableHasHeader = true;
@@ -126,9 +140,77 @@ export class MarkdownParserService {
     return { blocks };
   }
 
+  private parseOperatorBrief(lines: string[], startIndex: number): {
+    block: Extract<BlockNode, { type: typeof BLOCK_TYPES.OPERATOR_BRIEF }>;
+    endIndex: number;
+  } | null {
+    const expectedLabels: Array<"NOW" | "NEXT" | "WAIT"> = ["NOW", "NEXT", "WAIT"];
+    const sections: Extract<BlockNode, { type: typeof BLOCK_TYPES.OPERATOR_BRIEF }>["sections"] = [];
+    let cursor = startIndex;
+
+    for (const label of expectedLabels) {
+      const heading = this.getOperatorSectionHeading(lines[cursor]?.trim() ?? "");
+      if (heading !== label) {
+        return null;
+      }
+
+      cursor += 1;
+      const summaryLines: string[] = [];
+      const items: string[] = [];
+
+      while (cursor < lines.length) {
+        const trimmed = lines[cursor].trim();
+        const nextHeading = this.getOperatorSectionHeading(trimmed);
+
+        if (nextHeading) {
+          break;
+        }
+
+        if (!trimmed) {
+          cursor += 1;
+          continue;
+        }
+
+        if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+          items.push(trimmed.slice(2));
+        } else if (/^\d+\.\s/.test(trimmed)) {
+          items.push(trimmed.replace(/^\d+\.\s/, ""));
+        } else {
+          summaryLines.push(trimmed);
+        }
+
+        cursor += 1;
+      }
+
+      sections.push({
+        label,
+        summary: this.parseInlines(summaryLines.join(" ") || label),
+        items: items.length > 0 ? items.map((item) => this.parseInlines(item)) : undefined,
+      });
+    }
+
+    return {
+      block: {
+        type: BLOCK_TYPES.OPERATOR_BRIEF,
+        sections,
+      },
+      endIndex: cursor - 1,
+    };
+  }
+
+  private getOperatorSectionHeading(line: string): "NOW" | "NEXT" | "WAIT" | null {
+    const normalized = line.replace(/^#{1,3}\s*/, "").replace(/:$/, "").trim().toUpperCase();
+
+    if (normalized === "NOW" || normalized === "NEXT" || normalized === "WAIT") {
+      return normalized;
+    }
+
+    return null;
+  }
+
   private parseInlines(text: string): InlineNode[] {
     const nodes: InlineNode[] = [];
-    const combined = /(\*\*[^*]+\*\*|`[^`]+`|\[\[[^\]]+\]\])/g;
+    const combined = /(\*\*[^*]+\*\*|`[^`]+`|\[\[[^\]]+\]\]|\[[^\]]+\]\(\?[^)]+\))/g;
     let last = 0;
     let m: RegExpExecArray | null;
 
@@ -144,6 +226,14 @@ export class MarkdownParserService {
         nodes.push({ type: INLINE_TYPES.CODE, text: match.slice(1, -1) });
       } else if (match.startsWith("[[")) {
         nodes.push({ type: INLINE_TYPES.LINK, slug: match.slice(2, -2) });
+      } else if (match.startsWith("[")) {
+        const parsed = this.parseActionLink(match);
+        if (parsed) {
+          nodes.push(parsed);
+        } else {
+          // Malformed action link — emit as plain text
+          nodes.push({ type: INLINE_TYPES.TEXT, text: match });
+        }
       }
 
       last = m.index + match.length;
@@ -154,6 +244,44 @@ export class MarkdownParserService {
     }
 
     return nodes.length > 0 ? nodes : [{ type: INLINE_TYPES.TEXT, text }];
+  }
+
+  private parseActionLink(match: string): InlineNode | null {
+    // Extract label from [label](?...)
+    const labelEnd = match.indexOf("]");
+    if (labelEnd < 0) return null;
+    const label = match.slice(1, labelEnd);
+    // Extract query string from (?key=value&key=value)
+    const queryStart = match.indexOf("(?", labelEnd);
+    if (queryStart < 0) return null;
+    const queryStr = match.slice(queryStart + 2, -1); // strip "(?" and ")"
+    if (!queryStr || !queryStr.includes("=")) return null;
+
+    const parts = queryStr.split("&");
+    const firstPart = parts[0];
+    const eqIndex = firstPart.indexOf("=");
+    if (eqIndex <= 0) return null; // no action type before "="
+
+    const actionType = firstPart.slice(0, eqIndex);
+    if (!VALID_ACTION_TYPES.has(actionType)) return null;
+
+    const value = decodeURIComponent(firstPart.slice(eqIndex + 1).replace(/\+/g, " "));
+
+    const params: Record<string, string> = {};
+    for (let i = 1; i < parts.length; i++) {
+      const pEq = parts[i].indexOf("=");
+      if (pEq > 0) {
+        params[parts[i].slice(0, pEq)] = decodeURIComponent(parts[i].slice(pEq + 1).replace(/\+/g, " "));
+      }
+    }
+
+    return {
+      type: INLINE_TYPES.ACTION_LINK,
+      label,
+      actionType: actionType as ActionLinkType,
+      value,
+      ...(Object.keys(params).length > 0 ? { params } : {}),
+    };
   }
 
   private parseTableRow(line: string): string[] {

@@ -27,6 +27,7 @@ function createMocks() {
   const messageRepo: MessageRepository = {
     create: vi.fn().mockResolvedValue(makeMessage({}, 999)),
     listByConversation: vi.fn().mockResolvedValue([]),
+    listRecentByConversation: vi.fn().mockResolvedValue([]),
     countByConversation: vi.fn().mockResolvedValue(0),
   };
   const summarizer: LlmSummarizer = {

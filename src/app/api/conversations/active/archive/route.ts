@@ -4,7 +4,7 @@ import {
   successJson,
   errorJson,
 } from "@/lib/chat/http-facade";
-import { getConversationInteractor } from "@/lib/chat/conversation-root";
+import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";
 import { embedConversation } from "@/lib/chat/embed-conversation";
 
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     validationMessages: [],
     execute: async (context) => {
       const { userId, isAnonymous } = await resolveUserId();
-      const interactor = getConversationInteractor();
+      const { interactor } = createConversationRouteServices();
       const archived = await interactor.archiveActive(userId);
 
       if (!archived) {

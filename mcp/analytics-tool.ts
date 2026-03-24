@@ -10,7 +10,8 @@ type AnalyticsMetric =
   | "funnel"
   | "engagement"
   | "tool_usage"
-  | "drop_off";
+  | "drop_off"
+  | "routing_review";
 type CohortName = "anonymous" | "authenticated" | "converted";
 type CohortMetric = "message_count" | "tool_usage" | "session_duration" | "return_rate";
 
@@ -27,6 +28,11 @@ interface ConversationRow {
   last_tool_used: string | null;
   session_source: string;
   prompt_version: number | null;
+  lane: string;
+  lane_confidence: number | null;
+  recommended_next_step: string | null;
+  detected_need_summary: string | null;
+  lane_last_analyzed_at: string | null;
 }
 
 interface EventRow {
@@ -42,6 +48,19 @@ interface MessageRow {
   role: string;
   content: string;
   created_at: string;
+}
+
+interface RoutingReviewRow {
+  conversation_id: string;
+  title: string;
+  user_id: string;
+  status: string;
+  lane: string;
+  lane_confidence: number | null;
+  recommended_next_step: string | null;
+  detected_need_summary: string | null;
+  lane_last_analyzed_at: string | null;
+  updated_at: string;
 }
 
 const RANGE_TO_SQL: Record<Exclude<TimeRange, "all">, string> = {
@@ -185,9 +204,31 @@ function getArchivedDurationHours(events: EventRow[], conversationId: string): n
   return typeof duration === "number" ? duration : null;
 }
 
+function buildLaneDistribution(conversations: ConversationRow[]) {
+  return conversations.reduce(
+    (accumulator, conversation) => {
+      const lane = conversation.lane === "organization" || conversation.lane === "individual"
+        ? conversation.lane
+        : "uncertain";
+      accumulator[lane] += 1;
+      return accumulator;
+    },
+    {
+      organization: 0,
+      individual: 0,
+      uncertain: 0,
+    },
+  );
+}
+
+function countEvents(events: EventRow[], eventType: string): number {
+  return events.filter((event) => event.event_type === eventType).length;
+}
+
 function buildOverview(deps: AnalyticsToolDeps, timeRange: TimeRange) {
   const conversations = getConversations(deps, timeRange);
   const events = getEventsForConversations(deps, getConversationIds(conversations));
+  const laneDistribution = buildLaneDistribution(conversations);
   const durations = conversations
     .map((conversation) => getArchivedDurationHours(events, conversation.id))
     .filter((value): value is number => value != null);
@@ -205,6 +246,10 @@ function buildOverview(deps: AnalyticsToolDeps, timeRange: TimeRange) {
     avg_session_duration_hours: round(average(durations)),
     converted_conversations: converted,
     conversion_rate: anonymous > 0 ? round(converted / anonymous) : 0,
+    lane_distribution: laneDistribution,
+    uncertain_conversations: laneDistribution.uncertain,
+    lane_changed_events: countEvents(events, "lane_changed"),
+    lane_uncertain_events: countEvents(events, "lane_uncertain"),
   };
 }
 
@@ -444,9 +489,136 @@ function buildDropOff(deps: AnalyticsToolDeps, timeRange: TimeRange) {
   };
 }
 
+function compareRecent(left: string | null, right: string | null): number {
+  if (left == null && right == null) {
+    return 0;
+  }
+
+  if (left == null) {
+    return 1;
+  }
+
+  if (right == null) {
+    return -1;
+  }
+
+  return right.localeCompare(left);
+}
+
+function buildRoutingReview(
+  deps: AnalyticsToolDeps,
+  timeRange: TimeRange,
+  limitArg?: number,
+) {
+  const conversations = getConversations(deps, timeRange);
+  const conversationIds = getConversationIds(conversations);
+  const events = getEventsForConversations(deps, conversationIds);
+  const limit = Math.min(Math.max(limitArg ?? 10, 1), 50);
+
+  const conversationMap = new Map(conversations.map((conversation) => [conversation.id, conversation]));
+  const laneChangedEvents = events
+    .filter((event) => event.event_type === "lane_changed")
+    .sort((left, right) => right.created_at.localeCompare(left.created_at));
+
+  const recentlyChanged = laneChangedEvents
+    .map((event) => {
+      const conversation = conversationMap.get(event.conversation_id);
+
+      if (!conversation) {
+        return null;
+      }
+
+      const metadata = parseEventMetadata(event);
+      return {
+        conversation_id: conversation.id,
+        title: conversation.title || "Untitled",
+        user_id: conversation.user_id,
+        from_lane: typeof metadata.from_lane === "string" ? metadata.from_lane : "unknown",
+        to_lane: typeof metadata.to_lane === "string" ? metadata.to_lane : conversation.lane,
+        lane_confidence: conversation.lane_confidence,
+        recommended_next_step: conversation.recommended_next_step,
+        changed_at: event.created_at,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null)
+    .slice(0, limit);
+
+  const uncertainConversations = conversations
+    .filter((conversation) => conversation.lane === "uncertain")
+    .sort((left, right) => {
+      const analyzedOrder = compareRecent(left.lane_last_analyzed_at, right.lane_last_analyzed_at);
+      if (analyzedOrder !== 0) {
+        return analyzedOrder;
+      }
+
+      return right.updated_at.localeCompare(left.updated_at);
+    })
+    .slice(0, limit)
+    .map((conversation): RoutingReviewRow => ({
+      conversation_id: conversation.id,
+      title: conversation.title || "Untitled",
+      user_id: conversation.user_id,
+      status: conversation.status,
+      lane: conversation.lane,
+      lane_confidence: conversation.lane_confidence,
+      recommended_next_step: conversation.recommended_next_step,
+      detected_need_summary: conversation.detected_need_summary,
+      lane_last_analyzed_at: conversation.lane_last_analyzed_at,
+      updated_at: conversation.updated_at,
+    }));
+
+  const followUpReady = conversations
+    .filter(
+      (conversation) =>
+        (conversation.lane === "organization" || conversation.lane === "individual")
+        && (conversation.lane_confidence ?? 0) >= 0.7,
+    )
+    .sort((left, right) => {
+      const analyzedOrder = compareRecent(left.lane_last_analyzed_at, right.lane_last_analyzed_at);
+      if (analyzedOrder !== 0) {
+        return analyzedOrder;
+      }
+
+      return right.updated_at.localeCompare(left.updated_at);
+    })
+    .slice(0, limit)
+    .map((conversation): RoutingReviewRow => ({
+      conversation_id: conversation.id,
+      title: conversation.title || "Untitled",
+      user_id: conversation.user_id,
+      status: conversation.status,
+      lane: conversation.lane,
+      lane_confidence: conversation.lane_confidence,
+      recommended_next_step: conversation.recommended_next_step,
+      detected_need_summary: conversation.detected_need_summary,
+      lane_last_analyzed_at: conversation.lane_last_analyzed_at,
+      updated_at: conversation.updated_at,
+    }));
+
+  return {
+    metric: "routing_review",
+    time_range: timeRange,
+    limits: {
+      per_queue: limit,
+    },
+    summary: {
+      recently_changed_count: laneChangedEvents.length,
+      uncertain_count: conversations.filter((conversation) => conversation.lane === "uncertain").length,
+      follow_up_ready_count: conversations.filter(
+        (conversation) =>
+          (conversation.lane === "organization" || conversation.lane === "individual")
+          && (conversation.lane_confidence ?? 0) >= 0.7,
+      ).length,
+    },
+    recently_changed: recentlyChanged,
+    uncertain_conversations: uncertainConversations,
+    follow_up_ready: followUpReady,
+  };
+}
+
 export async function conversationAnalytics(
   deps: AnalyticsToolDeps,
-  args: { metric: AnalyticsMetric; time_range?: TimeRange },
+  args: { metric: AnalyticsMetric; time_range?: TimeRange; limit?: number },
 ): Promise<unknown> {
   const timeRange = args.time_range ?? "30d";
 
@@ -461,6 +633,8 @@ export async function conversationAnalytics(
       return buildToolUsage(deps, timeRange);
     case "drop_off":
       return buildDropOff(deps, timeRange);
+    case "routing_review":
+      return buildRoutingReview(deps, timeRange, args.limit);
     default:
       throw new Error(`Unsupported analytics metric: ${args.metric}`);
   }
@@ -508,6 +682,11 @@ export async function conversationInspect(
         message_count: conversation.message_count,
         session_source: conversation.session_source,
         converted_from: conversation.converted_from,
+        lane: conversation.lane,
+        lane_confidence: conversation.lane_confidence,
+        recommended_next_step: conversation.recommended_next_step,
+        detected_need_summary: conversation.detected_need_summary,
+        lane_last_analyzed_at: conversation.lane_last_analyzed_at,
         created_at: conversation.created_at,
         updated_at: conversation.updated_at,
       },
@@ -527,6 +706,10 @@ export async function conversationInspect(
         }),
         created_at: event.created_at,
       })),
+      routing_events: {
+        lane_changed_count: events.filter((event) => event.event_type === "lane_changed").length,
+        lane_uncertain_count: events.filter((event) => event.event_type === "lane_uncertain").length,
+      },
     };
   }
 
@@ -548,6 +731,7 @@ export async function conversationInspect(
         status: conversation.status,
         message_count: conversation.message_count,
         session_source: conversation.session_source,
+        lane: conversation.lane,
         updated_at: conversation.updated_at,
       })),
     };

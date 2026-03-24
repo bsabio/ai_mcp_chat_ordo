@@ -45,6 +45,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = inputRef ?? internalTextareaRef;
   const hasInput = value.trim().length > 0;
+  const helperTextId = React.useId();
 
   useEffect(() => {
     const element = textareaRef.current;
@@ -115,16 +116,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     <div className="mx-auto max-w-3xl">
       {/* File Previews */}
       {pendingFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="mb-3 flex flex-wrap gap-2">
           {pendingFiles.map((file, i) => (
             <div
               key={i}
-              className="flex items-center gap-2 px-3 py-1.5 bg-surface border-theme rounded-lg text-xs font-medium"
+              className="flex items-center gap-2 rounded-full border border-foreground/8 bg-background/82 px-3 py-1.5 text-[11px] font-medium text-foreground/72 shadow-[0_8px_16px_-18px_color-mix(in_srgb,var(--shadow-base)_18%,transparent)]"
             >
               <span className="max-w-30 truncate">{file.name}</span>
               <button
+                type="button"
                 onClick={() => onFileRemove(i)}
-                className="hover:text-red-500 p-0.5"
+                className="focus-ring rounded-full p-0.5 text-foreground/44 transition-colors hover:text-red-500"
                 aria-label={`Remove ${file.name}`}
               >
                 ✕
@@ -139,11 +141,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           e.preventDefault();
           onSend();
         }}
-            className="relative flex min-h-(--chat-composer-min-height) items-end gap-(--phi-1) overflow-hidden rounded-(--chat-composer-radius) border border-foreground/8 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_99%,var(--background))_0%,color-mix(in_oklab,var(--surface)_95%,var(--background))_50%,color-mix(in_oklab,var(--surface)_93%,var(--background))_100%)] shadow-[0_18px_36px_-32px_color-mix(in_srgb,var(--shadow-base)_8%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--highlight-base)_6%,transparent)] transition-all duration-500 focus-within:border-foreground/14 focus-within:shadow-[0_24px_44px_-30px_color-mix(in_srgb,var(--shadow-base)_12%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--highlight-base)_8%,transparent)] hover:border-foreground/11 hover:shadow-[0_20px_38px_-32px_color-mix(in_srgb,var(--shadow-base)_10%,transparent)]"
+        className="relative flex min-h-(--chat-composer-min-height) items-stretch gap-(--phi-1) overflow-hidden rounded-(--chat-composer-radius) border border-foreground/8 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_80%,transparent)_0%,color-mix(in_oklab,var(--background)_94%,transparent)_100%)] shadow-[0_22px_48px_-38px_color-mix(in_srgb,var(--shadow-base)_18%,transparent)] backdrop-blur-[14px] transition-all duration-300 focus-within:border-foreground/12 focus-within:shadow-[0_24px_52px_-38px_color-mix(in_srgb,var(--shadow-base)_24%,transparent)] hover:border-foreground/10"
         style={{ padding: 'var(--input-padding)' }}
+        data-chat-composer-form="true"
+        data-chat-composer-state={hasInput ? "ready" : "idle"}
       >
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 inset-y-0 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--highlight-base)_45%,transparent),transparent_60%)] opacity-70" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-(--phi-1p) bottom-0 h-12 bg-linear-to-t from-accent/4 to-transparent opacity-60" />
         {activeTrigger && suggestions.length > 0 && (
           <MentionsMenu
             suggestions={suggestions}
@@ -162,7 +164,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-                className="focus-ring min-h-11 min-w-11 shrink-0 rounded-full bg-transparent p-(--phi-2) text-foreground/24 transition-all hover:text-foreground/48 active:scale-95"
+            disabled={isSending}
+              className="focus-ring min-h-11 min-w-11 shrink-0 self-center rounded-full bg-transparent p-(--phi-2) text-foreground/28 transition-all hover:bg-background/80 hover:text-foreground/48 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Attach file"
         >
           <svg
@@ -172,30 +175,32 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </svg>
         </button>
 
-        <div className="relative flex min-h-11 flex-1 items-center self-stretch rounded-[calc(var(--chat-composer-radius)-var(--phi-1))] bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_78%,var(--surface))_0%,color-mix(in_oklab,var(--background)_90%,var(--surface-muted))_100%)] shadow-[inset_0_1px_0_color-mix(in_srgb,var(--highlight-base)_72%,transparent),inset_0_-1px_0_color-mix(in_srgb,var(--shadow-base)_3%,transparent),0_1px_2px_color-mix(in_srgb,var(--shadow-base)_3%,transparent)] transition-shadow duration-300 focus-within:shadow-[inset_0_1px_0_color-mix(in_srgb,var(--highlight-base)_82%,transparent),inset_0_-1px_0_color-mix(in_srgb,var(--shadow-base)_4%,transparent),0_0_0_1.5px_color-mix(in_oklab,var(--accent)_14%,transparent),0_2px_8px_-4px_color-mix(in_oklab,var(--accent)_10%,transparent)]">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-(--chat-bubble-padding-inline) top-0 h-px bg-linear-to-r from-transparent via-foreground/10 to-transparent" />
+        <div className="relative flex min-h-11 flex-1 items-center self-stretch rounded-[calc(var(--chat-composer-radius)-var(--phi-1))] bg-[color-mix(in_oklab,var(--surface)_72%,transparent)] px-(--phi-1) transition-shadow duration-300" data-chat-composer-field="true">
           <textarea
             ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value, e.target.selectionStart ?? 0)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything…"
+            placeholder="Paste the workflow, use case, or handoff you want to test..."
+            aria-describedby={helperTextId}
             rows={1}
-                  className="theme-body tier-body max-h-56 min-h-11 flex-1 resize-none overflow-y-auto bg-transparent px-(--chat-bubble-padding-inline) py-(--chat-bubble-padding-block) font-normal text-foreground outline-none placeholder:text-foreground/40"
+                  className="theme-body max-h-56 min-h-11 flex-1 resize-none overflow-y-auto bg-transparent px-(--hero-composer-field-padding-inline) py-(--hero-composer-field-padding-block) text-[1rem] font-normal leading-normal text-foreground outline-none placeholder:text-foreground/34"
           />
         </div>
 
         <button
           type="submit"
           disabled={!canSend}
+          data-chat-send-state={hasInput ? "ready" : "idle"}
           className={[
             "focus-ring theme-label tier-micro flex min-h-10 shrink-0 items-center gap-2 rounded-full px-(--chat-composer-button-padding-inline) py-(--chat-composer-button-padding-block) font-semibold transition-all duration-300 hover:-translate-y-px active:translate-y-0 active:scale-95",
             hasInput
-              ? "bg-[linear-gradient(180deg,color-mix(in_oklab,var(--foreground)_64%,var(--accent))_0%,color-mix(in_oklab,var(--foreground)_86%,var(--accent))_100%)] text-background shadow-[0_14px_22px_-14px_color-mix(in_srgb,var(--shadow-base)_22%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--highlight-base)_18%,transparent)] hover:shadow-[0_18px_26px_-14px_color-mix(in_srgb,var(--shadow-base)_26%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--highlight-base)_22%,transparent)]"
+              ? "bg-foreground text-background shadow-[0_12px_20px_-16px_color-mix(in_srgb,var(--shadow-base)_24%,transparent)] hover:bg-foreground/92 hover:shadow-[0_14px_22px_-16px_color-mix(in_srgb,var(--shadow-base)_28%,transparent)]"
               : "bg-transparent text-foreground/20 shadow-none hover:text-foreground/32",
             !canSend && !hasInput ? "opacity-100" : "",
             !canSend && hasInput ? "disabled:bg-[color-mix(in_oklab,var(--surface-muted)_92%,var(--background))] disabled:text-foreground/42 disabled:shadow-none" : "",
           ].join(" ")}
+          aria-label={isSending ? "Sending message" : "Send"}
         >
           {isSending ? (
             <span className="flex gap-1">
@@ -208,6 +213,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           )}
         </button>
       </form>
+
+      <div
+        id={helperTextId}
+        className="mt-2 flex items-center justify-between gap-3 px-1 text-(length:--chat-composer-helper-font-size) leading-(--chat-composer-helper-line-height) text-foreground/34"
+        data-chat-composer-helper="true"
+      >
+        <span>Enter to send. Shift+Enter for a line break.</span>
+        <span className="text-right">Attach notes, screenshots, or briefs when context matters.</span>
+      </div>
     </div>
   );
 };

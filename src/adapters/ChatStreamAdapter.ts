@@ -33,6 +33,7 @@ export class ChatStreamAdapter implements ChatStreamProvider {
         messages,
         conversationId: options?.conversationId,
         attachments: options?.attachments,
+        taskOriginHandoff: options?.taskOriginHandoff,
       }),
     });
 

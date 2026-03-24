@@ -23,6 +23,10 @@ function getTrackedFiles() {
 
 function scanFile(relativePath) {
   const absolutePath = path.join(ROOT, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    return [];
+  }
+
   const stat = fs.statSync(absolutePath);
   if (!stat.isFile()) {
     return [];

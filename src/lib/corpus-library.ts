@@ -45,16 +45,30 @@ const indexInteractor = new LoggingDecorator(
   "GetCorpusIndex"
 );
 
+// ── Error-handling wrapper (TD-B F4) ──
+
+function withErrorFallback<TArgs extends unknown[], TReturn>(
+  fn: (...args: TArgs) => Promise<TReturn>,
+  fallback: TReturn,
+  method: string,
+): (...args: TArgs) => Promise<TReturn> {
+  return async (...args) => {
+    try {
+      return await fn(...args);
+    } catch (error) {
+      errorHandler.handle(error, { method });
+      return fallback;
+    }
+  };
+}
+
 export type { CorpusIndexEntry as ChapterIndex };
 
-export async function getDocuments(): Promise<Document[]> {
-  try {
-    return await corpusRepository.getAllDocuments();
-  } catch (error) {
-    errorHandler.handle(error, { method: "getDocuments" });
-    return [];
-  }
-}
+export const getDocuments = withErrorFallback(
+  () => corpusRepository.getAllDocuments(),
+  [] as Document[],
+  "getDocuments",
+);
 
 export interface SearchResult {
   document: string;
@@ -73,22 +87,18 @@ export interface SearchResult {
 
 let cachedIndex: CorpusIndexEntry[] | null = null;
 
-export async function getCorpusIndex(): Promise<CorpusIndexEntry[]> {
-  try {
+export const getCorpusIndex = withErrorFallback(
+  async () => {
     if (cachedIndex) return cachedIndex;
     cachedIndex = await indexInteractor.execute(undefined);
     return cachedIndex;
-  } catch (error) {
-    errorHandler.handle(error, { method: "getCorpusIndex" });
-    return [];
-  }
-}
+  },
+  [] as CorpusIndexEntry[],
+  "getCorpusIndex",
+);
 
-export async function searchCorpus(
-  query: string,
-  maxResults = 10,
-): Promise<SearchResult[]> {
-  try {
+export const searchCorpus = withErrorFallback(
+  async (query: string, maxResults: number = 10) => {
     const results = await searchInteractor.execute({ query, maxResults });
 
     return results.map((result) => ({
@@ -105,17 +115,13 @@ export async function searchCorpus(
       chapterSlug: result.chapterSlug ?? result.sectionSlug ?? "",
       bookSlug: result.bookSlug ?? result.documentSlug ?? "",
     }));
-  } catch (error) {
-    errorHandler.handle(error, { method: "searchCorpus", query });
-    return [];
-  }
-}
+  },
+  [] as SearchResult[],
+  "searchCorpus",
+);
 
-export async function getSectionFull(
-  documentSlug: string,
-  sectionSlug: string,
-): Promise<{ title: string; content: string; document: string; book: string } | null> {
-  try {
+export const getSectionFull = withErrorFallback(
+  async (documentSlug: string, sectionSlug: string) => {
     const result = await sectionInteractor.execute({ bookSlug: documentSlug, chapterSlug: sectionSlug });
     if (!result) return null;
     return {
@@ -124,16 +130,13 @@ export async function getSectionFull(
       document: result.bookTitle,
       book: result.bookTitle,
     };
-  } catch (error) {
-    errorHandler.handle(error, { method: "getSectionFull", documentSlug, sectionSlug });
-    return null;
-  }
-}
+  },
+  null as { title: string; content: string; document: string; book: string } | null,
+  "getSectionFull",
+);
 
-export async function getChecklists(
-  documentSlug?: string,
-): Promise<{ document: string; section: string; items: string[]; book: string; chapter: string }[]> {
-  try {
+export const getChecklists = withErrorFallback(
+  async (documentSlug?: string) => {
     const results = await checklistInteractor.execute({ bookSlug: documentSlug });
     return results.map((result) => ({
       document: result.bookTitle,
@@ -142,16 +145,13 @@ export async function getChecklists(
       book: result.bookTitle,
       chapter: result.chapterTitle,
     }));
-  } catch (error) {
-    errorHandler.handle(error, { method: "getChecklists", documentSlug });
-    return [];
-  }
-}
+  },
+  [] as { document: string; section: string; items: string[]; book: string; chapter: string }[],
+  "getChecklists",
+);
 
-export async function getPractitioners(
-  query?: string,
-): Promise<{ name: string; documents: string[]; sections: string[]; books: string[]; chapters: string[] }[]> {
-  try {
+export const getPractitioners = withErrorFallback(
+  async (query?: string) => {
     const results = await practitionerInteractor.execute({ query });
     return results.map((result) => ({
       name: result.name,
@@ -160,17 +160,13 @@ export async function getPractitioners(
       books: result.books.map((book) => `${book.number}. ${book.title}`),
       chapters: result.chapters.map((chapter) => chapter.title),
     }));
-  } catch (error) {
-    errorHandler.handle(error, { method: "getPractitioners", query });
-    return [];
-  }
-}
+  },
+  [] as { name: string; documents: string[]; sections: string[]; books: string[]; chapters: string[] }[],
+  "getPractitioners",
+);
 
-export async function getCorpusSummaries() {
-  try {
-    return await summaryInteractor.execute(undefined);
-  } catch (error) {
-    errorHandler.handle(error, { method: "getCorpusSummaries" });
-    return [];
-  }
-}
+export const getCorpusSummaries = withErrorFallback(
+  () => summaryInteractor.execute(undefined),
+  [] as Awaited<ReturnType<typeof summaryInteractor.execute>>,
+  "getCorpusSummaries",
+);

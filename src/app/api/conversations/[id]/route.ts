@@ -5,7 +5,7 @@ import {
   successJson,
   errorJson,
 } from "@/lib/chat/http-facade";
-import { getConversationInteractor } from "@/lib/chat/conversation-root";
+import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { NotFoundError } from "@/core/use-cases/ConversationInteractor";
 
 const SESSION_COOKIE = "lms_session_token";
@@ -26,7 +26,7 @@ export async function GET(
 
       const user = await validateSession(token);
       const { id } = await params;
-      const interactor = getConversationInteractor();
+    const { interactor } = createConversationRouteServices();
 
       try {
         const { conversation, messages } = await interactor.get(id, user.id);
@@ -57,7 +57,8 @@ export async function DELETE(
 
       const user = await validateSession(token);
       const { id } = await params;
-      const interactor = getConversationInteractor();
+    const { interactor } = createConversationRouteServices();
+
 
       try {
         await interactor.delete(id, user.id);

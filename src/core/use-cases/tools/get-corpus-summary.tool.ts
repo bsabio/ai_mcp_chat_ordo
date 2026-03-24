@@ -1,7 +1,7 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { CorpusRepository } from "../CorpusRepository";
 import { GetCorpusSummaryCommand } from "./CorpusTools";
-import { getCorpusSummaryDescription } from "@/lib/corpus-config";
+import { getCorpusSummaryDescription } from "@/lib/corpus-vocabulary";
 
 export function createGetCorpusSummaryTool(repo: CorpusRepository): ToolDescriptor {
   return {

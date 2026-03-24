@@ -1,37 +1,11 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import {
-  Archivo,
   Fraunces,
-  Geist,
-  Geist_Mono,
   IBM_Plex_Mono,
   IBM_Plex_Sans,
-  League_Spartan,
-  Space_Mono,
 } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const archivo = Archivo({
-  variable: "--font-archivo",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const leagueSpartan = League_Spartan({
-  variable: "--font-league-spartan",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-ibm-plex-sans",
@@ -53,24 +27,32 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
-const spaceMono = Space_Mono({
-  variable: "--font-space-mono",
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  display: "swap",
-});
-
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { GridInspector } from "@/components/GridInspector";
 import { AppShell } from "@/components/AppShell";
-import CommandPalette from "@/components/CommandPalette";
-import { GlobalChat } from "@/components/GlobalChat";
+import { ChatSurface } from "@/frameworks/ui/ChatSurface";
 import { getSessionUser } from "@/lib/auth";
+import { getInstanceIdentity, getInstancePrompts } from "@/lib/config/instance";
+import { InstanceConfigProvider } from "@/lib/config/InstanceConfigContext";
 
-export const metadata: Metadata = {
-  title: "AI Systems Console",
-  description: "Next.js Architectural Playground",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const identity = getInstanceIdentity();
+  const canonicalUrl = `https://${identity.domain}`;
+
+  return {
+    metadataBase: new URL(canonicalUrl),
+    title: `${identity.name} | ${identity.tagline}`,
+    description: identity.description,
+    alternates: { canonical: "/" },
+    openGraph: {
+      title: `${identity.name} | ${identity.tagline}`,
+      description: identity.description,
+      url: canonicalUrl,
+      siteName: identity.name,
+      type: "website",
+      images: [{ url: identity.logoPath }],
+    },
+  };
+}
 
 import { ChatProvider } from "@/hooks/useGlobalChat";
 import { Suspense } from "react";
@@ -80,23 +62,35 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const identity = getInstanceIdentity();
+  const prompts = getInstancePrompts();
   const user = await getSessionUser();
+  const respectSystemDarkMode = !user.roles.includes("ANONYMOUS");
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} ${leagueSpartan.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} ${fraunces.variable} ${spaceMono.variable} antialiased`}
+        className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${fraunces.variable} antialiased`}
       >
-        <ThemeProvider>
-          <ChatProvider>
-            <AppShell user={user}>{children}</AppShell>
-            <Suspense fallback={null}>
-              <GlobalChat />
-            </Suspense>
-            <GridInspector />
-            <CommandPalette />
-          </ChatProvider>
+        <ThemeProvider respectSystemDarkMode={respectSystemDarkMode}>
+          <InstanceConfigProvider identity={identity} prompts={prompts}>
+            <ChatProvider initialRole={user.roles[0]}>
+              <AppShell user={user}>{children}</AppShell>
+              <Suspense fallback={null}>
+                <ChatSurface mode="floating" />
+              </Suspense>
+
+            </ChatProvider>
+          </InstanceConfigProvider>
         </ThemeProvider>
+        {identity.analytics?.plausibleDomain && (
+          <Script
+            defer
+            data-domain={identity.analytics.plausibleDomain}
+            src={identity.analytics.plausibleSrc ?? "https://plausible.io/js/script.js"}
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );

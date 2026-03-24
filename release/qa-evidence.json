@@ -1,0 +1,650 @@
+{
+  "version": 1,
+  "generatedAt": "2026-03-20T16:27:57.461Z",
+  "status": "approved",
+  "manifest": {
+    "present": true,
+    "manifest": {
+      "appName": "studio-ordo",
+      "version": "0.1.0",
+      "gitSha": "6369b9e",
+      "gitBranch": "main",
+      "builtAt": "2026-03-20T16:27:23.204Z",
+      "nodeVersion": "v25.1.0"
+    }
+  },
+  "health": {
+    "status": "ok",
+    "generatedAt": "2026-03-20T16:27:57.460Z",
+    "liveness": {
+      "status": "ok",
+      "checks": {
+        "config": "ok",
+        "model": "ok"
+      }
+    },
+    "readiness": {
+      "status": "ok",
+      "checks": {
+        "config": "ok",
+        "model": "ok"
+      }
+    }
+  },
+  "canary": {
+    "present": true,
+    "artifactPath": "release/canary-summary.json",
+    "summary": {
+      "version": 1,
+      "status": "passed",
+      "targetEnvironment": "staging",
+      "baseUrl": "https://www.studioordo.com",
+      "startedAt": "2026-03-20T16:27:26.479Z",
+      "finishedAt": "2026-03-20T16:27:56.965Z",
+      "scenarioIds": [
+        "organization-buyer-funnel",
+        "individual-learner-funnel",
+        "development-prospect-funnel",
+        "mcp-tool-choice-and-recovery"
+      ],
+      "passedScenarioCount": 4,
+      "failedScenarioCount": 0,
+      "results": [
+        {
+          "scenarioId": "organization-buyer-funnel",
+          "cohortId": "signed-in-buyer",
+          "passed": true,
+          "summary": "organization-buyer-funnel passed in live mode on staging with 6/6 points.",
+          "failureReasons": [],
+          "stopReason": "end_turn",
+          "modelName": "claude-sonnet-4-6",
+          "targetEnvironment": "staging",
+          "baseUrl": "https://www.studioordo.com",
+          "startedAt": "2026-03-20T16:27:26.480Z",
+          "report": {
+            "scenarioId": "organization-buyer-funnel",
+            "cohortId": "signed-in-buyer",
+            "run": {
+              "scenarioId": "organization-buyer-funnel",
+              "layer": "staging_canary",
+              "targetEnvironment": "staging",
+              "mode": "live",
+              "modelProvider": "anthropic",
+              "modelName": "claude-sonnet-4-6",
+              "seedSetId": "seed-live-org-buyer-v1",
+              "startedAt": "2026-03-20T16:27:26.480Z"
+            },
+            "observations": [
+              {
+                "kind": "message",
+                "at": "2026-03-20T14:01:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "We need help redesigning our team approvals process this quarter."
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T19:00:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "Please recommend the next step and whether we are ready for a founder-approved estimate."
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T16:27:26.480Z",
+                "data": {
+                  "role": "assistant",
+                  "content": "You're ready for a founder-approved estimate. Here's the next step:\n\n**Book a 30-minute scoping call** so we can lock in the specifics before an estimate goes to the founder for sign-off.\n\nTo make that call productive, confirm these three things now:\n\n- **Scope**: Is this approvals redesign workflow-only (process + documentation), or does it touch tooling/software implementation as well?\n- **Team size**: How many people are in or adjacent to the approvals chain?\n- **Timeline pressure**: You said \"this quarter\" — is there a hard deadline (board review, audit, product launch) driving that?\n\nOnce those are confirmed, I can prepare a scoped brief that goes directly to founder review — no back-and-forth needed.\n\n---\n\nWant me to draft the scoping brief now based on what you've shared, so we can move faster?\n\n__suggestions__:[\"Draft the scoping brief now\",\"What does the estimate include?\",\"How long does scoping usually take?\",\"What approval workflows have you helped redesign?\"]"
+                }
+              },
+              {
+                "kind": "state_transition",
+                "at": "2026-03-20T20:27:34.000Z",
+                "data": {
+                  "transition": "deal_created",
+                  "adminUserId": "admin_eval_live",
+                  "dealId": "deal_0de6e66d-9cec-436b-818e-cd906bebed22",
+                  "lane": "organization",
+                  "status": "draft",
+                  "sourceType": "consultation_request",
+                  "sourceId": "cr_ec53b258-ebf2-4d43-b4b1-aa4dc8a58f74",
+                  "sourceStatus": "reviewed"
+                }
+              },
+              {
+                "kind": "summary",
+                "at": "2026-03-20T16:27:26.480Z",
+                "data": {
+                  "stopReason": "end_turn",
+                  "finalLane": "organization",
+                  "finalRecommendation": "Review the request and prepare the founder follow-up plan.",
+                  "model": "claude-sonnet-4-6",
+                  "assistantText": "You're ready for a founder-approved estimate. Here's the next step:\n\n**Book a 30-minute scoping call** so we can lock in the specifics before an estimate goes to the founder for sign-off.\n\nTo make that call productive, confirm these three things now:\n\n- **Scope**: Is this approvals redesign workflow-only (process + documentation), or does it touch tooling/software implementation as well?\n- **Team size**: How many people are in or adjacent to the approvals chain?\n- **Timeline pressure**: You said \"this quarter\" — is there a hard deadline (board review, audit, product launch) driving that?\n\nOnce those are confirmed, I can prepare a scoped brief that goes directly to founder review — no back-and-forth needed.\n\n---\n\nWant me to draft the scoping brief now based on what you've shared, so we can move faster?\n\n__suggestions__:[\"Draft the scoping brief now\",\"What does the estimate include?\",\"How long does scoping usually take?\",\"What approval workflows have you helped redesign?\"]",
+                  "toolRoundCount": 1
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:26.480Z",
+                "data": {
+                  "checkpointId": "qualification",
+                  "passed": true,
+                  "details": "reviewed"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:26.480Z",
+                "data": {
+                  "checkpointId": "consultation-or-deal",
+                  "passed": true,
+                  "details": "deal_0de6e66d-9cec-436b-818e-cd906bebed22"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:26.480Z",
+                "data": {
+                  "checkpointId": "approved-next-step",
+                  "passed": true,
+                  "details": "estimate_ready"
+                }
+              }
+            ],
+            "scorecard": {
+              "dimensions": [
+                {
+                  "id": "funnel_completion",
+                  "label": "Funnel Completion",
+                  "score": 3,
+                  "maxScore": 3,
+                  "passed": true,
+                  "details": null
+                },
+                {
+                  "id": "customer_clarity",
+                  "label": "Customer Clarity",
+                  "score": 2,
+                  "maxScore": 2,
+                  "passed": true,
+                  "details": null
+                },
+                {
+                  "id": "continuity",
+                  "label": "Continuity",
+                  "score": 1,
+                  "maxScore": 1,
+                  "passed": true,
+                  "details": "No continuity-specific checkpoints were defined."
+                }
+              ],
+              "totalScore": 6,
+              "maxScore": 6,
+              "passed": true
+            },
+            "summary": "organization-buyer-funnel passed in live mode on staging with 6/6 points.",
+            "passed": true,
+            "failureReasons": []
+          },
+          "error": null
+        },
+        {
+          "scenarioId": "individual-learner-funnel",
+          "cohortId": "signed-in-learner",
+          "passed": true,
+          "summary": "individual-learner-funnel passed in live mode on staging with 6/6 points.",
+          "failureReasons": [],
+          "stopReason": "end_turn",
+          "modelName": "claude-sonnet-4-6",
+          "targetEnvironment": "staging",
+          "baseUrl": "https://www.studioordo.com",
+          "startedAt": "2026-03-20T16:27:34.139Z",
+          "report": {
+            "scenarioId": "individual-learner-funnel",
+            "cohortId": "signed-in-learner",
+            "run": {
+              "scenarioId": "individual-learner-funnel",
+              "layer": "staging_canary",
+              "targetEnvironment": "staging",
+              "mode": "live",
+              "modelProvider": "anthropic",
+              "modelName": "claude-sonnet-4-6",
+              "seedSetId": "seed-live-individual-v1",
+              "startedAt": "2026-03-20T16:27:34.139Z"
+            },
+            "observations": [
+              {
+                "kind": "message",
+                "at": "2026-03-20T15:01:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "I want a real operator path and I am open to apprenticeship screening if that is the right fit."
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T19:00:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "Please recommend the next founder-approved training step for me."
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T16:27:34.139Z",
+                "data": {
+                  "role": "assistant",
+                  "content": "Based on your routing context — individual lane, apprenticeship-open, career-transition signal — here's the direct recommendation:\n\n---\n\n**Your next step: Book a Screening Call**\n\nThis is the founder-approved gate before any training commitment. It's not a sales call — it's a fit check on:\n\n- **Your current role/background** vs. where you want to operate\n- **Which operator path** maps to your goals (implementation, product, handoff, or hybrid)\n- **Whether apprenticeship** is the right structure or if direct enrollment fits better\n\n---\n\n**Why screening first?**\nApprenticeship slots are limited and scoped. Placing you in the wrong track wastes your time. The call takes ~20 min and produces a written recommendation you keep regardless of outcome.\n\n---\n\n**To move forward:**\nReply with:\n1. Your current background in one sentence\n2. The kind of work you want to be doing in 6 months\n\nI'll draft a pre-screening brief the founder can review before your call — so you walk in with context already set.\n\n__suggestions__:[\"What does the apprenticeship track look like?\",\"What operator paths are available?\",\"Draft my pre-screening brief now\",\"What happens after the screening call?\"]"
+                }
+              },
+              {
+                "kind": "state_transition",
+                "at": "2026-03-20T20:27:43.000Z",
+                "data": {
+                  "transition": "training_path_recommended",
+                  "adminUserId": "admin_eval_live",
+                  "trainingPathId": "training_cdd3b1b7-2d1b-4e5e-8ef6-9e2ee015fa85",
+                  "lane": "individual",
+                  "recommendedPath": "apprenticeship_screening",
+                  "status": "draft",
+                  "sourceType": "lead_record",
+                  "sourceId": "lead_b8fb25a7-4f53-40ac-a561-37969d5f45a8",
+                  "sourceStatus": "qualified"
+                }
+              },
+              {
+                "kind": "summary",
+                "at": "2026-03-20T16:27:34.139Z",
+                "data": {
+                  "stopReason": "end_turn",
+                  "finalLane": "individual",
+                  "finalRecommendation": "Recommend an apprenticeship screening conversation before offering a deeper track.",
+                  "model": "claude-sonnet-4-6",
+                  "assistantText": "Based on your routing context — individual lane, apprenticeship-open, career-transition signal — here's the direct recommendation:\n\n---\n\n**Your next step: Book a Screening Call**\n\nThis is the founder-approved gate before any training commitment. It's not a sales call — it's a fit check on:\n\n- **Your current role/background** vs. where you want to operate\n- **Which operator path** maps to your goals (implementation, product, handoff, or hybrid)\n- **Whether apprenticeship** is the right structure or if direct enrollment fits better\n\n---\n\n**Why screening first?**\nApprenticeship slots are limited and scoped. Placing you in the wrong track wastes your time. The call takes ~20 min and produces a written recommendation you keep regardless of outcome.\n\n---\n\n**To move forward:**\nReply with:\n1. Your current background in one sentence\n2. The kind of work you want to be doing in 6 months\n\nI'll draft a pre-screening brief the founder can review before your call — so you walk in with context already set.\n\n__suggestions__:[\"What does the apprenticeship track look like?\",\"What operator paths are available?\",\"Draft my pre-screening brief now\",\"What happens after the screening call?\"]",
+                  "toolRoundCount": 1
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:34.139Z",
+                "data": {
+                  "checkpointId": "training-fit",
+                  "passed": true,
+                  "details": "career_transition"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:34.139Z",
+                "data": {
+                  "checkpointId": "training-path-created",
+                  "passed": true,
+                  "details": "training_cdd3b1b7-2d1b-4e5e-8ef6-9e2ee015fa85"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:34.139Z",
+                "data": {
+                  "checkpointId": "approved-recommendation",
+                  "passed": true,
+                  "details": "recommended"
+                }
+              }
+            ],
+            "scorecard": {
+              "dimensions": [
+                {
+                  "id": "funnel_completion",
+                  "label": "Funnel Completion",
+                  "score": 3,
+                  "maxScore": 3,
+                  "passed": true,
+                  "details": null
+                },
+                {
+                  "id": "customer_clarity",
+                  "label": "Customer Clarity",
+                  "score": 2,
+                  "maxScore": 2,
+                  "passed": true,
+                  "details": null
+                },
+                {
+                  "id": "continuity",
+                  "label": "Continuity",
+                  "score": 1,
+                  "maxScore": 1,
+                  "passed": true,
+                  "details": "No continuity-specific checkpoints were defined."
+                }
+              ],
+              "totalScore": 6,
+              "maxScore": 6,
+              "passed": true
+            },
+            "summary": "individual-learner-funnel passed in live mode on staging with 6/6 points.",
+            "passed": true,
+            "failureReasons": []
+          },
+          "error": null
+        },
+        {
+          "scenarioId": "development-prospect-funnel",
+          "cohortId": "ambiguous-dev-prospect",
+          "passed": true,
+          "summary": "development-prospect-funnel passed in live mode on staging with 5/5 points.",
+          "failureReasons": [],
+          "stopReason": "end_turn",
+          "modelName": "claude-sonnet-4-6",
+          "targetEnvironment": "staging",
+          "baseUrl": "https://www.studioordo.com",
+          "startedAt": "2026-03-20T16:27:43.153Z",
+          "report": {
+            "scenarioId": "development-prospect-funnel",
+            "cohortId": "ambiguous-dev-prospect",
+            "run": {
+              "scenarioId": "development-prospect-funnel",
+              "layer": "staging_canary",
+              "targetEnvironment": "staging",
+              "mode": "live",
+              "modelProvider": "anthropic",
+              "modelName": "claude-sonnet-4-6",
+              "seedSetId": "seed-live-development-v1",
+              "startedAt": "2026-03-20T16:27:43.153Z"
+            },
+            "observations": [
+              {
+                "kind": "message",
+                "at": "2026-03-20T16:01:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "We need someone to help implement and scope the system itself."
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T19:00:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "Please recommend the next scoping-ready founder-approved step for this implementation request."
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T16:27:43.153Z",
+                "data": {
+                  "role": "assistant",
+                  "content": "Here's your clearest next step:\n\n**Book a scoping call with the Studio Ordo founding team** to lock in scope, timeline, and integration details before anything gets estimated or built.\n\nWhat to bring to that call:\n- **System boundaries** — what's in scope vs. out (APIs, data sources, user roles)\n- **Constraints** — stack, timeline, budget ceiling, compliance needs\n- **Success definition** — what does \"done\" look like at v1?\n\n---\n\n**To move forward right now:**\n\n👉 Use the link below to request a founder scoping session:\n**[Contact / Book a Call →](https://www.studioordo.com/contact)**\n\nThis gets you a structured conversation — not a sales call — focused on whether and how Studio Ordo can execute your implementation.\n\n---\n\n__suggestions__:[\"What should I prep before a scoping call?\",\"What does Studio Ordo typically scope and build?\",\"Can you help me draft a scope brief?\",\"What integrations do you support?\"]"
+                }
+              },
+              {
+                "kind": "state_transition",
+                "at": "2026-03-20T20:27:50.000Z",
+                "data": {
+                  "transition": "deal_created",
+                  "adminUserId": "admin_eval_live",
+                  "dealId": "deal_711fa5d3-3e61-4bdc-ae29-f06872841218",
+                  "lane": "development",
+                  "status": "draft",
+                  "sourceType": "lead_record",
+                  "sourceId": "lead_34f34905-fdb6-489a-845f-e4a2c616fe71",
+                  "sourceStatus": "qualified"
+                }
+              },
+              {
+                "kind": "summary",
+                "at": "2026-03-20T16:27:43.153Z",
+                "data": {
+                  "stopReason": "end_turn",
+                  "finalLane": "development",
+                  "finalRecommendation": "Prepare a founder-reviewed scope and estimate.",
+                  "model": "claude-sonnet-4-6",
+                  "assistantText": "Here's your clearest next step:\n\n**Book a scoping call with the Studio Ordo founding team** to lock in scope, timeline, and integration details before anything gets estimated or built.\n\nWhat to bring to that call:\n- **System boundaries** — what's in scope vs. out (APIs, data sources, user roles)\n- **Constraints** — stack, timeline, budget ceiling, compliance needs\n- **Success definition** — what does \"done\" look like at v1?\n\n---\n\n**To move forward right now:**\n\n👉 Use the link below to request a founder scoping session:\n**[Contact / Book a Call →](https://www.studioordo.com/contact)**\n\nThis gets you a structured conversation — not a sales call — focused on whether and how Studio Ordo can execute your implementation.\n\n---\n\n__suggestions__:[\"What should I prep before a scoping call?\",\"What does Studio Ordo typically scope and build?\",\"Can you help me draft a scope brief?\",\"What integrations do you support?\"]",
+                  "toolRoundCount": 1
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:43.153Z",
+                "data": {
+                  "checkpointId": "technical-qualification",
+                  "passed": true,
+                  "details": "Next.js, Postgres, Anthropic tools"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:43.153Z",
+                "data": {
+                  "checkpointId": "deal-created",
+                  "passed": true,
+                  "details": "deal_711fa5d3-3e61-4bdc-ae29-f06872841218"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:43.153Z",
+                "data": {
+                  "checkpointId": "approved-next-step",
+                  "passed": true,
+                  "details": "estimate_ready"
+                }
+              }
+            ],
+            "scorecard": {
+              "dimensions": [
+                {
+                  "id": "funnel_completion",
+                  "label": "Funnel Completion",
+                  "score": 3,
+                  "maxScore": 3,
+                  "passed": true,
+                  "details": null
+                },
+                {
+                  "id": "routing_quality",
+                  "label": "Routing Quality",
+                  "score": 1,
+                  "maxScore": 1,
+                  "passed": true,
+                  "details": "Routing checkpoints were missing."
+                },
+                {
+                  "id": "customer_clarity",
+                  "label": "Customer Clarity",
+                  "score": 1,
+                  "maxScore": 1,
+                  "passed": true,
+                  "details": null
+                }
+              ],
+              "totalScore": 5,
+              "maxScore": 5,
+              "passed": true
+            },
+            "summary": "development-prospect-funnel passed in live mode on staging with 5/5 points.",
+            "passed": true,
+            "failureReasons": []
+          },
+          "error": null
+        },
+        {
+          "scenarioId": "mcp-tool-choice-and-recovery",
+          "cohortId": "tool-heavy-researcher",
+          "passed": true,
+          "summary": "mcp-tool-choice-and-recovery passed in live mode on staging with 5/5 points.",
+          "failureReasons": [],
+          "stopReason": "end_turn",
+          "modelName": "claude-sonnet-4-6",
+          "targetEnvironment": "staging",
+          "baseUrl": "https://www.studioordo.com",
+          "startedAt": "2026-03-20T16:27:50.431Z",
+          "report": {
+            "scenarioId": "mcp-tool-choice-and-recovery",
+            "cohortId": "tool-heavy-researcher",
+            "run": {
+              "scenarioId": "mcp-tool-choice-and-recovery",
+              "layer": "staging_canary",
+              "targetEnvironment": "staging",
+              "mode": "live",
+              "modelProvider": "anthropic",
+              "modelName": "claude-sonnet-4-6",
+              "seedSetId": "seed-live-tool-recovery-v1",
+              "startedAt": "2026-03-20T16:27:50.431Z"
+            },
+            "observations": [
+              {
+                "kind": "message",
+                "at": "2026-03-20T17:01:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "Please add 4 and 5, and recover cleanly if the calculator fails once."
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T19:00:00.000Z",
+                "data": {
+                  "role": "user",
+                  "content": "Use the calculator tool with 4 and 5, retry once if it fails, and then give me the final total clearly."
+                }
+              },
+              {
+                "kind": "tool_call",
+                "at": "2026-03-20T16:27:50.431Z",
+                "data": {
+                  "toolId": "calculator",
+                  "args": {
+                    "operation": "add",
+                    "a": 4,
+                    "b": 5
+                  },
+                  "result": "Calculator temporarily unavailable. Retry once with the same arguments.",
+                  "matchedExpected": false,
+                  "error": "Calculator temporarily unavailable. Retry once with the same arguments."
+                }
+              },
+              {
+                "kind": "tool_call",
+                "at": "2026-03-20T16:27:50.431Z",
+                "data": {
+                  "toolId": "calculator",
+                  "args": {
+                    "operation": "add",
+                    "a": 4,
+                    "b": 5
+                  },
+                  "result": {
+                    "operation": "add",
+                    "a": 4,
+                    "b": 5,
+                    "result": 9
+                  },
+                  "matchedExpected": true
+                }
+              },
+              {
+                "kind": "message",
+                "at": "2026-03-20T16:27:50.431Z",
+                "data": {
+                  "role": "assistant",
+                  "content": "Calculator failed on the first attempt — retrying now.✅ **4 + 5 = 9**\n\nThe first attempt hit a transient error, the retry succeeded immediately, and the result is confirmed: **9**.\n\n__suggestions__:[\"Try a more complex calculation?\",\"Multiply or divide those same numbers?\",\"Chain this result into another operation?\",\"What else can I help you compute or look up?\"]"
+                }
+              },
+              {
+                "kind": "summary",
+                "at": "2026-03-20T16:27:50.431Z",
+                "data": {
+                  "stopReason": "end_turn",
+                  "finalLane": "uncertain",
+                  "finalRecommendation": "Calculator failed on the first attempt — retrying now.✅ **4 + 5 = 9**\n\nThe first attempt hit a transient error, the retry succeeded immediately, and the result is confirmed: **9**.\n\n__suggestions__:[\"Try a more complex calculation?\",\"Multiply or divide those same numbers?\",\"Chain this result into another operation?\",\"What else can I help you compute or look up?\"]",
+                  "model": "claude-sonnet-4-6",
+                  "assistantText": "Calculator failed on the first attempt — retrying now.✅ **4 + 5 = 9**\n\nThe first attempt hit a transient error, the retry succeeded immediately, and the result is confirmed: **9**.\n\n__suggestions__:[\"Try a more complex calculation?\",\"Multiply or divide those same numbers?\",\"Chain this result into another operation?\",\"What else can I help you compute or look up?\"]",
+                  "toolRoundCount": 3
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:50.431Z",
+                "data": {
+                  "checkpointId": "tool-selection",
+                  "passed": true,
+                  "details": "calculator"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:50.431Z",
+                "data": {
+                  "checkpointId": "tool-arguments",
+                  "passed": true,
+                  "details": "{\"operation\":\"add\",\"a\":4,\"b\":5}"
+                }
+              },
+              {
+                "kind": "checkpoint",
+                "at": "2026-03-20T16:27:50.431Z",
+                "data": {
+                  "checkpointId": "tool-recovery",
+                  "passed": true,
+                  "details": "Calculator failed on the first attempt — retrying now.✅ **4 + 5 = 9**\n\nThe first attempt hit a transient error, the retry succeeded immediately, and the result is confirmed: **9**.\n\n__suggestions__:[\"Try a more complex calculation?\",\"Multiply or divide those same numbers?\",\"Chain this result into another operation?\",\"What else can I help you compute or look up?\"]"
+                }
+              }
+            ],
+            "scorecard": {
+              "dimensions": [
+                {
+                  "id": "tool_selection",
+                  "label": "Tool Selection",
+                  "score": 2,
+                  "maxScore": 2,
+                  "passed": true,
+                  "details": null
+                },
+                {
+                  "id": "tool_correctness",
+                  "label": "Tool Correctness",
+                  "score": 1,
+                  "maxScore": 1,
+                  "passed": true,
+                  "details": null
+                },
+                {
+                  "id": "recovery",
+                  "label": "Recovery",
+                  "score": 1,
+                  "maxScore": 1,
+                  "passed": true,
+                  "details": "Calculator failed on the first attempt — retrying now.✅ **4 + 5 = 9**\n\nThe first attempt hit a transient error, the retry succeeded immediately, and the result is confirmed: **9**.\n\n__suggestions__:[\"Try a more complex calculation?\",\"Multiply or divide those same numbers?\",\"Chain this result into another operation?\",\"What else can I help you compute or look up?\"]"
+                },
+                {
+                  "id": "customer_clarity",
+                  "label": "Customer Clarity",
+                  "score": 1,
+                  "maxScore": 1,
+                  "passed": true,
+                  "details": "Customer-facing summary or answer was missing."
+                }
+              ],
+              "totalScore": 5,
+              "maxScore": 5,
+              "passed": true
+            },
+            "summary": "mcp-tool-choice-and-recovery passed in live mode on staging with 5/5 points.",
+            "passed": true,
+            "failureReasons": []
+          },
+          "error": null
+        }
+      ]
+    }
+  },
+  "review": {
+    "blockingReasons": [],
+    "warnings": [],
+    "manualChecks": []
+  }
+}

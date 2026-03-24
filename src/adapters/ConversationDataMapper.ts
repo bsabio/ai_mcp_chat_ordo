@@ -1,5 +1,9 @@
 import type Database from "better-sqlite3";
 import type { Conversation, ConversationSummary } from "@/core/entities/conversation";
+import {
+  createConversationRoutingSnapshot,
+  isConversationLane,
+} from "@/core/entities/conversation-routing";
 import type { ConversationRepository } from "@/core/use-cases/ConversationRepository";
 
 export class ConversationDataMapper implements ConversationRepository {
@@ -11,14 +15,16 @@ export class ConversationDataMapper implements ConversationRepository {
     title: string;
     status?: "active" | "archived";
     sessionSource?: string;
+    referralSource?: string;
   }): Promise<Conversation> {
     const status = conv.status ?? "active";
     const sessionSource = conv.sessionSource ?? "unknown";
+    const referralSource = conv.referralSource ?? null;
     this.db
       .prepare(
-        `INSERT INTO conversations (id, user_id, title, status, session_source) VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO conversations (id, user_id, title, status, session_source, referral_source) VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(conv.id, conv.userId, conv.title, status, sessionSource);
+      .run(conv.id, conv.userId, conv.title, status, sessionSource, referralSource);
 
     const row = this.db
       .prepare(`SELECT * FROM conversations WHERE id = ?`)
@@ -104,6 +110,45 @@ export class ConversationDataMapper implements ConversationRepository {
       .run(timestamp, id);
   }
 
+  async recordMessageAppended(id: string, timestamp: string): Promise<void> {
+    this.db
+      .prepare(
+        `UPDATE conversations
+         SET message_count = message_count + 1,
+             first_message_at = COALESCE(first_message_at, ?),
+             updated_at = datetime('now')
+         WHERE id = ?`,
+      )
+      .run(timestamp, id);
+  }
+
+  async recordUserMessageAppendedWithEvent(
+    id: string,
+    timestamp: string,
+    metadata: { role: "user"; token_estimate: number },
+  ): Promise<void> {
+    const recordAppend = this.db.transaction((conversationId: string, createdAt: string, eventMetadata: string) => {
+      this.db
+        .prepare(
+          `UPDATE conversations
+           SET message_count = message_count + 1,
+               first_message_at = COALESCE(first_message_at, ?),
+               updated_at = datetime('now')
+           WHERE id = ?`,
+        )
+        .run(createdAt, conversationId);
+
+      this.db
+        .prepare(
+          `INSERT INTO conversation_events (id, conversation_id, event_type, metadata)
+           VALUES (?, ?, 'message_sent', ?)`,
+        )
+        .run(crypto.randomUUID().replace(/-/g, ""), conversationId, eventMetadata);
+    });
+
+    recordAppend(id, timestamp, JSON.stringify(metadata));
+  }
+
   async setLastToolUsed(id: string, toolName: string): Promise<void> {
     this.db
       .prepare(`UPDATE conversations SET last_tool_used = ? WHERE id = ?`)
@@ -114,6 +159,36 @@ export class ConversationDataMapper implements ConversationRepository {
     this.db
       .prepare(`UPDATE conversations SET converted_from = ? WHERE id = ?`)
       .run(anonUserId, id);
+  }
+
+  async setReferralSource(id: string, referralSource: string): Promise<void> {
+    this.db
+      .prepare(`UPDATE conversations SET referral_source = ? WHERE id = ?`)
+      .run(referralSource, id);
+  }
+
+  async updateRoutingSnapshot(
+    id: string,
+    snapshot: Parameters<ConversationRepository["updateRoutingSnapshot"]>[1],
+  ): Promise<void> {
+    this.db
+      .prepare(
+        `UPDATE conversations
+         SET lane = ?,
+             lane_confidence = ?,
+             recommended_next_step = ?,
+             detected_need_summary = ?,
+             lane_last_analyzed_at = ?
+         WHERE id = ?`,
+      )
+      .run(
+        snapshot.lane,
+        snapshot.confidence,
+        snapshot.recommendedNextStep,
+        snapshot.detectedNeedSummary,
+        snapshot.lastAnalyzedAt,
+        id,
+      );
   }
 
   async transferOwnership(fromUserId: string, toUserId: string): Promise<string[]> {
@@ -146,6 +221,12 @@ type ConversationRow = {
   last_tool_used: string | null;
   session_source: string;
   prompt_version: number | null;
+  lane: string;
+  lane_confidence: number | null;
+  recommended_next_step: string | null;
+  detected_need_summary: string | null;
+  lane_last_analyzed_at: string | null;
+  referral_source: string | null;
 };
 
 function mapRow(row: ConversationRow): Conversation {
@@ -162,5 +243,13 @@ function mapRow(row: ConversationRow): Conversation {
     lastToolUsed: row.last_tool_used,
     sessionSource: row.session_source,
     promptVersion: row.prompt_version,
+    routingSnapshot: createConversationRoutingSnapshot({
+      lane: isConversationLane(row.lane) ? row.lane : "uncertain",
+      confidence: row.lane_confidence,
+      recommendedNextStep: row.recommended_next_step,
+      detectedNeedSummary: row.detected_need_summary,
+      lastAnalyzedAt: row.lane_last_analyzed_at,
+    }),
+    referralSource: row.referral_source,
   };
 }

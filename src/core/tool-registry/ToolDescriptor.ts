@@ -1,7 +1,7 @@
 import type { ToolCommand } from "./ToolCommand";
 import type { RoleName } from "@/core/entities/user";
 
-export type ToolCategory = "content" | "ui" | "math" | "system";
+export type ToolCategory = "content" | "ui" | "math" | "system" | (string & {});
 
 export type AnthropicToolSchema = {
   description: string;

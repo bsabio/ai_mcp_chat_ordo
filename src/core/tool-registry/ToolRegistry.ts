@@ -48,6 +48,10 @@ export class ToolRegistry {
       : result;
   }
 
+  unregister(name: string): void {
+    this.tools.delete(name);
+  }
+
   getToolNames(): string[] {
     return Array.from(this.tools.keys());
   }

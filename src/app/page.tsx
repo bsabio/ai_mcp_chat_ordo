@@ -1,10 +1,16 @@
-import { HomepageChatStage } from "@/components/home/HomepageChatStage";
-import { ChatContainer } from "@/frameworks/ui/ChatContainer";
+import { redirect } from "next/navigation";
 
-export default function Home() {
-  return (
-    <HomepageChatStage>
-        <ChatContainer isFloating={false} />
-    </HomepageChatStage>
-  );
+import { getSessionUser } from "@/lib/auth";
+import { resolveShellHomeHref } from "@/lib/shell/shell-navigation";
+import { ChatSurface } from "@/frameworks/ui/ChatSurface";
+
+export default async function Home() {
+  const _user = await getSessionUser();
+  const homeHref = resolveShellHomeHref();
+
+  if (homeHref !== "/") {
+    redirect(homeHref);
+  }
+
+  return <ChatSurface mode="embedded" />;
 }
