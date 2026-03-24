@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { ResourceNotFoundError } from "@/core/entities/errors";
 import { BookSidebar } from "@/components/BookSidebar";
+import { MarkdownProse } from "@/components/MarkdownProse";
 import { getDocuments, getSectionFull, getCorpusSummaries } from "@/lib/corpus-library";
 import { buildChapterMetadata, buildChapterSeo } from "@/lib/seo/library-metadata";
 
@@ -128,41 +127,7 @@ export default async function LibrarySectionPage({
               </div>
             </header>
 
-            <div className="library-prose">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({ node: _node, ...props }) => <h1 {...props} />,
-                  h2: ({ node: _node, ...props }) => <h2 {...props} />,
-                  h3: ({ node: _node, ...props }) => <h3 {...props} />,
-                  p: ({ node: _node, ...props }) => <p {...props} />,
-                  a: ({ node: _node, ...props }) => <a {...props} />,
-                  ul: ({ node: _node, ...props }) => <ul {...props} />,
-                  ol: ({ node: _node, ...props }) => <ol {...props} />,
-                  li: ({ node: _node, ...props }) => <li {...props} />,
-                  blockquote: ({ node: _node, ...props }) => <blockquote {...props} />,
-                  img: ({ node: _node, alt, ...props }) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img alt={alt || ""} {...props} />
-                  ),
-                  pre: ({ node: _node, ...props }) => (
-                    <pre className="code-chrome" {...props} />
-                  ),
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  code: ({ node: _node, inline, ...props }: any) =>
-                    inline ? <code {...props} /> : <code className="font-mono" {...props} />,
-                  table: ({ node: _node, ...props }) => (
-                    <div className="overflow-x-auto">
-                      <table {...props} />
-                    </div>
-                  ),
-                  th: ({ node: _node, ...props }) => <th {...props} />,
-                  td: ({ node: _node, ...props }) => <td {...props} />,
-                }}
-              >
-                {result.content}
-              </ReactMarkdown>
-            </div>
+            <MarkdownProse content={result.content} />
 
             <footer className="mt-10 flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between" style={{ borderTop: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)' }}>
               <div className="flex flex-wrap gap-3">

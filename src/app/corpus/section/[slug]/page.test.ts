@@ -41,6 +41,21 @@ describe("corpus section resolver route", () => {
     ).rejects.toThrow("redirect:/library/software-engineering/audit-to-sprint");
   });
 
+  it("redirects a book slug to the canonical library book route", async () => {
+    getCorpusIndexMock.mockResolvedValue([
+      {
+        bookSlug: "software-engineering",
+        chapterSlug: "audit-to-sprint",
+      },
+    ]);
+
+    await expect(
+      CorpusSectionResolverPage({
+        params: Promise.resolve({ slug: "software-engineering" }),
+      }),
+    ).rejects.toThrow("redirect:/library/software-engineering");
+  });
+
   it("returns notFound for unknown section slugs", async () => {
     getCorpusIndexMock.mockResolvedValue([]);
 

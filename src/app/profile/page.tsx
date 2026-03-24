@@ -1,20 +1,19 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function ProfilePage() {
-  return (
-    <div className="flex-1 flex items-center justify-center p-[var(--container-padding)]">
-      <div className="text-center space-y-4 max-w-md">
-        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-        <p className="text-sm opacity-50">
-          This page is currently under development. Check back soon.
-        </p>
-        <Link
-          href="/"
-          className="inline-block mt-4 px-5 py-2 rounded-theme text-xs font-semibold bg-foreground text-background hover:opacity-90 transition-opacity"
-        >
-          Back to Home
-        </Link>
-      </div>
-    </div>
-  );
+import { ProfileSettingsPanel } from "@/components/profile/ProfileSettingsPanel";
+import { getSessionUser } from "@/lib/auth";
+import { createProfileService } from "@/lib/profile/profile-service";
+
+export const dynamic = "force-dynamic";
+
+export default async function ProfilePage() {
+  const user = await getSessionUser();
+
+  if (user.roles.includes("ANONYMOUS")) {
+    redirect("/login");
+  }
+
+  const profile = await createProfileService().getProfile(user.id);
+
+  return <ProfileSettingsPanel initialProfile={profile} />;
 }

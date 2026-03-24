@@ -17,6 +17,7 @@ const allowedInternalRoutes = new Set([
   "/login",
   "/register",
   "/library",
+  "/blog",
   "/books",
   "/book/[chapter]",
 ]);
@@ -42,8 +43,8 @@ describe("shell navigation model", () => {
     );
 
     expect(invalidRoutes).toEqual([]);
-    expect(resolvePrimaryNavRoutes(anonymousUser).map((route) => route.id)).toEqual([]);
-    expect(resolvePrimaryNavRoutes(authenticatedUser).map((route) => route.id)).toEqual([]);
+    expect(resolvePrimaryNavRoutes(anonymousUser).map((route) => route.id)).toEqual(["home", "corpus", "blog"]);
+    expect(resolvePrimaryNavRoutes(authenticatedUser).map((route) => route.id)).toEqual(["home", "corpus", "blog"]);
   });
 
   it("keeps footer group routes inside the verified route surface for each audience", () => {

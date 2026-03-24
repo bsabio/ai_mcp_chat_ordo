@@ -1,5 +1,5 @@
 import type { MessagePart } from "./message-parts";
-import type { ChatMessage } from "./chat-message";
+import type { ChatMessage, ChatMessageMetadata } from "./chat-message";
 
 /**
  * Message Factory (GoF Factory Method)
@@ -11,23 +11,25 @@ export class MessageFactory {
   static create(
     role: "user" | "assistant", 
     content: string, 
-    parts: MessagePart[] = []
+    parts: MessagePart[] = [],
+    metadata?: ChatMessageMetadata,
   ): ChatMessage {
     return {
       id: crypto.randomUUID(),
       role,
       content,
       parts,
+      metadata,
       timestamp: new Date()
     };
   }
 
-  static createUserMessage(content: string, parts?: MessagePart[]): ChatMessage {
-    return this.create("user", content, parts ?? (content ? [{ type: "text", text: content }] : []));
+  static createUserMessage(content: string, parts?: MessagePart[], metadata?: ChatMessageMetadata): ChatMessage {
+    return this.create("user", content, parts ?? (content ? [{ type: "text", text: content }] : []), metadata);
   }
 
-  static createAssistantMessage(content: string = "", parts: MessagePart[] = []): ChatMessage {
-    return this.create("assistant", content, parts);
+  static createAssistantMessage(content: string = "", parts: MessagePart[] = [], metadata?: ChatMessageMetadata): ChatMessage {
+    return this.create("assistant", content, parts, metadata);
   }
 
   static createHeroMessage(content: string, suggestions: string[]): ChatMessage {

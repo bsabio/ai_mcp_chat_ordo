@@ -9,8 +9,6 @@ interface ChatHeaderProps {
   onSearchChange: (query: string) => void;
   density: "compact" | "normal" | "relaxed";
   onDensityChange: (density: "compact" | "normal" | "relaxed") => void;
-  gridEnabled: boolean;
-  onGridToggle: () => void;
   logoPath?: string;
 }
 
@@ -21,8 +19,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onSearchChange,
   density,
   onDensityChange,
-  gridEnabled,
-  onGridToggle,
   logoPath = "/ordo-avatar.png",
 }) => {
   return (
@@ -77,27 +73,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </button>
           ))}
         </div>
-
-        {/* Grid Toggle */}
-        <button
-          onClick={onGridToggle}
-          className={`p-2 rounded-full transition-all ${gridEnabled ? "accent-fill" : "hover-surface"}`}
-          title="Toggle Design Grid"
-          aria-label="Toggle Design Grid"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" />
-          </svg>
-        </button>
       </div>
     </header>
   );

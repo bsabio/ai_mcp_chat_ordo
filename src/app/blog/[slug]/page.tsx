@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { getBlogPostRepository } from "@/adapters/RepositoryFactory";
+import { MarkdownProse } from "@/components/MarkdownProse";
 import { getInstanceIdentity } from "@/lib/config/instance";
+import { normalizeBlogMarkdown } from "@/lib/blog/normalize-markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +51,8 @@ export default async function BlogPostPage({
     notFound();
   }
 
+  const normalizedContent = normalizeBlogMarkdown(post.title, post.content);
+
   return (
     <div className="min-h-screen text-foreground">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-(--container-padding) py-12 sm:py-16">
@@ -67,10 +69,8 @@ export default async function BlogPostPage({
           )}
         </header>
 
-        <article className="prose prose-neutral dark:prose-invert max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {post.content}
-          </ReactMarkdown>
+        <article>
+          <MarkdownProse content={normalizedContent} className="library-prose max-w-none" />
         </article>
       </div>
     </div>

@@ -91,7 +91,7 @@ function parsePositiveIntegerEnv(
 export function getAnthropicRequestTimeoutMs(): number {
   return parsePositiveIntegerEnv(
     readPrimaryThenLegacy("ANTHROPIC_REQUEST_TIMEOUT_MS", "API__ANTHROPIC_REQUEST_TIMEOUT_MS"),
-    12000,
+    45000,
   );
 }
 

@@ -28,6 +28,7 @@ interface ChatContentSurfaceProps {
   onLinkClick: (slug: string) => void;
   onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
   onMentionIndexChange: (index: number) => void;
+  onRetryClick?: (retryKey: string) => void;
   onSend: () => void;
   onSuggestionClick: (text: string) => void;
   onSuggestionSelect: (item: MentionItem) => void;
@@ -56,6 +57,7 @@ export function ChatContentSurface({
   onLinkClick,
   onActionClick,
   onMentionIndexChange,
+  onRetryClick,
   onSend,
   onSuggestionClick,
   onSuggestionSelect,
@@ -77,6 +79,7 @@ export function ChatContentSurface({
           messages={messages}
           onLinkClick={onLinkClick}
           onActionClick={onActionClick}
+          onRetryClick={onRetryClick}
           onSuggestionClick={onSuggestionClick}
           scrollDependency={scrollDependency}
           searchQuery={searchQuery}

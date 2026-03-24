@@ -117,6 +117,15 @@ describe("Tool manifest contract — manifest formatting", () => {
     expect(prompt).toContain("- **search_corpus**: Searches the corpus.");
   });
 
+  it("preserves graph tool guidance in the manifest description", () => {
+    const registry = getToolRegistry();
+    const graphTool = registry.getSchemasForRole("AUTHENTICATED").find((schema) => schema.name === "generate_graph");
+
+    expect(graphTool?.description).toContain("time-series questions");
+    expect(graphTool?.description).toContain("comparisons across segments or categories");
+    expect(graphTool?.description).toContain("explicit requests for a graph");
+  });
+
   it("ends with the user-facing capability instruction", () => {
     const schemas = registry.getSchemasForRole("ANONYMOUS");
     const prompt = new SystemPromptBuilder()

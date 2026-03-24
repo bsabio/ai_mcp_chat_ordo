@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { buildCorpusBasePrompt } from "@/lib/corpus-vocabulary";
+import { generateReferralCode } from "@/lib/referral/generate-code";
 
 export function runSeeds(db: Database.Database): void {
   seedRoles(db);
@@ -29,6 +30,19 @@ function seedUsers(db: Database.Database): void {
       ('usr_staff', 'staff@example.com', 'Staff Member'),
       ('usr_admin', 'admin@example.com', 'System Admin')
   `).run();
+
+  const adminReferralCodeRow = db
+    .prepare(`SELECT referral_code FROM users WHERE id = 'usr_admin'`)
+    .get() as { referral_code: string | null } | undefined;
+
+  if (!adminReferralCodeRow?.referral_code) {
+    db.prepare(
+      `UPDATE users SET affiliate_enabled = 1, referral_code = COALESCE(referral_code, ?) WHERE id = 'usr_admin'`,
+    ).run(generateReferralCode());
+    return;
+  }
+
+  db.prepare(`UPDATE users SET affiliate_enabled = 1 WHERE id = 'usr_admin'`).run();
 }
 
 function seedUserRoles(db: Database.Database): void {

@@ -141,8 +141,6 @@ describe("shell visual system", () => {
         onSearchChange={() => undefined}
         density="normal"
         onDensityChange={() => undefined}
-        gridEnabled={false}
-        onGridToggle={() => undefined}
       />,
     );
 
@@ -193,7 +191,6 @@ describe("shell visual system", () => {
     expect(screen.getByRole("button", { name: "Enter Full Screen" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Minimize Chat" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /set density to compact/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /toggle design grid/i })).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/filter session/i)).not.toBeInTheDocument();
   });
 
@@ -207,8 +204,6 @@ describe("shell visual system", () => {
           onSearchChange={() => undefined}
           density="normal"
           onDensityChange={() => undefined}
-          gridEnabled={false}
-          onGridToggle={() => undefined}
         />
         <ChatSurfaceHeader
           mode="floating"
@@ -223,7 +218,6 @@ describe("shell visual system", () => {
     expect(screen.getByRole("heading", { name: "PD Advisor" })).toBeInTheDocument();
     expect(screen.getByText("Intelligent Orchestrator")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Set density to compact" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Toggle Design Grid" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Filter session...")).toBeInTheDocument();
 
     // Floating header retains only its controls
@@ -236,9 +230,9 @@ describe("shell visual system", () => {
   });
 
   it("confirms ChatSurfaceHeader does not consume useTheme for local header rendering", () => {
-    // The useTheme mock returns density: "compact" and gridEnabled: false.
+    // The useTheme mock returns density: "compact".
     // If ChatSurfaceHeader were forwarding theme state to the floating header,
-    // we would see density controls or grid toggles in the output.
+    // we would see density controls in the output.
     render(
       <ChatSurfaceHeader
         mode="floating"
@@ -250,7 +244,6 @@ describe("shell visual system", () => {
 
     // Floating header must not expose any theme-derived controls
     expect(screen.queryByRole("button", { name: /set density/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /toggle design grid/i })).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/filter session/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/compact/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/relaxed/i)).not.toBeInTheDocument();

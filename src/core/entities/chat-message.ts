@@ -2,12 +2,22 @@ import type { MessagePart } from "./message-parts";
 
 export type MessageRole = "user" | "assistant" | "system";
 
+export interface FailedSendMetadata {
+  retryKey: string;
+  failedUserMessageId: string;
+}
+
+export interface ChatMessageMetadata {
+  failedSend?: FailedSendMetadata;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
   timestamp: Date;
   parts?: MessagePart[];
+  metadata?: ChatMessageMetadata;
 }
 
 export interface ToolCallInfo {

@@ -6,9 +6,9 @@ export const INLINE_TYPES = {
   ACTION_LINK: "action-link",
 } as const;
 
-export type ActionLinkType = "conversation" | "route" | "send" | "corpus";
+export type ActionLinkType = "conversation" | "route" | "send" | "corpus" | "external";
 
-export const VALID_ACTION_TYPES: ReadonlySet<string> = new Set<string>(["conversation", "route", "send", "corpus"]);
+export const VALID_ACTION_TYPES: ReadonlySet<string> = new Set<string>(["conversation", "route", "send", "corpus", "external"]);
 
 export const BLOCK_TYPES = {
   PARAGRAPH: "paragraph",
@@ -16,6 +16,7 @@ export const BLOCK_TYPES = {
   LIST: "list",
   BLOCKQUOTE: "blockquote",
   CODE: "code-block",
+  GRAPH: "graph",
   TABLE: "table",
   DIVIDER: "divider",
   OPERATOR_BRIEF: "operator-brief",
@@ -27,6 +28,50 @@ export type OperatorBriefSection = {
   label: "NOW" | "NEXT" | "WAIT";
   summary: InlineNode[];
   items?: InlineNode[][];
+};
+
+export type GraphValue = string | number | boolean | null;
+
+export type GraphRow = Record<string, GraphValue>;
+
+export type GraphAxisType = "quantitative" | "temporal" | "nominal" | "ordinal";
+
+export type GraphEncoding = {
+  field: string;
+  type: GraphAxisType;
+  label?: string;
+  aggregate?: "sum" | "avg" | "count" | "min" | "max" | "median";
+};
+
+export type GraphKind =
+  | "line"
+  | "area"
+  | "bar"
+  | "grouped-bar"
+  | "stacked-bar"
+  | "scatter"
+  | "bubble"
+  | "histogram"
+  | "heatmap"
+  | "table";
+
+export type GraphSourceMeta = {
+  sourceType: string;
+  label: string;
+  rowCount: number;
+};
+
+export type GraphSpec = {
+  kind: GraphKind;
+  data: GraphRow[];
+  columns?: string[];
+  x?: GraphEncoding;
+  y?: GraphEncoding;
+  series?: GraphEncoding;
+  color?: GraphEncoding;
+  size?: GraphEncoding;
+  tooltip?: GraphEncoding[];
+  source?: GraphSourceMeta;
 };
 
 export type InlineNode =
@@ -41,7 +86,24 @@ export type BlockNode =
   | { type: typeof BLOCK_TYPES.HEADING; level: 1 | 2 | 3; content: InlineNode[] }
   | { type: typeof BLOCK_TYPES.LIST; items: InlineNode[][] }
   | { type: typeof BLOCK_TYPES.BLOCKQUOTE; content: InlineNode[] }
-  | { type: typeof BLOCK_TYPES.CODE; code: string; language?: string }
+  | {
+      type: typeof BLOCK_TYPES.CODE;
+      code: string;
+      language?: string;
+      title?: string;
+      caption?: string;
+      downloadFileName?: string;
+    }
+  | {
+      type: typeof BLOCK_TYPES.GRAPH;
+      graph: GraphSpec;
+      title?: string;
+      caption?: string;
+      summary?: string;
+      downloadFileName?: string;
+      dataPreview?: GraphRow[];
+      source?: GraphSourceMeta;
+    }
   | { type: typeof BLOCK_TYPES.TABLE; header?: InlineNode[][]; rows: InlineNode[][][] }
   | { type: typeof BLOCK_TYPES.DIVIDER }
   | { type: typeof BLOCK_TYPES.OPERATOR_BRIEF; sections: OperatorBriefSection[] }

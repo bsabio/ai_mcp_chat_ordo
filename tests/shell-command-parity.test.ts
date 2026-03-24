@@ -56,6 +56,13 @@ describe("shell command parity", () => {
         kind: "navigation",
         href: "/library",
       },
+      {
+        id: "nav-blog",
+        title: "Blog",
+        category: "Navigation",
+        kind: "navigation",
+        href: "/blog",
+      },
     ]);
   });
 

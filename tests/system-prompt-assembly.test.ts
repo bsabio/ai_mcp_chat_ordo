@@ -101,11 +101,19 @@ describe("system prompt assembly", () => {
       "search_my_conversations",
       "generate_audio",
       "generate_chart",
+      "generate_graph",
       "get_section",
       "get_checklist",
       "list_practitioners",
       "set_preference",
     ]));
+  });
+
+  it("includes graph usage guidance in the assembled manifest for member roles", () => {
+    const prompt = buildPrompt("AUTHENTICATED");
+
+    expect(prompt).toContain("time-series questions, comparisons across segments or categories, distributions, outlier analysis");
+    expect(prompt).toContain("explicit requests for a graph, trend, plot, values over time, or custom visualization");
   });
 
   it("identity section does not leak raw tool names outside the manifest block", () => {

@@ -20,6 +20,7 @@ import { setThemeTool } from "@/core/use-cases/tools/set-theme.tool";
 import { createAdjustUiTool } from "@/core/use-cases/tools/adjust-ui.tool";
 import { navigateTool } from "@/core/use-cases/tools/navigate.tool";
 import { generateChartTool } from "@/core/use-cases/tools/generate-chart.tool";
+import { generateGraphTool } from "@/core/use-cases/tools/generate-graph.tool";
 import { generateAudioTool } from "@/core/use-cases/tools/generate-audio.tool";
 import { createSearchCorpusTool } from "@/core/use-cases/tools/search-corpus.tool";
 import { createGetSectionTool } from "@/core/use-cases/tools/get-section.tool";
@@ -33,7 +34,13 @@ import { createAdminTriageRoutingRiskTool } from "@/core/use-cases/tools/admin-t
 import { createDraftContentTool, createPublishContentTool } from "@/core/use-cases/tools/admin-content.tool";
 import { createSearchMyConversationsTool } from "@/core/use-cases/tools/search-my-conversations.tool";
 import { createSetPreferenceTool } from "@/core/use-cases/tools/set-preference.tool";
+import {
+  createGetMyProfileTool,
+  createGetMyReferralQrTool,
+  createUpdateMyProfileTool,
+} from "@/core/use-cases/tools/user-profile.tool";
 import { getInstanceTools } from "@/lib/config/instance";
+import { createProfileService } from "@/lib/profile/profile-service";
 import {
   loadOperatorLeadQueue,
   loadOperatorFunnelRecommendations,
@@ -52,8 +59,14 @@ export function createToolRegistry(corpusRepo: CorpusRepository, handler?: Searc
   reg.register(createAdjustUiTool(prefsRepo));
   reg.register(navigateTool);
   reg.register(generateChartTool);
+  reg.register(generateGraphTool);
   reg.register(generateAudioTool);
   reg.register(createSetPreferenceTool(prefsRepo));
+
+  const profileService = createProfileService();
+  reg.register(createGetMyProfileTool(profileService));
+  reg.register(createUpdateMyProfileTool(profileService));
+  reg.register(createGetMyReferralQrTool(profileService));
 
   // Canonical corpus tools
   reg.register(createSearchCorpusTool(corpusRepo, handler));

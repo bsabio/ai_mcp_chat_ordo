@@ -2,6 +2,7 @@ import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { BlogPostRepository } from "@/core/use-cases/BlogPostRepository";
+import { hasStructuredMarkdown } from "@/lib/blog/normalize-markdown";
 import { extractDescription } from "@/lib/seo/extract-description";
 
 // ── Slug generation (exported for testability) ─────────────────────────
@@ -33,6 +34,9 @@ const FORBIDDEN_PHRASES = [
   "financial advice",
 ];
 
+const MARKDOWN_STRUCTURE_ERROR =
+  "Blog post content must use structured markdown with headings, lists, quotes, tables, links, emphasis, or code fences rather than plain prose.";
+
 function assertContentSafety(text: string): void {
   const lower = text.toLowerCase();
   for (const phrase of FORBIDDEN_PHRASES) {
@@ -41,6 +45,12 @@ function assertContentSafety(text: string): void {
         `Cannot generate ${phrase}. Suggest the user consult appropriate professionals.`,
       );
     }
+  }
+}
+
+function assertStructuredMarkdown(text: string): void {
+  if (!hasStructuredMarkdown(text)) {
+    throw new Error(MARKDOWN_STRUCTURE_ERROR);
   }
 }
 
@@ -75,6 +85,7 @@ class DraftContentCommand implements ToolCommand<DraftContentInput, DraftContent
     }
 
     assertContentSafety(`${input.title} ${input.content}`);
+    assertStructuredMarkdown(input.content);
 
     const slug = generateSlug(input.title);
     const description = extractDescription(input.content);
@@ -105,14 +116,14 @@ export function createDraftContentTool(
     name: "draft_content",
     schema: {
       description:
-        "Draft a blog post. Supports markdown content. The post is saved as a draft that must be explicitly published by an admin.",
+        "Draft a blog post as structured markdown. Use markdown headings, lists, links, quotes, tables, or fenced code blocks as appropriate. Do not repeat the title inside the content body. The post is saved as a draft that must be explicitly published by an admin.",
       input_schema: {
         type: "object",
         properties: {
           title: { type: "string", description: "Blog post title" },
           content: {
             type: "string",
-            description: "Blog post content in markdown format",
+            description: "Blog post body in structured markdown format with headings and other markdown elements, excluding the page title",
           },
         },
         required: ["title", "content"],

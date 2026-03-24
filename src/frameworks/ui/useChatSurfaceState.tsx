@@ -17,6 +17,27 @@ export type ActionDispatchDeps = {
   setComposerText: (text: string) => void;
 };
 
+function resolveExternalActionUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith("//")) {
+    return null;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return new URL(trimmed, window.location.origin).toString();
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, value: string, params?: Record<string, string>) => void> = {
   conversation: (deps, value, params) => {
     const targetId = value || params?.id;
@@ -36,6 +57,13 @@ export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, 
   corpus: (deps, value) => {
     deps.router.push(`/library/section/${value}`);
   },
+  external: (_deps, value, params) => {
+    const target = resolveExternalActionUrl(value || params?.url || "");
+    if (!target) {
+      return;
+    }
+    window.open(target, "_blank", "noopener,noreferrer");
+  },
 };
 
 export function useChatSurfaceState({
@@ -44,7 +72,7 @@ export function useChatSurfaceState({
   isEmbedded: boolean;
 }) {
   const router = useRouter();
-  const { messages, isSending, sendMessage, conversationId, isLoadingMessages, setConversationId, refreshConversation } =
+  const { messages, isSending, retryFailedMessage, sendMessage, conversationId, isLoadingMessages, setConversationId, refreshConversation } =
     useGlobalChat();
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
 
@@ -98,6 +126,14 @@ export function useChatSurfaceState({
     [router, conversationId, setConversationId, refreshConversation, setComposerText],
   );
 
+  const handleRetryClick = useCallback(async (retryKey: string) => {
+    if (isSending) {
+      return;
+    }
+
+    await retryFailedMessage(retryKey);
+  }, [isSending, retryFailedMessage]);
+
   const isHeroState =
     isEmbedded &&
     !sessionSearchQuery &&
@@ -122,6 +158,7 @@ export function useChatSurfaceState({
     onLinkClick: handleLinkClick,
     onActionClick: handleActionClick,
     onMentionIndexChange: setMentionIndex,
+    onRetryClick: handleRetryClick,
     onSend: handleSend,
     onSuggestionClick: handleSuggestionClick,
     onSuggestionSelect: handleSuggestionSelect,
@@ -142,6 +179,7 @@ export function useChatSurfaceState({
     handleFileSelect,
     handleInputChange,
     handleLinkClick,
+    handleRetryClick,
     handleSend,
     handleSuggestionClick,
     handleSuggestionSelect,

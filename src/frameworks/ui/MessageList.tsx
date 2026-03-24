@@ -18,6 +18,7 @@ interface MessageListProps {
   onSuggestionClick: (text: string) => void;
   onLinkClick: (slug: string) => void;
   onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
+  onRetryClick?: (retryKey: string) => void;
   searchQuery: string;
   isEmbedded?: boolean;
 }
@@ -150,6 +151,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
   onSuggestionClick,
   onLinkClick,
   onActionClick,
+  onRetryClick,
   searchQuery,
   isEmbedded = false,
 }) => {
@@ -238,6 +240,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
               isStreaming={isSending && message.id === lastMessageId}
               onLinkClick={onLinkClick}
               onActionClick={onActionClick}
+              onRetryClick={onRetryClick}
               isInitialGreeting={message.id === firstMessageId}
               isAnchor={message.id === lastAssistantMessageId && !isHeroState}
               brandName={identity.name}
@@ -331,11 +334,12 @@ const AssistantBubble = React.memo<{
   isStreaming: boolean;
   onLinkClick: (slug: string) => void;
   onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
+  onRetryClick?: (retryKey: string) => void;
   isInitialGreeting?: boolean;
   isAnchor?: boolean;
   brandName: string;
   brandLogoPath: string;
-}>(({ message, isStreaming, onLinkClick, onActionClick, isInitialGreeting, isAnchor = false, brandName, brandLogoPath }) => {
+}>(({ message, isStreaming, onLinkClick, onActionClick, onRetryClick, isInitialGreeting, isAnchor = false, brandName, brandLogoPath }) => {
   const [displayText, setDisplayText] = React.useState("");
   const [isTyping, setIsTyping] = React.useState(!!isInitialGreeting);
   
@@ -419,6 +423,25 @@ const AssistantBubble = React.memo<{
             </div>
           )}
 
+          {message.failedSend && (
+            <div className="mt-3 border-t border-border/40 pt-3">
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() => {
+                  if (!message.failedSend) {
+                    return;
+                  }
+                  onRetryClick?.(message.failedSend.retryKey);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/8 px-3.5 py-1.5 text-[0.8rem] font-semibold text-accent transition-colors focus-ring ${isStreaming ? "cursor-wait opacity-55" : "hover:bg-accent/14 hover:border-accent/30 active:scale-[0.98]"}`}
+                data-chat-retry-key={message.failedSend.retryKey}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {isStreaming && !isInitialGreeting && (
             <span className="inline-block w-1 h-3.5 bg-accent animate-pulse align-middle ms-1 rounded-sm relative -top-0.5" />
           )}
@@ -435,6 +458,7 @@ const ACTION_VALUE_KEY: Record<string, string> = {
   route: "path",
   send: "text",
   corpus: "slug",
+  external: "url",
 };
 
 const MessageActionChips: React.FC<{

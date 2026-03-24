@@ -48,12 +48,23 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     label: "Home",
     href: "/",
     kind: "internal",
+    headerVisibility: "all",
   },
   {
     id: "corpus",
     label: "Library",
     href: "/library",
     kind: "internal",
+    headerVisibility: "all",
+    footerVisibility: "all",
+    showInCommands: true,
+  },
+  {
+    id: "blog",
+    label: "Blog",
+    href: "/blog",
+    kind: "internal",
+    headerVisibility: "all",
     footerVisibility: "all",
     showInCommands: true,
   },
@@ -141,7 +152,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   {
     id: "information",
     label: "Information",
-    routeIds: ["corpus"],
+    routeIds: ["corpus", "blog"],
     visibility: "all",
   },
   {

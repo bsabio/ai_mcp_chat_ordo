@@ -9,6 +9,7 @@ export interface ToolCardProps {
   icon?: ReactNode;
   subtitle?: ReactNode;
   status?: "idle" | "loading" | "success" | "error";
+  actions?: ReactNode;
   onDownload?: () => void;
   downloadTooltip?: string;
   expandable?: boolean;
@@ -22,6 +23,7 @@ export function ToolCard({
   icon,
   subtitle,
   status = "idle",
+  actions,
   onDownload,
   downloadTooltip = "Download",
   expandable = false,
@@ -45,8 +47,8 @@ export function ToolCard({
     return (
       <Dialog.Root open={isExpanded} onOpenChange={setIsExpanded}>
         <Dialog.Portal>
-          <Dialog.Overlay className="glass-overlay fixed inset-0 z-[99999] animate-in fade-in duration-200" />
-          <Dialog.Content className="fixed inset-0 z-[100000] flex items-start justify-center p-3 pt-[max(0.75rem,var(--safe-area-inset-top))] pb-[max(0.75rem,var(--safe-area-inset-bottom))] sm:p-6 sm:pt-[max(1.5rem,var(--safe-area-inset-top))] sm:pb-[max(1.5rem,var(--safe-area-inset-bottom))] outline-none">
+          <Dialog.Overlay className="glass-overlay fixed inset-0 z-99999 animate-in fade-in duration-200" />
+          <Dialog.Content className="fixed inset-0 z-100000 flex items-start justify-center p-3 pt-[max(0.75rem,var(--safe-area-inset-top))] pb-[max(0.75rem,var(--safe-area-inset-bottom))] sm:p-6 sm:pt-[max(1.5rem,var(--safe-area-inset-top))] sm:pb-[max(1.5rem,var(--safe-area-inset-bottom))] outline-none">
             <div className="glass-surface flex max-h-full w-full max-w-7xl flex-col overflow-hidden rounded-[28px] border-theme text-foreground shadow-[0_32px_90px_color-mix(in_srgb,var(--shadow-base)_20%,transparent)] animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between border-b border-border bg-surface/80 p-4 sm:p-5">
                 <div className="flex items-center gap-3">
@@ -59,6 +61,7 @@ export function ToolCard({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {actions}
                   {onDownload && (
                     <button
                       onClick={onDownload}
@@ -148,6 +151,7 @@ export function ToolCard({
           <div className="flex items-center justify-end px-1 gap-1 shrink-0 ml-4">
             {status === "loading" ? null : (
               <>
+                {actions}
                 {onDownload && (
                   <button
                     onClick={onDownload}
@@ -207,10 +211,10 @@ export function ToolCard({
             onClick={toggleExpand}
             className="focus-ring relative w-full cursor-pointer group"
           >
-            <div className="max-h-[80px] overflow-hidden pointer-events-none">
+            <div className="max-h-20 overflow-hidden pointer-events-none">
               {children}
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-surface via-surface/60 to-transparent" />
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="text-[11px] font-semibold uppercase tracking-wider opacity-70 group-hover:opacity-100 transition-opacity bg-surface-muted border-theme rounded-full px-3 py-1">
                 View diagram

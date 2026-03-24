@@ -52,8 +52,6 @@ interface ThemeContextType {
   setIsDark: (dark: boolean) => void;
   accessibility: AccessibilitySettings;
   setAccessibility: (settings: AccessibilitySettings) => void;
-  gridEnabled: boolean;
-  setGridEnabled: (enabled: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -90,7 +88,6 @@ export function ThemeProvider({
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(
     ACCESSIBILITY_DEFAULTS,
   );
-  const [gridEnabled, setGridEnabled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const transitionRef = useRef<ViewTransition | null>(null);
 
@@ -122,10 +119,6 @@ export function ThemeProvider({
         /* ignore */
       }
     }
-
-    // Grid
-    const storedGrid = localStorage.getItem("pda-grid-enabled");
-    if (storedGrid === "true") setGridEnabled(true);
   }, [respectSystemDarkMode]);
 
   // Server hydration: fetch preferences for authenticated users (server wins)
@@ -174,7 +167,6 @@ export function ThemeProvider({
     localStorage.setItem("pda-theme", theme);
     localStorage.setItem("pda-dark", String(isDark));
     localStorage.setItem("pda-accessibility", JSON.stringify(accessibility));
-    localStorage.setItem("pda-grid-enabled", String(gridEnabled));
 
     const updateState = () => {
       const root = document.documentElement;
@@ -235,7 +227,7 @@ export function ThemeProvider({
     } else {
       updateState();
     }
-  }, [theme, isDark, accessibility, gridEnabled, mounted]);
+  }, [theme, isDark, accessibility, mounted]);
 
   const contextValue = useMemo(
     () => ({
@@ -245,10 +237,8 @@ export function ThemeProvider({
       setIsDark,
       accessibility,
       setAccessibility,
-      gridEnabled,
-      setGridEnabled,
     }),
-    [theme, isDark, accessibility, gridEnabled],
+    [theme, isDark, accessibility],
   );
 
   return (

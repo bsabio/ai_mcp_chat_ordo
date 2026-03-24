@@ -7,14 +7,43 @@ import { downloadFileFromUrl } from "../lib/download-browser";
 
 export function MermaidRenderer({
   code,
+  title,
   caption,
+  downloadFileName,
 }: {
   code: string;
+  title?: string;
   caption?: string;
+  downloadFileName?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgContent, setSvgContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+
+  const inferChartKind = (source: string): string => {
+    const normalized = source.trim();
+    if (normalized.startsWith("xychart-beta")) return "XY Chart";
+    if (normalized.startsWith("quadrantChart")) return "Quadrant Chart";
+    if (normalized.startsWith("mindmap")) return "Mindmap";
+    if (normalized.startsWith("pie")) return "Pie Chart";
+    if (normalized.startsWith("flowchart") || normalized.startsWith("graph")) return "Flowchart";
+    return "Chart";
+  };
+
+  const toFileStem = (value: string): string =>
+    value
+      .trim()
+      .replace(/\.[a-z0-9]+$/i, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "chart";
+
+  const inferredKind = inferChartKind(code);
+  const headerTitle = title?.trim() || caption?.trim() || inferredKind;
+  const headerSubtitle = title?.trim() && caption?.trim()
+    ? caption.trim()
+    : `${inferredKind} · Mermaid`;
+  const exportStem = toFileStem(downloadFileName || title || caption || inferredKind);
 
   useEffect(() => {
     let isMounted = true;
@@ -141,13 +170,13 @@ export function MermaidRenderer({
         try {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           const pngUrl = canvas.toDataURL("image/png");
-          downloadFileFromUrl(pngUrl, `architecture_diagram_${Date.now()}.png`);
+          downloadFileFromUrl(pngUrl, `${exportStem}_${Date.now()}.png`);
         } catch (err) {
           console.error("PNG conversion failed, falling back to SVG", err);
           // Fallback to SVG download if canvas is tainted or toDataURL fails
           const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
           const svgUrl = URL.createObjectURL(svgBlob);
-          downloadFileFromUrl(svgUrl, `architecture_diagram_${Date.now()}.svg`);
+          downloadFileFromUrl(svgUrl, `${exportStem}_${Date.now()}.svg`);
           setTimeout(() => URL.revokeObjectURL(svgUrl), 100);
         }
       };
@@ -165,8 +194,8 @@ export function MermaidRenderer({
 
   return (
     <ToolCard
-      title="Architecture Diagram"
-      subtitle={caption || "Mermaid Graph Definition"}
+      title={headerTitle}
+      subtitle={headerSubtitle}
       status={status}
       expandable={!!svgContent}
       thumbnailMode={!!svgContent}
@@ -193,7 +222,7 @@ export function MermaidRenderer({
     >
       <div
         ref={containerRef}
-        className="w-full flex items-center justify-center p-4 min-h-[160px] overflow-auto"
+        className="w-full flex items-center justify-center p-4 min-h-40 overflow-auto"
       >
         {error ? (
           <div className="text-red-500 text-xs font-mono p-4 bg-red-50 dark:bg-red-950/30 rounded-lg w-full">

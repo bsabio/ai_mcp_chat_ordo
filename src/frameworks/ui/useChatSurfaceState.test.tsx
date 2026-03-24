@@ -3,11 +3,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { useChatSurfaceState } from "@/frameworks/ui/useChatSurfaceState";
 
-const { pushMock, chatState, setComposerTextMock, setConversationIdMock, refreshConversationMock } = vi.hoisted(() => ({
+const { pushMock, openMock, chatState, setComposerTextMock, setConversationIdMock, refreshConversationMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
+  openMock: vi.fn(),
   chatState: {
     messages: [],
     isSending: false,
+    retryFailedMessage: vi.fn(),
     sendMessage: vi.fn(),
     conversationId: null as string | null,
     isLoadingMessages: false,
@@ -89,10 +91,12 @@ vi.mock("@/hooks/chat/useChatComposerController", () => ({
 describe("handleActionClick", () => {
   beforeEach(() => {
     pushMock.mockReset();
+    openMock.mockReset();
     setComposerTextMock.mockReset();
     setConversationIdMock.mockReset();
     refreshConversationMock.mockReset();
     chatState.conversationId = null;
+    vi.stubGlobal("open", openMock);
   });
 
   it("dispatches route action via router.push for valid paths", () => {
@@ -134,6 +138,30 @@ describe("handleActionClick", () => {
       result.current.handleActionClick("corpus", "audit-to-sprint");
     });
     expect(pushMock).toHaveBeenCalledWith("/library/section/audit-to-sprint");
+  });
+
+  it("opens absolute external URLs in a new tab", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("external", "https://studioordo.com/?ref=mentor-42");
+    });
+    expect(openMock).toHaveBeenCalledWith(
+      "https://studioordo.com/?ref=mentor-42",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  });
+
+  it("opens same-origin relative external URLs in a new tab", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("external", "/api/qr/mentor-42");
+    });
+    expect(openMock).toHaveBeenCalledWith(
+      "http://localhost:3000/api/qr/mentor-42",
+      "_blank",
+      "noopener,noreferrer",
+    );
   });
 
   it("calls setConversationId and refreshConversation on conversation action", () => {
@@ -191,6 +219,22 @@ describe("handleActionClick", () => {
         result.current.handleActionClick("route", "//evil.com");
       });
       expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects external action with javascript URL", () => {
+      const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+      act(() => {
+        result.current.handleActionClick("external", "javascript:alert(1)");
+      });
+      expect(openMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects external action with protocol-relative URL", () => {
+      const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+      act(() => {
+        result.current.handleActionClick("external", "//evil.com/attack");
+      });
+      expect(openMock).not.toHaveBeenCalled();
     });
 
     it("ignores conversation action with undefined params", () => {

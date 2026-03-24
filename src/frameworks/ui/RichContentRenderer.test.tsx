@@ -4,6 +4,36 @@ import React from "react";
 import { RichContentRenderer } from "./RichContentRenderer";
 import type { RichContent, InlineNode } from "../../core/entities/rich-content";
 
+vi.mock("../../components/MermaidRenderer", () => ({
+  MermaidRenderer: ({ code, title, caption, downloadFileName }: { code: string; title?: string; caption?: string; downloadFileName?: string }) => (
+    <div
+      data-testid="mermaid-renderer"
+      data-code={code}
+      data-title={title ?? ""}
+      data-caption={caption ?? ""}
+      data-download-file-name={downloadFileName ?? ""}
+    >
+      {title ?? caption ?? "Mermaid"}
+    </div>
+  ),
+}));
+
+vi.mock("../../components/GraphRenderer", () => ({
+  GraphRenderer: ({ graph, title, caption, summary, downloadFileName, dataPreview }: { graph: { kind: string }; title?: string; caption?: string; summary?: string; downloadFileName?: string; dataPreview?: Array<Record<string, unknown>> }) => (
+    <div
+      data-testid="graph-renderer"
+      data-kind={graph.kind}
+      data-title={title ?? ""}
+      data-caption={caption ?? ""}
+      data-summary={summary ?? ""}
+      data-download-file-name={downloadFileName ?? ""}
+      data-preview-count={String(dataPreview?.length ?? 0)}
+    >
+      {title ?? caption ?? graph.kind}
+    </div>
+  ),
+}));
+
 describe("RichContentRenderer", () => {
   it("should render a paragraph", () => {
     const content: RichContent = {
@@ -104,6 +134,65 @@ describe("RichContentRenderer", () => {
     expect(screen.getByText("Reply to Alex")).toBeInTheDocument();
   });
 
+  it("passes mermaid title, caption, and filename through to the chart renderer", async () => {
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "code-block",
+          code: "flowchart TD\nA --> B",
+          language: "mermaid",
+          title: "Anonymous Funnel",
+          caption: "Live drop-off view",
+          downloadFileName: "anonymous_funnel",
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} />);
+
+    const renderer = await screen.findByTestId("mermaid-renderer");
+    expect(renderer).toHaveAttribute("data-title", "Anonymous Funnel");
+    expect(renderer).toHaveAttribute("data-caption", "Live drop-off view");
+    expect(renderer).toHaveAttribute("data-download-file-name", "anonymous_funnel");
+  });
+
+  it("passes graph metadata through to the graph renderer", async () => {
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "graph",
+          title: "Lead trend",
+          caption: "Weekly qualified leads",
+          summary: "Qualified leads increased week over week.",
+          downloadFileName: "lead_trend",
+          dataPreview: [
+            { week: "W1", leads: 4 },
+            { week: "W2", leads: 7 },
+          ],
+          graph: {
+            kind: "line",
+            data: [
+              { week: "W1", leads: 4 },
+              { week: "W2", leads: 7 },
+            ],
+            x: { field: "week", type: "ordinal" },
+            y: { field: "leads", type: "quantitative" },
+          },
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} />);
+
+    const renderer = await screen.findByTestId("graph-renderer");
+    expect(renderer).toHaveAttribute("data-kind", "line");
+    expect(renderer).toHaveAttribute("data-title", "Lead trend");
+    expect(renderer).toHaveAttribute("data-caption", "Weekly qualified leads");
+    expect(renderer).toHaveAttribute("data-summary", "Qualified leads increased week over week.");
+    expect(renderer).toHaveAttribute("data-download-file-name", "lead_trend");
+    expect(renderer).toHaveAttribute("data-preview-count", "2");
+  });
+
   it("should render an action link as a button and dispatch onActionClick", () => {
     const onActionClick = vi.fn();
     const content: RichContent = {
@@ -141,6 +230,24 @@ describe("RichContentRenderer", () => {
     render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
     fireEvent.click(screen.getByRole("button", { name: "Send offer (send)" }));
     expect(onActionClick).toHaveBeenCalledWith("send", "Draft offer", { tone: "formal" });
+  });
+
+  it("should render external action links and dispatch them on click", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "action-link", label: "Open referral link", actionType: "external", value: "https://studioordo.com/?ref=mentor-42" },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open referral link (external)" }));
+    expect(onActionClick).toHaveBeenCalledWith("external", "https://studioordo.com/?ref=mentor-42", undefined);
   });
 
   it("should render action link as no-op when onActionClick is not provided", () => {

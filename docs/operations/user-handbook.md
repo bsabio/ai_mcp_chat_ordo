@@ -150,8 +150,11 @@ These tools are exposed to the chat model through the internal `ToolRegistry`.
 | `list_practitioners` | lists key practitioners referenced in the corpus |
 | `generate_audio` | generates an in-chat audio player |
 | `generate_chart` | generates a Mermaid diagram |
+| `generate_graph` | generates a quantitative graph or data table for trends, comparisons, distributions, and operational summaries |
 | `search_my_conversations` | searches the user’s own prior conversations |
 | `set_preference` | persists preferences such as tone or response style |
+
+Use `generate_chart` for Mermaid diagrams such as workflows, flowcharts, or mindmaps. Use `generate_graph` when the request is analytical: values over time, grouped comparisons, distributions, outliers, heatmaps, or a custom plotted view of structured data.
 
 ### Additional admin-only tools
 

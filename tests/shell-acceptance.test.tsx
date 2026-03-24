@@ -107,13 +107,15 @@ describe("shell acceptance", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const navLinks = getLinkNames(nav);
 
-    expect(navLinks).toEqual(["Studio Ordo home"]);
+    expect(navLinks).toEqual(["Studio Ordo home", "Home", "Library", "Blog"]);
     expect(nav).toHaveAttribute("data-shell-nav-rail", "true");
     expect(nav.querySelector('[data-shell-nav-region="brand"]')).not.toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
-    expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(within(nav).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
+    expect(within(nav).getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");
     expect(within(nav).queryByRole("link", { name: "Training" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Studio" })).toBeNull();
   });
@@ -126,7 +128,7 @@ describe("shell acceptance", () => {
     const footer = screen.getByRole("contentinfo");
     const footerLinks = getLinkNames(footer);
 
-    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Profile"]);
+    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Blog", "Profile"]);
     expect(within(footer).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
     expect(within(footer).getByText("Information")).toBeInTheDocument();
     expect(within(footer).getByText("Workspace")).toBeInTheDocument();
@@ -138,7 +140,7 @@ describe("shell acceptance", () => {
     const footer = screen.getByRole("contentinfo");
     const footerLinks = getLinkNames(footer);
 
-    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Login", "Register"]);
+    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Blog", "Login", "Register"]);
     expect(within(footer).getByText("Information")).toBeInTheDocument();
     expect(within(footer).getByText("Access")).toBeInTheDocument();
     expect(within(footer).queryByText("Workspace")).toBeNull();

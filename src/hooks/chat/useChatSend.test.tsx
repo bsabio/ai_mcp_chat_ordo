@@ -26,29 +26,47 @@ vi.mock("@/hooks/chat/chatAttachmentApi", () => ({
 
 function Harness({
   conversationId = null,
+  failedSendPayloads = [],
   messages = [],
   refreshConversation = vi.fn(),
 }: {
   conversationId?: string | null;
+  failedSendPayloads?: Array<{
+    retryKey: string;
+    failedUserMessageId: string;
+    messageText: string;
+    files: File[];
+  }>;
   messages?: ChatMessage[];
   refreshConversation?: (conversationIdOverride?: string | null) => Promise<void>;
 }) {
   const dispatch = vi.fn();
   const setConversationId = vi.fn();
   const setIsSending = vi.fn();
+  const failedSends = new Map(
+    failedSendPayloads.map((payload) => [payload.retryKey, payload]),
+  );
 
-  const sendMessage = useChatSend({
+  const { sendMessage, retryFailedMessage } = useChatSend({
     conversationId,
     refreshConversation,
     dispatch,
+    getFailedSend: (retryKey) => failedSends.get(retryKey),
     messages,
+    registerFailedSend: (payload) => {
+      failedSends.set(payload.retryKey, payload);
+    },
     setConversationId,
     setIsSending,
+    clearFailedSend: (retryKey) => {
+      failedSends.delete(retryKey);
+    },
   });
 
   return (
     <div>
       <button type="button" onClick={() => void sendMessage("Audit this workflow")}>send</button>
+      <button type="button" onClick={() => void retryFailedMessage("user-1")}>retry</button>
     </div>
   );
 }
@@ -78,6 +96,14 @@ describe("useChatSend", () => {
             timestamp: new Date("2026-03-23T10:00:00.000Z"),
           },
         ]}
+        failedSendPayloads={[
+          {
+            retryKey: "user-1",
+            failedUserMessageId: "user-1",
+            messageText: "Audit this workflow",
+            files: [],
+          },
+        ]}
         refreshConversation={refreshConversation}
       />,
     );
@@ -102,5 +128,71 @@ describe("useChatSend", () => {
     await waitFor(() => {
       expect(refreshConversation).toHaveBeenCalledWith("conv_new");
     });
+  });
+
+  it("retries a failed message in place instead of appending a duplicate user turn", async () => {
+    const refreshConversation = vi.fn().mockResolvedValue(undefined);
+    runStreamMock.mockResolvedValue("conv_existing");
+
+    render(
+      <Harness
+        conversationId="conv_existing"
+        messages={[
+          {
+            id: "msg_0",
+            role: "assistant",
+            content: "Welcome",
+            parts: [{ type: "text", text: "Welcome" }],
+            timestamp: new Date("2026-03-24T10:00:00.000Z"),
+          },
+          {
+            id: "user-1",
+            role: "user",
+            content: "Audit this workflow",
+            parts: [{ type: "text", text: "Audit this workflow" }],
+            timestamp: new Date("2026-03-24T10:01:00.000Z"),
+          },
+          {
+            id: "assistant-failure",
+            role: "assistant",
+            content: "Provider unavailable",
+            parts: [],
+            metadata: {
+              failedSend: {
+                retryKey: "user-1",
+                failedUserMessageId: "user-1",
+              },
+            },
+            timestamp: new Date("2026-03-24T10:01:01.000Z"),
+          },
+        ]}
+        failedSendPayloads={[
+          {
+            retryKey: "user-1",
+            failedUserMessageId: "user-1",
+            messageText: "Audit this workflow",
+            files: [],
+          },
+        ]}
+        refreshConversation={refreshConversation}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+
+    await waitFor(() => {
+      expect(runStreamMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(runStreamMock).toHaveBeenCalledWith(
+      [
+        { role: "assistant", content: "Welcome" },
+        { role: "user", content: "Audit this workflow" },
+      ],
+      2,
+      [],
+      undefined,
+    );
+    expect(refreshConversation).not.toHaveBeenCalled();
   });
 });

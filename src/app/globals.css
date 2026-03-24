@@ -1098,6 +1098,12 @@ body {
     color: color-mix(in oklab, var(--foreground) 68%, transparent);
   }
 
+  .library-prose hr {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  }
+
   .library-prose img {
     display: block;
     width: 100%;

@@ -47,4 +47,24 @@ describe("MermaidRenderer", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("renders contextual title and subtitle metadata", async () => {
+    (mermaid.render as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      svg: "<svg data-testid='mermaid-svg'></svg>",
+    });
+
+    render(
+      <MermaidRenderer
+        code="flowchart TD\nA --> B"
+        title="Anonymous Funnel"
+        caption="Live drop-off view"
+        downloadFileName="anonymous_funnel"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Anonymous Funnel")).toBeInTheDocument();
+      expect(screen.getByText("Live drop-off view")).toBeInTheDocument();
+    });
+  });
 });

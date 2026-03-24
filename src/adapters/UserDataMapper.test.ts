@@ -108,4 +108,66 @@ describe("UserDataMapper", () => {
 
     db.close();
   });
+
+  it("findProfileById returns referral and credential fields", async () => {
+    const db = new Database(":memory:");
+    ensureSchema(db);
+    const mapper = new UserDataMapper(db);
+
+    const user = await mapper.create({
+      email: "profile@example.com",
+      name: "Profile User",
+      passwordHash: "$2a$12$testhash",
+    });
+
+    db.prepare(
+      `UPDATE users SET credential = ?, affiliate_enabled = 1, referral_code = ? WHERE id = ?`,
+    ).run("Enterprise AI practitioner", "mentor-42", user.id);
+
+    const profile = requireValue(await mapper.findProfileById(user.id));
+
+    expect(profile.credential).toBe("Enterprise AI practitioner");
+    expect(profile.affiliateEnabled).toBe(true);
+    expect(profile.referralCode).toBe("mentor-42");
+
+    db.close();
+  });
+
+  it("enables referral access by default for admin profiles", async () => {
+    const db = new Database(":memory:");
+    ensureSchema(db);
+    const mapper = new UserDataMapper(db);
+
+    const profile = requireValue(await mapper.findProfileById("usr_admin"));
+
+    expect(profile.roles).toContain("ADMIN");
+    expect(profile.affiliateEnabled).toBe(true);
+    expect(profile.referralCode).toMatch(/^[0-9A-Za-z]{22}$/);
+
+    db.close();
+  });
+
+  it("updateProfile persists name, email, and credential changes", async () => {
+    const db = new Database(":memory:");
+    ensureSchema(db);
+    const mapper = new UserDataMapper(db);
+
+    const user = await mapper.create({
+      email: "before@example.com",
+      name: "Before Name",
+      passwordHash: "$2a$12$testhash",
+    });
+
+    const updated = await mapper.updateProfile(user.id, {
+      name: "After Name",
+      email: "after@example.com",
+      credential: "AI strategist",
+    });
+
+    expect(updated.name).toBe("After Name");
+    expect(updated.email).toBe("after@example.com");
+    expect(updated.credential).toBe("AI strategist");
+
+    db.close();
+  });
 });

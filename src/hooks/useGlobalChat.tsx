@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useReducer,
@@ -29,6 +30,7 @@ import {
   extractReferralCode,
   shouldRefreshBootstrapMessages,
 } from "@/hooks/chat/chatBootstrap";
+import type { FailedSendPayload } from "@/hooks/chat/useChatSend";
 
 interface ChatContextType {
   messages: ChatMessage[];
@@ -42,6 +44,7 @@ interface ChatContextType {
     files?: File[],
     taskOriginHandoff?: TaskOriginHandoff,
   ) => Promise<{ ok: boolean; error?: string }>;
+  retryFailedMessage: (retryKey: string) => Promise<{ ok: boolean; error?: string }>;
   setConversationId: (id: string | null) => void;
   refreshConversation: (conversationIdOverride?: string | null) => Promise<void>;
 }
@@ -65,6 +68,15 @@ export function ChatProvider({
   );
   const [isSending, setIsSending] = useState(false);
   const bootstrapRoleRef = useRef<RoleName>(initialRole);
+  const failedSendsRef = useRef(new Map<string, FailedSendPayload>());
+
+  const getFailedSend = useCallback((retryKey: string) => failedSendsRef.current.get(retryKey), []);
+  const registerFailedSend = useCallback((payload: FailedSendPayload) => {
+    failedSendsRef.current.set(payload.retryKey, payload);
+  }, []);
+  const clearFailedSend = useCallback((retryKey: string) => {
+    failedSendsRef.current.delete(retryKey);
+  }, []);
 
   const {
     conversationId,
@@ -98,13 +110,16 @@ export function ChatProvider({
       .catch(() => { /* fall back to default greeting */ });
   }, [initialRole, prompts]);
 
-  const sendMessage = useChatSend({
+  const { sendMessage, retryFailedMessage } = useChatSend({
     conversationId,
     refreshConversation,
     dispatch,
+    getFailedSend,
     messages,
+    registerFailedSend,
     setConversationId,
     setIsSending,
+    clearFailedSend,
   });
 
   useEffect(() => {
@@ -142,7 +157,10 @@ export function ChatProvider({
       currentConversation,
       isLoadingMessages,
       routingSnapshot: currentConversation?.routingSnapshot ?? null,
-      sendMessage, setConversationId, refreshConversation
+      retryFailedMessage,
+      sendMessage,
+      setConversationId,
+      refreshConversation
     }}>
       {children}
     </ChatContext.Provider>

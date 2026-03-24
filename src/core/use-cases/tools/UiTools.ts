@@ -1,6 +1,9 @@
 import type { ToolCommand } from "../ToolCommand";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
+import { resolveGenerateChartPayload, type GenerateChartInput } from "./chart-payload";
+import { resolveGenerateGraphPayload, type GenerateGraphInput, type ResolvedGraphPayload } from "./graph-payload";
+import { resolveGraphDataSource } from "@/lib/graphs/graph-data-sources";
 
 export class SetThemeCommand implements ToolCommand<{ theme: string }, string> {
   async execute({ theme }: { theme: string }, _context?: ToolExecutionContext) {
@@ -47,9 +50,22 @@ export class NavigateCommand implements ToolCommand<{ path: string }, string> {
   }
 }
 
-export class GenerateChartCommand implements ToolCommand<{ code: string }, string> {
-  async execute(_input: { code: string }, _context?: ToolExecutionContext) {
-    return `Success. Chart generated and rendered silently on the client.`;
+export class GenerateChartCommand implements ToolCommand<GenerateChartInput, string> {
+  async execute(input: GenerateChartInput, _context?: ToolExecutionContext) {
+    const payload = resolveGenerateChartPayload(input as Record<string, unknown>);
+
+    return `Success. Chart generated and rendered silently on the client using Mermaid syntax beginning with ${payload.code.split("\n")[0]}.`;
+  }
+}
+
+export class GenerateGraphCommand implements ToolCommand<GenerateGraphInput, ResolvedGraphPayload> {
+  async execute(input: GenerateGraphInput, context?: ToolExecutionContext) {
+    const source = input.data?.source;
+    const sourceData = source
+      ? await resolveGraphDataSource(source, context ?? { role: "ANONYMOUS", userId: "anonymous" })
+      : undefined;
+
+    return resolveGenerateGraphPayload(input as Record<string, unknown>, { sourceData });
   }
 }
 

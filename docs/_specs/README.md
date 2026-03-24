@@ -51,6 +51,7 @@ docs/_specs/
 | [Floating Chat Visual Authority](floating-chat-visual-authority/) | **Draft** | 4 planned (0–3) | Floating chat shell refinement for stronger hierarchy, action priority, composer anchoring, and a calmer but more decisive visual contract |
 | [Customer Workflow And Deal Flow](customer-workflow-and-deal-flow/) | **Draft** | 5 planned (0–4) | Unified runtime contract for organization, individual, and development workflows from routing through qualification, founder review, and downstream deal or training handling |
 | [Live Eval And Funnel Validation](live-eval-and-funnel-validation/) | **In Progress** | 4 planned (0–3) | Real-model, seeded-data, tool-aware evaluation program for MCP reliability, customer funnel completion, and anonymous-to-signed-in continuity |
+| [Flexible Graphing System](flexible-graphing-system/) | **Draft** | 3 planned (0–2) | Quantitative graph generation for time series, comparisons, distributions, and arbitrary structured data, separate from Mermaid diagrams |
 | [Platform Convergence And Spec Rationalization](platform-convergence-and-spec-rationalization/) | **Draft** | 5 planned (0–4) | Consolidate Platform V1 into a coherent active spec set, preserve the content/knowledge substrate, retire dashboard-first legacy modality, and archive superseded specs without losing historical context |
 
 ### Roadmap

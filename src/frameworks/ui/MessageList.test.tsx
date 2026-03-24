@@ -25,6 +25,7 @@ function makeMessage(overrides: Partial<PresentedMessage>): PresentedMessage {
     suggestions: overrides.suggestions ?? [],
     actions: overrides.actions ?? [],
     attachments: overrides.attachments ?? [],
+    failedSend: overrides.failedSend,
     timestamp: overrides.timestamp ?? "12:00",
   };
 }
@@ -552,5 +553,38 @@ describe("MessageList", () => {
     const chips = container.querySelectorAll("[data-chat-action-chip]");
     expect(chips).toHaveLength(3);
     expect(screen.queryByRole("button", { name: "Action 4" })).not.toBeInTheDocument();
+  });
+
+  it("renders a retry button for failed assistant messages", () => {
+    const onRetryClick = vi.fn();
+    const messages = [
+      makeMessage({ id: "user-1", role: "user", rawContent: "Audit this workflow" }),
+      makeMessage({
+        id: "assistant-failure",
+        role: "assistant",
+        rawContent: "Provider unavailable",
+        failedSend: {
+          retryKey: "user-1",
+          failedUserMessageId: "user-1",
+        },
+      }),
+    ];
+
+    render(
+      <MessageList
+        messages={messages}
+        isSending={false}
+        dynamicSuggestions={[]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        onRetryClick={onRetryClick}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetryClick).toHaveBeenCalledWith("user-1");
   });
 });

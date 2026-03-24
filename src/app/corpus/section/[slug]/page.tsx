@@ -11,6 +11,13 @@ export default async function CorpusSectionResolverPage({
   const match = index.find((entry) => entry.chapterSlug === resolvedParams.slug);
 
   if (!match) {
+    const bookMatch = index.find((entry) => entry.bookSlug === resolvedParams.slug);
+    if (bookMatch) {
+      redirect(`/library/${bookMatch.bookSlug}`);
+    }
+  }
+
+  if (!match) {
     notFound();
   }
 

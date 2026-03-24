@@ -137,6 +137,7 @@ describe("ToolRegistry RBAC", () => {
     expect(registry.canExecute("get_checklist", "ANONYMOUS")).toBe(false);
     expect(registry.canExecute("generate_audio", "ANONYMOUS")).toBe(false);
     expect(registry.canExecute("generate_chart", "ANONYMOUS")).toBe(false);
+    expect(registry.canExecute("generate_graph", "ANONYMOUS")).toBe(false);
     expect(registry.canExecute("list_practitioners", "ANONYMOUS")).toBe(false);
   });
 

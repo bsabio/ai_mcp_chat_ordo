@@ -23,6 +23,18 @@ const MermaidRenderer = dynamic(
   },
 );
 
+const GraphRenderer = dynamic(
+  () => import("../../components/GraphRenderer").then((mod) => mod.GraphRenderer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-40 w-full flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-2">
+        Loading Graph Engine...
+      </div>
+    ),
+  },
+);
+
 const AudioPlayer = dynamic(
   () => import("../../components/AudioPlayer").then((mod) => mod.AudioPlayer),
   {
@@ -71,6 +83,8 @@ export const RichContentRenderer: React.FC<Props> = ({
           key = `audio-${block.title}-${block.text.substring(0, 50)}`;
         else if (block.type === "code-block" && block.language === "mermaid")
           key = `mermaid-${block.code.substring(0, 50)}`;
+        else if (block.type === "graph")
+          key = `graph-${block.graph.kind}-${block.title ?? block.caption ?? i}`;
         else if (block.type === "web-search")
           key = `websearch-${block.query.substring(0, 60)}`;
         return <BlockRenderer key={key} block={block} onLinkClick={onLinkClick} onActionClick={onActionClick} />;
@@ -146,10 +160,27 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
   ),
   "code-block": ({ block }) => {
     if (block.language === "mermaid") {
-      return <MermaidRenderer code={block.code} />;
+      return (
+        <MermaidRenderer
+          code={block.code}
+          title={block.title}
+          caption={block.caption}
+          downloadFileName={block.downloadFileName}
+        />
+      );
     }
     return <CodeBlock code={block.code} lang={block.language} />;
   },
+  graph: ({ block }) => (
+    <GraphRenderer
+      graph={block.graph}
+      title={block.title}
+      caption={block.caption}
+      summary={block.summary}
+      downloadFileName={block.downloadFileName}
+      dataPreview={block.dataPreview}
+    />
+  ),
   table: ({ block, onLinkClick, onActionClick }) => (
     <TableRenderer
       header={block.header}

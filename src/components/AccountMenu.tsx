@@ -100,8 +100,6 @@ export function AccountMenu({ user }: AccountMenuProps) {
   const pathname = usePathname();
   const { switchRole, logout } = useMockAuth();
   const { 
-    gridEnabled, 
-    setGridEnabled, 
     isDark, 
     setIsDark, 
     accessibility, 
@@ -207,14 +205,6 @@ export function AccountMenu({ user }: AccountMenuProps) {
               <p className="shell-meta-text truncate opacity-50 normal-case tracking-[0.04em]">{user.email}</p>
             </div>
             <div className="shell-action-row rounded-theme border-theme bg-background p-1 shadow-inner">
-              <button
-                onClick={() => setGridEnabled(!gridEnabled)}
-                className={`p-1.5 rounded-lg transition-all focus-ring ${gridEnabled ? "accent-fill" : "opacity-40 hover:opacity-100"}`}
-                title="Toggle Grid"
-                aria-label="Toggle grid overlay"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
-              </button>
               <button
                 onClick={() => setIsDark(!isDark)}
                 className={`p-1.5 rounded-lg transition-all focus-ring ${isDark ? "accent-fill" : "opacity-40 hover:opacity-100"}`}

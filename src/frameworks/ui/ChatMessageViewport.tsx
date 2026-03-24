@@ -17,6 +17,7 @@ interface ChatMessageViewportProps {
   messages: PresentedMessage[];
   onLinkClick: (slug: string) => void;
   onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
+  onRetryClick?: (retryKey: string) => void;
   onSuggestionClick: (text: string) => void;
   scrollDependency: string;
   searchQuery: string;
@@ -32,6 +33,7 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
   messages,
   onLinkClick,
   onActionClick,
+  onRetryClick,
   onSuggestionClick,
   scrollDependency,
   searchQuery,
@@ -72,6 +74,7 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
               onSuggestionClick={onSuggestionClick}
               onLinkClick={onLinkClick}
               onActionClick={onActionClick}
+              onRetryClick={onRetryClick}
               searchQuery={searchQuery}
               isEmbedded={isEmbedded}
             />

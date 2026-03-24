@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:browser-ui": "vitest run tests/browser-support.test.ts tests/browser-overlays.test.tsx tests/browser-motion.test.tsx tests/browser-api-fallbacks.test.ts tests/browser-fab-chat-flow.test.tsx tests/browser-fab-scroll-recovery.test.tsx tests/browser-fab-mobile-density.test.tsx src/components/AudioPlayer.test.tsx",
+    "test:browser-ui": "vitest run tests/browser-support.test.ts tests/browser-overlays.test.tsx tests/browser-motion.test.tsx tests/browser-api-fallbacks.test.ts tests/browser-fab-chat-flow.test.tsx tests/browser-fab-scroll-recovery.test.tsx tests/browser-fab-mobile-density.test.tsx tests/browser-graph-interactions.test.tsx tests/browser-graph-rendering.test.tsx tests/browser-graph-data-preview.test.tsx src/components/AudioPlayer.test.tsx",
     "test:browser-live": "playwright test tests/browser-ui/fab-live-smoke.spec.ts",
     "test:homepage-shell": "vitest run tests/homepage-shell-ownership.test.tsx tests/homepage-shell-layout.test.tsx src/hooks/useMessageScrollBoundaryLock.test.tsx",
     "test:homepage-evals": "vitest run tests/homepage-shell-evals.test.tsx",

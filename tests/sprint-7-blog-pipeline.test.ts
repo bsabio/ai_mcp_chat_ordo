@@ -11,6 +11,7 @@ import {
 } from "@/core/use-cases/tools/admin-content.tool";
 import type { BlogPostRepository } from "@/core/use-cases/BlogPostRepository";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
+import { hasStructuredMarkdown, normalizeBlogMarkdown } from "@/lib/blog/normalize-markdown";
 
 const mockContext: ToolExecutionContext = {
   userId: "usr_admin",
@@ -64,7 +65,7 @@ describe("draft_content tool", () => {
     const mockRepo = createMockRepo();
     const tool = createDraftContentTool(mockRepo);
     const result = await tool.command.execute(
-      { title: "Test Post", content: "Hello world." },
+      { title: "Test Post", content: "## Hello world\n\nThis is the post body." },
       mockContext,
     );
     expect(result).toMatchObject({
@@ -80,7 +81,7 @@ describe("draft_content tool", () => {
     const mockRepo = createMockRepo();
     const tool = createDraftContentTool(mockRepo);
     await tool.command.execute(
-      { title: "My First Blog Post!", content: "Content here." },
+      { title: "My First Blog Post!", content: "## Overview\n\nContent here." },
       mockContext,
     );
     const seed = (mockRepo.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -151,6 +152,20 @@ describe("draft_content tool", () => {
     await expect(
       tool.command.execute({ title: "Valid Title", content: "" }, mockContext),
     ).rejects.toThrow();
+  });
+
+  it("N7: rejects plain prose that lacks markdown structure", async () => {
+    const mockRepo = createMockRepo();
+    const tool = createDraftContentTool(mockRepo);
+    await expect(
+      tool.command.execute(
+        {
+          title: "Studio Ordo Capabilities",
+          content: "Studio Ordo helps teams qualify leads and move work forward in one conversational interface.",
+        },
+        mockContext,
+      ),
+    ).rejects.toThrow(/structured markdown/i);
   });
 
   it("E8: tool descriptor has ADMIN-only roles", () => {
@@ -390,6 +405,17 @@ describe("blog page source analysis", () => {
     expect(src).toContain("notFound");
   });
 
+  it("E5b: blog post page uses library markdown rendering", () => {
+    const src = readSource("src/app/blog/[slug]/page.tsx");
+    expect(src).toContain("MarkdownProse");
+    expect(src).toContain("normalizeBlogMarkdown");
+  });
+
+  it("E5c: library section page uses the shared markdown renderer", () => {
+    const src = readSource("src/app/library/[document]/[section]/page.tsx");
+    expect(src).toContain("MarkdownProse");
+  });
+
   it("E6: blog pages have no auth imports", () => {
     const indexSrc = readSource("src/app/blog/page.tsx");
     const postSrc = readSource("src/app/blog/[slug]/page.tsx");
@@ -404,5 +430,30 @@ describe("blog schema", () => {
   it("E7: blog_posts table exists in schema", () => {
     const src = readSource("src/lib/db/tables.ts");
     expect(src).toContain("blog_posts");
+  });
+});
+
+describe("blog markdown normalization", () => {
+  it("E8: removes duplicated title lines from generated post bodies", () => {
+    const normalized = normalizeBlogMarkdown(
+      "Meet Studio Ordo",
+      "Meet Studio Ordo\n\n## What It Does\n\nIt helps teams move work forward.",
+    );
+
+    expect(normalized.startsWith("## What It Does")).toBe(true);
+  });
+
+  it("E9: upgrades standalone section labels into markdown headings", () => {
+    const normalized = normalizeBlogMarkdown(
+      "Meet Studio Ordo",
+      "Intro paragraph.\n\nWhat It Can Do for Your Business\nIt helps teams qualify leads.",
+    );
+
+    expect(normalized).toContain("## What It Can Do for Your Business");
+  });
+
+  it("E10: detects structured markdown content", () => {
+    expect(hasStructuredMarkdown("## Heading\n\n- Item one")).toBe(true);
+    expect(hasStructuredMarkdown("Plain prose only")).toBe(false);
   });
 });

@@ -74,10 +74,20 @@ describe("site shell composition", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const footer = screen.getByRole("contentinfo");
 
-    expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
     expect(within(footer).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
-    expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
+  });
+
+  it("renders the public blog route in both the primary nav and footer", () => {
+    renderShell();
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const footer = screen.getByRole("contentinfo");
+
+    expect(within(nav).getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");
+    expect(within(footer).getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");
   });
 
   it("does not reintroduce the dead footer routes removed from the canonical shell model", () => {
@@ -111,8 +121,11 @@ describe("site shell composition", () => {
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
-    expect(resolvePrimaryNavRoutes(baseUser)).toEqual([]);
+    expect(resolvePrimaryNavRoutes(baseUser).map((route) => route.id)).toEqual(["home", "corpus", "blog"]);
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(within(nav).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
+    expect(within(nav).getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");
   });
 });

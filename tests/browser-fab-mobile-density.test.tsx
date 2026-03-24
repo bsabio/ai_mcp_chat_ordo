@@ -32,8 +32,6 @@ vi.mock("@/components/ThemeProvider", () => ({
   useTheme: () => ({
     accessibility: { density: "compact" },
     setAccessibility: vi.fn(),
-    gridEnabled: false,
-    setGridEnabled: vi.fn(),
   }),
 }));
 

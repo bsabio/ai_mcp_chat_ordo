@@ -60,7 +60,7 @@ describe("env config", () => {
   });
 
   it("uses default Anthropic request resilience settings", () => {
-    expect(getAnthropicRequestTimeoutMs()).toBe(12000);
+    expect(getAnthropicRequestTimeoutMs()).toBe(45000);
     expect(getAnthropicRequestRetryAttempts()).toBe(3);
     expect(getAnthropicRequestRetryDelayMs()).toBe(150);
   });
@@ -80,7 +80,7 @@ describe("env config", () => {
     vi.stubEnv("ANTHROPIC_RETRY_ATTEMPTS", "-1");
     vi.stubEnv("ANTHROPIC_RETRY_DELAY_MS", "not-a-number");
 
-    expect(getAnthropicRequestTimeoutMs()).toBe(12000);
+    expect(getAnthropicRequestTimeoutMs()).toBe(45000);
     expect(getAnthropicRequestRetryAttempts()).toBe(3);
     expect(getAnthropicRequestRetryDelayMs()).toBe(150);
   });
