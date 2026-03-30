@@ -8,7 +8,7 @@ import {
 import { getDb } from "@/lib/db";
 import { FileSystemCorpusRepository } from "@/adapters/FileSystemCorpusRepository";
 import { CachedCorpusRepository } from "@/adapters/CachedCorpusRepository";
-import { LocalEmbedder } from "@/adapters/LocalEmbedder";
+import { localEmbedder } from "@/adapters/LocalEmbedder";
 import { SQLiteVectorStore } from "@/adapters/SQLiteVectorStore";
 import { SQLiteBM25IndexStore } from "@/adapters/SQLiteBM25IndexStore";
 import { EmbeddingPipelineFactory } from "@/core/search/EmbeddingPipelineFactory";
@@ -74,7 +74,7 @@ interface AllDeps {
 
 function buildDeps(): AllDeps {
   const db = getDb();
-  const embedder = new LocalEmbedder();
+  const embedder = localEmbedder;
   const vectorStore = new SQLiteVectorStore(db);
   const bm25IndexStore = new SQLiteBM25IndexStore(db);
 

@@ -25,10 +25,14 @@ const {
   createSystemPromptBuilderMock,
   looksLikeMathMock,
   getSchemasForRoleMock,
+  getDescriptorMock,
   toolExecutorFactoryMock,
   getByIdMock,
   assignConversationMock,
   createConversationRuntimeServicesMock,
+  createJobMock,
+  findActiveJobByDedupeKeyMock,
+  appendJobEventMock,
 } = vi.hoisted(() => ({
   executeDirectChatTurnMock: vi.fn(),
   getSessionUserMock: vi.fn(),
@@ -46,10 +50,14 @@ const {
   createSystemPromptBuilderMock: vi.fn(),
   looksLikeMathMock: vi.fn(),
   getSchemasForRoleMock: vi.fn(),
+  getDescriptorMock: vi.fn(),
   toolExecutorFactoryMock: vi.fn(),
   getByIdMock: vi.fn(),
   assignConversationMock: vi.fn(),
   createConversationRuntimeServicesMock: vi.fn(),
+  createJobMock: vi.fn(),
+  findActiveJobByDedupeKeyMock: vi.fn(),
+  appendJobEventMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -85,10 +93,21 @@ vi.mock("@/lib/chat/policy", () => ({
 }));
 
 vi.mock("@/lib/chat/tool-composition-root", () => ({
-  getToolRegistry: vi.fn(() => ({
-    getSchemasForRole: getSchemasForRoleMock,
+  getToolComposition: vi.fn(() => ({
+    registry: {
+      getSchemasForRole: getSchemasForRoleMock,
+      getDescriptor: getDescriptorMock,
+    },
+    executor: toolExecutorFactoryMock(),
   })),
-  getToolExecutor: toolExecutorFactoryMock,
+}));
+
+vi.mock("@/adapters/RepositoryFactory", () => ({
+  getJobQueueRepository: vi.fn(() => ({
+    createJob: createJobMock,
+    findActiveJobByDedupeKey: findActiveJobByDedupeKeyMock,
+    appendEvent: appendJobEventMock,
+  })),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -118,6 +137,43 @@ vi.mock("@/lib/user-files", () => ({
 describe("POST /api/chat/stream", () => {
   beforeEach(() => {
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    getDescriptorMock.mockReset();
+    getDescriptorMock.mockReturnValue(undefined);
+    createJobMock.mockReset();
+    createJobMock.mockResolvedValue({
+      id: "job_test",
+      conversationId: "conv_test",
+      userId: "usr_anonymous",
+      toolName: "draft_content",
+      status: "queued",
+      priority: 100,
+      dedupeKey: null,
+      initiatorType: "anonymous_session",
+      requestPayload: {},
+      resultPayload: null,
+      errorMessage: null,
+      progressPercent: null,
+      progressLabel: null,
+      attemptCount: 0,
+      leaseExpiresAt: null,
+      claimedBy: null,
+      createdAt: "2026-03-25T03:00:00.000Z",
+      startedAt: null,
+      completedAt: null,
+      updatedAt: "2026-03-25T03:00:00.000Z",
+    });
+    findActiveJobByDedupeKeyMock.mockReset();
+    findActiveJobByDedupeKeyMock.mockResolvedValue(null);
+    appendJobEventMock.mockReset();
+    appendJobEventMock.mockResolvedValue({
+      id: "evt_test",
+      jobId: "job_test",
+      conversationId: "conv_test",
+      sequence: 1,
+      eventType: "queued",
+      payload: { toolName: "draft_content" },
+      createdAt: "2026-03-25T03:00:00.000Z",
+    });
     seedChatStreamRouteMocks({
       getSessionUserMock,
       resolveUserIdMock,
@@ -431,7 +487,7 @@ describe("POST /api/chat/stream", () => {
 
     await response.text();
 
-    expect(createSystemPromptBuilderMock).toHaveBeenCalledWith("ADMIN");
+    expect(createSystemPromptBuilderMock).toHaveBeenCalledWith("ADMIN", { currentPathname: undefined });
     expect(getSchemasForRoleMock).toHaveBeenCalledWith("ADMIN");
     const call = runClaudeAgentLoopStreamMock.mock.calls.at(-1)?.[0] as { tools: Array<{ name: string }> };
     expect(call.tools).toEqual([{ name: "admin_prioritize_leads", description: "", input_schema: {} }]);
@@ -489,5 +545,256 @@ describe("POST /api/chat/stream", () => {
     expect(body).toContain('data: {"conversation_id":"conv_test"}');
     expect(body).toContain('data: {"delta":"assistant reply"}');
     expect(body).toContain('data: {"error":"persist assistant failed"}');
+  });
+
+  it("queues deferred draft_content calls and emits a live job_queued event", async () => {
+    looksLikeMathMock.mockReturnValue(false);
+    getSessionUserMock.mockResolvedValue(
+      createStreamRouteUser({
+        id: "usr_admin",
+        email: "admin@example.com",
+        name: "Admin",
+        roles: ["ADMIN"],
+      }),
+    );
+    resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
+    getSchemasForRoleMock.mockReturnValue([{ name: "draft_content", description: "", input_schema: {} }]);
+    getDescriptorMock.mockImplementation((name: string) => {
+      if (name !== "draft_content") {
+        return undefined;
+      }
+
+      return {
+        name: "draft_content",
+        executionMode: "deferred",
+        deferred: {
+          dedupeStrategy: "per-conversation-payload",
+          retryable: true,
+          notificationPolicy: "completion-and-failure",
+        },
+      };
+    });
+    createJobMock.mockResolvedValueOnce({
+      id: "job_draft_1",
+      conversationId: "conv_test",
+      userId: "usr_admin",
+      toolName: "draft_content",
+      status: "queued",
+      priority: 100,
+      dedupeKey: 'conv_test:draft_content:{"content":"## Outline\\n\\nBody.","title":"Deferred Post"}',
+      initiatorType: "user",
+      requestPayload: { title: "Deferred Post", content: "## Outline\n\nBody." },
+      resultPayload: null,
+      errorMessage: null,
+      progressPercent: null,
+      progressLabel: null,
+      attemptCount: 0,
+      leaseExpiresAt: null,
+      claimedBy: null,
+      createdAt: "2026-03-25T03:00:00.000Z",
+      startedAt: null,
+      completedAt: null,
+      updatedAt: "2026-03-25T03:00:00.000Z",
+    });
+    appendJobEventMock.mockResolvedValueOnce({
+      id: "evt_draft_1",
+      jobId: "job_draft_1",
+      conversationId: "conv_test",
+      sequence: 7,
+      eventType: "queued",
+      payload: { toolName: "draft_content" },
+      createdAt: "2026-03-25T03:00:00.000Z",
+    });
+    runClaudeAgentLoopStreamMock.mockImplementationOnce(
+      async ({ callbacks, toolExecutor }: {
+        callbacks: {
+          onToolCall: (name: string, args: Record<string, unknown>) => void;
+          onToolResult: (name: string, result: unknown) => void;
+        };
+        toolExecutor: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+      }) => {
+        const args = { title: "Deferred Post", content: "## Outline\n\nBody." };
+        callbacks.onToolCall("draft_content", args);
+        const result = await toolExecutor("draft_content", args);
+        callbacks.onToolResult("draft_content", result);
+      },
+    );
+
+    const response = await POST(
+      createStreamRouteRequest({
+        messages: [{ role: "user", content: "Draft a post about the queue." }],
+      }) as never,
+    );
+
+    const body = await response.text();
+
+    expect(createJobMock).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: "conv_test",
+      userId: "usr_admin",
+      toolName: "draft_content",
+    }));
+    expect(appendJobEventMock).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: "job_draft_1",
+      conversationId: "conv_test",
+      eventType: "queued",
+    }));
+    expect(body).toContain('data: {"tool_call":{"name":"draft_content","args":{"title":"Deferred Post","content":"## Outline\\n\\nBody."}}}');
+    expect(body).toContain('data: {"type":"job_queued","jobId":"job_draft_1","conversationId":"conv_test","sequence":7,"toolName":"draft_content","label":"Draft Content","title":"Deferred Post","subtitle":"Draft journal article","updatedAt":"2026-03-25T03:00:00.000Z"}');
+
+    const assistantPersistCall = appendMessageMock.mock.calls[1]?.[0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(assistantPersistCall.parts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "job_status", jobId: "job_draft_1", title: "Deferred Post", subtitle: "Draft journal article", status: "queued" }),
+    ]));
+  });
+
+  it("queues deferred publish_content calls as a second deferred tool", async () => {
+    looksLikeMathMock.mockReturnValue(false);
+    getSessionUserMock.mockResolvedValue(
+      createStreamRouteUser({
+        id: "usr_admin",
+        email: "admin@example.com",
+        name: "Admin",
+        roles: ["ADMIN"],
+      }),
+    );
+    resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
+    getSchemasForRoleMock.mockReturnValue([{ name: "publish_content", description: "", input_schema: {} }]);
+    getDescriptorMock.mockImplementation((name: string) => {
+      if (name !== "publish_content") {
+        return undefined;
+      }
+
+      return {
+        name: "publish_content",
+        executionMode: "deferred",
+        deferred: {
+          dedupeStrategy: "per-conversation-payload",
+          retryable: true,
+          notificationPolicy: "completion-and-failure",
+        },
+      };
+    });
+    createJobMock.mockResolvedValueOnce({
+      id: "job_publish_1",
+      conversationId: "conv_test",
+      userId: "usr_admin",
+      toolName: "publish_content",
+      status: "queued",
+      priority: 100,
+      dedupeKey: 'conv_test:publish_content:{"post_id":"post_1"}',
+      initiatorType: "user",
+      requestPayload: { post_id: "post_1" },
+      resultPayload: null,
+      errorMessage: null,
+      progressPercent: null,
+      progressLabel: null,
+      attemptCount: 0,
+      leaseExpiresAt: null,
+      claimedBy: null,
+      createdAt: "2026-03-25T03:00:00.000Z",
+      startedAt: null,
+      completedAt: null,
+      updatedAt: "2026-03-25T03:00:00.000Z",
+    });
+    appendJobEventMock.mockResolvedValueOnce({
+      id: "evt_publish_1",
+      jobId: "job_publish_1",
+      conversationId: "conv_test",
+      sequence: 8,
+      eventType: "queued",
+      payload: { toolName: "publish_content" },
+      createdAt: "2026-03-25T03:00:00.000Z",
+    });
+    runClaudeAgentLoopStreamMock.mockImplementationOnce(
+      async ({ callbacks, toolExecutor }: {
+        callbacks: {
+          onToolCall: (name: string, args: Record<string, unknown>) => void;
+          onToolResult: (name: string, result: unknown) => void;
+        };
+        toolExecutor: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+      }) => {
+        const args = { post_id: "post_1" };
+        callbacks.onToolCall("publish_content", args);
+        const result = await toolExecutor("publish_content", args);
+        callbacks.onToolResult("publish_content", result);
+      },
+    );
+
+    const response = await POST(
+      createStreamRouteRequest({
+        messages: [{ role: "user", content: "Publish draft post_1." }],
+      }) as never,
+    );
+
+    const body = await response.text();
+
+    expect(createJobMock).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: "conv_test",
+      userId: "usr_admin",
+      toolName: "publish_content",
+    }));
+    expect(body).toContain('data: {"type":"job_queued","jobId":"job_publish_1","conversationId":"conv_test","sequence":8,"toolName":"publish_content","label":"Publish Content","title":"Publish journal draft post_1","subtitle":"Make the saved article live in the journal","updatedAt":"2026-03-25T03:00:00.000Z"}');
+  });
+
+  it("promotes explicit deferred status tool results into live job events and persisted job status parts", async () => {
+    looksLikeMathMock.mockReturnValue(false);
+    getSessionUserMock.mockResolvedValue(
+      createStreamRouteUser({
+        id: "usr_admin",
+        email: "admin@example.com",
+        name: "Admin",
+        roles: ["ADMIN"],
+      }),
+    );
+    resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
+    getSchemasForRoleMock.mockReturnValue([{ name: "get_deferred_job_status", description: "", input_schema: {} }]);
+
+    runClaudeAgentLoopStreamMock.mockImplementationOnce(
+      async ({ callbacks }: {
+        callbacks: {
+          onToolCall: (name: string, args: Record<string, unknown>) => void;
+          onToolResult: (name: string, result: unknown) => void;
+        };
+      }) => {
+        callbacks.onToolCall("get_deferred_job_status", { job_id: "job_8a1aa200-4f86-4841-b6f2-4094ad770f6f" });
+        callbacks.onToolResult("get_deferred_job_status", {
+          ok: true,
+          job: {
+            messageId: "jobmsg_job_8a1aa200-4f86-4841-b6f2-4094ad770f6f",
+            part: {
+              type: "job_status",
+              jobId: "job_8a1aa200-4f86-4841-b6f2-4094ad770f6f",
+              toolName: "produce_blog_article",
+              label: "Produce Blog Article",
+              title: "AI operations backlog cleanup",
+              subtitle: "Audience: Operations leaders · Objective: Improve delivery velocity",
+              status: "queued",
+              sequence: 9,
+              updatedAt: "2026-03-25T14:52:00.000Z",
+            },
+          },
+        });
+      },
+    );
+
+    const response = await POST(
+      createStreamRouteRequest({
+        messages: [{ role: "user", content: "Check the status of job job_8a1aa200-4f86-4841-b6f2-4094ad770f6f" }],
+      }) as never,
+    );
+
+    const body = await response.text();
+
+    expect(body).toContain('data: {"tool_call":{"name":"get_deferred_job_status","args":{"job_id":"job_8a1aa200-4f86-4841-b6f2-4094ad770f6f"}}}');
+    expect(body).toContain('data: {"type":"job_queued","messageId":"jobmsg_job_8a1aa200-4f86-4841-b6f2-4094ad770f6f","jobId":"job_8a1aa200-4f86-4841-b6f2-4094ad770f6f","conversationId":"conv_test","sequence":9,"toolName":"produce_blog_article","label":"Produce Blog Article","title":"AI operations backlog cleanup","subtitle":"Audience: Operations leaders · Objective: Improve delivery velocity","updatedAt":"2026-03-25T14:52:00.000Z"}');
+
+    const assistantPersistCall = appendMessageMock.mock.calls[1]?.[0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(assistantPersistCall.parts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "job_status", jobId: "job_8a1aa200-4f86-4841-b6f2-4094ad770f6f", title: "AI operations backlog cleanup", subtitle: "Audience: Operations leaders · Objective: Improve delivery velocity", status: "queued" }),
+    ]));
   });
 });

@@ -66,6 +66,12 @@ export function ChatContentSurface({
   searchQuery,
   suggestions,
 }: ChatContentSurfaceProps) {
+  const helperTextId = isEmbedded
+    ? "chat-composer-helper-embedded"
+    : isFullScreen
+      ? "chat-composer-helper-floating-fullscreen"
+      : "chat-composer-helper-floating";
+
   return (
     <>
       <div className="relative h-full min-h-0 overflow-hidden">
@@ -87,16 +93,14 @@ export function ChatContentSurface({
       </div>
 
       <div
-        className={`relative flex-none bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_56%,transparent)_0%,color-mix(in_oklab,var(--background)_92%,transparent)_40%,var(--background)_100%)] px-3 pb-2 shadow-[0_-10px_24px_-26px_color-mix(in_srgb,var(--shadow-base)_16%,transparent)] backdrop-blur-sm sm:px-(--container-padding) sm:pb-3 ${!isEmbedded && isFullScreen ? "safe-area-px safe-area-pb" : ""}`}
+        className={`ui-chat-composer-plane relative flex-none ${!isEmbedded && isFullScreen ? "safe-area-px safe-area-pb" : ""}`}
         data-chat-composer-row={isEmbedded ? "true" : undefined}
         data-chat-composer-plane={!isEmbedded ? "true" : undefined}
-        style={{
-          paddingTop: isEmbedded ? "var(--phi-1)" : "0.625rem",
-        }}
       >
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-16 top-0 h-px bg-linear-to-r from-transparent via-foreground/8 to-transparent" />
+        <div aria-hidden="true" className="ui-chat-composer-seam pointer-events-none absolute inset-x-(--space-16) top-0 h-px" />
         <div className={isFullScreen ? "mx-auto w-full max-w-4xl" : "w-full"} data-chat-composer-shell="true">
           <ChatInput
+            helperTextId={helperTextId}
             inputRef={inputRef}
             value={input}
             onChange={onInputChange}

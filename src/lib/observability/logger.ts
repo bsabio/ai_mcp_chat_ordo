@@ -4,7 +4,7 @@ import {
   subscribeObservability,
 } from "@/lib/observability/events";
 
-export type LogLevel = "info" | "error";
+export type LogLevel = "info" | "warn" | "error";
 
 let loggerObserverRegistered = false;
 
@@ -27,6 +27,8 @@ function ensureLoggerObserverRegistered() {
 
     if (event.payload.level === "error") {
       console.error(output);
+    } else if (event.payload.level === "warn") {
+      console.warn(output);
     } else {
       console.info(output);
     }
@@ -78,4 +80,41 @@ export function getErrorCode(message: string, status?: number) {
   }
 
   return "INTERNAL_ERROR";
+}
+
+function serializeError(err: unknown): Record<string, string> | undefined {
+  if (!(err instanceof Error)) {
+    return undefined;
+  }
+  return {
+    name: err.name,
+    message: err.message,
+    ...(err.stack ? { stack: err.stack } : {}),
+  };
+}
+
+export function logDegradation(
+  code: string,
+  message: string,
+  context?: Record<string, unknown>,
+  err?: unknown,
+): void {
+  logEvent("warn", code, {
+    message,
+    ...context,
+    ...(serializeError(err) ? { error: serializeError(err) } : {}),
+  });
+}
+
+export function logFailure(
+  code: string,
+  message: string,
+  context?: Record<string, unknown>,
+  err?: unknown,
+): void {
+  logEvent("error", code, {
+    message,
+    ...context,
+    ...(serializeError(err) ? { error: serializeError(err) } : {}),
+  });
 }

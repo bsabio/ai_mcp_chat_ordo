@@ -221,7 +221,7 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
   };
 
   return (
-    <div className="my-2 max-w-2xl w-full">
+    <div className="my-(--space-2) max-w-2xl w-full">
       <ToolCard
         title="Web Search"
         icon={<span>🔍</span>}
@@ -240,7 +240,7 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
       >
         {/* Loading state */}
         {isLoading && (
-          <div className="p-4 flex flex-col gap-2">
+          <div className="p-(--space-inset-panel) flex flex-col gap-(--space-2)">
             <p className="text-xs opacity-60">
               Searching for: <span className="font-medium opacity-80">{query}</span>
             </p>
@@ -250,7 +250,7 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
               </p>
             )}
             {/* Progress bar */}
-            <div className="h-1 rounded-full bg-surface-muted overflow-hidden mt-1">
+            <div className="h-1 rounded-full bg-surface-muted overflow-hidden mt-(--space-1)">
               <div
                 className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${Math.min(95, (state.elapsedMs / 65000) * 100)}%` }}
@@ -261,14 +261,14 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
 
         {/* Error state */}
         {state.stage === "error" && (
-          <div className="p-4">
+          <div className="p-(--space-inset-panel)">
             <p className="text-sm text-red-500">{state.error}</p>
           </div>
         )}
 
         {/* Success state */}
         {state.result && (
-          <div className="p-4 flex flex-col gap-3">
+          <div className="p-(--space-inset-panel) flex flex-col gap-(--space-3)">
             {/* Answer */}
             <div className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
               {state.result.answer}
@@ -276,11 +276,11 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
 
             {/* Citations */}
             {state.result.citations.length > 0 && (
-              <div className="flex flex-col gap-1 mt-2">
+              <div className="flex flex-col gap-(--space-1) mt-(--space-2)">
                 <span className="text-[10px] font-semibold uppercase tracking-wider opacity-50">
                   Citations
                 </span>
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-(--space-1)">
                   {state.result.citations.map((c, i) => (
                     <li key={i} className="text-xs">
                       <a
@@ -299,11 +299,11 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
 
             {/* Sources */}
             {state.result.sources.length > 0 && (
-              <div className="flex flex-col gap-1 mt-1">
+              <div className="flex flex-col gap-(--space-1) mt-(--space-1)">
                 <span className="text-[10px] font-semibold uppercase tracking-wider opacity-50">
                   All Sources
                 </span>
-                <ul className="flex flex-wrap gap-1.5">
+                <ul className="flex flex-wrap gap-(--space-cluster-tight)">
                   {state.result.sources.map((url, i) => {
                     let domain: string;
                     try {
@@ -317,7 +317,7 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
                           href={url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-surface-muted border-theme hover:border-accent transition-colors"
+                          className="inline-flex items-center gap-(--space-cluster-tight) rounded-full border-theme bg-surface-muted px-(--space-2) py-(--space-inset-tight) text-[10px] transition-colors hover:border-accent-interactive"
                         >
                           {domain}
                         </a>

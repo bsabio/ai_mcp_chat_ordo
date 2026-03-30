@@ -6,6 +6,7 @@ interface FloatingChatFrameProps {
   canUseViewTransitions: boolean;
   children: React.ReactNode;
   isFullScreen: boolean;
+  routeTone?: "default" | "quiet";
 }
 
 function getFloatingContainerClasses(): string {
@@ -18,6 +19,7 @@ export function FloatingChatFrame({
   canUseViewTransitions,
   children,
   isFullScreen,
+  routeTone = "default",
 }: FloatingChatFrameProps) {
   const sectionStyle: React.CSSProperties = {
     ["--fab-shell-inline-offset" as string]: "max(1.5rem, var(--safe-area-inset-right))",
@@ -39,6 +41,7 @@ export function FloatingChatFrame({
       data-chat-floating-shell="true"
       data-chat-shell-kind="floating"
       data-chat-shell-size={isFullScreen ? "fullscreen" : "default"}
+      data-chat-route-tone={routeTone}
     >
       {children}
     </section>

@@ -1,4 +1,5 @@
 import { getCorpusIndex } from "@/lib/corpus-library";
+import { getViewerRole, handleLibraryAccessDenied } from "@/lib/corpus-access";
 import { notFound, redirect } from "next/navigation";
 
 export default async function CorpusSectionResolverPage({
@@ -7,7 +8,11 @@ export default async function CorpusSectionResolverPage({
   params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = await params;
-  const index = await getCorpusIndex();
+  const role = await getViewerRole();
+  const [index, rawIndex] = await Promise.all([
+    getCorpusIndex({ role }),
+    getCorpusIndex(),
+  ]);
   const match = index.find((entry) => entry.chapterSlug === resolvedParams.slug);
 
   if (!match) {
@@ -18,6 +23,11 @@ export default async function CorpusSectionResolverPage({
   }
 
   if (!match) {
+    const rawMatch = rawIndex.find((entry) => entry.chapterSlug === resolvedParams.slug);
+    const rawBookMatch = rawIndex.find((entry) => entry.bookSlug === resolvedParams.slug);
+    if (rawMatch || rawBookMatch) {
+      handleLibraryAccessDenied(role);
+    }
     notFound();
   }
 

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { checkOrigin } from "@/lib/security/origin-check";
 
 const SESSION_COOKIE = "lms_session_token";
 
@@ -51,6 +52,12 @@ export function captureReferral(request: NextRequest, response: NextResponse): v
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // CSRF: Origin check on state-mutating API requests
+  if (pathname.startsWith("/api/")) {
+    const originResult = checkOrigin(request);
+    if (originResult) return originResult;
+  }
 
   // Referral code capture: set cookie on any page route with ?ref= param
   if (!pathname.startsWith("/api/")) {

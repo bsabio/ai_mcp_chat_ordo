@@ -20,9 +20,9 @@ describe("chat policy", () => {
     expect(looksLikeMath("hello there")).toBe(false);
   });
 
-  it("includes mandatory calculator usage in system prompt", async () => {
+  it("includes the shared tool-usage framing in system prompt", async () => {
     const prompt = await buildSystemPrompt("AUTHENTICATED");
-    expect(prompt).toContain("MUST use");
+    expect(prompt).toContain("Offload detail to tools to SHOW rather than describe");
   });
 
   it("returns configured model first and dedupes", () => {

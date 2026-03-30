@@ -17,6 +17,22 @@ export type ActionDispatchDeps = {
   setComposerText: (text: string) => void;
 };
 
+async function postJobAction(jobId: string, operation: string) {
+  const response = await fetch(`/api/chat/jobs/${encodeURIComponent(jobId)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action: operation }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Job action failed.");
+  }
+
+  return response.json() as Promise<{ job?: { conversationId?: string } }>;
+}
+
 function resolveExternalActionUrl(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.startsWith("//")) {
@@ -38,7 +54,7 @@ function resolveExternalActionUrl(value: string): string | null {
   }
 }
 
-export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, value: string, params?: Record<string, string>) => void> = {
+export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, value: string, params?: Record<string, string>) => void | Promise<void>> = {
   conversation: (deps, value, params) => {
     const targetId = value || params?.id;
     if (!targetId) return;
@@ -63,6 +79,15 @@ export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, 
       return;
     }
     window.open(target, "_blank", "noopener,noreferrer");
+  },
+  job: async (deps, value, params) => {
+    const operation = params?.operation;
+    if (!value || !operation) {
+      return;
+    }
+
+    const payload = await postJobAction(value, operation);
+    deps.refreshConversation(payload.job?.conversationId || deps.conversationId || undefined);
   },
 };
 
@@ -121,7 +146,7 @@ export function useChatSurfaceState({
     (actionType: ActionLinkType, value: string, params?: Record<string, string>) => {
       const deps: ActionDispatchDeps = { router, conversationId, setConversationId, refreshConversation, setComposerText };
       const handler = ACTION_HANDLERS[actionType];
-      handler?.(deps, value, params);
+      void handler?.(deps, value, params);
     },
     [router, conversationId, setConversationId, refreshConversation, setComposerText],
   );

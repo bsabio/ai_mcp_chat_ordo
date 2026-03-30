@@ -6,15 +6,16 @@ export const INLINE_TYPES = {
   ACTION_LINK: "action-link",
 } as const;
 
-export type ActionLinkType = "conversation" | "route" | "send" | "corpus" | "external";
+export type ActionLinkType = "conversation" | "route" | "send" | "corpus" | "external" | "job";
 
-export const VALID_ACTION_TYPES: ReadonlySet<string> = new Set<string>(["conversation", "route", "send", "corpus", "external"]);
+export const VALID_ACTION_TYPES: ReadonlySet<string> = new Set<string>(["conversation", "route", "send", "corpus", "external", "job"]);
 
 export const BLOCK_TYPES = {
   PARAGRAPH: "paragraph",
   HEADING: "heading",
   LIST: "list",
   BLOCKQUOTE: "blockquote",
+  JOB_STATUS: "job-status",
   CODE: "code-block",
   GRAPH: "graph",
   TABLE: "table",
@@ -86,6 +87,20 @@ export type BlockNode =
   | { type: typeof BLOCK_TYPES.HEADING; level: 1 | 2 | 3; content: InlineNode[] }
   | { type: typeof BLOCK_TYPES.LIST; items: InlineNode[][] }
   | { type: typeof BLOCK_TYPES.BLOCKQUOTE; content: InlineNode[] }
+  | {
+      type: typeof BLOCK_TYPES.JOB_STATUS;
+      jobId: string;
+      label: string;
+      toolName: string;
+      title?: string;
+      subtitle?: string;
+      status: "queued" | "running" | "succeeded" | "failed" | "canceled";
+      progressPercent?: number | null;
+      progressLabel?: string | null;
+      summary?: string;
+      error?: string;
+      actions?: InlineNode[];
+    }
   | {
       type: typeof BLOCK_TYPES.CODE;
       code: string;

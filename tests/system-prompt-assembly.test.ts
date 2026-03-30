@@ -4,7 +4,7 @@ import { ROLE_DIRECTIVES } from "@/core/entities/role-directives";
 import { createConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
 import type { RoleName } from "@/core/entities/user";
 import type { UserPreference } from "@/core/ports/UserPreferencesRepository";
-import { getToolRegistry } from "@/lib/chat/tool-composition-root";
+import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { buildCorpusBasePrompt } from "@/lib/corpus-vocabulary";
 import { EXPECTED_ROLE_TOOL_SETS } from "./helpers/role-tool-sets";
 
@@ -30,7 +30,7 @@ function extractIdentitySection(prompt: string): string {
 }
 
 function buildPrompt(role: RoleName): string {
-  const tools = getToolRegistry().getSchemasForRole(role);
+  const tools = getToolComposition().registry.getSchemasForRole(role);
   const snapshot = createConversationRoutingSnapshot({
     lane: "development",
     confidence: 0.84,
@@ -119,7 +119,7 @@ describe("system prompt assembly", () => {
   it("identity section does not leak raw tool names outside the manifest block", () => {
     const prompt = buildPrompt("ADMIN");
     const identitySection = extractIdentitySection(prompt);
-    const toolNames = getToolRegistry().getToolNames();
+    const toolNames = getToolComposition().registry.getToolNames();
 
     for (const toolName of toolNames) {
       expect(identitySection).not.toContain(`**${toolName}**`);

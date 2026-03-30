@@ -55,6 +55,118 @@ export class ErrorParser implements EventParserStrategy {
   }
 }
 
+class TypedEventParser implements EventParserStrategy {
+  constructor(private readonly eventType: StreamEvent["type"]) {}
+
+  canParse(data: RawSSEData) {
+    return data.type === this.eventType;
+  }
+
+  parse(data: RawSSEData): StreamEvent {
+    switch (this.eventType) {
+      case "job_queued":
+      case "job_started":
+        return {
+          type: this.eventType,
+          jobId: data.jobId as string,
+          conversationId: data.conversationId as string,
+          sequence: data.sequence as number,
+          toolName: data.toolName as string,
+          label: data.label as string,
+          messageId: typeof data.messageId === "string" ? data.messageId : undefined,
+          updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+        };
+      case "job_progress":
+        return {
+          type: "job_progress",
+          jobId: data.jobId as string,
+          conversationId: data.conversationId as string,
+          sequence: data.sequence as number,
+          toolName: data.toolName as string,
+          label: data.label as string,
+          messageId: typeof data.messageId === "string" ? data.messageId : undefined,
+          progressPercent: typeof data.progressPercent === "number" ? data.progressPercent : undefined,
+          progressLabel: typeof data.progressLabel === "string" ? data.progressLabel : undefined,
+          updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+        };
+      case "job_completed":
+        return {
+          type: "job_completed",
+          jobId: data.jobId as string,
+          conversationId: data.conversationId as string,
+          sequence: data.sequence as number,
+          toolName: data.toolName as string,
+          label: data.label as string,
+          messageId: typeof data.messageId === "string" ? data.messageId : undefined,
+          summary: typeof data.summary === "string" ? data.summary : undefined,
+          resultPayload: data.resultPayload,
+          updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+        };
+      case "job_failed":
+        return {
+          type: "job_failed",
+          jobId: data.jobId as string,
+          conversationId: data.conversationId as string,
+          sequence: data.sequence as number,
+          toolName: data.toolName as string,
+          label: data.label as string,
+          messageId: typeof data.messageId === "string" ? data.messageId : undefined,
+          error: data.error as string,
+          updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+        };
+      case "job_canceled":
+        return {
+          type: "job_canceled",
+          jobId: data.jobId as string,
+          conversationId: data.conversationId as string,
+          sequence: data.sequence as number,
+          toolName: data.toolName as string,
+          label: data.label as string,
+          messageId: typeof data.messageId === "string" ? data.messageId : undefined,
+          updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+        };
+      default:
+        throw new Error(`Unsupported typed SSE event: ${String(this.eventType)}`);
+    }
+  }
+}
+
+export class JobQueuedParser extends TypedEventParser {
+  constructor() {
+    super("job_queued");
+  }
+}
+
+export class JobStartedParser extends TypedEventParser {
+  constructor() {
+    super("job_started");
+  }
+}
+
+export class JobProgressParser extends TypedEventParser {
+  constructor() {
+    super("job_progress");
+  }
+}
+
+export class JobCompletedParser extends TypedEventParser {
+  constructor() {
+    super("job_completed");
+  }
+}
+
+export class JobFailedParser extends TypedEventParser {
+  constructor() {
+    super("job_failed");
+  }
+}
+
+export class JobCanceledParser extends TypedEventParser {
+  constructor() {
+    super("job_canceled");
+  }
+}
+
 export class EventParser {
   constructor(private strategies: EventParserStrategy[]) {}
 

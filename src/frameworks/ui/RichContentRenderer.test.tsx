@@ -193,6 +193,57 @@ describe("RichContentRenderer", () => {
     expect(renderer).toHaveAttribute("data-preview-count", "2");
   });
 
+  it("renders a durable job-status card", () => {
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "job-status",
+          jobId: "job_1",
+          label: "Draft Content",
+          toolName: "draft_content",
+          status: "running",
+          progressPercent: 60,
+          progressLabel: "Drafting",
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} />);
+
+    expect(screen.getByLabelText("Draft Content status")).toBeInTheDocument();
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.getByText("Drafting")).toBeInTheDocument();
+    expect(screen.getByText("60%")).toBeInTheDocument();
+  });
+
+  it("renders job-status actions and dispatches them", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "job-status",
+          jobId: "job_1",
+          label: "Draft Content",
+          toolName: "draft_content",
+          status: "succeeded",
+          summary: "Draft ready.",
+          actions: [
+            { type: "action-link", label: "Open draft", actionType: "route", value: "/journal/launch-plan" },
+            { type: "action-link", label: "Publish", actionType: "send", value: "Publish the draft post." },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open draft (route)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Publish (send)" }));
+
+    expect(onActionClick).toHaveBeenNthCalledWith(1, "route", "/journal/launch-plan", undefined);
+    expect(onActionClick).toHaveBeenNthCalledWith(2, "send", "Publish the draft post.", undefined);
+  });
+
   it("should render an action link as a button and dispatch onActionClick", () => {
     const onActionClick = vi.fn();
     const content: RichContent = {

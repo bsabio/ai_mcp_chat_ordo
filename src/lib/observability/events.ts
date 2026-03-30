@@ -1,4 +1,4 @@
-export type LogLevel = "info" | "error";
+export type LogLevel = "info" | "warn" | "error";
 
 export type LogEventPayload = {
   timestamp: string;

@@ -22,6 +22,14 @@ describe("eval scenario catalog", () => {
         "mcp-tool-avoidance",
         "mcp-calculator-must-use",
         "mcp-multi-tool-synthesis",
+        "blog-job-status-continuity-deterministic",
+        "blog-explicit-status-check-deterministic",
+        "blog-job-dedupe-clarity-deterministic",
+        "blog-produce-publish-handoff-deterministic",
+        "blog-missed-sse-recovery-deterministic",
+        "live-blog-job-status-and-publish-handoff",
+        "live-blog-job-reuse-instead-of-rerun",
+        "live-blog-completion-recovery",
       ]),
     );
   });

@@ -190,9 +190,9 @@ describe("TD-C — behavioral preservation", () => {
     expect(typeof handler.search).toBe("function");
   });
 
-  it("E4: getToolRegistry still registers expected tool count", async () => {
-    const { getToolRegistry } = await import("@/lib/chat/tool-composition-root");
-    const reg = getToolRegistry();
+  it("E4: getToolComposition still registers expected tool count", async () => {
+    const { getToolComposition } = await import("@/lib/chat/tool-composition-root");
+    const reg = getToolComposition().registry;
     const names = reg.getToolNames();
     expect(names.length).toBeGreaterThanOrEqual(19);
   });

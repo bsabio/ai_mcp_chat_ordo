@@ -458,3 +458,13 @@ export interface CustomerContinuityTrainingPathRow {
   status: TrainingPathStatus;
   next_action: string | null;
 }
+
+export interface OverdueFollowUpsBlockData {
+  summary: {
+    overdueLeadCount: number;
+    overdueDealCount: number;
+    totalOverdueCount: number;
+  };
+  oldestOverdueLead: { id: string; name: string; followUpAt: string } | null;
+  oldestOverdueDeal: { id: string; title: string; followUpAt: string } | null;
+}

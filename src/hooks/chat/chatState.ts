@@ -1,5 +1,6 @@
 import { MessageFactory } from "@/core/entities/MessageFactory";
 import type { ChatMessage } from "@/core/entities/chat-message";
+import type { JobStatusMessagePart } from "@/core/entities/message-parts";
 import type { RoleName } from "@/core/entities/user";
 import type { InstancePrompts } from "@/lib/config/defaults";
 import { interpolateGreeting, type GreetingContext } from "@/lib/chat/greeting-interpolator";
@@ -18,6 +19,11 @@ export type ChatAction =
       index: number;
       name: string;
       result: unknown;
+    }
+  | {
+      type: "UPSERT_JOB_STATUS";
+      part: JobStatusMessagePart;
+      messageId?: string;
     }
   | { type: "SET_ERROR"; index: number; error: string };
 
@@ -117,6 +123,47 @@ function appendTextDelta(message: ChatMessage, delta: string): ChatMessage {
   };
 }
 
+function isJobStatusMessagePart(part: NonNullable<ChatMessage["parts"]>[number]): part is JobStatusMessagePart {
+  return part.type === "job_status";
+}
+
+function upsertJobStatusMessage(
+  state: ChatMessage[],
+  part: JobStatusMessagePart,
+  messageId?: string,
+): ChatMessage[] {
+  const targetIndex = state.findIndex((message) => {
+    if (messageId && message.id === messageId) {
+      return true;
+    }
+
+    return message.parts?.some((candidate) => isJobStatusMessagePart(candidate) && candidate.jobId === part.jobId) ?? false;
+  });
+
+  if (targetIndex >= 0) {
+    return updateMessageAtIndex(state, targetIndex, (message) => ({
+      ...message,
+      content: "",
+      timestamp: part.updatedAt ? new Date(part.updatedAt) : message.timestamp,
+      parts: [
+        ...(message.parts ?? []).filter((candidate) => !isJobStatusMessagePart(candidate)),
+        part,
+      ],
+    }));
+  }
+
+  return [
+    ...state,
+    {
+      id: messageId ?? `job_${part.jobId}`,
+      role: "assistant",
+      content: "",
+      timestamp: part.updatedAt ? new Date(part.updatedAt) : new Date(),
+      parts: [part],
+    },
+  ];
+}
+
 export function createInitialChatMessages(
   role: RoleName = "ANONYMOUS",
   prompts?: InstancePrompts,
@@ -171,6 +218,8 @@ export function chatReducer(
         name: action.name,
         result: action.result,
       }));
+    case "UPSERT_JOB_STATUS":
+      return upsertJobStatusMessage(state, action.part, action.messageId);
     case "SET_ERROR":
       return [
         ...state.slice(0, action.index),

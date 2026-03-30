@@ -25,10 +25,10 @@ interface MessageListProps {
 
 const BrandHeader = ({ isEmbedded = false, serviceChips, heroHeading, heroSubheading }: { isEmbedded?: boolean; serviceChips: readonly string[]; heroHeading: string; heroSubheading: string }) => (
   <div
-    className={`mx-auto flex w-full max-w-4xl flex-col items-center justify-center px-3 text-center animate-in fade-in slide-in-from-top-4 duration-700 ease-out fill-mode-both sm:px-4 ${isEmbedded ? "pb-(--hero-intro-stack-gap) space-y-(--hero-intro-stack-gap)" : "pt-(--phi-1) pb-(--hero-intro-stack-gap) space-y-(--hero-intro-stack-gap)"}`}
+    className={`mx-auto flex w-full max-w-4xl flex-col items-center justify-center px-(--space-3) text-center animate-in fade-in slide-in-from-top-4 duration-700 ease-out fill-mode-both sm:px-(--space-4) ${isEmbedded ? "pb-(--hero-intro-stack-gap) space-y-(--hero-intro-stack-gap)" : "pt-(--phi-1) pb-(--hero-intro-stack-gap) space-y-(--hero-intro-stack-gap)"}`}
     data-homepage-chat-intro="true"
   >
-    <div className="flex flex-wrap items-center justify-center gap-x-(--hero-badge-gap) gap-y-(--phi-2) rounded-full border border-foreground/7 bg-background/66 px-(--hero-badge-padding-inline) py-(--hero-badge-padding-block) text-[0.66rem] font-medium uppercase tracking-[0.18em] text-foreground/42 shadow-[0_10px_30px_-26px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)] backdrop-blur-sm">
+    <div className="ui-chat-brand-chip-cluster flex flex-wrap items-center justify-center gap-x-(--hero-badge-gap) gap-y-(--phi-2) rounded-full px-(--hero-badge-padding-inline) py-(--hero-badge-padding-block) text-[0.66rem] font-medium uppercase tracking-[0.18em] text-foreground/56">
       {serviceChips.map((chip, index) => (
         <React.Fragment key={chip}>
           {index > 0 ? (
@@ -54,7 +54,7 @@ const BrandHeader = ({ isEmbedded = false, serviceChips, heroHeading, heroSubhea
     </h2>
 
     <p
-      className="theme-body text-foreground/56"
+      className="theme-body text-foreground/64"
       style={{
         maxWidth: "var(--hero-greeting-max-width)",
         fontSize: "var(--hero-body-font-size)",
@@ -106,6 +106,8 @@ function extractBlockText(block: BlockNode): string {
       return block.sections
         .map((section) => `${section.label} ${extractInlineText(section.summary)} ${(section.items ?? []).map((item) => extractInlineText(item)).join(" ")}`)
         .join(" ");
+    case "job-status":
+      return `${block.label} ${block.status} ${block.progressLabel ?? ""} ${block.summary ?? ""} ${block.error ?? ""} ${(block.actions ?? []).map((action) => extractInlineText([action])).join(" ")}`.trim();
     case "code-block":
       return block.code;
     case "divider":
@@ -204,7 +206,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
 
   if (filteredMessages.length === 0 && searchQuery) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+      <div className="flex flex-col items-center justify-center py-(--space-16) text-center opacity-40">
         <p className="text-sm font-medium">
           No messages found matching &ldquo;{searchQuery}&rdquo;
         </p>
@@ -214,24 +216,16 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
 
   return (
     <div
-      className="mx-auto flex w-full max-w-176 flex-col"
+      className="ui-chat-message-stack mx-auto flex w-full max-w-176 flex-col"
       data-message-list-mode={isEmbedded ? "embedded" : "floating"}
       data-message-list-state={isHeroState ? "hero" : "conversation"}
+      data-chat-suggestion-tail={hasVisibleSuggestionChips ? "present" : "absent"}
       data-chat-fold-buffer={isEmbedded ? "true" : undefined}
-      style={{
-        gap: "var(--message-gap)",
-        paddingTop: isHeroState ? "clamp(0.5rem, 2.5vh, 1rem)" : undefined,
-        paddingBottom: isEmbedded
-          ? isHeroState
-            ? "var(--hero-composer-offset)"
-            : `calc(var(--chat-fold-gutter) + var(--chat-composer-gap) + ${hasVisibleSuggestionChips ? "var(--chat-suggestion-stack-clearance)" : "0px"})`
-          : "2rem",
-      }}
     >
       {isHeroState && !searchQuery && <BrandHeader isEmbedded={isEmbedded} serviceChips={serviceChips} heroHeading={heroHeading} heroSubheading={heroSubheading} />}
 
       {renderedMessages.map((message) => (
-        <div key={message.id} className="flex flex-col gap-(--phi-1) animate-in fade-in slide-in-from-bottom-3 duration-700 ease-out fill-mode-both">
+        <div key={message.id} className="flex flex-col gap-(--space-stack-tight) animate-in fade-in slide-in-from-bottom-3 duration-700 ease-out fill-mode-both">
           {message.role === "user" ? (
             <UserBubble content={message} />
           ) : (
@@ -253,7 +247,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
             message.id === lastAssistantMessageId &&
             message.id === lastVisibleMessageId &&
             dynamicSuggestions.length > 0 && (
-              <div className={`${isHeroState ? "mt-(--phi-1) flex justify-center pb-(--phi-2)" : "mt-(--phi-1) max-w-[min(44rem,calc(100%-var(--phi-2p)))] pb-(--phi-1)"} animate-in fade-in slide-in-from-bottom-2 duration-500`} style={isHeroState ? undefined : { marginInlineStart: 'var(--chat-message-inline-offset)' }}>
+              <div className={`${isHeroState ? "mt-(--space-stack-tight) flex justify-center pb-(--space-1)" : "ui-chat-suggestion-band-promoted mt-(--space-stack-tight) pb-(--space-1)"} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
                 <SuggestionChips
                   suggestions={dynamicSuggestions}
                   onSend={onSuggestionClick}
@@ -266,7 +260,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
       ))}
 
       {hideHeroTranscript && dynamicSuggestions.length > 0 && (
-        <div className="mt-(--phi-1) flex justify-center pb-(--phi-2) animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div className="mt-(--space-stack-tight) flex justify-center pb-(--space-1) animate-in fade-in slide-in-from-bottom-2 duration-500">
           <SuggestionChips
             suggestions={dynamicSuggestions}
             onSend={onSuggestionClick}
@@ -288,33 +282,33 @@ MessageList.displayName = "MessageList";
 
 const UserBubble = React.memo<{ content: PresentedMessage }>(({ content }) => {
   return (
-    <div className="flex w-full flex-col items-end gap-(--chat-meta-gap) px-1 sm:px-2 md:px-0" data-chat-message-role="user" data-chat-message-emphasis="supporting">
-      <div className="theme-label tier-micro pe-(--chat-bubble-padding-inline) font-medium text-foreground/28" data-chat-message-meta="true">
+    <div className="flex w-full flex-col items-end gap-(--chat-message-meta-gap) px-(--space-1) sm:px-(--space-2) md:px-(--space-0)" data-chat-message-role="user" data-chat-message-emphasis="supporting">
+      <div className="theme-label tier-micro pe-(--space-inset-default) font-medium text-foreground/48" data-chat-message-meta="true">
         <span>You</span>
-        {content.timestamp ? <span className="ms-(--phi-2) tabular-nums text-foreground/22">{content.timestamp}</span> : null}
+        {content.timestamp ? <span className="ms-(--space-2) tabular-nums text-foreground/36">{content.timestamp}</span> : null}
       </div>
-      <div className="relative theme-body tier-body max-w-[92%] rounded-[calc(var(--chat-suggestion-frame-radius)-var(--phi-2))] rounded-br-[calc(var(--phi-1p)+var(--phi-2))] rounded-tr-[calc(var(--phi-1p)+var(--phi-3))] bg-[linear-gradient(180deg,color-mix(in_oklab,var(--accent)_7%,var(--surface))_0%,color-mix(in_oklab,var(--accent)_4%,var(--surface))_100%)] px-(--chat-bubble-padding-inline) py-(--chat-bubble-padding-block) text-foreground shadow-[0_12px_24px_-24px_color-mix(in_srgb,var(--shadow-base)_9%,transparent)] sm:max-w-[74%]" data-chat-bubble-surface="true">
+      <div className="ui-chat-message-user relative theme-body tier-body max-w-[92%] rounded-[calc(var(--chat-suggestion-frame-radius)-var(--space-2))] rounded-br-[calc(var(--space-6)+var(--space-2))] rounded-tr-[calc(var(--space-6)+var(--space-1))] px-(--space-inset-default) py-(--space-inset-compact) sm:max-w-[74%]" data-chat-bubble-surface="true">
         <ErrorBoundary name="UserBubble">
           <RichContentRenderer content={content.content} />
           {content.attachments.length > 0 && (
-            <div className={`${content.rawContent ? "mt-3" : ""} flex flex-col gap-2`}>
+            <div className={`${content.rawContent ? "mt-(--space-3)" : ""} flex flex-col gap-(--space-2)`}>
               {content.attachments.map((attachment) => (
                 <a
                   key={attachment.assetId}
                   href={`/api/user-files/${attachment.assetId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-accent/12 bg-background/70 px-3 py-2.5 text-left transition-colors hover:bg-background"
+                  className="ui-chat-attachment-card flex items-center justify-between gap-(--space-inset-compact) rounded-2xl px-(--space-inset-compact) py-(--space-2) text-left transition-colors hover:bg-background"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/45">
+                    <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/56">
                       Attachment
                     </span>
                     <span className="block truncate text-sm font-medium normal-case tracking-normal text-foreground">
                       {attachment.fileName}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[11px] text-foreground/55">
+                  <span className="shrink-0 text-[11px] text-foreground/64">
                     {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
                   </span>
                 </a>
@@ -365,27 +359,27 @@ const AssistantBubble = React.memo<{
   }, [message.rawContent, isInitialGreeting]);
 
   return (
-    <div className="group flex w-full items-start justify-start gap-(--phi-1) px-1 transition-all duration-300 sm:gap-(--phi-1p) sm:px-2 md:px-0" data-chat-message-role="assistant" data-chat-message-emphasis={isAnchor ? "anchor" : "supporting"}>
-      <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-[0_8px_20px_-20px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]">
-        <Image src={brandLogoPath} alt="" width={24} height={24} className="object-cover" style={{ width: "100%", height: "100%" }} />
+    <div className="group flex w-full items-start justify-start gap-(--space-stack-tight) px-(--space-1) transition-all duration-300 sm:gap-(--space-stack-default) sm:px-(--space-2) md:px-(--space-0)" data-chat-message-role="assistant" data-chat-message-emphasis={isAnchor ? "anchor" : "supporting"}>
+      <div className="mt-(--space-1) flex h-(--chat-avatar-size) w-(--chat-avatar-size) shrink-0 items-center justify-center overflow-hidden rounded-full shadow-[0_8px_20px_-20px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]">
+        <Image src={brandLogoPath} alt="" width={32} height={32} className="object-cover" style={{ width: "100%", height: "100%" }} />
       </div>
 
-      <div className={`flex w-full max-w-[95%] flex-col gap-(--chat-meta-gap) sm:max-w-[86%] ${isInitialGreeting ? "pt-1" : ""}`}>
-        <div className="flex items-center gap-(--phi-2) ps-(--phi-2)" data-chat-message-meta="true">
-          <span className="theme-label tier-micro font-medium text-foreground/30">
+      <div className={`flex w-full max-w-[95%] flex-col gap-(--space-stack-tight) sm:max-w-[86%] ${isInitialGreeting ? "pt-(--space-1)" : ""}`}>
+        <div className="flex items-center gap-(--space-2) ps-(--space-2)" data-chat-message-meta="true">
+          <span className="theme-label tier-micro font-medium text-foreground/48">
             {brandName}
           </span>
           {message.timestamp ? (
-            <span className="theme-label tier-micro font-medium tabular-nums text-foreground/18">
+            <span className="theme-label tier-micro font-medium tabular-nums text-foreground/36">
               {message.timestamp}
             </span>
           ) : null}
         </div>
-        <div className="theme-body tier-body relative overflow-hidden rounded-[calc(var(--chat-suggestion-frame-radius)-var(--phi-2))] rounded-bl-[calc(var(--phi-1p)+var(--phi-2))] rounded-tl-[calc(var(--phi-1p)+var(--phi-3))] bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_99%,var(--background))_0%,color-mix(in_oklab,var(--surface)_96%,var(--background))_100%)] px-(--chat-bubble-padding-inline) py-[calc(var(--chat-bubble-padding-block)+var(--phi-2))] text-foreground/80 shadow-[0_14px_28px_-26px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]" data-chat-bubble-surface="true">
-          <div className="pointer-events-none absolute inset-y-[calc(var(--chat-bubble-padding-block)+var(--phi-3))] left-(--chat-bubble-padding-inline) w-px rounded-full bg-linear-to-b from-transparent via-foreground/6 to-transparent" aria-hidden="true" />
+        <div className="ui-chat-message-assistant theme-body tier-body relative overflow-hidden rounded-[calc(var(--chat-suggestion-frame-radius)-var(--space-2))] rounded-bl-[calc(var(--space-6)+var(--space-2))] rounded-tl-[calc(var(--space-6)+var(--space-1))] px-(--space-inset-default) py-(--chat-bubble-padding-block-prominent)" data-chat-bubble-surface="true">
+          <div className="ui-chat-inline-rail pointer-events-none absolute inset-y-[calc(var(--space-inset-compact)+var(--space-1))] left-(--space-inset-default) w-[2px] rounded-full" aria-hidden="true" />
           <ErrorBoundary name="AssistantBubble">
             {isInitialGreeting ? (
-              <div className="relative ps-(--phi-1)">
+              <div className="relative ps-(--space-stack-tight)">
                 <div className="invisible pointer-events-none" aria-hidden="true">
                   <RichContentRenderer content={message.content} />
                 </div>
@@ -403,7 +397,7 @@ const AssistantBubble = React.memo<{
                 </div>
               </div>
             ) : (
-              <div className="ps-(--phi-1)">
+              <div className="ps-(--space-stack-tight)">
                 <RichContentRenderer
                   content={message.content}
                   onLinkClick={onLinkClick}
@@ -414,7 +408,7 @@ const AssistantBubble = React.memo<{
           </ErrorBoundary>
 
           {message.actions.length > 0 && (
-            <div className="mt-3 border-t border-border/40 pt-3">
+            <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
               <MessageActionChips
                 actions={message.actions}
                 onActionClick={onActionClick}
@@ -424,7 +418,7 @@ const AssistantBubble = React.memo<{
           )}
 
           {message.failedSend && (
-            <div className="mt-3 border-t border-border/40 pt-3">
+            <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
               <button
                 type="button"
                 disabled={isStreaming}
@@ -434,7 +428,7 @@ const AssistantBubble = React.memo<{
                   }
                   onRetryClick?.(message.failedSend.retryKey);
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/8 px-3.5 py-1.5 text-[0.8rem] font-semibold text-accent transition-colors focus-ring ${isStreaming ? "cursor-wait opacity-55" : "hover:bg-accent/14 hover:border-accent/30 active:scale-[0.98]"}`}
+                className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${isStreaming ? "cursor-wait opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
                 data-chat-retry-key={message.failedSend.retryKey}
               >
                 Retry
@@ -443,15 +437,58 @@ const AssistantBubble = React.memo<{
           )}
 
           {isStreaming && !isInitialGreeting && (
-            <span className="inline-block w-1 h-3.5 bg-accent animate-pulse align-middle ms-1 rounded-sm relative -top-0.5" />
+            <span className="inline-block w-(--space-1) h-(--space-4) bg-accent animate-pulse align-middle ms-(--space-1) rounded-sm relative" />
           )}
         </div>
+
+        {!isStreaming && !isInitialGreeting && (
+          <MessageToolbar rawContent={message.rawContent} />
+        )}
       </div>
     </div>
   );
 });
 
 AssistantBubble.displayName = "AssistantBubble";
+
+const MessageToolbar: React.FC<{ rawContent?: string }> = ({ rawContent }) => {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = React.useCallback(async () => {
+    const text = rawContent ?? "";
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }, [rawContent]);
+
+  return (
+    <div
+      className="ui-chat-message-toolbar flex items-center gap-(--space-1) ps-(--space-2) pt-(--space-1) opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100"
+      role="toolbar"
+      aria-label="Message tools"
+      data-chat-message-toolbar="true"
+    >
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="ui-chat-toolbar-button inline-flex h-7 w-7 items-center justify-center rounded-md text-foreground/40 transition-colors hover:bg-foreground/6 hover:text-foreground/70 focus-ring active:scale-95"
+        aria-label={copied ? "Copied" : "Copy message"}
+        data-chat-toolbar-action="copy"
+      >
+        {copied ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+        )}
+      </button>
+    </div>
+  );
+};
 
 const ACTION_VALUE_KEY: Record<string, string> = {
   conversation: "id",
@@ -468,7 +505,7 @@ const MessageActionChips: React.FC<{
 }> = ({ actions, onActionClick, disabled = false }) => {
   const displayed = actions.slice(0, 3);
   return (
-    <div role="group" aria-label="Message actions" className="flex flex-wrap gap-2" data-chat-action-chips="true">
+    <div role="group" aria-label="Message actions" className="flex flex-wrap gap-(--space-2)" data-chat-action-chips="true">
       {displayed.map((action, i) => {
         const primaryValue = action.params[ACTION_VALUE_KEY[action.action] ?? ""] ?? "";
         return (
@@ -477,7 +514,7 @@ const MessageActionChips: React.FC<{
             type="button"
             disabled={disabled}
             onClick={() => onActionClick?.(action.action, primaryValue, action.params)}
-            className={`inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/8 px-3.5 py-1.5 text-[0.8rem] font-semibold text-accent transition-colors focus-ring ${disabled ? "cursor-wait opacity-55" : "hover:bg-accent/14 hover:border-accent/30 active:scale-[0.98]"}`}
+            className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${disabled ? "cursor-wait opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
             data-chat-action-chip={action.action}
           >
             {action.label}
@@ -489,11 +526,11 @@ const MessageActionChips: React.FC<{
 };
 
 const TypingIndicator = () => (
-  <div className="mt-(--phi-1) flex items-center justify-start gap-2.5 ms-[calc(var(--chat-avatar-size)+var(--phi-1p))]">
-    <div className="flex items-center gap-1.5 px-(--phi-1) py-(--phi-2)">
-      <span className="w-1.5 h-1.5 rounded-full bg-accent opacity-60 animate-bounce [animation-delay:0ms]" />
-      <span className="w-1.5 h-1.5 rounded-full bg-accent opacity-60 animate-bounce [animation-delay:120ms]" />
-      <span className="w-1.5 h-1.5 rounded-full bg-accent opacity-60 animate-bounce [animation-delay:240ms]" />
+  <div className="mt-(--space-stack-tight) flex items-center justify-start gap-(--space-cluster-default) ms-(--chat-message-indent)">
+    <div className="flex items-center gap-(--space-2) px-(--space-inset-compact) py-(--space-2)">
+      <span className="w-(--space-2) h-(--space-2) rounded-full bg-accent opacity-60 animate-bounce [animation-delay:0ms]" />
+      <span className="w-(--space-2) h-(--space-2) rounded-full bg-accent opacity-60 animate-bounce [animation-delay:120ms]" />
+      <span className="w-(--space-2) h-(--space-2) rounded-full bg-accent opacity-60 animate-bounce [animation-delay:240ms]" />
     </div>
   </div>
 );
@@ -505,24 +542,21 @@ const SuggestionChips: React.FC<{
   centered?: boolean;
   label?: string;
 }> = ({ suggestions, onSend, disabled = false, centered = false, label }) => (
-  <div className={`flex flex-col ${centered ? "gap-(--hero-suggestion-stack-gap) items-center" : "gap-(--phi-1) items-start"}`}>
+      <div className={`flex flex-col ${centered ? "gap-(--hero-suggestion-stack-gap) items-center" : "gap-(--space-stack-tight) items-start"}`}>
     {label ? (
-      <p className={`theme-label tier-micro font-medium text-foreground/20 ${centered ? "text-center" : "ps-(--phi-1)"}`}>
+      <p className={`theme-label tier-micro font-medium text-foreground/20 ${centered ? "text-center" : "ps-(--space-stack-tight)"}`}>
         {label}
       </p>
     ) : null}
     <div
       className={centered
-        ? "w-full rounded-(--hero-suggestion-frame-radius) border border-foreground/6 bg-background/56 shadow-[0_18px_50px_-38px_color-mix(in_srgb,var(--shadow-base)_18%,transparent)] backdrop-blur-[10px] max-w-(--hero-suggestion-max-width)"
-        : "w-full max-w-[min(38rem,100%)] rounded-[1.45rem] border border-foreground/7 bg-[color-mix(in_oklab,var(--surface)_94%,var(--background))] shadow-[0_14px_28px_-24px_color-mix(in_srgb,var(--shadow-base)_18%,transparent)]"
+        ? "ui-chat-hero-suggestion-frame w-full rounded-(--hero-suggestion-frame-radius) max-w-(--hero-suggestion-max-width)"
+        : "ui-chat-followup-frame w-full max-w-[min(38rem,100%)] rounded-[1.45rem]"
       }
-      style={centered
-        ? { paddingInline: 'var(--hero-suggestion-frame-padding-inline)', paddingBlock: 'var(--hero-suggestion-frame-padding-block)' }
-        : { paddingInline: 'var(--chat-followup-frame-padding-inline)', paddingBlock: 'var(--chat-followup-frame-padding-block)' }}
       data-chat-suggestion-group={centered ? "hero" : "followup"}
       data-chat-suggestion-priority={centered ? "balanced" : "promoted"}
     >
-      <div className={`flex flex-wrap ${centered ? "gap-x-(--hero-chip-cluster-gap) gap-y-(--hero-suggestion-row-gap) justify-center" : "gap-x-(--phi-1) gap-y-(--phi-1) justify-start"}`}>
+      <div className={`flex flex-wrap ${centered ? "gap-x-(--hero-chip-cluster-gap) gap-y-(--hero-suggestion-row-gap) justify-center" : "gap-x-(--space-stack-tight) gap-y-(--space-stack-tight) justify-start"}`}>
       {suggestions.map((s, i) => (
         <button
           key={s}
@@ -532,8 +566,8 @@ const SuggestionChips: React.FC<{
           style={{ animationDelay: `${i * 100}ms` }}
           data-chat-suggestion-rank={centered ? "neutral" : i === 0 ? "primary" : "secondary"}
           className={centered
-            ? `group theme-body relative inline-flex min-h-(--hero-suggestion-chip-height) items-center justify-center gap-(--phi-2) rounded-full border border-foreground/6 bg-background/82 px-(--hero-suggestion-chip-padding-inline) py-(--hero-suggestion-chip-padding-block) text-[0.95rem] font-medium tracking-[-0.018em] text-foreground/62 shadow-[0_10px_24px_-22px_color-mix(in_srgb,var(--shadow-base)_20%,transparent)] transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 fill-mode-both focus-ring ${disabled ? "cursor-wait opacity-55" : "hover:border-foreground/10 hover:bg-background hover:text-foreground active:scale-[0.995]"}`
-            : `group theme-body relative inline-flex min-h-(--chat-followup-chip-height) items-center justify-center gap-(--phi-2) rounded-full border border-foreground/8 bg-background px-(--chat-followup-chip-padding-inline) py-(--chat-followup-chip-padding-block) text-[0.82rem] font-semibold tracking-[-0.012em] text-foreground/66 shadow-[0_10px_18px_-18px_color-mix(in_srgb,var(--shadow-base)_22%,transparent)] transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 fill-mode-both focus-ring ${disabled ? "cursor-wait opacity-55" : "hover:border-foreground/14 hover:text-foreground hover:shadow-[0_14px_24px_-18px_color-mix(in_srgb,var(--shadow-base)_28%,transparent)] active:scale-[0.99]"}`}
+            ? `ui-chat-hero-chip group theme-body relative inline-flex min-h-(--hero-suggestion-chip-height) items-center justify-center gap-(--space-2) rounded-full px-(--hero-suggestion-chip-padding-inline) py-(--hero-suggestion-chip-padding-block) text-[0.88rem] font-medium tracking-[-0.018em] transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 fill-mode-both focus-ring ${disabled ? "cursor-wait opacity-55" : "hover:border-foreground/10 hover:bg-background hover:text-foreground active:scale-[0.995]"}`
+            : `ui-chat-followup-chip group theme-body relative inline-flex min-h-(--chat-followup-chip-height) items-center justify-center gap-(--space-2) rounded-full px-(--chat-followup-chip-padding-inline) py-(--chat-followup-chip-padding-block) text-[0.8rem] font-semibold tracking-[-0.012em] transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 fill-mode-both focus-ring ${disabled ? "cursor-wait opacity-55" : "hover:border-foreground/14 hover:text-foreground hover:shadow-[0_14px_24px_-18px_color-mix(in_srgb,var(--shadow-base)_28%,transparent)] active:scale-[0.99]"}`}
         >
           <span className="relative">{s}</span>
         </button>

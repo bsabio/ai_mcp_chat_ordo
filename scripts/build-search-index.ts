@@ -2,7 +2,7 @@
 import { createHash } from "crypto";
 import { getDb } from "../src/lib/db";
 import { getCorpusRepository } from "../src/adapters/RepositoryFactory";
-import { LocalEmbedder } from "../src/adapters/LocalEmbedder";
+import { localEmbedder } from "../src/adapters/LocalEmbedder";
 import { SQLiteVectorStore } from "../src/adapters/SQLiteVectorStore";
 import { SQLiteBM25IndexStore } from "../src/adapters/SQLiteBM25IndexStore";
 import { EmbeddingPipelineFactory } from "../src/core/search/EmbeddingPipelineFactory";
@@ -32,7 +32,7 @@ async function main() {
 
   // Initialize infrastructure
   const db = getDb();
-  const embedder = new LocalEmbedder();
+  const embedder = localEmbedder;
   const vectorStore = new SQLiteVectorStore(db);
   const bm25Store = new SQLiteBM25IndexStore(db);
   const factory = new EmbeddingPipelineFactory(

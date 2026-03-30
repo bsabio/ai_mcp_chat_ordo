@@ -46,7 +46,7 @@ describe("/profile page", () => {
 
   it("renders the profile panel with loaded profile data", async () => {
     getSessionUserMock.mockResolvedValue({ id: "usr_1", email: "morgan@example.com", name: "Morgan", roles: ["AUTHENTICATED"] });
-    getProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan Lee", email: "morgan@example.com", credential: "AI strategist", affiliateEnabled: true, referralCode: "mentor-42", referralUrl: "https://studioordo.com/?ref=mentor-42", qrCodeUrl: "/api/qr/mentor-42", roles: ["AUTHENTICATED"] });
+    getProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan Lee", email: "morgan@example.com", credential: "AI strategist", pushNotificationsEnabled: true, affiliateEnabled: true, referralCode: "mentor-42", referralUrl: "https://studioordo.com/?ref=mentor-42", qrCodeUrl: "/api/qr/mentor-42", roles: ["AUTHENTICATED"] });
 
     render(await ProfilePage());
 

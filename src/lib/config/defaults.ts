@@ -12,6 +12,7 @@ export interface InstanceIdentity {
   tagline: string;
   description: string;
   domain: string;
+  linkedInUrl?: string;
   logoPath: string;
   markText: string;
   accentColor?: string;

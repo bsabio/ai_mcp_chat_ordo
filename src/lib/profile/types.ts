@@ -5,6 +5,7 @@ export interface UserProfileViewModel {
   email: string;
   name: string;
   credential: string;
+  pushNotificationsEnabled: boolean;
   affiliateEnabled: boolean;
   referralCode: string | null;
   referralUrl: string | null;

@@ -40,15 +40,15 @@ export function ContentModal({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="glass-overlay fixed inset-0 z-100 animate-in fade-in duration-300" />
-        <Dialog.Content className="fixed inset-0 z-101 flex items-start justify-center p-3 pt-[max(0.75rem,var(--safe-area-inset-top))] pb-[max(0.75rem,var(--safe-area-inset-bottom))] sm:p-6 sm:pt-[max(1.5rem,var(--safe-area-inset-top))] sm:pb-[max(1.5rem,var(--safe-area-inset-bottom))] outline-none">
+        <Dialog.Content className="fixed inset-0 z-101 flex items-start justify-center p-(--space-3) pt-[max(var(--space-3),var(--safe-area-inset-top))] pb-[max(var(--space-3),var(--safe-area-inset-bottom))] sm:p-(--space-6) sm:pt-[max(var(--space-6),var(--safe-area-inset-top))] sm:pb-[max(var(--space-6),var(--safe-area-inset-bottom))] outline-none">
           <div className="glass-surface flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-[32px] border-theme shadow-[0_32px_90px_color-mix(in_srgb,var(--shadow-base)_20%,transparent)] animate-in zoom-in-95 duration-300">
-            <div className="flex min-h-16 items-center justify-between border-b border-border bg-surface/80 px-5 py-4 sm:px-6">
+            <div className="flex min-h-16 items-center justify-between border-b border-border bg-surface/80 px-(--space-inset-panel) py-(--space-inset-default) sm:px-(--space-frame-compact)">
               <Dialog.Title className="font-semibold uppercase opacity-60">
                 Library Reader
               </Dialog.Title>
               <Dialog.Close asChild>
                 <button
-                  className="focus-ring min-h-11 min-w-11 rounded-theme p-2 transition-all hover-surface active:scale-90"
+                  className="focus-ring min-h-11 min-w-11 rounded-theme p-(--space-2) transition-all hover-surface active:scale-90"
                   aria-label="Close reader"
                 >
                   <svg
@@ -68,9 +68,9 @@ export function ContentModal({
               </Dialog.Close>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 scroll-smooth sm:p-8 md:p-12">
+            <div className="flex-1 overflow-y-auto p-(--space-6) scroll-smooth sm:p-(--space-8) md:p-(--space-12)">
               {loading ? (
-                <div className="flex h-full flex-col items-center justify-center gap-4 py-20">
+                <div className="flex h-full flex-col items-center justify-center gap-(--space-4) py-(--space-16)">
                   <div className="h-10 w-10 rounded-full border-4 border-border border-t-accent animate-spin" />
                   <p className="text-sm font-bold uppercase tracking-widest opacity-40 animate-pulse">
                     Retrieving Chapter...

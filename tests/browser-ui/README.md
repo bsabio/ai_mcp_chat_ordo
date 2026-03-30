@@ -56,6 +56,16 @@ This directory is the discovery entry point for the browser-focused regression s
   - real browser smoke against `/library`
   - launcher open, helper-text visibility, initial chip send, and follow-up suggestion survival
   - stable visible outcomes instead of prompt-variant-specific assistant wording
+- `tests/browser-ui/jobs-page.spec.ts`
+  - signed-in `/jobs` page smoke
+  - active/recent job rendering, detail panel loading, and conversation link-back
+- `tests/browser-ui/admin-shell-responsive.spec.ts`
+  - signed-in admin shell smoke in desktop and mobile viewports
+  - route parity across sidebar and bottom navigation
+  - preview-route visibility and navigation to placeholder admin destinations
+- `tests/browser-ui/deferred-blog-jobs.spec.ts`
+  - deferred blog job transcript behaviors in a real browser
+  - draft, publish, and article-production job-state survivability
   - requires a running local app, defaulting to `http://127.0.0.1:3000`
 
 ## Verification Commands
@@ -63,7 +73,7 @@ This directory is the discovery entry point for the browser-focused regression s
 - `npm run browser:verify`
   - runs the focused browser regression suite
 - `npm run browser:smoke`
-  - runs the live Playwright smoke against a running local app
+  - runs the live Playwright smoke and Jobs/deferred-jobs browser specs against a running local app
 - `npm run browser:verify:quality`
   - runs browser-focused tests, a production build, and Lighthouse CI guidance
 - `npm run lhci`

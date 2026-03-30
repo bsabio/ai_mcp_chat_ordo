@@ -21,6 +21,7 @@ import {
   loadOperatorTrainingPathQueue,
 } from "@/lib/operator/operator-signal-loaders";
 import { ensureSchema } from "@/lib/db/schema";
+import { runDeterministicEvalScenario } from "@/lib/evals/runner";
 
 import { evaluateCustomerWorkflowScenario } from "./helpers/customerWorkflowEvalHarness";
 
@@ -588,5 +589,54 @@ describe("customer workflow eval harness", () => {
     });
 
     expect(report.passed, JSON.stringify(report.checks, null, 2)).toBe(true);
+  });
+
+  it("covers prose-first signed-in job status summaries", async () => {
+    const execution = await runDeterministicEvalScenario("member-job-status-summary-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "active-job-visible", passed: true }),
+        expect.objectContaining({ id: "prose-summary-default", passed: true }),
+        expect.objectContaining({ id: "status-read-no-rerun", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.toolCalls).toEqual(expect.arrayContaining(["list_my_jobs"]));
+  });
+
+  it("covers explicit all-jobs list requests separately from prose summaries", async () => {
+    const execution = await runDeterministicEvalScenario("member-all-jobs-list-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "explicit-list-rendered", passed: true }),
+        expect.objectContaining({ id: "terminal-jobs-included", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.recommendation).toContain("Jobs:");
+  });
+
+  it("covers explicit single-job status questions without rerunning work", async () => {
+    const execution = await runDeterministicEvalScenario("member-explicit-job-status-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "explicit-status-explained", passed: true }),
+        expect.objectContaining({ id: "status-read-no-rerun", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.toolCalls).toEqual(expect.arrayContaining(["get_my_job_status"]));
+  });
+
+  it("keeps anonymous job status guidance chat-native and sign-in-aware", async () => {
+    const execution = await runDeterministicEvalScenario("anonymous-job-status-guidance-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "chat-native-guidance", passed: true }),
+        expect.objectContaining({ id: "no-jobs-route-push", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.toolCalls).toEqual([]);
   });
 });

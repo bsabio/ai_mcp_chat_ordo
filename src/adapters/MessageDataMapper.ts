@@ -35,6 +35,18 @@ export class MessageDataMapper implements MessageRepository {
     };
   }
 
+  async findById(id: string): Promise<Message | null> {
+    const row = this.db
+      .prepare(
+        `SELECT id, conversation_id, role, content, parts, created_at, token_estimate
+         FROM messages
+         WHERE id = ?`,
+      )
+      .get(id) as MessageRow | undefined;
+
+    return row ? mapRow(row) : null;
+  }
+
   async createWithinConversationLimit(
     msg: NewMessage & { tokenEstimate?: number },
     maxMessages: number,
@@ -107,6 +119,31 @@ export class MessageDataMapper implements MessageRepository {
       .get(conversationId) as { count: number };
 
     return row.count;
+  }
+
+  async update(id: string, update: { content: string; parts: NewMessage["parts"] }): Promise<Message> {
+    this.db
+      .prepare(
+        `UPDATE messages
+         SET content = ?,
+             parts = ?
+         WHERE id = ?`,
+      )
+      .run(update.content, JSON.stringify(update.parts), id);
+
+    const row = this.db
+      .prepare(
+        `SELECT id, conversation_id, role, content, parts, created_at, token_estimate
+         FROM messages
+         WHERE id = ?`,
+      )
+      .get(id) as MessageRow | undefined;
+
+    if (!row) {
+      throw new Error(`Message not found after update: ${id}`);
+    }
+
+    return mapRow(row);
   }
 }
 

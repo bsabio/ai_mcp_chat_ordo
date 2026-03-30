@@ -5,10 +5,10 @@
  * Float32Array (not jsdom's). This file uses node environment.
  */
 import { describe, expect, it } from "vitest";
-import { LocalEmbedder } from "@/adapters/LocalEmbedder";
+import { localEmbedder } from "@/adapters/LocalEmbedder";
 
 describe("LocalEmbedder (real ONNX model)", () => {
-  const embedder = new LocalEmbedder();
+  const embedder = localEmbedder;
 
   it("embed() returns 384-dimensional Float32Array", async () => {
     const vec = await embedder.embed("test embedding text");
@@ -16,7 +16,7 @@ describe("LocalEmbedder (real ONNX model)", () => {
     expect(vec).toBeInstanceOf(Float32Array);
     expect(vec.length).toBe(384);
     // Should not be all zeros
-    const sum = vec.reduce((a, b) => a + Math.abs(b), 0);
+    const sum = vec.reduce((a: number, b: number) => a + Math.abs(b), 0);
     expect(sum).toBeGreaterThan(0);
   }, 60_000);
 

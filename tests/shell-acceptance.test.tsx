@@ -107,15 +107,17 @@ describe("shell acceptance", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const navLinks = getLinkNames(nav);
 
-    expect(navLinks).toEqual(["Studio Ordo home", "Home", "Library", "Blog"]);
+    // Sprint 8 (UX-32): Home/Library/Blog removed from header rail; brand link only
+    expect(navLinks).toEqual(["Studio Ordo home"]);
     expect(nav).toHaveAttribute("data-shell-nav-rail", "true");
     expect(nav.querySelector('[data-shell-nav-region="brand"]')).not.toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
+    // Sprint 8 (UX-32): primary-links region absent when no nav items
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
-    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
-    expect(within(nav).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
-    expect(within(nav).getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");
+    expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Blog" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Training" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Studio" })).toBeNull();
   });

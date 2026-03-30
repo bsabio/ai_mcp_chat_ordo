@@ -33,6 +33,7 @@ type StreamRouteConversationState = {
 type MockControl = {
   mockResolvedValue(value: unknown): unknown;
   mockReturnValue(value: unknown): unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock control signature requires flexible args
   mockImplementation(fn: (...args: any[]) => unknown): unknown;
 };
 

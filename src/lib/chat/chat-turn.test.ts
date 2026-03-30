@@ -62,10 +62,12 @@ vi.mock("@/lib/observability/logger", () => ({
 }));
 
 vi.mock("@/lib/chat/tool-composition-root", () => ({
-  getToolRegistry: vi.fn(() => ({
-    getSchemasForRole: getSchemasForRoleMock,
+  getToolComposition: vi.fn(() => ({
+    registry: {
+      getSchemasForRole: getSchemasForRoleMock,
+    },
+    executor: getToolExecutorFactoryMock(),
   })),
-  getToolExecutor: getToolExecutorFactoryMock,
 }));
 
 describe("executeDirectChatTurn", () => {

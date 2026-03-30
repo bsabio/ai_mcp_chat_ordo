@@ -22,8 +22,7 @@ import {
 } from "@/lib/chat/provider-decorators";
 import { logEvent } from "@/lib/observability/logger";
 import {
-  getToolExecutor,
-  getToolRegistry,
+  getToolComposition,
 } from "@/lib/chat/tool-composition-root";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { looksLikeMath } from "@/lib/chat/math-classifier";
@@ -56,7 +55,8 @@ export async function executeDirectChatTurn({
   }
 
   const systemPrompt = builder.build();
-  const tools = getToolRegistry().getSchemasForRole(role) as Anthropic.Tool[];
+  const { registry, executor } = getToolComposition();
+  const tools = registry.getSchemasForRole(role) as Anthropic.Tool[];
   const resilience = {
     timeoutMs: getAnthropicRequestTimeoutMs(),
     retryAttempts: getAnthropicRequestRetryAttempts(),
@@ -68,7 +68,7 @@ export async function executeDirectChatTurn({
     userId: user.id,
   };
   const toolExecutor = (name: string, input: Record<string, unknown>) =>
-    getToolExecutor()(name, input, toolContext);
+    executor(name, input, toolContext);
 
   const client = new Anthropic({ apiKey });
   const provider = withProviderTiming(

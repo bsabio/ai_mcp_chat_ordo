@@ -39,9 +39,11 @@ export class ToolRegistry {
     if (!descriptor) {
       throw new UnknownToolError(name);
     }
+
     if (!this.canExecute(name, context.role)) {
       throw new ToolAccessDeniedError(name, context.role);
     }
+
     const result = await descriptor.command.execute(input, context);
     return this.formatter
       ? this.formatter.format(name, result, context)
@@ -50,6 +52,10 @@ export class ToolRegistry {
 
   unregister(name: string): void {
     this.tools.delete(name);
+  }
+
+  getDescriptor(name: string): ToolDescriptor | undefined {
+    return this.tools.get(name);
   }
 
   getToolNames(): string[] {

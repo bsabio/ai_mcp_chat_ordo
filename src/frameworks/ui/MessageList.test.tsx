@@ -184,9 +184,8 @@ describe("MessageList", () => {
       const list = screen.getByText("Bring me the workflow.").closest("[data-message-list-mode]");
     expect(list).toHaveAttribute("data-chat-fold-buffer", "true");
     expect(list).toHaveAttribute("data-message-list-state", "hero");
-    expect(list).toHaveStyle({
-      paddingBottom: "var(--hero-composer-offset)",
-    });
+    expect(list?.className).toContain("ui-chat-message-stack");
+    expect(list).toHaveAttribute("data-chat-suggestion-tail", "absent");
   });
 
   it("hides the seeded assistant bubble on the first-screen hero state", () => {
@@ -231,9 +230,8 @@ describe("MessageList", () => {
 
     const list = screen.getByText("Ready with next steps").closest("[data-message-list-mode]");
     expect(list).toHaveAttribute("data-message-list-state", "conversation");
-    expect(list).toHaveStyle({
-      paddingBottom: "calc(var(--chat-fold-gutter) + var(--chat-composer-gap) + 0px)",
-    });
+    expect(list).toHaveAttribute("data-chat-suggestion-tail", "absent");
+    expect(list?.className).toContain("ui-chat-message-stack");
   });
 
   it("centers the initial suggestion chips as part of the hero stack", () => {
@@ -255,6 +253,29 @@ describe("MessageList", () => {
     );
 
     expect(screen.getByRole("button", { name: "Stress-test this AI plan" }).closest("div")?.className).toContain("justify-center");
+  });
+
+  it("applies semantic chat surface classes to assistant and user bubbles", () => {
+    const messages = [
+      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Assistant note" }),
+      makeMessage({ id: "user-1", role: "user", rawContent: "User reply" }),
+    ];
+
+    const { container } = render(
+      <MessageList
+        messages={messages}
+        isSending={false}
+        dynamicSuggestions={[]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    expect(container.querySelector('[data-chat-message-role="assistant"] [data-chat-bubble-surface="true"]')?.className).toContain("ui-chat-message-assistant");
+    expect(container.querySelector('[data-chat-message-role="user"] [data-chat-bubble-surface="true"]')?.className).toContain("ui-chat-message-user");
   });
 
   it("disables suggestion chips while a send is in flight", () => {

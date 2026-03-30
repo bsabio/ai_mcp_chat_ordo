@@ -58,6 +58,14 @@ describe("UserPreferencesDataMapper", () => {
     expect(pref!.value).toBe("casual");
   });
 
+  it("P3b: stores extended theme accessibility preferences", async () => {
+    await mapper.set(userId, "line_height", "relaxed");
+    await mapper.set(userId, "letter_spacing", "tight");
+
+    expect((await mapper.get(userId, "line_height"))?.value).toBe("relaxed");
+    expect((await mapper.get(userId, "letter_spacing"))?.value).toBe("tight");
+  });
+
   it("P4: getAll returns all preferences for user ordered by key", async () => {
     await mapper.set(userId, "tone", "casual");
     await mapper.set(userId, "response_style", "concise");
@@ -268,6 +276,7 @@ describe("UserPreferencesDataMapper — negative", () => {
     // Same as N4 — API route rejects anonymous
     expect(setPreferenceTool.roles).toEqual([
       "AUTHENTICATED",
+      "APPRENTICE",
       "STAFF",
       "ADMIN",
     ]);

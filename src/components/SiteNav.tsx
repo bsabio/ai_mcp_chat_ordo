@@ -5,43 +5,71 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ShellBrand } from "@/components/shell/ShellBrand";
+import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import {
   isShellRouteActive,
   resolvePrimaryNavRoutes,
   resolveShellHomeHref,
 } from "@/lib/shell/shell-navigation";
+import type { GlobalSearchAction } from "@/lib/search/global-search";
 
 import { AccountMenu } from "./AccountMenu";
 import type { User as SessionUser } from "@/core/entities/user";
 
 interface SiteNavProps {
   user: SessionUser;
+  searchAction?: GlobalSearchAction;
 }
 
-export function SiteNav({ user }: SiteNavProps) {
+export function SiteNav({ user, searchAction }: SiteNavProps) {
   const pathname = usePathname();
+  const isJournalRoute = pathname === "/journal"
+    || pathname.startsWith("/journal/")
+    || pathname === "/blog"
+    || pathname.startsWith("/blog/");
+  const navTone = isJournalRoute ? "quiet" : "default";
   const primaryNavItems = resolvePrimaryNavRoutes(user);
   const homeHref = resolveShellHomeHref();
   const hasPrimaryLinks = primaryNavItems.length > 0;
-  const railLayoutClasses = hasPrimaryLinks
-    ? "grid shell-nav-frame grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-(--shell-rail-gap) max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:grid-rows-[auto_auto]"
-    : "flex shell-nav-frame items-center justify-between gap-(--shell-rail-gap)";
+  const getNavItemClassName = (isActive: boolean) =>
+    `focus-ring shell-nav-label inline-flex min-h-8 items-center justify-center whitespace-nowrap rounded-full px-(--space-rail-item-inline) py-(--space-rail-item-block) uppercase transition-all ${
+      isActive
+        ? "ui-shell-nav-item-active"
+        : "ui-shell-nav-item-idle hover:text-foreground hover:bg-background/52"
+    }`;
 
   return (
     <nav
-      className="glass-surface sticky top-0 z-50 pt-[max(0px,var(--safe-area-inset-top))] shadow-[0_8px_20px_color-mix(in_srgb,var(--shadow-base)_4%,transparent)] transition-colors duration-500"
+      className="ui-shell-rail ui-shell-rail-safe-top sticky top-0 z-50 transition-colors duration-500"
       aria-label="Primary"
       data-shell-nav-rail="true"
+      data-shell-nav-tone={navTone}
     >
-      <div className={`site-container relative ${railLayoutClasses}`}>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-16 bottom-0 h-px bg-linear-to-r from-transparent via-foreground/8 to-transparent" />
-        <div className="min-w-0 flex items-center justify-start" data-shell-nav-region="brand">
-          <ShellBrand href={homeHref} className="opacity-90" />
+      <div className="site-container relative shell-nav-frame">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-(--space-16) bottom-0 h-px bg-linear-to-r from-transparent via-foreground/8 to-transparent" />
+        <div className="flex items-center gap-(--space-rail-gap) max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-(--space-rail-gap) max-sm:gap-y-(--space-2)">
+          <div className="shrink-0" data-shell-nav-region="brand">
+            <ShellBrand href={homeHref} />
+          </div>
+
+          <div className="mx-auto flex min-w-0 flex-1 items-center px-(--space-2) max-sm:order-3 max-sm:col-span-2 max-sm:px-0" data-shell-nav-region="search">
+            <div className="mx-auto w-full max-w-5xl">
+              <GlobalSearchBar user={user} searchAction={searchAction} />
+            </div>
+          </div>
+
+          <div className="shrink-0 justify-self-end" data-shell-nav-region="account-access">
+            <AccountMenu user={user} />
+          </div>
         </div>
 
         {hasPrimaryLinks ? (
-          <div className="min-w-0 justify-self-center max-sm:order-3 max-sm:col-span-2 max-sm:justify-self-start" data-shell-nav-region="primary-links">
-            <ul className="flex min-w-0 items-center justify-center gap-(--shell-nav-item-gap) overflow-x-auto rounded-full bg-[color-mix(in_oklab,var(--surface)_72%,transparent)] px-(--phi-2) py-[0.28rem] max-sm:justify-start" aria-label="Primary links">
+          <div className="min-w-0 pt-(--space-1)" data-shell-nav-region="primary-links">
+            <ul
+              className="ui-shell-nav-links flex min-w-0 items-center justify-center overflow-x-auto rounded-full max-sm:justify-start"
+              aria-label="Primary links"
+              data-shell-nav-links-tone={navTone}
+            >
               {primaryNavItems.map((item) => {
                 const isActive = isShellRouteActive(item, pathname);
 
@@ -50,11 +78,8 @@ export function SiteNav({ user }: SiteNavProps) {
                     <Link
                       href={item.href}
                       aria-current={isActive ? "page" : undefined}
-                      className={`focus-ring shell-nav-label inline-flex min-h-8 items-center justify-center whitespace-nowrap rounded-full px-(--shell-nav-item-padding-inline) py-(--shell-nav-item-padding-block) uppercase transition-all ${
-                        isActive
-                          ? "bg-[color-mix(in_oklab,var(--foreground)_4%,var(--surface))] text-foreground"
-                          : "text-foreground/56 hover:text-foreground hover:bg-background/52"
-                      }`}
+                      data-shell-nav-item-tone={navTone}
+                      className={getNavItemClassName(isActive)}
                     >
                       {item.label}
                     </Link>
@@ -64,10 +89,6 @@ export function SiteNav({ user }: SiteNavProps) {
             </ul>
           </div>
         ) : null}
-
-        <div className={`${hasPrimaryLinks ? "col-start-3 justify-self-end max-sm:col-start-2 max-sm:row-start-1" : "shrink-0"} min-w-0 flex items-center justify-end`} data-shell-nav-region="account-access">
-          <AccountMenu user={user} />
-        </div>
       </div>
     </nav>
   );

@@ -297,17 +297,150 @@ export function createTables(db: Database.Database): void {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL,
+      standfirst TEXT DEFAULT NULL,
+      section TEXT DEFAULT NULL,
+      hero_image_asset_id TEXT,
       status TEXT NOT NULL DEFAULT 'draft',
       published_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       created_by_user_id TEXT NOT NULL,
       published_by_user_id TEXT,
+      FOREIGN KEY (hero_image_asset_id) REFERENCES blog_assets(id) ON DELETE SET NULL,
       FOREIGN KEY (created_by_user_id) REFERENCES users(id),
       FOREIGN KEY (published_by_user_id) REFERENCES users(id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_blog_posts_slug ON blog_posts(slug);
     CREATE INDEX IF NOT EXISTS idx_blog_posts_status ON blog_posts(status);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS blog_assets (
+      id TEXT PRIMARY KEY,
+      post_id TEXT,
+      kind TEXT NOT NULL,
+      storage_path TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      width INTEGER,
+      height INTEGER,
+      alt_text TEXT NOT NULL DEFAULT '',
+      source_prompt TEXT,
+      provider TEXT,
+      provider_model TEXT,
+      visibility TEXT NOT NULL DEFAULT 'draft',
+      selection_state TEXT NOT NULL DEFAULT 'candidate',
+      variation_group_id TEXT DEFAULT NULL,
+      created_by_user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (post_id) REFERENCES blog_posts(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_blog_assets_post ON blog_assets(post_id);
+    CREATE INDEX IF NOT EXISTS idx_blog_assets_visibility ON blog_assets(visibility);
+    CREATE INDEX IF NOT EXISTS idx_blog_assets_created_by ON blog_assets(created_by_user_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS blog_post_artifacts (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      artifact_type TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      created_by_user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (post_id) REFERENCES blog_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_blog_post_artifacts_post ON blog_post_artifacts(post_id);
+    CREATE INDEX IF NOT EXISTS idx_blog_post_artifacts_type ON blog_post_artifacts(artifact_type);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS blog_post_revisions (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      change_note TEXT DEFAULT NULL,
+      created_by_user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (post_id) REFERENCES blog_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_blog_post_revisions_post ON blog_post_revisions(post_id);
+    CREATE INDEX IF NOT EXISTS idx_blog_post_revisions_created_at ON blog_post_revisions(created_at);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS job_requests (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      user_id TEXT DEFAULT NULL,
+      tool_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      priority INTEGER NOT NULL DEFAULT 100,
+      dedupe_key TEXT DEFAULT NULL,
+      initiator_type TEXT NOT NULL DEFAULT 'user',
+      request_payload_json TEXT NOT NULL,
+      result_payload_json TEXT DEFAULT NULL,
+      error_message TEXT DEFAULT NULL,
+      progress_percent REAL DEFAULT NULL,
+      progress_label TEXT DEFAULT NULL,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      lease_expires_at TEXT DEFAULT NULL,
+      claimed_by TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      started_at TEXT DEFAULT NULL,
+      completed_at TEXT DEFAULT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_job_requests_conversation ON job_requests(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_job_requests_user_status ON job_requests(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_job_requests_status_priority_created ON job_requests(status, priority, created_at);
+    CREATE INDEX IF NOT EXISTS idx_job_requests_dedupe_conversation ON job_requests(conversation_id, dedupe_key);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS job_events (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      conversation_id TEXT NOT NULL,
+      sequence INTEGER NOT NULL,
+      event_type TEXT NOT NULL,
+      event_payload_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (job_id) REFERENCES job_requests(id) ON DELETE CASCADE,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_job_events_conversation_sequence_unique ON job_events(conversation_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_job_events_job_created ON job_events(job_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_job_events_job_sequence ON job_events(job_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_job_events_conversation_sequence ON job_events(conversation_id, sequence);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      endpoint TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      expiration_time INTEGER DEFAULT NULL,
+      p256dh_key TEXT NOT NULL,
+      auth_key TEXT NOT NULL,
+      user_agent TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_notified_at TEXT DEFAULT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_updated ON push_subscriptions(updated_at);
   `);
 }

@@ -50,11 +50,9 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="alert-error">
-              {error}
-            </div>
-          )}
+          <div role="alert" aria-live="assertive" className="alert-error" style={error ? undefined : { display: "none" }}>
+            {error}
+          </div>
 
           <div className="space-y-1.5">
             <label htmlFor="email" className="form-label">
@@ -99,7 +97,7 @@ export default function LoginPage() {
 
         <p className="text-center text-xs opacity-50">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-bold opacity-100 text-accent hover:underline">
+          <Link href="/register" className="font-bold opacity-100 text-accent-interactive hover:underline">
             Register
           </Link>
         </p>

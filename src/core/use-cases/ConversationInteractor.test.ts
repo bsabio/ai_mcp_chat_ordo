@@ -59,9 +59,11 @@ function createMockRepos() {
   } as ConversationRepository & { recordUserMessageAppendedWithEvent?: ReturnType<typeof vi.fn> };
   const msgRepo = {
     create: vi.fn().mockResolvedValue(makeMessage()),
+    findById: vi.fn().mockResolvedValue(null),
     listByConversation: vi.fn().mockResolvedValue([]),
     listRecentByConversation: vi.fn().mockResolvedValue([]),
     countByConversation: vi.fn().mockResolvedValue(0),
+    update: vi.fn().mockResolvedValue(makeMessage()),
   } as MessageRepository & { createWithinConversationLimit?: ReturnType<typeof vi.fn> };
   return { convRepo, msgRepo };
 }

@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${identity.domain}`;
   const now = new Date();
 
-  const summaries = await getCorpusSummaries();
+  const summaries = await getCorpusSummaries({ publicOnly: true });
 
   const staticEntries: MetadataRoute.Sitemap = [
     { url: base, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
@@ -31,16 +31,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogRepo = getBlogPostRepository();
   const publishedPosts = await blogRepo.listPublished();
 
-  const blogStaticEntries: MetadataRoute.Sitemap = [
-    { url: `${base}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+  const journalStaticEntries: MetadataRoute.Sitemap = [
+    { url: `${base}/journal`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
   ];
 
-  const blogPostEntries: MetadataRoute.Sitemap = publishedPosts.map((post) => ({
-    url: `${base}/blog/${post.slug}`,
+  const journalPostEntries: MetadataRoute.Sitemap = publishedPosts.map((post) => ({
+    url: `${base}/journal/${post.slug}`,
     lastModified: post.publishedAt ? new Date(post.publishedAt) : now,
     changeFrequency: "monthly" as const,
     priority: 0.5,
   }));
 
-  return [...staticEntries, ...chapterEntries, ...blogStaticEntries, ...blogPostEntries];
+  return [...staticEntries, ...chapterEntries, ...journalStaticEntries, ...journalPostEntries];
 }

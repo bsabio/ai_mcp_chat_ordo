@@ -191,6 +191,109 @@ export class ConversationDataMapper implements ConversationRepository {
       );
   }
 
+  // ── Admin methods (D4.7) ───────────────────────────────────────────
+
+  async listForAdmin(filters: {
+    status?: string;
+    lane?: string;
+    sessionSource?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<Conversation[]> {
+    const clauses: string[] = ["1=1"];
+    const params: unknown[] = [];
+
+    if (filters.status) {
+      clauses.push("c.status = ?");
+      params.push(filters.status);
+    }
+    if (filters.lane) {
+      clauses.push("c.lane = ?");
+      params.push(filters.lane);
+    }
+    if (filters.sessionSource) {
+      clauses.push("c.session_source = ?");
+      params.push(filters.sessionSource);
+    }
+
+    const limit = filters.limit ?? 100;
+    const offset = filters.offset ?? 0;
+    params.push(limit, offset);
+
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM conversations c
+         WHERE ${clauses.join(" AND ")}
+         ORDER BY c.updated_at DESC
+         LIMIT ? OFFSET ?`,
+      )
+      .all(...params) as ConversationRow[];
+
+    return rows.map(mapRow);
+  }
+
+  async countForAdmin(filters: {
+    status?: string;
+    lane?: string;
+    sessionSource?: string;
+  } = {}): Promise<number> {
+    const clauses: string[] = ["1=1"];
+    const params: unknown[] = [];
+
+    if (filters.status) {
+      clauses.push("status = ?");
+      params.push(filters.status);
+    }
+    if (filters.lane) {
+      clauses.push("lane = ?");
+      params.push(filters.lane);
+    }
+    if (filters.sessionSource) {
+      clauses.push("session_source = ?");
+      params.push(filters.sessionSource);
+    }
+
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) as count FROM conversations WHERE ${clauses.join(" AND ")}`,
+      )
+      .get(...params) as { count: number };
+
+    return row.count;
+  }
+
+  async countByStatus(): Promise<Record<string, number>> {
+    const rows = this.db
+      .prepare(`SELECT status, COUNT(*) as count FROM conversations GROUP BY status`)
+      .all() as Array<{ status: string; count: number }>;
+
+    const result: Record<string, number> = {};
+    for (const r of rows) result[r.status] = r.count;
+    return result;
+  }
+
+  async countByLane(): Promise<Record<string, number>> {
+    const rows = this.db
+      .prepare(`SELECT lane, COUNT(*) as count FROM conversations GROUP BY lane`)
+      .all() as Array<{ lane: string; count: number }>;
+
+    const result: Record<string, number> = {};
+    for (const r of rows) result[r.lane] = r.count;
+    return result;
+  }
+
+  async setConversationMode(id: string, mode: "ai" | "human"): Promise<void> {
+    this.db
+      .prepare(`UPDATE conversations SET conversation_mode = ? WHERE id = ?`)
+      .run(mode, id);
+  }
+
+  async archiveById(id: string): Promise<void> {
+    this.db
+      .prepare(`UPDATE conversations SET status = 'archived' WHERE id = ?`)
+      .run(id);
+  }
+
   async transferOwnership(fromUserId: string, toUserId: string): Promise<string[]> {
     const rows = this.db
       .prepare(`SELECT id FROM conversations WHERE user_id = ?`)

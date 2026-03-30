@@ -16,8 +16,12 @@ export class SearchCorpusCommand implements ToolCommand<{ query: string; max_res
     this.search = new LibrarySearchInteractor(repo, searchHandler);
   }
 
-  async execute({ query, max_results = 5 }: { query: string; max_results?: number }, _context?: ToolExecutionContext) {
-    const results = await this.search.execute({ query, maxResults: Math.min(max_results, 15) });
+  async execute({ query, max_results = 5 }: { query: string; max_results?: number }, context?: ToolExecutionContext) {
+    const results = await this.search.execute({
+      query,
+      maxResults: Math.min(max_results, 15),
+      role: context?.role,
+    });
     if (results.length === 0) return `No results found for "${query}".`;
 
     return results.map((result) => ({
@@ -53,8 +57,12 @@ export class GetSectionCommand implements ToolCommand<{ document_slug: string; s
     this.getSection = new GetChapterInteractor(repo);
   }
 
-  async execute({ document_slug, section_slug }: { document_slug: string; section_slug: string }, _context?: ToolExecutionContext) {
-    const section = await this.getSection.execute({ bookSlug: document_slug, chapterSlug: section_slug });
+  async execute({ document_slug, section_slug }: { document_slug: string; section_slug: string }, context?: ToolExecutionContext) {
+    const section = await this.getSection.execute({
+      bookSlug: document_slug,
+      chapterSlug: section_slug,
+      role: context?.role,
+    });
     if (!section) return `Section not found: ${document_slug}/${section_slug}.`;
 
     const content = section.content.length > 4000
@@ -72,8 +80,8 @@ export class GetChecklistCommand implements ToolCommand<{ book_slug?: string }, 
     this.checklists = new ChecklistInteractor(repo);
   }
 
-  async execute({ book_slug }: { book_slug?: string }, _context?: ToolExecutionContext) {
-    const results = await this.checklists.execute({ bookSlug: book_slug });
+  async execute({ book_slug }: { book_slug?: string }, context?: ToolExecutionContext) {
+    const results = await this.checklists.execute({ bookSlug: book_slug, role: context?.role });
     if (results.length === 0) return "No checklists found.";
 
     return results
@@ -89,8 +97,8 @@ export class ListPractitionersCommand implements ToolCommand<{ query?: string },
     this.practitioners = new PractitionerInteractor(repo);
   }
 
-  async execute({ query }: { query?: string }, _context?: ToolExecutionContext) {
-    const results = await this.practitioners.execute({ query });
+  async execute({ query }: { query?: string }, context?: ToolExecutionContext) {
+    const results = await this.practitioners.execute({ query, role: context?.role });
     if (results.length === 0) return "No practitioners found.";
 
     return results
@@ -107,8 +115,8 @@ export class GetCorpusSummaryCommand implements ToolCommand<Record<string, never
     this.summaries = new CorpusSummaryInteractor(repo);
   }
 
-  async execute(_input: Record<string, never>, _context?: ToolExecutionContext) {
-    const results = await this.summaries.execute();
+  async execute(_input: Record<string, never>, context?: ToolExecutionContext) {
+    const results = await this.summaries.execute({ role: context?.role });
     return results.map((summary) => {
       const sections = summary.chapters ?? summary.sections;
       const sectionSlugs = summary.chapterSlugs ?? summary.sectionSlugs;

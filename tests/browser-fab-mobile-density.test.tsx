@@ -118,15 +118,12 @@ describe("browser FAB mobile density", () => {
     expect(composerRow).toBeNull();
     expect(composerForm).not.toBeNull();
     expect(composerForm).toHaveAttribute("data-chat-composer-state", "idle");
-    expect(composerHelper?.children).toHaveLength(2);
+    expect(composerHelper?.children).toHaveLength(1);
     expect(leadingRegion).toBeNull();
 
     expect(screen.getByRole("button", { name: /enter full screen/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /minimize chat/i })).toBeInTheDocument();
-    expect(screen.getByText("Enter to send. Shift+Enter for a line break.")).toBeInTheDocument();
-    expect(
-      screen.getByText("Attach notes, screenshots, or briefs when context matters."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Enter to send. Shift+Enter for line break. Attach files if needed.")).toBeInTheDocument();
   });
 
   it("keeps the compact mobile header layout stable", async () => {

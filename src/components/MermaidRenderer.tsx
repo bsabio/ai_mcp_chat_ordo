@@ -222,10 +222,10 @@ export function MermaidRenderer({
     >
       <div
         ref={containerRef}
-        className="w-full flex items-center justify-center p-4 min-h-40 overflow-auto"
+        className="w-full flex items-center justify-center p-(--space-4) min-h-40 overflow-auto"
       >
         {error ? (
-          <div className="text-red-500 text-xs font-mono p-4 bg-red-50 dark:bg-red-950/30 rounded-lg w-full">
+          <div className="w-full rounded-lg border-[color-mix(in_oklab,var(--status-error)_20%,transparent)] bg-[color-mix(in_oklab,var(--status-error)_10%,transparent)] p-(--space-4) text-xs font-mono text-status-error">
             Failed to render chart: {error}
           </div>
         ) : svgContent ? (

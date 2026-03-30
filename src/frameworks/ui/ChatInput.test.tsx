@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ChatInput } from "@/frameworks/ui/ChatInput";
 
-const CHAT_PLACEHOLDER = "Paste the workflow, use case, or handoff you want to test...";
+const CHAT_PLACEHOLDER = "Paste the workflow, brief, or handoff...";
+const CHAT_HELPER = "Enter to send. Shift+Enter for line break. Attach files if needed.";
 
 describe("ChatInput", () => {
   it("submits on Enter without Shift", () => {
@@ -11,6 +12,7 @@ describe("ChatInput", () => {
 
     render(
       <ChatInput
+        helperTextId="chat-composer-helper-test"
         value="Draft a response"
         onChange={vi.fn()}
         onSend={onSend}
@@ -40,6 +42,7 @@ describe("ChatInput", () => {
 
     render(
       <ChatInput
+        helperTextId="chat-composer-helper-test"
         value="Line one"
         onChange={vi.fn()}
         onSend={onSend}
@@ -68,6 +71,7 @@ describe("ChatInput", () => {
   it("renders a textarea composer", () => {
     render(
       <ChatInput
+        helperTextId="chat-composer-helper-test"
         value=""
         onChange={vi.fn()}
         onSend={vi.fn()}
@@ -91,6 +95,7 @@ describe("ChatInput", () => {
   it("exposes helper guidance for send and newline shortcuts", () => {
     render(
       <ChatInput
+        helperTextId="chat-composer-helper-test"
         value=""
         onChange={vi.fn()}
         onSend={vi.fn()}
@@ -108,13 +113,13 @@ describe("ChatInput", () => {
       />,
     );
 
-    expect(screen.getByText("Enter to send. Shift+Enter for a line break.")).toBeInTheDocument();
-    expect(screen.getByText("Attach notes, screenshots, or briefs when context matters.")).toBeInTheDocument();
+    expect(screen.getByText(CHAT_HELPER)).toBeInTheDocument();
   });
 
   it("exposes idle composer and send semantics when the field is empty", () => {
     const { container } = render(
       <ChatInput
+        helperTextId="chat-composer-helper-test"
         value=""
         onChange={vi.fn()}
         onSend={vi.fn()}
@@ -140,6 +145,7 @@ describe("ChatInput", () => {
   it("exposes ready composer and send semantics when input exists", () => {
     const { container } = render(
       <ChatInput
+        helperTextId="chat-composer-helper-test"
         value="Audit this workflow"
         onChange={vi.fn()}
         onSend={vi.fn()}
@@ -159,5 +165,58 @@ describe("ChatInput", () => {
 
     expect(container.querySelector('[data-chat-composer-form="true"]')).toHaveAttribute("data-chat-composer-state", "ready");
     expect(container.querySelector('[data-chat-send-state="ready"]')).not.toBeNull();
+  });
+
+  it("uses semantic composer surface classes for frame and field", () => {
+    const { container } = render(
+      <ChatInput
+        helperTextId="chat-composer-helper-test"
+        value="Audit this workflow"
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        isSending={false}
+        canSend={true}
+        onArrowUp={vi.fn()}
+        activeTrigger={null}
+        suggestions={[]}
+        mentionIndex={0}
+        onMentionIndexChange={vi.fn()}
+        onSuggestionSelect={vi.fn()}
+        pendingFiles={[]}
+        onFileSelect={vi.fn()}
+        onFileRemove={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('[data-chat-composer-form="true"]')?.className).toContain("ui-chat-composer-frame");
+    expect(container.querySelector('[data-chat-composer-field="true"]')?.className).toContain("ui-chat-composer-field");
+  });
+
+  it("uses the provided helper text id for aria-describedby", () => {
+    render(
+      <ChatInput
+        helperTextId="chat-composer-helper-test"
+        value=""
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        isSending={false}
+        canSend={false}
+        onArrowUp={vi.fn()}
+        activeTrigger={null}
+        suggestions={[]}
+        mentionIndex={0}
+        onMentionIndexChange={vi.fn()}
+        onSuggestionSelect={vi.fn()}
+        pendingFiles={[]}
+        onFileSelect={vi.fn()}
+        onFileRemove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByPlaceholderText(CHAT_PLACEHOLDER)).toHaveAttribute(
+      "aria-describedby",
+      "chat-composer-helper-test",
+    );
+    expect(document.getElementById("chat-composer-helper-test")).not.toBeNull();
   });
 });

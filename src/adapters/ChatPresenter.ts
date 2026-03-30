@@ -1,5 +1,5 @@
 import type { ChatMessage, FailedSendMetadata } from "../core/entities/chat-message";
-import type { RichContent } from "../core/entities/rich-content";
+import type { InlineNode, RichContent } from "../core/entities/rich-content";
 import type { UICommand } from "../core/entities/ui-command";
 import { UI_COMMAND_TYPE } from "../core/entities/ui-command";
 import { BLOCK_TYPES, VALID_ACTION_TYPES } from "../core/entities/rich-content";
@@ -9,7 +9,10 @@ import type { MarkdownParserService } from "./MarkdownParserService";
 import type { CommandParserService } from "./CommandParserService";
 import { resolveGenerateChartPayload } from "@/core/use-cases/tools/chart-payload";
 import { resolveGenerateGraphPayload, type ResolvedGraphPayload } from "@/core/use-cases/tools/graph-payload";
-import type { MessagePart } from "@/core/entities/message-parts";
+import type { JobStatusMessagePart, MessagePart } from "@/core/entities/message-parts";
+import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
+import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
+import { getSupportedTheme, isSupportedTheme } from "@/lib/theme/theme-manifest";
 
 const SUGGESTIONS_MARKER = "__suggestions__:";
 const ACTIONS_MARKER = "__actions__:";
@@ -18,6 +21,7 @@ const TOOL_NAMES = {
   SET_THEME: "set_theme",
   NAVIGATE: "navigate",
   ADJUST_UI: "adjust_ui",
+  INSPECT_THEME: "inspect_theme",
   GENERATE_CHART: "generate_chart",
   GENERATE_GRAPH: "generate_graph",
   GENERATE_AUDIO: "generate_audio",
@@ -25,6 +29,8 @@ const TOOL_NAMES = {
   GET_MY_PROFILE: "get_my_profile",
   UPDATE_MY_PROFILE: "update_my_profile",
   GET_MY_REFERRAL_QR: "get_my_referral_qr",
+  GET_JOURNAL_WORKFLOW_SUMMARY: "get_journal_workflow_summary",
+  PREPARE_JOURNAL_POST_FOR_PUBLISH: "prepare_journal_post_for_publish",
 } as const;
 
 type ProfileResultPayload = {
@@ -57,6 +63,75 @@ type ReferralQrResultPayload =
       affiliate_enabled?: boolean;
       manage_route?: string;
     };
+
+type JournalWorkflowSummaryPayload = {
+  action: "get_journal_workflow_summary";
+  summary: string;
+  counts: {
+    draft: number;
+    review: number;
+    approved: number;
+    blocked: number;
+    ready_to_publish: number;
+    active_jobs: number;
+  };
+  blocked_posts?: Array<{
+    title: string;
+    detail_route: string;
+    blockers: string[];
+  }>;
+  ready_to_publish_posts?: Array<{
+    title: string;
+    detail_route: string;
+    preview_route: string;
+  }>;
+};
+
+type PrepareJournalPostForPublishPayload = {
+  action: "prepare_journal_post_for_publish";
+  ready: boolean;
+  summary: string;
+  blockers: string[];
+  revision_count: number;
+  post: {
+    id: string;
+    title: string;
+    detail_route: string;
+    preview_route: string;
+  };
+};
+
+type InspectThemeResultPayload = {
+  action: "inspect_theme";
+  message: string;
+  supported_theme_ids: readonly string[];
+  ordered_theme_profiles: ReadonlyArray<{
+    id: string;
+    name: string;
+    description: string;
+    yearRange: string;
+    primaryAttributes: readonly string[];
+    motionIntent: string;
+    shadowIntent: string;
+    densityDefaults: {
+      standard: string;
+      dataDense: string;
+      touch: string;
+    };
+    approvedControlAxes: readonly string[];
+  }>;
+  approved_control_axes: ReadonlyArray<{
+    id: string;
+    label: string;
+    options: readonly unknown[];
+    defaultValue: unknown;
+    mutationTools: readonly string[];
+  }>;
+  active_theme_state: {
+    available: boolean;
+    reason: string;
+  };
+};
 
 export interface MessageAction {
   label: string;
@@ -191,6 +266,23 @@ function pairToolCallsWithResults(parts?: MessagePart[]): ToolCallWithResult[] {
   return calls;
 }
 
+function sanitizeUiAdjustmentSettings(args: Record<string, unknown>): Record<string, unknown> {
+  if (!("theme" in args)) {
+    return args;
+  }
+
+  const theme = getSupportedTheme(args.theme);
+  if (theme) {
+    return {
+      ...args,
+      theme,
+    };
+  }
+
+  const { theme: _theme, ...rest } = args;
+  return rest;
+}
+
 function isResolvedGraphPayload(value: unknown): value is ResolvedGraphPayload {
   return (
     typeof value === "object"
@@ -222,6 +314,40 @@ function isReferralQrResultPayload(value: unknown): value is ReferralQrResultPay
   );
 }
 
+function isJournalWorkflowSummaryPayload(value: unknown): value is JournalWorkflowSummaryPayload {
+  return typeof value === "object"
+    && value !== null
+    && (value as { action?: unknown }).action === TOOL_NAMES.GET_JOURNAL_WORKFLOW_SUMMARY
+    && typeof (value as { summary?: unknown }).summary === "string"
+    && typeof (value as { counts?: unknown }).counts === "object"
+    && (value as { counts?: unknown }).counts !== null;
+}
+
+function isPrepareJournalPostForPublishPayload(value: unknown): value is PrepareJournalPostForPublishPayload {
+  return typeof value === "object"
+    && value !== null
+    && (value as { action?: unknown }).action === TOOL_NAMES.PREPARE_JOURNAL_POST_FOR_PUBLISH
+    && typeof (value as { ready?: unknown }).ready === "boolean"
+    && typeof (value as { summary?: unknown }).summary === "string"
+    && typeof (value as { post?: unknown }).post === "object"
+    && (value as { post?: unknown }).post !== null;
+}
+
+function isInspectThemeResultPayload(value: unknown): value is InspectThemeResultPayload {
+  return typeof value === "object"
+    && value !== null
+    && (value as { action?: unknown }).action === TOOL_NAMES.INSPECT_THEME
+    && Array.isArray((value as { supported_theme_ids?: unknown }).supported_theme_ids)
+    && Array.isArray((value as { ordered_theme_profiles?: unknown }).ordered_theme_profiles)
+    && Array.isArray((value as { approved_control_axes?: unknown }).approved_control_axes)
+    && typeof (value as { active_theme_state?: unknown }).active_theme_state === "object"
+    && (value as { active_theme_state?: unknown }).active_theme_state !== null;
+}
+
+function isJobStatusMessagePart(part: MessagePart): part is JobStatusMessagePart {
+  return part.type === "job_status";
+}
+
 function textNode(text: string) {
   return { type: "text" as const, text };
 }
@@ -232,6 +358,152 @@ function actionLinkNode(label: string, value: string) {
 
 function externalActionLinkNode(label: string, value: string) {
   return { type: "action-link" as const, label, actionType: "external" as const, value };
+}
+
+function jobActionLinkNode(label: string, jobId: string, operation: "cancel" | "retry") {
+  return {
+    type: "action-link" as const,
+    label,
+    actionType: "job" as const,
+    value: jobId,
+    params: { operation },
+  };
+}
+
+function isDraftResultPayload(value: unknown): value is { id: string; slug: string; title: string; status: "draft" } {
+  return typeof value === "object"
+    && value !== null
+    && (value as { status?: unknown }).status === "draft"
+    && typeof (value as { id?: unknown }).id === "string"
+    && typeof (value as { slug?: unknown }).slug === "string"
+    && typeof (value as { title?: unknown }).title === "string";
+}
+
+function isPublishResultPayload(value: unknown): value is { id: string; slug: string; title: string; status: "published" } {
+  return typeof value === "object"
+    && value !== null
+    && (value as { status?: unknown }).status === "published"
+    && typeof (value as { id?: unknown }).id === "string"
+    && typeof (value as { slug?: unknown }).slug === "string"
+    && typeof (value as { title?: unknown }).title === "string";
+}
+
+function isGenerateBlogImageResultPayload(
+  value: unknown,
+): value is {
+  assetId: string;
+  imageUrl: string;
+  postSlug: string | null;
+} {
+  return typeof value === "object"
+    && value !== null
+    && typeof (value as { assetId?: unknown }).assetId === "string"
+    && typeof (value as { imageUrl?: unknown }).imageUrl === "string"
+    && (typeof (value as { postSlug?: unknown }).postSlug === "string"
+      || (value as { postSlug?: unknown }).postSlug === null);
+}
+
+function isProduceBlogArticleResultPayload(
+  value: unknown,
+): value is {
+  id: string;
+  slug: string;
+  imageAssetId: string;
+} {
+  return typeof value === "object"
+    && value !== null
+    && typeof (value as { id?: unknown }).id === "string"
+    && typeof (value as { slug?: unknown }).slug === "string"
+    && typeof (value as { imageAssetId?: unknown }).imageAssetId === "string";
+}
+
+function buildJobStatusActions(part: JobStatusMessagePart) {
+  if (part.actions && part.actions.length > 0) {
+    return part.actions.map((action) => ({
+      type: "action-link" as const,
+      label: action.label,
+      actionType: action.actionType,
+      value: action.value,
+      params: action.params,
+    }));
+  }
+
+  if (part.status === "queued" || part.status === "running") {
+    return [jobActionLinkNode("Cancel", part.jobId, "cancel")];
+  }
+
+  if (part.status === "failed" || part.status === "canceled") {
+    return [jobActionLinkNode("Retry", part.jobId, "retry")];
+  }
+
+  if (part.status !== "succeeded") {
+    return undefined;
+  }
+
+  if (part.toolName === "draft_content" && isDraftResultPayload(part.resultPayload)) {
+    return [
+      {
+        type: "action-link" as const,
+        label: "Revise",
+        actionType: "send" as const,
+        value: `Revise the draft post with id ${part.resultPayload.id} titled \"${part.resultPayload.title}\".`,
+      },
+      {
+        type: "action-link" as const,
+        label: "Publish",
+        actionType: "send" as const,
+        value: `Publish the draft post with id ${part.resultPayload.id}.`,
+      },
+    ];
+  }
+
+  if (part.toolName === "publish_content" && isPublishResultPayload(part.resultPayload)) {
+    return [actionLinkNode("Open published post", `/journal/${part.resultPayload.slug}`)];
+  }
+
+  if (part.toolName === "generate_blog_image" && isGenerateBlogImageResultPayload(part.resultPayload)) {
+    const actions = [actionLinkNode("Open image", part.resultPayload.imageUrl)];
+    if (part.resultPayload.postSlug) {
+      actions.unshift(actionLinkNode("Open article", `/journal/${part.resultPayload.postSlug}`));
+    }
+    return actions;
+  }
+
+  if (part.toolName === "produce_blog_article" && isProduceBlogArticleResultPayload(part.resultPayload)) {
+    return [
+      actionLinkNode("Open draft", getAdminJournalPreviewPath(part.resultPayload.slug)),
+      {
+        type: "action-link" as const,
+        label: "Publish",
+        actionType: "send" as const,
+        value: `Publish the draft journal article with id ${part.resultPayload.id}.`,
+      },
+      actionLinkNode("Open hero image", `/api/blog/assets/${part.resultPayload.imageAssetId}`),
+    ];
+  }
+
+  if (
+    part.toolName === TOOL_NAMES.PREPARE_JOURNAL_POST_FOR_PUBLISH
+    && isPrepareJournalPostForPublishPayload(part.resultPayload)
+  ) {
+    const actions: InlineNode[] = [
+      actionLinkNode("Open journal workspace", part.resultPayload.post.detail_route),
+      actionLinkNode("Open journal draft", part.resultPayload.post.preview_route),
+    ];
+
+    if (part.resultPayload.ready) {
+      actions.push({
+        type: "action-link" as const,
+        label: "Publish",
+        actionType: "send" as const,
+        value: `Publish the approved journal article with id ${part.resultPayload.post.id}.`,
+      });
+    }
+
+    return actions;
+  }
+
+  return undefined;
 }
 
 function appendProfileResultBlocks(
@@ -332,6 +604,168 @@ function appendReferralQrResultBlocks(
   });
 }
 
+function appendJournalWorkflowSummaryBlocks(
+  richContent: RichContent,
+  result: JournalWorkflowSummaryPayload,
+): void {
+  richContent.blocks.push({
+    type: BLOCK_TYPES.HEADING,
+    level: 2,
+    content: [textNode("Journal Workflow Summary")],
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.PARAGRAPH,
+    content: [textNode(result.summary)],
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.TABLE,
+    header: [[textNode("Queue")], [textNode("Count")]],
+    rows: [
+      [[textNode("Draft")], [textNode(String(result.counts.draft))]],
+      [[textNode("In review")], [textNode(String(result.counts.review))]],
+      [[textNode("Approved")], [textNode(String(result.counts.approved))]],
+      [[textNode("Blocked")], [textNode(String(result.counts.blocked))]],
+      [[textNode("Ready to publish")], [textNode(String(result.counts.ready_to_publish))]],
+      [[textNode("Active jobs")], [textNode(String(result.counts.active_jobs))]],
+    ],
+  });
+
+  if (result.blocked_posts && result.blocked_posts.length > 0) {
+    richContent.blocks.push({
+      type: BLOCK_TYPES.LIST,
+      items: result.blocked_posts.slice(0, 3).map((post) => [
+        textNode(`${post.title}: ${post.blockers.join(" ")}`),
+        textNode(" "),
+        actionLinkNode("Open workspace", post.detail_route),
+      ]),
+    });
+  }
+
+  if (result.ready_to_publish_posts && result.ready_to_publish_posts.length > 0) {
+    richContent.blocks.push({
+      type: BLOCK_TYPES.LIST,
+      items: result.ready_to_publish_posts.slice(0, 3).map((post) => [
+        textNode(`${post.title} is ready to publish. `),
+        actionLinkNode("Open workspace", post.detail_route),
+        textNode(" · "),
+        actionLinkNode("Open preview", post.preview_route),
+      ]),
+    });
+  }
+}
+
+function appendPrepareJournalPostBlocks(
+  richContent: RichContent,
+  result: PrepareJournalPostForPublishPayload,
+): void {
+  richContent.blocks.push({
+    type: BLOCK_TYPES.HEADING,
+    level: 2,
+    content: [textNode(result.ready ? "Journal Publish Ready" : "Journal Publish Blocked")],
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.PARAGRAPH,
+    content: [textNode(result.summary)],
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.TABLE,
+    header: [[textNode("Field")], [textNode("Value")]],
+    rows: [
+      [[textNode("Article")], [textNode(result.post.title)]],
+      [[textNode("Ready")], [textNode(result.ready ? "Yes" : "No")]],
+      [[textNode("Revision count")], [textNode(String(result.revision_count))]],
+    ],
+  });
+
+  if (result.blockers.length > 0) {
+    richContent.blocks.push({
+      type: BLOCK_TYPES.LIST,
+      items: result.blockers.map((blocker) => [textNode(blocker)]),
+    });
+  }
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.LIST,
+    items: [
+      [actionLinkNode("Open journal workspace", result.post.detail_route)],
+      [actionLinkNode("Open journal draft", result.post.preview_route)],
+      ...(result.ready
+        ? [[{
+          type: "action-link" as const,
+          label: "Publish",
+          actionType: "send" as const,
+          value: `Publish the approved journal article with id ${result.post.id}.`,
+        }]]
+        : []),
+    ],
+  });
+}
+
+function formatThemeAxisOption(option: unknown): string {
+  if (typeof option === "string") {
+    return option;
+  }
+
+  if (typeof option === "boolean") {
+    return option ? "true" : "false";
+  }
+
+  return String(option);
+}
+
+function appendInspectThemeBlocks(
+  richContent: RichContent,
+  result: InspectThemeResultPayload,
+): void {
+  richContent.blocks.push({
+    type: BLOCK_TYPES.HEADING,
+    level: 2,
+    content: [textNode("Theme Profiles")],
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.PARAGRAPH,
+    content: [textNode(result.message)],
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.TABLE,
+    header: [[textNode("Theme")], [textNode("Intent")], [textNode("Density defaults")], [textNode("Attributes")]],
+    rows: result.ordered_theme_profiles.map((profile) => [[
+      textNode(`${profile.name} (${profile.id})`),
+    ], [
+      textNode(`${profile.motionIntent} motion / ${profile.shadowIntent} depth`),
+    ], [
+      textNode(`standard ${profile.densityDefaults.standard}, data-dense ${profile.densityDefaults.dataDense}, touch ${profile.densityDefaults.touch}`),
+    ], [
+      textNode(profile.primaryAttributes.join(", ")),
+    ]]),
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.LIST,
+    items: result.approved_control_axes.map((axis) => [
+      textNode(`${axis.label}: default ${formatThemeAxisOption(axis.defaultValue)}. Options ${axis.options.map(formatThemeAxisOption).join(", ")}. Mutated by ${axis.mutationTools.join(", ")}.`),
+    ]),
+  });
+
+  richContent.blocks.push({
+    type: BLOCK_TYPES.PARAGRAPH,
+    content: [textNode(`Supported theme ids: ${result.supported_theme_ids.join(", ")}.`)],
+  });
+
+  if (!result.active_theme_state.available) {
+    richContent.blocks.push({
+      type: BLOCK_TYPES.BLOCKQUOTE,
+      content: [textNode(result.active_theme_state.reason)],
+    });
+  }
+}
+
 export class ChatPresenter {
   constructor(
     private markdownParser: MarkdownParserService,
@@ -363,18 +797,44 @@ export class ChatPresenter {
     textContent = extractedActions.text;
 
     const richContent = this.markdownParser.parse(textContent);
-    const commands = this.commandParser.parse(textContent);
-  const attachments = getAttachmentParts(message.parts);
+    const commands = [...this.commandParser.parse(textContent)];
+    const attachments = getAttachmentParts(message.parts);
+    const renderedJobIds = new Set<string>();
+
+    for (const part of message.parts ?? []) {
+      if (!isJobStatusMessagePart(part)) {
+        continue;
+      }
+
+      renderedJobIds.add(part.jobId);
+
+      richContent.blocks.push({
+        type: BLOCK_TYPES.JOB_STATUS,
+        jobId: part.jobId,
+        label: part.label,
+        toolName: part.toolName,
+          title: part.title,
+          subtitle: part.subtitle,
+        status: part.status,
+        progressPercent: part.progressPercent,
+        progressLabel: part.progressLabel,
+        summary: part.summary,
+        error: part.error,
+        actions: buildJobStatusActions(part),
+      });
+    }
 
     // Map AI tool calls to UI commands
     const toolCalls = pairToolCallsWithResults(message.parts);
     for (const call of toolCalls) {
       switch (call.name) {
         case TOOL_NAMES.SET_THEME:
-          commands.push({
-            type: UI_COMMAND_TYPE.SET_THEME,
-            theme: call.args.theme as string,
-          });
+          if (isSupportedTheme(call.args.theme)) {
+            commands.push({
+              type: UI_COMMAND_TYPE.SET_THEME,
+              theme: call.args.theme,
+            });
+          }
           break;
         case TOOL_NAMES.NAVIGATE:
           commands.push({
@@ -385,8 +845,13 @@ export class ChatPresenter {
         case TOOL_NAMES.ADJUST_UI:
           commands.push({
             type: UI_COMMAND_TYPE.ADJUST_UI,
-            settings: call.args as Record<string, unknown>,
+            settings: sanitizeUiAdjustmentSettings(call.args as Record<string, unknown>),
           });
+          break;
+        case TOOL_NAMES.INSPECT_THEME:
+          if (isInspectThemeResultPayload(call.result)) {
+            appendInspectThemeBlocks(richContent, call.result);
+          }
           break;
         case TOOL_NAMES.GENERATE_CHART:
           try {
@@ -450,6 +915,41 @@ export class ChatPresenter {
             appendReferralQrResultBlocks(richContent, call.result);
           }
           break;
+        case TOOL_NAMES.GET_JOURNAL_WORKFLOW_SUMMARY:
+          if (isJournalWorkflowSummaryPayload(call.result)) {
+            appendJournalWorkflowSummaryBlocks(richContent, call.result);
+          }
+          break;
+        case TOOL_NAMES.PREPARE_JOURNAL_POST_FOR_PUBLISH:
+          if (isPrepareJournalPostForPublishPayload(call.result)) {
+            appendPrepareJournalPostBlocks(richContent, call.result);
+          }
+          break;
+        default: {
+          const jobSnapshots = extractJobStatusSnapshots(call.result);
+          for (const snapshot of jobSnapshots) {
+            if (renderedJobIds.has(snapshot.part.jobId)) {
+              continue;
+            }
+
+            renderedJobIds.add(snapshot.part.jobId);
+            richContent.blocks.push({
+              type: BLOCK_TYPES.JOB_STATUS,
+              jobId: snapshot.part.jobId,
+              label: snapshot.part.label,
+              toolName: snapshot.part.toolName,
+              title: snapshot.part.title,
+              subtitle: snapshot.part.subtitle,
+              status: snapshot.part.status,
+              progressPercent: snapshot.part.progressPercent,
+              progressLabel: snapshot.part.progressLabel,
+              summary: snapshot.part.summary,
+              error: snapshot.part.error,
+              actions: buildJobStatusActions(snapshot.part),
+            });
+          }
+          break;
+        }
       }
     }
 

@@ -203,4 +203,115 @@ export class DealRecordDataMapper implements DealRecordRepository {
 
     return this.findById(id);
   }
+
+  // ── Admin query methods ─────────────────────────────────────────────
+
+  async listForAdmin(filters: { status?: string; limit?: number; offset?: number }): Promise<DealAdminRow[]> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.status) {
+      clauses.push("status = ?");
+      params.push(filters.status);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const limit = filters.limit ?? 100;
+    const offset = filters.offset ?? 0;
+
+    const rows = this.db
+      .prepare(
+        `SELECT id, title, organization_name, recommended_service_type, estimated_price, status, follow_up_at, created_at
+         FROM deal_records ${where}
+         ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      )
+      .all(...params, limit, offset) as Array<{
+        id: string; title: string; organization_name: string | null;
+        recommended_service_type: string; estimated_price: number | null;
+        status: string; follow_up_at: string | null; created_at: string;
+      }>;
+
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      organizationName: r.organization_name,
+      recommendedServiceType: r.recommended_service_type,
+      estimatedPrice: r.estimated_price,
+      status: r.status,
+      followUpAt: r.follow_up_at,
+      createdAt: r.created_at,
+    }));
+  }
+
+  async countForAdmin(filters: { status?: string }): Promise<number> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.status) {
+      clauses.push("status = ?");
+      params.push(filters.status);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS cnt FROM deal_records ${where}`)
+      .get(...params) as { cnt: number };
+
+    return row.cnt;
+  }
+
+  async countByStatus(): Promise<Record<string, number>> {
+    const rows = this.db
+      .prepare(`SELECT status, COUNT(*) AS cnt FROM deal_records GROUP BY status`)
+      .all() as Array<{ status: string; cnt: number }>;
+
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.status] = row.cnt;
+    }
+    return counts;
+  }
+
+  async listOverdueFollowUps(): Promise<DealAdminRow[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT id, title, organization_name, recommended_service_type, estimated_price, status, follow_up_at, created_at
+         FROM deal_records
+         WHERE follow_up_at IS NOT NULL AND follow_up_at < datetime('now')
+         ORDER BY follow_up_at ASC`,
+      )
+      .all() as Array<{
+        id: string; title: string; organization_name: string | null;
+        recommended_service_type: string; estimated_price: number | null;
+        status: string; follow_up_at: string | null; created_at: string;
+      }>;
+
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      organizationName: r.organization_name,
+      recommendedServiceType: r.recommended_service_type,
+      estimatedPrice: r.estimated_price,
+      status: r.status,
+      followUpAt: r.follow_up_at,
+      createdAt: r.created_at,
+    }));
+  }
+
+  async updateFollowUp(id: string, followUpAt: string | null): Promise<void> {
+    this.db
+      .prepare(`UPDATE deal_records SET follow_up_at = ?, updated_at = datetime('now') WHERE id = ?`)
+      .run(followUpAt, id);
+  }
+}
+
+export interface DealAdminRow {
+  id: string;
+  title: string;
+  organizationName: string | null;
+  recommendedServiceType: string;
+  estimatedPrice: number | null;
+  status: string;
+  followUpAt: string | null;
+  createdAt: string;
 }

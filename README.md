@@ -159,7 +159,7 @@ npm run validate:env
 npm run dev
 ```
 
-Open `http://localhost:3000` after the dev server starts.
+Open `http://localhost:3000` after the dev server starts. The default dev runtime now starts both the Next.js app and the deferred worker together.
 
 ### Minimum environment
 
@@ -178,7 +178,43 @@ Optional for additional features:
 
 - `OPENAI_API_KEY` for admin web search and related OpenAI-backed operations
 
+Optional for browser push notifications on deferred jobs:
+
+- `WEB_PUSH_VAPID_PUBLIC_KEY`
+- `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY` set to the same public key value
+- `WEB_PUSH_VAPID_PRIVATE_KEY`
+- `WEB_PUSH_SUBJECT` such as `mailto:ops@example.com`
+
 See [docs/operations/environment-matrix.md](docs/operations/environment-matrix.md) for environment parity rules.
+
+### Deferred job push setup
+
+Deferred tools like `draft_content` and `publish_content` can notify signed-in users after a background job finishes.
+
+Generate a VAPID keypair locally:
+
+```bash
+npm run push:vapid
+```
+
+Add the emitted values to your environment:
+
+```bash
+WEB_PUSH_VAPID_PUBLIC_KEY=...
+NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY=...
+WEB_PUSH_VAPID_PRIVATE_KEY=...
+WEB_PUSH_SUBJECT=mailto:ops@example.com
+```
+
+Run the app normally:
+
+```bash
+npm run dev
+```
+
+Use `npm run jobs:work` only when you want a dedicated standalone worker process outside the default app runtime.
+
+Signed-in users can then enable or disable deferred job push notifications from `/profile`. If the VAPID keys are absent, the chat app and worker both fail closed and no push registration or delivery happens.
 
 ## Commands That Matter
 

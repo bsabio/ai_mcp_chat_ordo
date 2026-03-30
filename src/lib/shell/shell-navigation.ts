@@ -10,6 +10,7 @@ export interface ShellRouteDefinition {
   label: string;
   href: string;
   kind: ShellRouteKind;
+  description?: string;
   isLegacy?: boolean;
   showInCommands?: boolean;
   headerVisibility?: ShellVisibility;
@@ -48,14 +49,15 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     label: "Home",
     href: "/",
     kind: "internal",
-    headerVisibility: "all",
+    description: "Return to the main homepage and chat entry point.",
+    footerVisibility: "all",
   },
   {
     id: "corpus",
     label: "Library",
     href: "/library",
     kind: "internal",
-    headerVisibility: "all",
+    description: "Browse the library and structured reference material.",
     footerVisibility: "all",
     showInCommands: true,
   },
@@ -64,16 +66,106 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     label: "Blog",
     href: "/blog",
     kind: "internal",
-    headerVisibility: "all",
+    description: "Read published journal and blog content.",
     footerVisibility: "all",
     showInCommands: true,
   },
+  {
+    id: "admin-dashboard",
+    label: "Admin",
+    href: "/admin",
+    kind: "internal",
+    description: "Open the admin dashboard overview.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
 
+  {
+    id: "jobs",
+    label: "Jobs",
+    href: "/jobs",
+    kind: "internal",
+    description: "Review current and recent deferred jobs.",
+    footerVisibility: SIGNED_IN_ROLES,
+    accountVisibility: SIGNED_IN_ROLES,
+  },
+  {
+    id: "journal-admin",
+    label: "Journal",
+    href: "/admin/journal",
+    kind: "internal",
+    description: "Manage journal inventory, workflow, and preview states.",
+    accountVisibility: ["STAFF", "ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
+    id: "admin-users",
+    label: "Users",
+    href: "/admin/users",
+    kind: "internal",
+    description: "Review people, roles, and account context.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
+    id: "admin-system",
+    label: "System",
+    href: "/admin/system",
+    kind: "internal",
+    description: "Inspect feature flags, model policy, and runtime status.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
+    id: "admin-leads",
+    label: "Leads",
+    href: "/admin/leads",
+    kind: "internal",
+    description: "Review operator lead queue and next actions.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
+    id: "admin-prompts",
+    label: "Prompts",
+    href: "/admin/prompts",
+    kind: "internal",
+    description: "Configure system prompts and prompt templates.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
+    id: "admin-conversations",
+    label: "Conversations",
+    href: "/admin/conversations",
+    kind: "internal",
+    description: "Browse and inspect conversation transcripts.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
+    id: "admin-jobs",
+    label: "Jobs",
+    href: "/admin/jobs",
+    kind: "internal",
+    description: "Monitor deferred jobs, queue health, and execution logs.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
   {
     id: "profile",
     label: "Profile",
     href: "/profile",
     kind: "internal",
+    description: "View profile, referral, and personal settings.",
     footerVisibility: SIGNED_IN_ROLES,
     accountVisibility: SIGNED_IN_ROLES,
   },
@@ -169,7 +261,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   },
 ] as const;
 
-export const ACCOUNT_MENU_ROUTE_IDS = ["profile"] as const;
+export const ACCOUNT_MENU_ROUTE_IDS = ["admin-dashboard", "jobs", "journal-admin", "profile"] as const;
 
 export const SHELL_ROUTE_BY_ID = new Map(
   SHELL_ROUTES.map((route) => [route.id, route] as const),

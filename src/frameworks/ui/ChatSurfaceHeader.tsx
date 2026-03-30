@@ -18,8 +18,8 @@ export function ChatSurfaceHeader({
   if (mode === "embedded") return null;
 
   const headerClasses = isFullScreen
-    ? "glass-surface safe-area-pt safe-area-px relative z-10 flex shrink-0 items-start justify-between border-b border-color-theme pb-4 pt-3 transition-colors duration-500"
-    : "glass-surface relative z-10 flex shrink-0 items-start justify-between border-b border-color-theme px-(--container-padding) py-4 transition-colors duration-500";
+    ? "glass-surface safe-area-pt safe-area-px relative z-10 flex shrink-0 items-start justify-between border-b border-color-theme pb-(--space-4) pt-(--space-3) transition-colors duration-500"
+    : "glass-surface relative z-10 flex shrink-0 items-start justify-between border-b border-color-theme px-(--container-padding) py-(--space-4) transition-colors duration-500";
 
   return (
     <div className={headerClasses} data-chat-floating-header="true">

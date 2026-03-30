@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import type { RoleName } from "@/core/entities/user";
 import { buildSystemPrompt } from "@/lib/chat/policy";
-import { getToolExecutor, getToolRegistry } from "@/lib/chat/tool-composition-root";
+import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { runClaudeAgentLoopStream, type ClaudeAgentLoopResult } from "@/lib/chat/anthropic-stream";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 
@@ -27,14 +27,15 @@ export interface LiveEvalRuntimeResult extends ClaudeAgentLoopResult {
 export async function executeLiveEvalRuntime(
   request: LiveEvalRuntimeRequest,
 ): Promise<LiveEvalRuntimeResult> {
+  const { registry, executor } = getToolComposition();
   const systemPrompt = request.systemPrompt ?? await buildSystemPrompt(request.role);
-  const tools = request.tools ?? (getToolRegistry().getSchemasForRole(request.role) as Anthropic.Tool[]);
+  const tools = request.tools ?? (registry.getSchemasForRole(request.role) as Anthropic.Tool[]);
   const execContext: ToolExecutionContext = {
     role: request.role,
     userId: request.userId,
   };
   const toolExecutor = request.toolExecutor
-    ?? ((name: string, input: Record<string, unknown>) => getToolExecutor()(name, input, execContext));
+    ?? ((name: string, input: Record<string, unknown>) => executor(name, input, execContext));
   const invokeStream = request.invokeStream ?? runClaudeAgentLoopStream;
 
   const result = await invokeStream({

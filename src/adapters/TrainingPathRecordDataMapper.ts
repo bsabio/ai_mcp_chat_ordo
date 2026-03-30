@@ -219,4 +219,80 @@ export class TrainingPathRecordDataMapper implements TrainingPathRecordRepositor
 
     return this.findById(id);
   }
+
+  // ── Admin query methods ─────────────────────────────────────────────
+
+  async listForAdmin(filters: { status?: string; limit?: number; offset?: number }): Promise<TrainingAdminRow[]> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.status) {
+      clauses.push("status = ?");
+      params.push(filters.status);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const limit = filters.limit ?? 100;
+    const offset = filters.offset ?? 0;
+
+    const rows = this.db
+      .prepare(
+        `SELECT id, lane, current_role_or_background, primary_goal, recommended_path, status, created_at
+         FROM training_path_records ${where}
+         ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      )
+      .all(...params, limit, offset) as Array<{
+        id: string; lane: string; current_role_or_background: string | null;
+        primary_goal: string | null; recommended_path: string; status: string; created_at: string;
+      }>;
+
+    return rows.map((r) => ({
+      id: r.id,
+      lane: r.lane,
+      currentRoleOrBackground: r.current_role_or_background,
+      primaryGoal: r.primary_goal,
+      recommendedPath: r.recommended_path,
+      status: r.status,
+      createdAt: r.created_at,
+    }));
+  }
+
+  async countForAdmin(filters: { status?: string }): Promise<number> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.status) {
+      clauses.push("status = ?");
+      params.push(filters.status);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS cnt FROM training_path_records ${where}`)
+      .get(...params) as { cnt: number };
+
+    return row.cnt;
+  }
+
+  async countByStatus(): Promise<Record<string, number>> {
+    const rows = this.db
+      .prepare(`SELECT status, COUNT(*) AS cnt FROM training_path_records GROUP BY status`)
+      .all() as Array<{ status: string; cnt: number }>;
+
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.status] = row.cnt;
+    }
+    return counts;
+  }
+}
+
+export interface TrainingAdminRow {
+  id: string;
+  lane: string;
+  currentRoleOrBackground: string | null;
+  primaryGoal: string | null;
+  recommendedPath: string;
+  status: string;
+  createdAt: string;
 }

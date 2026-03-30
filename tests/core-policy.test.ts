@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ChatPolicyInteractor } from "@/core/use-cases/ChatPolicyInteractor";
 import { ROLE_DIRECTIVES } from "@/core/entities/role-directives";
 import { DefaultingSystemPromptRepository } from "@/core/use-cases/DefaultingSystemPromptRepository";
-import { getToolRegistry } from "@/lib/chat/tool-composition-root";
+import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { createAdminWebSearchTool } from "@/core/use-cases/tools/admin-web-search.tool";
 import { createAdminPrioritizeLeadsTool } from "@/core/use-cases/tools/admin-prioritize-leads.tool";
 import { createAdminPrioritizeOfferTool } from "@/core/use-cases/tools/admin-prioritize-offer.tool";
@@ -53,7 +53,20 @@ describe("ChatPolicyInteractor", () => {
     expect(ROLE_DIRECTIVES.ADMIN).toContain("admin_prioritize_leads");
     expect(ROLE_DIRECTIVES.ADMIN).toContain("admin_prioritize_offer");
     expect(ROLE_DIRECTIVES.ADMIN).toContain("admin_triage_routing_risk");
+    expect(ROLE_DIRECTIVES.ADMIN).toContain("get_journal_workflow_summary");
+    expect(ROLE_DIRECTIVES.ADMIN).toContain("prepare_journal_post_for_publish");
+    expect(ROLE_DIRECTIVES.ADMIN).toContain("publish_journal_post");
     expect(ROLE_DIRECTIVES.ADMIN).toContain("exactly three headings: NOW, NEXT, WAIT");
+    expect(ROLE_DIRECTIVES.ADMIN).toContain("always summarize the current job state in plain language");
+    expect(ROLE_DIRECTIVES.ADMIN).toContain("Do not rely on job cards alone for status reads");
+  });
+
+  it("member directives include prose-first job status guidance", () => {
+    expect(ROLE_DIRECTIVES.AUTHENTICATED).toContain("answer in plain language by default");
+    expect(ROLE_DIRECTIVES.AUTHENTICATED).toContain("Only render a concise list when the user explicitly asks");
+    expect(ROLE_DIRECTIVES.STAFF).toContain("Do not start or repeat work when the user asked only for status");
+    expect(ROLE_DIRECTIVES.APPRENTICE).toContain("review the full operational view at /jobs");
+    expect(ROLE_DIRECTIVES.ANONYMOUS).toContain("Do not send them to /jobs");
   });
 
   it("AUTHENTICATED prompt includes registered member framing", async () => {
@@ -68,7 +81,7 @@ describe("ChatPolicyInteractor", () => {
 });
 
 describe("ToolRegistry RBAC", () => {
-  const registry = getToolRegistry();
+  const registry = getToolComposition().registry;
   const createLeadQueuePayload = (): OperatorSignalPayload<OperatorLeadQueueData> => ({
     blockId: "lead_queue",
     state: "empty",

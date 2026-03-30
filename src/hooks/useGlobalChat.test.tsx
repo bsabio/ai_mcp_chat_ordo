@@ -7,6 +7,22 @@ const { fetchStreamMock } = vi.hoisted(() => ({
   fetchStreamMock: vi.fn(),
 }));
 
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onerror: (() => void) | null = null;
+  closed = false;
+
+  constructor(public readonly url: string) {
+    MockEventSource.instances.push(this);
+  }
+
+  close() {
+    this.closed = true;
+  }
+}
+
 vi.mock("@/adapters/StreamProviderFactory", () => ({
   getChatStreamProvider: () => ({
     fetchStream: fetchStreamMock,
@@ -17,11 +33,14 @@ import { ChatProvider, useGlobalChat } from "./useGlobalChat";
 
 function ChatProbe() {
   const chat = useGlobalChat();
+  const firstJobPart = chat.messages[0]?.parts?.find((part) => part.type === "job_status");
 
   return (
     <div>
       <div data-testid="message-count">{chat.messages.length}</div>
       <div data-testid="first-message">{chat.messages[0]?.content ?? ""}</div>
+      <div data-testid="first-job-status">{firstJobPart?.type === "job_status" ? firstJobPart.status : "none"}</div>
+      <div data-testid="first-job-summary">{firstJobPart?.type === "job_status" ? firstJobPart.summary ?? "" : ""}</div>
       <div data-testid="conversation-id">{chat.conversationId ?? "none"}</div>
       <div data-testid="conversation-lane">{chat.routingSnapshot?.lane ?? "none"}</div>
       <div data-testid="loading-state">{String(chat.isLoadingMessages)}</div>
@@ -69,8 +88,10 @@ describe("ChatProvider active conversation restore", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
     vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("EventSource", MockEventSource as unknown as typeof EventSource);
     fetchMock.mockReset();
     fetchStreamMock.mockReset();
+    MockEventSource.instances = [];
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -197,6 +218,268 @@ describe("ChatProvider active conversation restore", () => {
     expect(screen.getByTestId("conversation-lane")).toHaveTextContent("organization");
     expect(warnSpy).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("subscribes to deferred job events and appends job status messages", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/chat/jobs?")) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ jobs: [] }),
+        };
+      }
+
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({
+          conversation: {
+            id: "conv_active",
+            userId: "anon_123",
+            title: "Restored",
+            status: "active",
+            createdAt: "2026-03-15T10:00:00.000Z",
+            updatedAt: "2026-03-15T10:00:01.000Z",
+            convertedFrom: null,
+            messageCount: 0,
+            firstMessageAt: null,
+            lastToolUsed: null,
+            sessionSource: "anonymous_cookie",
+            promptVersion: null,
+            routingSnapshot: createConversationRoutingSnapshot(),
+            referralSource: null,
+          },
+          messages: [],
+        }),
+      };
+    });
+
+    renderChatProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_active");
+    });
+
+    const source = MockEventSource.instances[0];
+    expect(source?.url).toBe("/api/chat/events?conversationId=conv_active");
+
+    source?.onmessage?.({
+      data: JSON.stringify({
+        type: "job_progress",
+        jobId: "job_1",
+        conversationId: "conv_active",
+        sequence: 2,
+        toolName: "draft_content",
+        label: "Draft Content",
+        progressPercent: 55,
+        progressLabel: "Drafting",
+      }),
+    } as MessageEvent<string>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("message-count")).toHaveTextContent("1");
+    });
+  });
+
+  it("rehydrates a completed deferred blog job after reload from the active conversation snapshot", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/chat/jobs?")) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ jobs: [] }),
+        };
+      }
+
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({
+          conversation: {
+            id: "conv_active",
+            userId: "usr_123",
+            title: "Deferred blog",
+            status: "active",
+            createdAt: "2026-03-15T10:00:00.000Z",
+            updatedAt: "2026-03-15T10:00:01.000Z",
+            convertedFrom: null,
+            messageCount: 1,
+            firstMessageAt: "2026-03-15T10:00:00.000Z",
+            lastToolUsed: "draft_content",
+            sessionSource: "authenticated",
+            promptVersion: null,
+            routingSnapshot: createConversationRoutingSnapshot(),
+            referralSource: null,
+          },
+          messages: [
+            {
+              id: "job_job_1",
+              role: "assistant",
+              content: "",
+              parts: [
+                {
+                  type: "job_status",
+                  jobId: "job_1",
+                  toolName: "draft_content",
+                  label: "Draft Content",
+                  status: "succeeded",
+                  summary: 'Draft "Deferred Queue Post" ready at /journal/deferred-queue-post.',
+                  resultPayload: {
+                    id: "post_1",
+                    slug: "deferred-queue-post",
+                    title: "Deferred Queue Post",
+                    status: "draft",
+                  },
+                  createdAt: "2026-03-15T10:00:01.000Z",
+                },
+              ],
+              createdAt: "2026-03-15T10:00:01.000Z",
+            },
+          ],
+        }),
+      };
+    });
+
+    renderChatProvider("AUTHENTICATED");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading-state")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("message-count")).toHaveTextContent("1");
+    expect(screen.getByTestId("first-job-status")).toHaveTextContent("succeeded");
+    expect(screen.getByTestId("first-job-summary")).toHaveTextContent('Draft "Deferred Queue Post" ready at /journal/deferred-queue-post.');
+  });
+
+  it("handles live job_canceled events from the EventSource stream", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/chat/jobs?")) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ jobs: [] }),
+        };
+      }
+
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({
+          conversation: {
+            id: "conv_active",
+            userId: "anon_123",
+            title: "Restored",
+            status: "active",
+            createdAt: "2026-03-15T10:00:00.000Z",
+            updatedAt: "2026-03-15T10:00:01.000Z",
+            convertedFrom: null,
+            messageCount: 0,
+            firstMessageAt: null,
+            lastToolUsed: null,
+            sessionSource: "anonymous_cookie",
+            promptVersion: null,
+            routingSnapshot: createConversationRoutingSnapshot(),
+            referralSource: null,
+          },
+          messages: [],
+        }),
+      };
+    });
+
+    renderChatProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_active");
+    });
+
+    const source = MockEventSource.instances[0];
+    source?.onmessage?.({
+      data: JSON.stringify({
+        type: "job_canceled",
+        jobId: "job_1",
+        conversationId: "conv_active",
+        sequence: 3,
+        toolName: "draft_content",
+        label: "Draft Content",
+      }),
+    } as MessageEvent<string>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("message-count")).toHaveTextContent("1");
+    });
+  });
+
+  it("reconciles deferred jobs from the snapshot route on load", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/chat/jobs?conversationId=conv_active")) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({
+            jobs: [
+              {
+                messageId: "jobmsg_job_1",
+                part: {
+                  type: "job_status",
+                  jobId: "job_1",
+                  toolName: "produce_blog_article",
+                  label: "Produce Blog Article",
+                  status: "succeeded",
+                  summary: 'Produced draft "Launch Plan" at /journal/launch-plan with hero asset asset_1.',
+                  resultPayload: {
+                    id: "post_1",
+                    slug: "launch-plan",
+                    title: "Launch Plan",
+                    status: "draft",
+                    imageAssetId: "asset_1",
+                  },
+                },
+              },
+            ],
+          }),
+        };
+      }
+
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({
+          conversation: {
+            id: "conv_active",
+            userId: "usr_123",
+            title: "Deferred blog",
+            status: "active",
+            createdAt: "2026-03-15T10:00:00.000Z",
+            updatedAt: "2026-03-15T10:00:01.000Z",
+            convertedFrom: null,
+            messageCount: 0,
+            firstMessageAt: null,
+            lastToolUsed: null,
+            sessionSource: "authenticated",
+            promptVersion: null,
+            routingSnapshot: createConversationRoutingSnapshot(),
+            referralSource: null,
+          },
+          messages: [],
+        }),
+      };
+    });
+
+    renderChatProvider("AUTHENTICATED");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_active");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("first-job-status")).toHaveTextContent("succeeded");
+    });
+    expect(screen.getByTestId("first-job-summary")).toHaveTextContent('Produced draft "Launch Plan" at /journal/launch-plan with hero asset asset_1.');
   });
 
   it("restores a selected conversation when conversationId is present in the URL", async () => {
@@ -388,7 +671,7 @@ describe("ChatProvider active conversation restore", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenLastCalledWith("/api/conversations/conv_selected", undefined);
+      expect(fetchMock.mock.calls.some((call) => call[0] === "/api/conversations/conv_selected")).toBe(true);
       expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_selected");
       expect(screen.getByTestId("message-count")).toHaveTextContent("4");
     });

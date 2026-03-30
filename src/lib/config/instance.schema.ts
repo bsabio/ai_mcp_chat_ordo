@@ -67,6 +67,14 @@ export function validateIdentity(raw: unknown): InstanceIdentity | string[] {
     pattern: /^[^/:]+$/,
     patternMsg: "must not include protocol",
   });
+  if (raw.linkedInUrl !== undefined) {
+    checkString(raw, "linkedInUrl", "identity", errors, {
+      required: false,
+      maxLength: 500,
+      pattern: /^https:\/\/(www\.)?linkedin\.com\//,
+      patternMsg: "must be a full https://linkedin.com URL",
+    });
+  }
   checkString(raw, "logoPath", "identity", errors, {
     pattern: /^\//,
     patternMsg: "must start with /",

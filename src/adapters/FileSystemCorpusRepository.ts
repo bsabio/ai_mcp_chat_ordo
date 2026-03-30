@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import type { Dirent } from "fs";
 import path from "path";
+import { isContentAudience, type ContentAudience } from "@/lib/access/content-access";
 import type { CorpusRepository } from "../core/use-cases/CorpusRepository";
 import type { Document } from "../core/entities/corpus";
 import { Section } from "../core/entities/corpus";
@@ -24,6 +25,7 @@ interface DocumentMeta {
 	shortTitle: string;
 	number: string;
 	sectionsDir: string;
+	audience: ContentAudience;
 }
 
 interface DocumentManifest {
@@ -33,6 +35,7 @@ interface DocumentManifest {
 	sortOrder: number;
 	domain: string[];
 	tags?: string[];
+	audience?: ContentAudience;
 }
 
 export class FileSystemCorpusRepository implements CorpusRepository {
@@ -73,6 +76,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 				if (typeof manifest.sortOrder !== "number") continue;
 				if (!Array.isArray(manifest.domain) || manifest.domain.length === 0) continue;
 				if (manifest.domain.some((domain: string) => !VALID_DOMAINS.has(domain))) continue;
+				if (manifest.audience !== undefined && !isContentAudience(manifest.audience)) continue;
 				if (entry.name !== manifest.slug) {
 					console.warn(
 						`Slug mismatch: dir "${entry.name}" vs slug "${manifest.slug}" — skipping`,
@@ -86,6 +90,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 						shortTitle: manifest.title,
 						number: manifest.number,
 						sectionsDir: path.join(CORPUS_DIR, manifest.slug, "chapters"),
+						audience: manifest.audience ?? "public",
 					},
 					sortOrder: manifest.sortOrder,
 				});
@@ -111,6 +116,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 			title: document.title,
 			number: document.number,
 			id: document.number,
+			audience: document.audience,
 		}));
 	}
 
@@ -123,6 +129,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 			title: document.title,
 			number: document.number,
 			id: document.number,
+			audience: document.audience,
 		};
 	}
 
@@ -146,7 +153,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 					path.join(sectionsDir, filename),
 					"utf-8",
 				);
-				sections.push(this.parseSection(documentMeta.slug, slug, content));
+				sections.push(this.parseSection(documentMeta.slug, slug, content, documentMeta.audience));
 			}
 			return sections;
 		} catch {
@@ -178,24 +185,56 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 		);
 		try {
 			const content = await fs.readFile(filepath, "utf-8");
-			return this.parseSection(documentSlug, sectionSlug, content);
+			return this.parseSection(documentSlug, sectionSlug, content, documentMeta.audience);
 		} catch {
 			throw new ResourceNotFoundError(`Section not found: ${sectionSlug}`);
 		}
+	}
+
+	private parseFrontmatter(content: string): {
+		body: string;
+		data: Record<string, string>;
+	} {
+		const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+		if (!match) {
+			return { body: content, data: {} };
+		}
+
+		const data: Record<string, string> = {};
+		for (const line of match[1].split(/\r?\n/)) {
+			const separatorIndex = line.indexOf(":");
+			if (separatorIndex === -1) continue;
+			const key = line.slice(0, separatorIndex).trim();
+			const value = line.slice(separatorIndex + 1).trim();
+			if (!key || !value) continue;
+			data[key] = value.replace(/^['"]|['"]$/g, "");
+		}
+
+		return {
+			body: content.slice(match[0].length).trimStart(),
+			data,
+		};
 	}
 
 	private parseSection(
 		documentSlug: string,
 		sectionSlug: string,
 		content: string,
+		documentAudience: ContentAudience,
 	): Section {
-		const titleMatch = content.match(/^#\s+(.*)/m);
+		const { body, data } = this.parseFrontmatter(content);
+		const audience = data.audience ?? documentAudience;
+		if (!isContentAudience(audience)) {
+			throw new Error(`Invalid audience for ${documentSlug}/${sectionSlug}: ${audience}`);
+		}
+
+		const titleMatch = body.match(/^#\s+(.*)/m);
 		const title = titleMatch ? titleMatch[1].trim() : sectionSlug;
 
-		const contributors = this.contributorExtractor.execute(content);
-		const supplements = this.supplementAnalyzer.execute(content);
+		const contributors = this.contributorExtractor.execute(body);
+		const supplements = this.supplementAnalyzer.execute(body);
 
-		const headings = [...content.matchAll(/^##\s+(.*)/gm)].map((match) =>
+		const headings = [...body.matchAll(/^##\s+(.*)/gm)].map((match) =>
 			match[1].trim(),
 		);
 
@@ -203,10 +242,11 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 			documentSlug,
 			sectionSlug,
 			title,
-			content,
+			body,
 			contributors,
 			supplements,
 			headings,
+			audience,
 		);
 	}
 }

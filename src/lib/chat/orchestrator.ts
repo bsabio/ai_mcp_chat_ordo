@@ -1,21 +1,24 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ChatProvider } from "@/lib/chat/anthropic-client";
 import type { ToolChoice } from "@/lib/chat/types";
+import { CHAT_CONFIG } from "@/lib/chat/chat-config";
 
 export async function orchestrateChatTurn({
   provider,
   conversation,
   toolChoice,
   toolExecutor,
+  maxRounds = CHAT_CONFIG.maxToolRounds,
 }: {
   provider: ChatProvider;
   conversation: Anthropic.MessageParam[];
   toolChoice: ToolChoice;
   toolExecutor: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+  maxRounds?: number;
 }) {
   let nextToolChoice = toolChoice;
 
-  for (let step = 0; step < 6; step += 1) {
+  for (let step = 0; step < maxRounds; step += 1) {
     const response = await provider.createMessage({
       messages: conversation,
       toolChoice: nextToolChoice,
@@ -69,5 +72,5 @@ export async function orchestrateChatTurn({
     conversation.push(toolResultMessage);
   }
 
-  throw new Error("Exceeded tool-call safety limit.");
+  throw new Error(`Exceeded tool-call safety limit (${maxRounds} rounds).`);
 }

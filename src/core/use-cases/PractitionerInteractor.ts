@@ -1,9 +1,12 @@
 import type { UseCase } from "../common/UseCase";
+import { canAccessAudience } from "@/lib/access/content-access";
 import type { CorpusRepository } from "./CorpusRepository";
 import type { Book, Practitioner } from "../entities/library";
+import type { RoleName } from "../entities/user";
 
 export interface PractitionerRequest {
   query?: string;
+  role?: RoleName;
 }
 
 export class PractitionerInteractor implements UseCase<PractitionerRequest, Practitioner[]> {
@@ -16,10 +19,13 @@ export class PractitionerInteractor implements UseCase<PractitionerRequest, Prac
   async execute(request: PractitionerRequest): Promise<Practitioner[]> {
     const sections = await this.corpusRepository.getAllSections();
     const documents = await this.corpusRepository.getAllDocuments();
+    const visibleSections = request.role
+      ? sections.filter((section) => canAccessAudience(section.audience, request.role as RoleName))
+      : sections;
     
     const practitionerMap = new Map<string, { books: Set<string>; chapters: Set<string>; bookData: Book[] }>();
 
-    for (const section of sections) {
+    for (const section of visibleSections) {
       for (const name of section.contributors) {
         const key = name.toLowerCase();
         if (request.query && !key.includes(request.query.toLowerCase())) continue;

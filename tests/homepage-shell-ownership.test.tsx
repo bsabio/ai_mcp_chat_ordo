@@ -162,12 +162,13 @@ describe("homepage shell ownership", () => {
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
+    // Sprint 8 (UX-32): Library/Home removed from header rail
     expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
     expect(within(nav).getByTestId("account-menu")).toBeInTheDocument();
+    // Sprint 8 (UX-32): primary-links region absent when no nav items
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(within(nav).queryByText(/site links/i)).not.toBeInTheDocument();
   });
 
   it("does not render a footer substitute inside the embedded chat container", () => {

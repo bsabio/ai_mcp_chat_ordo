@@ -12,14 +12,14 @@ test.describe("FAB live smoke", () => {
 
     await expect(page.locator('[data-chat-floating-shell="true"]')).toBeVisible();
     await expect(page.locator('[data-chat-composer-helper="true"]')).toContainText(
-      "Enter to send. Shift+Enter for a line break.",
+      "Enter to send. Shift+Enter for line break. Attach files if needed.",
     );
     await expect(page.getByRole("button", { name: "Audit this workflow" })).toBeVisible();
 
     await page.getByRole("button", { name: "Audit this workflow" }).click();
 
     await expect(page.locator('[data-chat-floating-shell="true"]')).toBeVisible();
-    await expect(page.getByRole("button", { name: "Start a new chat" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Minimize Chat" })).toBeVisible();
     await expect(page.getByText("Audit this workflow")).toBeVisible();
 
     await expect

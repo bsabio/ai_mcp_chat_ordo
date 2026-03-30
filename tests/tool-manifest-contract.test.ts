@@ -26,7 +26,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { getToolRegistry } from "@/lib/chat/tool-composition-root";
+import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { SystemPromptBuilder } from "@/core/use-cases/SystemPromptBuilder";
 import { ROLE_DIRECTIVES } from "@/core/entities/role-directives";
 import type { RoleName } from "@/core/entities/user";
@@ -60,7 +60,7 @@ function extractBacktickNames(text: string): string[] {
 // ── Contract 1 & 2 — Manifest is dynamic and contains only allowed tools ──
 
 describe("Tool manifest contract — dynamic parity with registry", () => {
-  const registry = getToolRegistry();
+  const registry = getToolComposition().registry;
 
   for (const role of ROLES) {
     it(`${role}: manifest contains exactly the tools getSchemasForRole returns`, () => {
@@ -94,7 +94,7 @@ describe("Tool manifest contract — dynamic parity with registry", () => {
 });
 
 describe("Tool manifest contract — manifest formatting", () => {
-  const registry = getToolRegistry();
+  const registry = getToolComposition().registry;
 
   it("starts with a blank line followed by the TOOLS AVAILABLE TO YOU header", () => {
     const schemas = registry.getSchemasForRole("AUTHENTICATED");
@@ -118,7 +118,7 @@ describe("Tool manifest contract — manifest formatting", () => {
   });
 
   it("preserves graph tool guidance in the manifest description", () => {
-    const registry = getToolRegistry();
+    const registry = getToolComposition().registry;
     const graphTool = registry.getSchemasForRole("AUTHENTICATED").find((schema) => schema.name === "generate_graph");
 
     expect(graphTool?.description).toContain("time-series questions");
@@ -156,7 +156,7 @@ describe("Tool manifest contract — manifest formatting", () => {
 // ── Contract 3 — Role directives only reference real, allowed tools ────────
 
 describe("Tool manifest contract — role directives are free of ghost tool names", () => {
-  const registry = getToolRegistry();
+  const registry = getToolComposition().registry;
   const allToolNames = new Set(registry.getToolNames());
 
   for (const role of ROLES) {

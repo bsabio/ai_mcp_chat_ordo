@@ -6,6 +6,7 @@ import { ResourceNotFoundError } from "@/core/entities/errors";
 import { BookSidebar } from "@/components/BookSidebar";
 import { MarkdownProse } from "@/components/MarkdownProse";
 import { getDocuments, getSectionFull, getCorpusSummaries } from "@/lib/corpus-library";
+import { getViewerRole, rethrowLibraryAccessDenied } from "@/lib/corpus-access";
 import { buildChapterMetadata, buildChapterSeo } from "@/lib/seo/library-metadata";
 
 export async function generateMetadata({
@@ -14,7 +15,11 @@ export async function generateMetadata({
   params: Promise<{ document: string; section: string }>;
 }): Promise<Metadata> {
   const resolvedParams = await params;
-  const [documents, summaries] = await Promise.all([getDocuments(), getCorpusSummaries()]);
+  const role = await getViewerRole();
+  const [documents, summaries] = await Promise.all([
+    getDocuments({ role }),
+    getCorpusSummaries({ role }),
+  ]);
   const book = documents.find((item) => item.slug === resolvedParams.document);
   const summary = summaries.find((item) => item.slug === resolvedParams.document);
   if (!book || !summary) return {};
@@ -24,7 +29,7 @@ export async function generateMetadata({
   if (currentIndex === -1) return {};
 
   try {
-    const result = await getSectionFull(resolvedParams.document, resolvedParams.section);
+    const result = await getSectionFull(resolvedParams.document, resolvedParams.section, { role });
     if (!result) return {};
     return buildChapterMetadata({
       chapterTitle: result.title,
@@ -41,7 +46,7 @@ export async function generateMetadata({
 }
 
 export async function generateStaticParams() {
-  const summaries = await getCorpusSummaries();
+  const summaries = await getCorpusSummaries({ publicOnly: true });
   const params: { document: string; section: string }[] = [];
 
   for (const summary of summaries) {
@@ -59,7 +64,25 @@ export default async function LibrarySectionPage({
   params: Promise<{ document: string; section: string }>;
 }) {
   const resolvedParams = await params;
-  const [documents, summaries] = await Promise.all([getDocuments(), getCorpusSummaries()]);
+  const role = await getViewerRole();
+  const [documents, summaries] = await Promise.all([
+    getDocuments({ role }),
+    getCorpusSummaries({ role }),
+  ]);
+
+  let result: Awaited<ReturnType<typeof getSectionFull>>;
+  try {
+    result = await getSectionFull(resolvedParams.document, resolvedParams.section, { role });
+  } catch (error) {
+    if (error instanceof ResourceNotFoundError) {
+      notFound();
+    }
+    rethrowLibraryAccessDenied(error, role);
+  }
+
+  if (!result) {
+    notFound();
+  }
 
   const book = documents.find((item) => item.slug === resolvedParams.document);
   const summary = summaries.find((item) => item.slug === resolvedParams.document);
@@ -76,20 +99,6 @@ export default async function LibrarySectionPage({
     notFound();
   }
 
-  let result: Awaited<ReturnType<typeof getSectionFull>>;
-  try {
-    result = await getSectionFull(resolvedParams.document, resolvedParams.section);
-  } catch (error) {
-    if (error instanceof ResourceNotFoundError) {
-      notFound();
-    }
-    throw error;
-  }
-
-  if (!result) {
-    notFound();
-  }
-
   const chapters = chapterSlugs.map((slug, index) => ({
     slug,
     title: chapterTitles[index] ?? slug,
@@ -99,7 +108,7 @@ export default async function LibrarySectionPage({
   const next = currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null;
 
   return (
-    <div className="library-page-shell min-h-screen text-foreground">
+    <div className="shell-page library-page-shell">
       <div className="library-frame">
         <BookSidebar
           book={{ slug: book.slug, title: book.title, number: book.number }}
@@ -109,9 +118,9 @@ export default async function LibrarySectionPage({
 
         <main className="min-w-0">
           <article className="library-reading-panel">
-            <header className="mb-8 flex flex-col gap-5 pb-7" style={{ borderBottom: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)' }}>
+            <header className="mb-(--space-8) flex flex-col gap-(--space-section-tight) pb-(--space-section-tight)" style={{ borderBottom: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)' }}>
               <span className="library-kicker">Library chapter</span>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-(--space-3)">
                 <p className="tier-micro font-semibold uppercase tracking-[0.14em] text-foreground/42">
                   Book {book.number} · {book.title}
                 </p>
@@ -129,12 +138,12 @@ export default async function LibrarySectionPage({
 
             <MarkdownProse content={result.content} />
 
-            <footer className="mt-10 flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between" style={{ borderTop: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)' }}>
-              <div className="flex flex-wrap gap-3">
+            <footer className="mt-(--space-10) flex flex-col gap-(--space-3) pt-(--space-6) sm:flex-row sm:items-center sm:justify-between" style={{ borderTop: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)' }}>
+              <div className="flex flex-wrap gap-(--space-3)">
                 {previous ? (
                   <Link
                     href={`/library/${book.slug}/${previous.slug}`}
-                    className="rounded-full bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_98%,var(--background))_0%,color-mix(in_oklab,var(--surface-muted)_72%,transparent)_100%)] px-4 py-2 text-sm font-medium text-foreground/72 shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-all hover:-translate-y-px hover:text-foreground hover:shadow-[0_12px_20px_-14px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
+                    className="rounded-full bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_98%,var(--background))_0%,color-mix(in_oklab,var(--surface-muted)_72%,transparent)_100%)] px-(--space-4) py-(--space-2) text-sm font-medium text-foreground/72 shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-all hover:-translate-y-px hover:text-foreground hover:shadow-[0_12px_20px_-14px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
                   >
                     ← {previous.title}
                   </Link>
@@ -143,7 +152,7 @@ export default async function LibrarySectionPage({
                 {next ? (
                   <Link
                     href={`/library/${book.slug}/${next.slug}`}
-                    className="rounded-full bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_98%,var(--background))_0%,color-mix(in_oklab,var(--surface-muted)_72%,transparent)_100%)] px-4 py-2 text-sm font-medium text-foreground/72 shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-all hover:-translate-y-px hover:text-foreground hover:shadow-[0_12px_20px_-14px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
+                    className="rounded-full bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_98%,var(--background))_0%,color-mix(in_oklab,var(--surface-muted)_72%,transparent)_100%)] px-(--space-4) py-(--space-2) text-sm font-medium text-foreground/72 shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-all hover:-translate-y-px hover:text-foreground hover:shadow-[0_12px_20px_-14px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
                   >
                     {next.title} →
                   </Link>
@@ -152,7 +161,7 @@ export default async function LibrarySectionPage({
 
               <Link
                 href={`/?topic=${encodeURIComponent(result.title)}`}
-                className="tier-micro font-medium text-accent transition-colors hover:text-foreground"
+                className="tier-micro font-medium text-accent-interactive transition-colors hover:text-foreground"
               >
                 Have questions about this topic? Ask the AI.
               </Link>

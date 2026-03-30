@@ -44,9 +44,9 @@ describe("Tool Registry Integration", () => {
   });
 
   // TEST-REG-01
-  it("registry has exactly 19 tools after full composition", () => {
+  it("registry has the full Sprint 2B tool surface after composition", () => {
     const { registry } = buildStack();
-    expect(registry.getToolNames()).toHaveLength(19);
+    expect(registry.getToolNames()).toHaveLength(50);
   });
 
   // TEST-REG-02
@@ -62,20 +62,42 @@ describe("Tool Registry Integration", () => {
   });
 
   // TEST-REG-03
-  it("ANONYMOUS gets exactly 6 tools", () => {
+  it("ANONYMOUS gets exactly 7 tools", () => {
     const { registry } = buildStack();
     const schemas = registry.getSchemasForRole("ANONYMOUS");
     const names = schemas.map(s => s.name).sort();
     expect(names).toEqual([
-      "adjust_ui", "calculator", "get_corpus_summary", "navigate", "search_corpus", "set_theme",
+      "adjust_ui", "calculator", "get_corpus_summary", "get_current_page", "inspect_theme", "list_available_pages", "navigate", "navigate_to_page", "search_corpus", "set_theme",
     ]);
   });
 
   // TEST-REG-04
-  it("AUTHENTICATED gets all 13 tools", () => {
+  it("AUTHENTICATED gets all member tools", () => {
     const { registry } = buildStack();
     const schemas = registry.getSchemasForRole("AUTHENTICATED");
-    expect(schemas).toHaveLength(13);
+    expect(schemas).toHaveLength(23);
+  });
+
+  it("ADMIN gets the journal wrapper tools alongside compatibility-safe blog tools", () => {
+    const { registry } = buildStack();
+    const names = registry.getSchemasForRole("ADMIN").map((schema) => schema.name);
+
+    expect(names).toEqual(expect.arrayContaining([
+      "list_journal_posts",
+      "get_journal_post",
+      "list_journal_revisions",
+      "get_journal_workflow_summary",
+      "update_journal_metadata",
+      "update_journal_draft",
+      "submit_journal_review",
+      "approve_journal_post",
+      "publish_journal_post",
+      "restore_journal_revision",
+      "select_journal_hero_image",
+      "prepare_journal_post_for_publish",
+      "draft_content",
+      "publish_content",
+    ]));
   });
 
   // TEST-REG-05

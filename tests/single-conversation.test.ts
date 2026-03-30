@@ -118,9 +118,19 @@ function createMockRepos() {
   };
   const msgRepo: MessageRepository = {
     create: vi.fn().mockImplementation((params) => Promise.resolve({ id: `msg_new_${Date.now()}`, ...params, createdAt: new Date().toISOString() })),
+    findById: vi.fn().mockResolvedValue(null),
     listByConversation: vi.fn().mockResolvedValue([]),
     listRecentByConversation: vi.fn().mockResolvedValue([]),
     countByConversation: vi.fn().mockResolvedValue(0),
+    update: vi.fn().mockImplementation((id, update) => Promise.resolve({
+      id,
+      conversationId: "conv_1",
+      role: "assistant",
+      content: update.content,
+      parts: update.parts,
+      createdAt: new Date().toISOString(),
+      tokenEstimate: 0,
+    })),
   };
   const eventRecorder = {
     record: vi.fn().mockResolvedValue(undefined),
@@ -131,9 +141,19 @@ function createMockRepos() {
 function createMockSummarizationDeps() {
   const msgRepo: MessageRepository = {
     create: vi.fn().mockImplementation((params) => Promise.resolve({ id: `msg_new_${Date.now()}`, ...params, createdAt: new Date().toISOString() })),
+    findById: vi.fn().mockResolvedValue(null),
     listByConversation: vi.fn().mockResolvedValue([]),
     listRecentByConversation: vi.fn().mockResolvedValue([]),
     countByConversation: vi.fn().mockResolvedValue(0),
+    update: vi.fn().mockImplementation((id, update) => Promise.resolve({
+      id,
+      conversationId: "conv_1",
+      role: "assistant",
+      content: update.content,
+      parts: update.parts,
+      createdAt: new Date().toISOString(),
+      tokenEstimate: 0,
+    })),
   };
   const llmSummarizer: LlmSummarizer = {
     summarize: vi.fn().mockResolvedValue("Compacted summary text."),

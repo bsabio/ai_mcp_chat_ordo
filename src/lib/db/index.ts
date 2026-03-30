@@ -5,12 +5,23 @@ import { ensureSchema } from "./schema";
 
 let dbInstance: Database.Database | null = null;
 
+function resolveDbPath(): string {
+  const configuredPath = process.env.STUDIO_ORDO_DB_PATH?.trim();
+  if (configuredPath) {
+    return path.isAbsolute(configuredPath)
+      ? configuredPath
+      : path.resolve(process.cwd(), configuredPath);
+  }
+
+  return path.join(process.cwd(), ".data", "local.db");
+}
+
 export function getDb(): Database.Database {
   if (dbInstance) {
     return dbInstance;
   }
 
-  const dbPath = path.join(process.cwd(), ".data", "local.db");
+  const dbPath = resolveDbPath();
   const dataDir = path.dirname(dbPath);
 
   if (!fs.existsSync(dataDir)) {
@@ -22,6 +33,9 @@ export function getDb(): Database.Database {
 
   // Enable WAL mode for better concurrency performance
   dbInstance.pragma("journal_mode = WAL");
+
+  // Wait up to 5s on lock contention before returning SQLITE_BUSY
+  dbInstance.pragma("busy_timeout = 5000");
 
   // Create tables and seed mock data if first boot
   ensureSchema(dbInstance);

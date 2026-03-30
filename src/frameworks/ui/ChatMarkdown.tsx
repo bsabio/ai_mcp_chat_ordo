@@ -16,7 +16,7 @@ function renderSpan(text: string, key: string | number): React.ReactNode {
       parts.push(
         <code
           key={`c-${m.index}`}
-          className="bg-surface-muted text-accent px-1.5 py-0.5 rounded-md text-xs font-mono border-theme font-bold"
+          className="rounded-md border-theme bg-surface-muted px-(--space-inset-tight) py-(--space-inset-tight) text-xs font-mono font-bold text-accent"
         >
           {match.slice(1, -1)}
         </code>,
@@ -60,7 +60,7 @@ function isTableSeparator(line: string): boolean {
 
 function MarkdownList({ items }: { items: string[] }) {
   return (
-    <ul className="mb-3 ml-4 space-y-1 list-disc">
+    <ul className="mb-(--space-stack-tight) ms-(--space-4) flex list-disc flex-col gap-(--space-stack-tight)">
       {items.map((item, i) => (
         <li key={i} className="leading-relaxed">
           {renderSpan(item, `li-${i}`)}
@@ -73,7 +73,7 @@ function MarkdownList({ items }: { items: string[] }) {
 function MarkdownTable({ headerCells, rows }: { headerCells: string[] | null; rows: string[][] }) {
   return (
     <div
-      className="my-4 w-full overflow-x-auto"
+      className="my-(--space-stack-default) w-full overflow-x-auto"
       style={{
         borderRadius: "var(--border-radius)",
         border: "var(--border-width) solid var(--border-color)",
@@ -91,7 +91,7 @@ function MarkdownTable({ headerCells, rows }: { headerCells: string[] | null; ro
               {headerCells.map((cell, ci) => (
                 <th
                   key={ci}
-                  className="px-4 py-2.5 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap"
+                  className="px-(--space-inset-default) py-(--space-inset-compact) text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap"
                 >
                   {renderSpan(cell, `th-${ci}`)}
                 </th>
@@ -111,7 +111,7 @@ function MarkdownTable({ headerCells, rows }: { headerCells: string[] | null; ro
               {row.map((cell, ci) => (
                 <td
                   key={ci}
-                  className="px-4 py-2.5 align-top leading-relaxed"
+                  className="px-(--space-inset-default) py-(--space-inset-compact) align-top leading-relaxed"
                   style={{ borderBottom: `1px solid var(--border-color)` }}
                 >
                   {renderSpan(cell, `td-${ri}-${ci}`)}
@@ -140,7 +140,7 @@ export function renderMarkdown(content: string): React.ReactNode {
     if (paragraphBuffer.length === 0) return;
     const text = paragraphBuffer.join(" ");
     elements.push(
-      <p key={`p-${elements.length}`} className="mb-3 leading-relaxed">
+      <p key={`p-${elements.length}`} className="mb-(--space-stack-tight) leading-relaxed">
         {renderSpan(text, `ps-${elements.length}`)}
       </p>,
     );
@@ -226,7 +226,7 @@ export function renderMarkdown(content: string): React.ReactNode {
       elements.push(
         <h4
           key={`h4-${elements.length}`}
-          className="text-sm font-bold mt-4 mb-2"
+          className="text-sm font-bold mt-(--space-stack-default) mb-(--space-stack-tight)"
         >
           {renderSpan(trimmed.slice(4), `h4s-${elements.length}`)}
         </h4>,
@@ -237,7 +237,7 @@ export function renderMarkdown(content: string): React.ReactNode {
       elements.push(
         <h3
           key={`h3-${elements.length}`}
-          className="text-base font-bold mt-4 mb-2"
+          className="text-base font-bold mt-(--space-stack-default) mb-(--space-stack-tight)"
         >
           {renderSpan(trimmed.slice(3), `h3s-${elements.length}`)}
         </h3>,
@@ -248,7 +248,7 @@ export function renderMarkdown(content: string): React.ReactNode {
       elements.push(
         <h2
           key={`h2-${elements.length}`}
-          className="text-lg font-bold mt-4 mb-2"
+          className="text-lg font-bold mt-(--space-stack-default) mb-(--space-stack-tight)"
         >
           {renderSpan(trimmed.slice(2), `h2s-${elements.length}`)}
         </h2>,
@@ -259,7 +259,7 @@ export function renderMarkdown(content: string): React.ReactNode {
       elements.push(
         <blockquote
           key={`bq-${elements.length}`}
-          className="my-3 pl-4 border-l-4 border-border opacity-75 italic text-sm leading-relaxed"
+          className="my-(--space-stack-tight) ps-(--space-4) border-l-4 border-border opacity-75 italic text-sm leading-relaxed"
         >
           {renderSpan(trimmed.slice(2), `bqs-${elements.length}`)}
         </blockquote>,
@@ -276,7 +276,7 @@ export function renderMarkdown(content: string): React.ReactNode {
       elements.push(
         <hr
           key={`hr-${elements.length}`}
-          className="my-4 border-border"
+          className="my-(--space-stack-default) border-border"
         />,
       );
     } else if (!trimmed) {

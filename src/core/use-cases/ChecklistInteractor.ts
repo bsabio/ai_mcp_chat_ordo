@@ -1,9 +1,12 @@
 import type { UseCase } from "../common/UseCase";
+import { canAccessAudience } from "@/lib/access/content-access";
+import type { RoleName } from "../entities/user";
 import type { CorpusRepository } from "./CorpusRepository";
 import type { Checklist } from "../entities/library";
 
 export interface ChecklistRequest {
   bookSlug?: string;
+  role?: RoleName;
 }
 
 export class ChecklistInteractor implements UseCase<ChecklistRequest, Checklist[]> {
@@ -17,9 +20,13 @@ export class ChecklistInteractor implements UseCase<ChecklistRequest, Checklist[
     const sections = await this.corpusRepository.getAllSections();
     const documents = await this.corpusRepository.getAllDocuments();
 
-    const filteredSections = request.bookSlug
-      ? sections.filter((section) => section.documentSlug === request.bookSlug)
+    const roleVisibleSections = request.role
+      ? sections.filter((section) => canAccessAudience(section.audience, request.role as RoleName))
       : sections;
+
+    const filteredSections = request.bookSlug
+      ? roleVisibleSections.filter((section) => section.documentSlug === request.bookSlug)
+      : roleVisibleSections;
 
     return filteredSections
       .filter((section) => section.supplements.length > 0)

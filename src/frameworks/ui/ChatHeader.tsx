@@ -21,8 +21,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onDensityChange,
   logoPath = "/ordo-avatar.png",
 }) => {
+  const densityLabels: Record<"compact" | "normal" | "relaxed", string> = {
+    compact: "C",
+    normal: "N",
+    relaxed: "R",
+  };
+
   return (
-    <header className="glass-surface sticky top-0 z-30 flex h-14 items-center justify-between border-b border-color-theme px-(--container-padding) shadow-[0_10px_30px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-colors duration-500">
+    <header className="ui-chat-header-surface sticky top-0 z-30 flex h-14 items-center justify-between border-b px-(--container-padding) transition-colors duration-500" data-chat-header-surface="true">
       <div className="shell-action-row">
         <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]">
           <Image src={logoPath} alt="" width={32} height={32} className="object-cover" style={{ width: "100%", height: "100%" }} />
@@ -55,21 +61,22 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             placeholder="Filter session..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-surface-muted border-none rounded-full ps-9 pe-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-accent/20 w-40 transition-all focus:w-64"
+            className="ui-chat-search-field rounded-full border-none ps-9 pe-4 py-(--space-2) text-xs outline-none focus:ring-2 focus:ring-accent-interactive/20 w-40 transition-all focus:w-64"
           />
         </div>
 
         {/* Density */}
-        <div className="shell-action-row rounded-full bg-surface-muted p-1">
+        <div className="ui-chat-density-toggle shell-action-row rounded-full p-(--space-1)" data-chat-density-toggle="true">
           {(["compact", "normal", "relaxed"] as const).map((d) => (
             <button
               key={d}
               onClick={() => onDensityChange(d)}
-              className={`shell-micro-text flex h-7 w-7 items-center justify-center rounded-full transition-all ${density === d ? "accent-fill shadow-sm" : "hover-surface opacity-50"}`}
+              className={`shell-micro-text flex h-7 w-7 items-center justify-center rounded-full transition-all ${density === d ? "ui-chat-density-option-active" : "ui-chat-density-option-idle"}`}
               title={`Density: ${d}`}
               aria-label={`Set density to ${d}`}
+              data-chat-density-option={density === d ? "active" : "idle"}
             >
-              {d[0].toUpperCase()}
+              {densityLabels[d]}
             </button>
           ))}
         </div>

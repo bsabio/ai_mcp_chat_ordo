@@ -188,13 +188,13 @@ describe("browser motion hardening", () => {
     });
   });
 
-  it("keeps nav layering classes that do not depend on backdrop blur", () => {
+  it("keeps nav layering semantics through the extracted shell rail class", () => {
     installMatchMedia(false);
 
     render(<SiteNav user={baseUser} />);
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
-    expect(nav.className).toContain("glass-surface");
-    expect(nav.className).toContain("shadow-[0_8px_20px_color-mix(in_srgb,var(--shadow-base)_4%,transparent)]");
+    expect(nav.className).toContain("ui-shell-rail");
+    expect(nav).toHaveAttribute("data-shell-nav-rail", "true");
   });
 });

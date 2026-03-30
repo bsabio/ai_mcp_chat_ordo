@@ -20,6 +20,8 @@ import {
   createInitialChatMessages,
   type ReferralContext,
 } from "@/hooks/chat/chatState";
+import { useChatJobEvents } from "@/hooks/chat/useChatJobEvents";
+import { useChatPushNotifications } from "@/hooks/useChatPushNotifications";
 import { useChatConversationSession } from "@/hooks/chat/useChatConversationSession";
 import { useChatSend } from "@/hooks/chat/useChatSend";
 import type { RoleName } from "@/core/entities/user";
@@ -121,6 +123,13 @@ export function ChatProvider({
     setIsSending,
     clearFailedSend,
   });
+
+  useChatJobEvents({
+    conversationId,
+    dispatch,
+  });
+
+  useChatPushNotifications(initialRole);
 
   useEffect(() => {
     if (!shouldRefreshBootstrapMessages({

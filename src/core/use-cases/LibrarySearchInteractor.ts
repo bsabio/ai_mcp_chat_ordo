@@ -1,4 +1,6 @@
 import type { UseCase } from "../common/UseCase";
+import { canAccessAudience } from "@/lib/access/content-access";
+import type { RoleName } from "../entities/user";
 import type { CorpusRepository } from "./CorpusRepository";
 import type { LibrarySearchResult } from "../entities/library";
 import type { SearchHandler } from "../search/ports/SearchHandler";
@@ -6,6 +8,7 @@ import type { SearchHandler } from "../search/ports/SearchHandler";
 export interface SearchRequest {
   query: string;
   maxResults?: number;
+  role?: RoleName;
 }
 
 export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySearchResult[]> {
@@ -19,11 +22,37 @@ export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySe
   }
 
   async execute(request: SearchRequest): Promise<LibrarySearchResult[]> {
-    const { query, maxResults = 10 } = request;
+    const { query, maxResults = 10, role } = request;
+
+    const documents = await this.corpusRepository.getAllDocuments();
+    const sections = await this.corpusRepository.getAllSections();
+
+    const documentMap = new Map(documents.map((document) => [document.slug, document]));
+    const visibleSections = role
+      ? sections.filter((section) => canAccessAudience(section.audience, role))
+      : sections;
+    const visibleSectionKeys = new Set(
+      visibleSections.map((section) => `${section.documentSlug}/${section.sectionSlug}`),
+    );
 
     if (this.searchHandler) {
       const hybridResults = await this.searchHandler.search(query);
-      return hybridResults.slice(0, maxResults).map((hr) => ({
+      const filteredResults = hybridResults.filter((result) => {
+        if (!role) return true;
+        const documentSlug = result.bookSlug ?? result.documentSlug;
+        const sectionSlug = result.chapterSlug ?? result.sectionSlug;
+
+        if (documentSlug && sectionSlug) {
+          return visibleSectionKeys.has(`${documentSlug}/${sectionSlug}`);
+        }
+
+        if (!documentSlug) return false;
+
+        const document = documentMap.get(documentSlug);
+        return !!document && canAccessAudience(document.audience, role);
+      });
+
+      return filteredResults.slice(0, maxResults).map((hr) => ({
         documentTitle: hr.documentTitle,
         documentId: hr.documentId,
         documentSlug: hr.documentSlug,
@@ -54,12 +83,10 @@ export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySe
       return [];
     }
 
-    const documents = await this.corpusRepository.getAllDocuments();
-    const sections = await this.corpusRepository.getAllSections();
     const results: LibrarySearchResult[] = [];
 
-    for (const section of sections) {
-      const document = documents.find((candidate) => candidate.slug === section.documentSlug);
+    for (const section of visibleSections) {
+      const document = documentMap.get(section.documentSlug);
       if (!document) continue;
 
       const { score, matchContext } = section.calculateSearchScore(

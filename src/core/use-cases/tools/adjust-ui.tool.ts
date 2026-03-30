@@ -1,5 +1,13 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
+import {
+  SUPPORTED_COLOR_BLIND_MODES,
+  SUPPORTED_DENSITY_LEVELS,
+  SUPPORTED_FONT_SIZES,
+  SUPPORTED_SPACING_LEVELS,
+  SUPPORTED_THEME_IDS,
+  SUPPORTED_UI_PRESET_IDS,
+} from "@/lib/theme/theme-manifest";
 import { AdjustUICommand } from "./UiTools";
 
 export function createAdjustUiTool(repo?: UserPreferencesRepository): ToolDescriptor {
@@ -10,14 +18,14 @@ export function createAdjustUiTool(repo?: UserPreferencesRepository): ToolDescri
       input_schema: {
         type: "object",
         properties: {
-          preset: { type: "string", enum: ["default", "elderly", "compact", "high-contrast", "color-blind-deuteranopia", "color-blind-protanopia", "color-blind-tritanopia"], description: "Apply a curated preset. Overrides individual settings." },
-          fontSize: { type: "string", enum: ["xs", "sm", "md", "lg", "xl"], description: "Base font size." },
-          lineHeight: { type: "string", enum: ["tight", "normal", "relaxed"], description: "Line spacing." },
-          letterSpacing: { type: "string", enum: ["tight", "normal", "relaxed"], description: "Letter spacing." },
-          density: { type: "string", enum: ["compact", "normal", "relaxed"], description: "UI density — affects padding and gaps." },
+          preset: { type: "string", enum: [...SUPPORTED_UI_PRESET_IDS], description: "Apply a curated preset. Overrides individual settings." },
+          fontSize: { type: "string", enum: [...SUPPORTED_FONT_SIZES], description: "Base font size." },
+          lineHeight: { type: "string", enum: [...SUPPORTED_SPACING_LEVELS], description: "Line spacing." },
+          letterSpacing: { type: "string", enum: [...SUPPORTED_SPACING_LEVELS], description: "Letter spacing." },
+          density: { type: "string", enum: [...SUPPORTED_DENSITY_LEVELS], description: "UI density — affects padding and gaps." },
           dark: { type: "boolean", description: "Enable or disable dark mode." },
-          theme: { type: "string", enum: ["bauhaus", "swiss", "skeuomorphic", "fluid"], description: "Visual theme era." },
-          colorBlindMode: { type: "string", enum: ["none", "deuteranopia", "protanopia", "tritanopia"], description: "Color-blind safe palette." },
+          theme: { type: "string", enum: [...SUPPORTED_THEME_IDS], description: "Visual theme era." },
+          colorBlindMode: { type: "string", enum: [...SUPPORTED_COLOR_BLIND_MODES], description: "Color-blind safe palette." },
         },
       },
     },

@@ -5,9 +5,10 @@
 > **V0 Baseline:** 1194 tests, 175 suites, build clean. See §1.5 for V0 deliverables.
 > **Scope:** Transform Studio Ordo from a solo consulting tool into a configurable, deployable, chat-only AI business system that students can fork, configure, and deploy for real businesses.
 > **Requirement IDs:** `PLAT-001` through `PLAT-099`
-> **Dependencies:** [Platform V0](../platform-v0/spec.md) (foundational refactors), [RBAC](../rbac/spec.md), [Tool Architecture](../tool-architecture/spec.md), [Interactive Chat Actions](../interactive-chat-actions/spec.md), [Vector Search](../vector-search/spec.md)
+> **Dependencies:** [Platform V0](../platform-v0/spec.md) (foundational refactors), [RBAC](../rbac/spec.md), [Tool Architecture](../tool-architecture/spec.md), [Interactive Chat Actions](../interactive-chat-actions/spec.md), [Vector Search](../vector-search/spec.md), [Deferred Job Orchestration](../deferred-job-orchestration/spec.md)
 > **Supersedes:** [Dashboard AI Action Workspace](../dashboard-ai-action-workspace/), [Dashboard RBAC Blocks](../dashboard-rbac-blocks/), [Swiss Layout Precision](../swiss-layout-precision/)
 > **Implementation note (2026-03-24):** Sprint 2 dashboard elimination is complete, and the later TD-C4 convergence cleanup also finished. Active runtime no longer preserves a `src/lib/dashboard/` compatibility layer; the surviving business logic now lives under `src/lib/operator/`, and the handoff path is canonicalized as `src/lib/chat/task-origin-handoff.ts`.
+> **Implementation note (2026-03-25):** Phase C is substantially present in the active codebase: public blog routes, sitemap/robots generation, analytics script wiring, admin blog drafting and publishing tools, and the shared deferred-jobs queue used by blog drafting are all implemented. The next major unmet Platform V1 sprint is Sprint 8 booking.
 
 ---
 
@@ -573,7 +574,7 @@ Current suite: 1373 tests across 167 suites (post-S6). All tests must remain gre
 | --- | --- | --- | --- |
 | **5** | **Public Content Routes** | SEO metadata, OG tags, and JSON-LD on existing library routes. Verify public access (no auth required). *(Library index, domain pages, and chapter pages already exist at `src/app/library/` — this sprint enhances them with SEO infrastructure.)* | +10 |
 | **6** | **SEO Infrastructure** | sitemap.xml generation, robots.txt, OG tags per page, JSON-LD structured data, canonical URLs. Plausible analytics script tag. | +8 |
-| **7** | **Blog and Content Pipeline** | Blog index and post routes. Admin content drafting MCP tool. Draft → review → publish workflow. AI-assisted content creation. | +10 |
+| **7** | **Blog and Content Pipeline** | Blog index and post routes. Admin content drafting MCP tool. Draft → review → publish workflow. AI-assisted content creation. Long-running draft generation depends on the shared queue defined in [Deferred Job Orchestration](../deferred-job-orchestration/spec.md) rather than a blog-specific background path. | +10 |
 | **TD-C** | **Technical Debt: Martin SOLID Audit** | Audit all new modules against SOLID principles. Focus on Single Responsibility (config vs. runtime), Open/Closed (tool registration), Dependency Inversion (config abstractions). Refactor violations. | +0 (refactor only) |
 
 ### Phase D: Business tools

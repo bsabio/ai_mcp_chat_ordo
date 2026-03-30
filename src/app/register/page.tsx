@@ -88,11 +88,9 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {generalError && (
-            <div className="alert-error">
-              {generalError}
-            </div>
-          )}
+          <div role="alert" aria-live="assertive" className="alert-error" style={generalError ? undefined : { display: "none" }}>
+            {generalError}
+          </div>
 
           <div className="space-y-1.5">
             <label htmlFor="name" className="form-label">
@@ -107,9 +105,11 @@ export default function RegisterPage() {
               className={`input-field ${fieldErrors.name ? "ring-2 ring-red-500/50" : ""}`}
               placeholder="Your name"
               autoComplete="name"
+              aria-describedby="name-error"
+              aria-invalid={!!fieldErrors.name}
             />
             {fieldErrors.name && (
-              <p className="field-error">{fieldErrors.name}</p>
+              <p id="name-error" className="field-error">{fieldErrors.name}</p>
             )}
           </div>
 
@@ -126,9 +126,11 @@ export default function RegisterPage() {
               className={`input-field ${fieldErrors.email ? "ring-2 ring-red-500/50" : ""}`}
               placeholder="you@example.com"
               autoComplete="email"
+              aria-describedby="email-error"
+              aria-invalid={!!fieldErrors.email}
             />
             {fieldErrors.email && (
-              <p className="field-error">{fieldErrors.email}</p>
+              <p id="email-error" className="field-error">{fieldErrors.email}</p>
             )}
           </div>
 
@@ -145,9 +147,14 @@ export default function RegisterPage() {
               className={`input-field ${fieldErrors.password ? "ring-2 ring-red-500/50" : ""}`}
               placeholder="8+ characters"
               autoComplete="new-password"
+              aria-describedby="password-description password-error"
+              aria-invalid={!!fieldErrors.password}
             />
+            <p id="password-description" className="text-xs opacity-50">
+              8–72 characters required.
+            </p>
             {fieldErrors.password && (
-              <p className="field-error">{fieldErrors.password}</p>
+              <p id="password-error" className="field-error">{fieldErrors.password}</p>
             )}
           </div>
 
@@ -162,7 +169,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-xs opacity-50">
           Already have an account?{" "}
-          <Link href="/login" className="font-bold opacity-100 text-accent hover:underline">
+          <Link href="/login" className="font-bold opacity-100 text-accent-interactive hover:underline">
             Sign In
           </Link>
         </p>

@@ -1,7 +1,17 @@
 import { resolveEvalRuntimeConfig } from "./config";
 import type { EvalObservation, EvalRunConfig, EvalScenario } from "./domain";
+import { BlogPostDataMapper } from "@/adapters/BlogPostDataMapper";
+import { ChatPresenter } from "@/adapters/ChatPresenter";
+import { CommandParserService } from "@/adapters/CommandParserService";
+import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
+import { MarkdownParserService } from "@/adapters/MarkdownParserService";
+import type { ChatMessage } from "@/core/entities/chat-message";
+import type { InlineNode } from "@/core/entities/rich-content";
 import { isDealCustomerVisibleStatus } from "@/core/entities/deal-record";
 import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-path-record";
+import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
+import { createDeferredJobResultPayload, deferredJobResultToMessagePart } from "@/lib/jobs/deferred-job-result";
+import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import { getEvalScenarioById } from "./scenarios";
 import { inflateDeterministicSeedPack, resolveDeterministicSeedPack } from "./seeding";
 import { createEvalWorkspace } from "./workspace";
@@ -359,6 +369,890 @@ export async function runDeterministicEvalScenario(
             visibleStatus: visibleTrainingPath?.status ?? null,
           },
         });
+        break;
+      }
+      case "blog-job-status-continuity-deterministic": {
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const job = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "produce_blog_article",
+          dedupeKey: "produce:ai-governance-playbook",
+          requestPayload: {
+            brief: "Create an AI governance playbook article.",
+          },
+        });
+        const runningJob = await jobRepo.updateJobStatus(job.id, {
+          status: "running",
+          startedAt: "2026-03-20T16:01:10.000Z",
+          progressPercent: 42,
+          progressLabel: "Reviewing article",
+          claimedBy: "eval_worker",
+          leaseExpiresAt: "2026-03-20T16:06:10.000Z",
+        });
+        await jobRepo.appendEvent({
+          jobId: runningJob.id,
+          conversationId: primaryConversationId,
+          eventType: "progress",
+          payload: {
+            progressPercent: 42,
+            progressLabel: "Reviewing article",
+          },
+        });
+
+        const activeJobs = await jobRepo.listJobsByConversation(primaryConversationId, {
+          statuses: getActiveJobStatuses(),
+          limit: 10,
+        });
+        const latestEvent = await jobRepo.findLatestEventForJob(runningJob.id);
+        const snapshot = buildJobStatusSnapshot(runningJob, latestEvent);
+
+        toolCalls.push("list_deferred_jobs", "get_deferred_job_status");
+        observations.push(
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "list_deferred_jobs",
+              args: { conversation_id: primaryConversationId, active_only: true },
+              result: activeJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
+            },
+          },
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "get_deferred_job_status",
+              args: { job_id: runningJob.id },
+              result: snapshot.part,
+            },
+          },
+        );
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "active-job-visible",
+            activeJobs.some((candidate) => candidate.id === runningJob.id && candidate.status === "running"),
+            activeJobs.length > 0 ? null : "No active deferred job was returned by the read path.",
+          ),
+          createCheckpointResult(
+            scenario,
+            "status-read-no-rerun",
+            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
+            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
+          ),
+          createCheckpointResult(
+            scenario,
+            "progress-preserved",
+            snapshot.part.progressLabel === "Reviewing article",
+            snapshot.part.progressLabel ?? null,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: "Inspect the existing production job instead of re-running it.",
+            jobId: runningJob.id,
+            progressLabel: snapshot.part.progressLabel ?? null,
+          },
+        });
+        finalRecommendation = "Inspect the existing production job instead of re-running it.";
+        break;
+      }
+      case "member-job-status-summary-deterministic": {
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const job = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "produce_blog_article",
+          dedupeKey: "produce:member-status-summary",
+          requestPayload: {
+            brief: "Create an AI governance playbook article.",
+          },
+        });
+        const runningJob = await jobRepo.updateJobStatus(job.id, {
+          status: "running",
+          startedAt: "2026-03-20T16:31:10.000Z",
+          progressPercent: 42,
+          progressLabel: "Reviewing article",
+          claimedBy: "eval_worker",
+          leaseExpiresAt: "2026-03-20T16:36:10.000Z",
+        });
+        await jobRepo.appendEvent({
+          jobId: runningJob.id,
+          conversationId: primaryConversationId,
+          eventType: "progress",
+          payload: {
+            progressPercent: 42,
+            progressLabel: "Reviewing article",
+          },
+        });
+
+        const activeJobs = await jobRepo.listJobsByUser(inflated.refs.authenticatedUserId ?? conversation.userId, {
+          statuses: getActiveJobStatuses(),
+          limit: 10,
+        });
+        const latestEvent = await jobRepo.findLatestEventForJob(runningJob.id);
+        const snapshot = buildJobStatusSnapshot(runningJob, latestEvent);
+        const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
+          role: "assistant",
+          content: "You have 1 active job. Produce Blog Article is still running for AI Governance Playbook. It is 42% complete and currently Reviewing article.",
+          createdAt: "2026-03-20T16:31:20.000Z",
+        };
+
+        await workspace.appendMessage({
+          conversationId: primaryConversationId,
+          role: finalAssistantMessage.role,
+          content: finalAssistantMessage.content,
+          createdAt: finalAssistantMessage.createdAt,
+        });
+        pushMessageObservations(observations, [finalAssistantMessage]);
+
+        toolCalls.push("list_my_jobs");
+        observations.push({
+          kind: "tool_call",
+          at: run.startedAt,
+          data: {
+            toolId: "list_my_jobs",
+            args: { active_only: true, limit: 10 },
+            result: activeJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
+          },
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "active-job-visible",
+            activeJobs.some((candidate) => candidate.id === runningJob.id && candidate.status === "running"),
+            activeJobs.length > 0 ? null : "No active member job was returned.",
+          ),
+          createCheckpointResult(
+            scenario,
+            "prose-summary-default",
+            finalAssistantMessage.content.includes("You have 1 active job") && !finalAssistantMessage.content.includes("\n-"),
+            finalAssistantMessage.content,
+          ),
+          createCheckpointResult(
+            scenario,
+            "status-read-no-rerun",
+            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
+            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: finalAssistantMessage.content,
+            jobId: runningJob.id,
+            progressLabel: snapshot.part.progressLabel ?? null,
+          },
+        });
+        finalRecommendation = finalAssistantMessage.content;
+        break;
+      }
+      case "member-explicit-job-status-deterministic": {
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const job = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "draft_content",
+          dedupeKey: "draft:member-explicit-status",
+          requestPayload: {
+            title: "Deferred Queue Post",
+          },
+        });
+        const runningJob = await jobRepo.updateJobStatus(job.id, {
+          status: "running",
+          startedAt: "2026-03-20T16:35:10.000Z",
+          progressPercent: 60,
+          progressLabel: "Drafting article",
+          claimedBy: "eval_worker",
+          leaseExpiresAt: "2026-03-20T16:40:10.000Z",
+        });
+        await jobRepo.appendEvent({
+          jobId: runningJob.id,
+          conversationId: primaryConversationId,
+          eventType: "progress",
+          payload: {
+            progressPercent: 60,
+            progressLabel: "Drafting article",
+          },
+        });
+
+        const latestEvent = await jobRepo.findLatestEventForJob(runningJob.id);
+        const snapshot = buildJobStatusSnapshot(runningJob, latestEvent);
+        const activeJobs = await jobRepo.listJobsByUser(inflated.refs.authenticatedUserId ?? conversation.userId, {
+          statuses: getActiveJobStatuses(),
+          limit: 10,
+        });
+        const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
+          role: "assistant",
+          content: `Job ${runningJob.id} is still running. Draft Content is 60% complete and currently Drafting article. I checked the existing job and did not start another run.`,
+          createdAt: "2026-03-20T16:35:20.000Z",
+        };
+
+        await workspace.appendMessage({
+          conversationId: primaryConversationId,
+          role: finalAssistantMessage.role,
+          content: finalAssistantMessage.content,
+          createdAt: finalAssistantMessage.createdAt,
+        });
+        pushMessageObservations(observations, [finalAssistantMessage]);
+
+        toolCalls.push("get_my_job_status");
+        observations.push({
+          kind: "tool_call",
+          at: run.startedAt,
+          data: {
+            toolId: "get_my_job_status",
+            args: { job_id: runningJob.id },
+            result: snapshot.part,
+          },
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "explicit-status-explained",
+            finalAssistantMessage.content.includes(`Job ${runningJob.id} is still running`) && finalAssistantMessage.content.includes("did not start another run"),
+            finalAssistantMessage.content,
+          ),
+          createCheckpointResult(
+            scenario,
+            "status-read-no-rerun",
+            activeJobs.filter((candidate) => candidate.toolName === "draft_content").length === 1,
+            `Found ${activeJobs.filter((candidate) => candidate.toolName === "draft_content").length} active draft jobs.`,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: finalAssistantMessage.content,
+            jobId: runningJob.id,
+            progressLabel: snapshot.part.progressLabel ?? null,
+          },
+        });
+        finalRecommendation = finalAssistantMessage.content;
+        break;
+      }
+      case "member-all-jobs-list-deterministic": {
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const runningJob = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "produce_blog_article",
+          dedupeKey: "produce:member-all-jobs",
+          requestPayload: {
+            brief: "Create a launch plan article.",
+          },
+        });
+        await jobRepo.updateJobStatus(runningJob.id, {
+          status: "running",
+          startedAt: "2026-03-20T16:40:10.000Z",
+          progressPercent: 35,
+          progressLabel: "Gathering sources",
+          claimedBy: "eval_worker",
+          leaseExpiresAt: "2026-03-20T16:45:10.000Z",
+        });
+        const terminalJob = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "publish_content",
+          dedupeKey: "publish:member-all-jobs",
+          requestPayload: {
+            postId: "post_1",
+          },
+        });
+        const completedJob = await jobRepo.updateJobStatus(terminalJob.id, {
+          status: "succeeded",
+          startedAt: "2026-03-20T16:39:00.000Z",
+          completedAt: "2026-03-20T16:39:30.000Z",
+          progressPercent: 100,
+          progressLabel: "Published",
+          resultPayload: { slug: "launch-plan", title: "Launch Plan" },
+        });
+
+        const allJobs = await jobRepo.listJobsByUser(inflated.refs.authenticatedUserId ?? conversation.userId, {
+          limit: 10,
+        });
+        const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
+          role: "assistant",
+          content: [
+            "Jobs:",
+            "- Produce Blog Article — running at 35%, currently Gathering sources",
+            "- Publish Content — completed for Launch Plan",
+          ].join("\n"),
+          createdAt: "2026-03-20T16:40:20.000Z",
+        };
+
+        await workspace.appendMessage({
+          conversationId: primaryConversationId,
+          role: finalAssistantMessage.role,
+          content: finalAssistantMessage.content,
+          createdAt: finalAssistantMessage.createdAt,
+        });
+        pushMessageObservations(observations, [finalAssistantMessage]);
+
+        toolCalls.push("list_my_jobs");
+        observations.push({
+          kind: "tool_call",
+          at: run.startedAt,
+          data: {
+            toolId: "list_my_jobs",
+            args: { active_only: false, limit: 10 },
+            result: allJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
+          },
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "explicit-list-rendered",
+            finalAssistantMessage.content.startsWith("Jobs:\n-") && finalAssistantMessage.content.includes("Publish Content"),
+            finalAssistantMessage.content,
+          ),
+          createCheckpointResult(
+            scenario,
+            "terminal-jobs-included",
+            allJobs.some((candidate) => candidate.id === completedJob.id && candidate.status === "succeeded"),
+            `Found ${allJobs.length} total jobs.`,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: finalAssistantMessage.content,
+            runningJobId: runningJob.id,
+            completedJobId: completedJob.id,
+          },
+        });
+        finalRecommendation = finalAssistantMessage.content;
+        break;
+      }
+      case "anonymous-job-status-guidance-deterministic": {
+        const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
+          role: "assistant",
+          content: "I cannot inspect account-scoped jobs while you are browsing anonymously. If a job was started in this chat, the status cards here are the source of truth. Sign in if you need account-level history across conversations.",
+          createdAt: "2026-03-20T16:45:10.000Z",
+        };
+
+        await workspace.appendMessage({
+          conversationId: primaryConversationId,
+          role: finalAssistantMessage.role,
+          content: finalAssistantMessage.content,
+          createdAt: finalAssistantMessage.createdAt,
+        });
+        pushMessageObservations(observations, [finalAssistantMessage]);
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "chat-native-guidance",
+            finalAssistantMessage.content.includes("status cards here are the source of truth") && finalAssistantMessage.content.includes("Sign in"),
+            finalAssistantMessage.content,
+          ),
+          createCheckpointResult(
+            scenario,
+            "no-jobs-route-push",
+            !finalAssistantMessage.content.includes("/jobs"),
+            finalAssistantMessage.content,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: finalAssistantMessage.content,
+          },
+        });
+        finalRecommendation = finalAssistantMessage.content;
+        break;
+      }
+      case "blog-explicit-status-check-deterministic": {
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const job = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "produce_blog_article",
+          dedupeKey: "produce:operator-capabilities-profile",
+          requestPayload: {
+            brief: "Produce a blog post on the platform capabilities.",
+          },
+        });
+        const queuedJob = await jobRepo.updateJobStatus(job.id, {
+          status: "running",
+          startedAt: "2026-03-20T16:20:15.000Z",
+          progressPercent: 42,
+          progressLabel: "Reviewing article",
+          claimedBy: "eval_worker",
+          leaseExpiresAt: "2026-03-20T16:25:15.000Z",
+        });
+        await jobRepo.appendEvent({
+          jobId: queuedJob.id,
+          conversationId: primaryConversationId,
+          eventType: "progress",
+          payload: {
+            progressPercent: 42,
+            progressLabel: "Reviewing article",
+          },
+        });
+
+        const seededMessages = messages;
+        const followUpMessages: Array<{ role: ChatMessage["role"]; content: string; createdAt: string }> = [
+          {
+            role: "assistant",
+            content: `Queued Produce Blog Article job ${queuedJob.id}. I will reuse this run and report status from the queue.`,
+            createdAt: "2026-03-20T16:20:20.000Z",
+          },
+          {
+            role: "user",
+            content: "whats the status of the queue",
+            createdAt: "2026-03-20T16:20:40.000Z",
+          },
+          {
+            role: "assistant",
+            content: `The queue still has Produce Blog Article job ${queuedJob.id} running. It is 42% complete and currently Reviewing article.`,
+            createdAt: "2026-03-20T16:20:50.000Z",
+          },
+          {
+            role: "user",
+            content: `Check the status of job ${queuedJob.id}`,
+            createdAt: "2026-03-20T16:21:10.000Z",
+          },
+        ];
+
+        for (const message of followUpMessages) {
+          await workspace.appendMessage({
+            conversationId: primaryConversationId,
+            role: message.role,
+            content: message.content,
+            createdAt: message.createdAt,
+          });
+        }
+        pushMessageObservations(observations, followUpMessages);
+
+        const activeJobs = await jobRepo.listJobsByConversation(primaryConversationId, {
+          statuses: getActiveJobStatuses(),
+          limit: 10,
+        });
+        const latestEvent = await jobRepo.findLatestEventForJob(queuedJob.id);
+        const snapshot = buildJobStatusSnapshot(queuedJob, latestEvent);
+        const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
+          role: "assistant",
+          content: `Job ${queuedJob.id} is still running. It is 42% complete and currently Reviewing article. I reused the existing Produce Blog Article job and did not start another run.`,
+          createdAt: "2026-03-20T16:21:20.000Z",
+        };
+
+        await workspace.appendMessage({
+          conversationId: primaryConversationId,
+          role: finalAssistantMessage.role,
+          content: finalAssistantMessage.content,
+          createdAt: finalAssistantMessage.createdAt,
+        });
+        pushMessageObservations(observations, [finalAssistantMessage]);
+
+        toolCalls.push("list_deferred_jobs", "get_deferred_job_status");
+        observations.push(
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "list_deferred_jobs",
+              args: { conversation_id: primaryConversationId, active_only: true },
+              result: activeJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
+            },
+          },
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "get_deferred_job_status",
+              args: { job_id: queuedJob.id },
+              result: snapshot.part,
+            },
+          },
+        );
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "conversation-shape-preserved",
+            seededMessages[0]?.content === "Produce a blog post on my capabilities"
+              && followUpMessages[1]?.content === "whats the status of the queue"
+              && followUpMessages[3]?.content === `Check the status of job ${queuedJob.id}`,
+            followUpMessages[3]?.content ?? null,
+          ),
+          createCheckpointResult(
+            scenario,
+            "explicit-status-explained",
+            finalAssistantMessage.content.includes(`Job ${queuedJob.id} is still running`)
+              && finalAssistantMessage.content.includes("did not start another run"),
+            finalAssistantMessage.content,
+          ),
+          createCheckpointResult(
+            scenario,
+            "status-read-no-rerun",
+            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
+            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: finalAssistantMessage.content,
+            jobId: queuedJob.id,
+            progressLabel: snapshot.part.progressLabel ?? null,
+          },
+        });
+        finalRecommendation = finalAssistantMessage.content;
+        break;
+      }
+      case "blog-job-dedupe-clarity-deterministic": {
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const job = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "produce_blog_article",
+          dedupeKey: "produce:ai-governance-playbook",
+          requestPayload: {
+            brief: "Run the full AI governance playbook pipeline.",
+          },
+        });
+        const runningJob = await jobRepo.updateJobStatus(job.id, {
+          status: "running",
+          startedAt: "2026-03-20T16:05:10.000Z",
+          progressPercent: 18,
+          progressLabel: "Composing article",
+          claimedBy: "eval_worker",
+          leaseExpiresAt: "2026-03-20T16:10:10.000Z",
+        });
+        const progressEvent = await jobRepo.appendEvent({
+          jobId: runningJob.id,
+          conversationId: primaryConversationId,
+          eventType: "progress",
+          payload: {
+            progressPercent: 18,
+            progressLabel: "Composing article",
+          },
+        });
+        const dedupedPart = deferredJobResultToMessagePart(
+          createDeferredJobResultPayload(runningJob, progressEvent, { deduped: true }),
+        );
+        const activeJobs = await jobRepo.listJobsByConversation(primaryConversationId, {
+          statuses: getActiveJobStatuses(),
+          limit: 10,
+        });
+
+        toolCalls.push("list_deferred_jobs", "get_deferred_job_status");
+        observations.push(
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "list_deferred_jobs",
+              args: { conversation_id: primaryConversationId, active_only: true },
+              result: activeJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
+            },
+          },
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "get_deferred_job_status",
+              args: { job_id: runningJob.id },
+              result: dedupedPart,
+            },
+          },
+        );
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "dedupe-detected",
+            activeJobs.length === 1 && activeJobs[0]?.id === runningJob.id,
+            `Found ${activeJobs.length} active jobs for the conversation.`,
+          ),
+          createCheckpointResult(
+            scenario,
+            "reuse-copy-clear",
+            dedupedPart.summary === "Using existing Produce Blog Article job in this conversation.",
+            dedupedPart.summary ?? null,
+          ),
+          createCheckpointResult(
+            scenario,
+            "single-job-preserved",
+            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
+            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: dedupedPart.summary,
+            jobId: runningJob.id,
+          },
+        });
+        finalRecommendation = dedupedPart.summary ?? finalRecommendation;
+        break;
+      }
+      case "blog-produce-publish-handoff-deterministic": {
+        const blogRepo = new BlogPostDataMapper(workspace.db);
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const presenter = new ChatPresenter(new MarkdownParserService(), new CommandParserService());
+        const draftPost = await blogRepo.create({
+          slug: "ai-governance-playbook",
+          title: "AI Governance Playbook",
+          description: "A practical governance playbook for delivery teams.",
+          content: "# AI Governance Playbook\n\nProduction-ready guidance.",
+          createdByUserId: inflated.refs.authenticatedUserId ?? conversation.userId,
+        });
+        const completedJob = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "produce_blog_article",
+          dedupeKey: "produce:ai-governance-playbook",
+          requestPayload: {
+            brief: "Create an AI governance playbook article.",
+          },
+        });
+        const succeededJob = await jobRepo.updateJobStatus(completedJob.id, {
+          status: "succeeded",
+          startedAt: "2026-03-20T16:10:10.000Z",
+          completedAt: "2026-03-20T16:12:30.000Z",
+          progressPercent: 100,
+          progressLabel: "Saving draft",
+          resultPayload: {
+            id: draftPost.id,
+            slug: draftPost.slug,
+            title: draftPost.title,
+            status: "draft",
+            imageAssetId: "asset_hero_1",
+            stages: [
+              "compose_blog_article",
+              "qa_blog_article",
+              "resolve_blog_article_qa",
+              "generate_blog_image_prompt",
+              "generate_blog_image",
+              "draft_content",
+            ],
+            summary: `Produced draft "${draftPost.title}" at /journal/${draftPost.slug} with hero asset asset_hero_1.`,
+          },
+        });
+        const resultEvent = await jobRepo.appendEvent({
+          jobId: succeededJob.id,
+          conversationId: primaryConversationId,
+          eventType: "result",
+          payload: {
+            result: succeededJob.resultPayload,
+          },
+        });
+        const snapshot = buildJobStatusSnapshot(succeededJob, resultEvent);
+        const presented = presenter.present({
+          id: snapshot.messageId,
+          role: "assistant",
+          content: "Article production is complete.",
+          timestamp: new Date(run.startedAt),
+          parts: [snapshot.part],
+        } as ChatMessage);
+        const jobStatusBlock = presented.content.blocks.find((block) => block.type === "job-status");
+        const publishAction = Array.isArray(jobStatusBlock?.actions)
+          ? jobStatusBlock.actions.find(
+            (action): action is Extract<InlineNode, { type: "action-link" }> =>
+              action.type === "action-link" && action.label === "Publish",
+          )
+          : undefined;
+        const publishResult = await executePublishContent(
+          blogRepo,
+          { post_id: draftPost.id },
+          {
+            userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+            role: "AUTHENTICATED",
+          },
+        );
+
+        toolCalls.push("publish_content");
+        observations.push({
+          kind: "tool_call",
+          at: run.startedAt,
+          data: {
+            toolId: "publish_content",
+            args: { post_id: draftPost.id },
+            result: publishResult,
+          },
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "post-id-preserved",
+            snapshot.part.resultPayload !== undefined
+              && typeof snapshot.part.resultPayload === "object"
+              && snapshot.part.resultPayload !== null
+              && "id" in snapshot.part.resultPayload
+              && snapshot.part.resultPayload.id === draftPost.id,
+            draftPost.id,
+          ),
+          createCheckpointResult(
+            scenario,
+            "publish-action-visible",
+            Boolean(publishAction),
+            publishAction ? null : "Publish action was not present on the produced-draft job card.",
+          ),
+          createCheckpointResult(
+            scenario,
+            "publish-command-correct",
+            publishAction?.actionType === "send"
+              && publishAction.value.includes(draftPost.id)
+              && publishResult.id === draftPost.id
+              && publishResult.status === "published",
+            publishAction?.value ?? null,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: `Publish the draft post with id ${draftPost.id}.`,
+            postId: draftPost.id,
+            publishStatus: publishResult.status,
+          },
+        });
+        finalRecommendation = `Publish the draft post with id ${draftPost.id}.`;
+        break;
+      }
+      case "blog-missed-sse-recovery-deterministic": {
+        const blogRepo = new BlogPostDataMapper(workspace.db);
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const draftPost = await blogRepo.create({
+          slug: "continuity-after-reload",
+          title: "Continuity After Reload",
+          description: "How deferred work remains visible after a dropped event stream.",
+          content: "# Continuity After Reload\n\nRecovery path.",
+          createdByUserId: inflated.refs.authenticatedUserId ?? conversation.userId,
+        });
+        const completedJob = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId: inflated.refs.authenticatedUserId ?? conversation.userId,
+          toolName: "produce_blog_article",
+          dedupeKey: "produce:continuity-after-reload",
+          requestPayload: {
+            brief: "Create a continuity after reload article.",
+          },
+        });
+        const succeededJob = await jobRepo.updateJobStatus(completedJob.id, {
+          status: "succeeded",
+          startedAt: "2026-03-20T16:15:10.000Z",
+          completedAt: "2026-03-20T16:17:00.000Z",
+          resultPayload: {
+            id: draftPost.id,
+            slug: draftPost.slug,
+            title: draftPost.title,
+            status: "draft",
+            summary: `Produced draft "${draftPost.title}" at /journal/${draftPost.slug}.`,
+          },
+        });
+        const resultEvent = await jobRepo.appendEvent({
+          jobId: succeededJob.id,
+          conversationId: primaryConversationId,
+          eventType: "result",
+          payload: {
+            result: succeededJob.resultPayload,
+          },
+        });
+        const recoveredJobs = await jobRepo.listJobsByConversation(primaryConversationId, { limit: 10 });
+        const recoveredSnapshot = buildJobStatusSnapshot(succeededJob, resultEvent);
+
+        toolCalls.push("list_deferred_jobs", "get_deferred_job_status");
+        observations.push(
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "list_deferred_jobs",
+              args: { conversation_id: primaryConversationId, active_only: false },
+              result: recoveredJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
+            },
+          },
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "get_deferred_job_status",
+              args: { job_id: succeededJob.id },
+              result: recoveredSnapshot.part,
+            },
+          },
+        );
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "terminal-job-recovered",
+            recoveredJobs.some((candidate) => candidate.id === succeededJob.id && candidate.status === "succeeded")
+              && recoveredSnapshot.part.status === "succeeded",
+            recoveredSnapshot.part.status,
+          ),
+          createCheckpointResult(
+            scenario,
+            "summary-preserved",
+            recoveredSnapshot.part.summary === `Produced draft "${draftPost.title}" at /journal/${draftPost.slug}.`,
+            recoveredSnapshot.part.summary ?? null,
+          ),
+          createCheckpointResult(
+            scenario,
+            "post-id-available",
+            recoveredSnapshot.part.resultPayload !== undefined
+              && typeof recoveredSnapshot.part.resultPayload === "object"
+              && recoveredSnapshot.part.resultPayload !== null
+              && "id" in recoveredSnapshot.part.resultPayload
+              && recoveredSnapshot.part.resultPayload.id === draftPost.id,
+            draftPost.id,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: `Recovered terminal job ${succeededJob.id} after missed SSE delivery.`,
+            recoveredJobId: succeededJob.id,
+            postId: draftPost.id,
+          },
+        });
+        finalRecommendation = `Recovered terminal job ${succeededJob.id} after missed SSE delivery.`;
         break;
       }
       case "misclassification-reroute": {

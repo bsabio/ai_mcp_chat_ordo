@@ -4,6 +4,10 @@ import type { PasswordHasher } from "./PasswordHasher";
 import type { SessionRepository } from "./SessionRepository";
 import type { UserRepository } from "./UserRepository";
 
+export interface SignupEventRecorder {
+  recordSignup(user: User): Promise<void>;
+}
+
 export interface RegisterRequest {
   email: string;
   password: string;
@@ -22,6 +26,7 @@ export class RegisterUserInteractor
     private userRepo: UserRepository,
     private hasher: PasswordHasher,
     private sessionRepo: SessionRepository,
+    private signupEventRecorder?: SignupEventRecorder,
   ) {}
 
   async execute(req: RegisterRequest): Promise<AuthResult> {
@@ -76,6 +81,9 @@ export class RegisterUserInteractor
       createdAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
     });
+
+    // Emit signup event for downstream consumers (Sprint 6 notifications)
+    await this.signupEventRecorder?.recordSignup(user);
 
     return { user, sessionToken };
   }

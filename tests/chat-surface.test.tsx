@@ -112,6 +112,16 @@ describe("ChatSurface", () => {
     ).toBeInTheDocument();
   });
 
+  it("P4b: mode='floating' quiets the launcher on journal routes", () => {
+    usePathnameMock.mockReturnValue("/blog");
+    render(<ChatSurface mode="floating" />);
+
+    expect(screen.getByLabelText("Open Studio Ordo chat")).toHaveAttribute(
+      "data-chat-route-tone",
+      "quiet",
+    );
+  });
+
   it("P5: mode='floating' opens on launcher click", () => {
     usePathnameMock.mockReturnValue("/library");
     const { container } = render(<ChatSurface mode="floating" />);
@@ -169,6 +179,20 @@ describe("ChatSurface", () => {
       window.dispatchEvent(new Event("studio-ordo:open-chat"));
     });
     expect(screen.getByLabelText("Minimize Chat")).toBeInTheDocument();
+  });
+
+  it("P10b: mode='floating' keeps the quiet tone when a journal route opens the panel", () => {
+    usePathnameMock.mockReturnValue("/blog/systems-essay");
+    const { container } = render(<ChatSurface mode="floating" />);
+
+    act(() => {
+      window.dispatchEvent(new Event("studio-ordo:open-chat"));
+    });
+
+    expect(container.querySelector('[data-chat-floating-shell="true"]')).toHaveAttribute(
+      "data-chat-route-tone",
+      "quiet",
+    );
   });
 
   it("N1: mode='floating' returns null on homepage", () => {

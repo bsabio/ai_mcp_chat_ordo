@@ -1,11 +1,9 @@
-import React from "react";
-
 import type { PresentedMessage } from "@/adapters/ChatPresenter";
+import type { ActionLinkType } from "@/core/entities/rich-content";
 import { useChatScroll } from "@/hooks/useChatScroll";
 import { useMessageScrollBoundaryLock } from "@/hooks/useMessageScrollBoundaryLock";
 
 import { MessageList } from "./MessageList";
-import type { ActionLinkType } from "@/core/entities/rich-content";
 
 interface ChatMessageViewportProps {
   dynamicSuggestions: string[];
@@ -40,7 +38,6 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
 }) => {
   const { scrollRef, isAtBottom, scrollToBottom, handleScroll } =
     useChatScroll(scrollDependency);
-
   useMessageScrollBoundaryLock(scrollRef, isEmbedded);
 
   return (
@@ -48,13 +45,13 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden"
       data-chat-message-region="true"
     >
-      <div className={`pointer-events-none absolute inset-x-0 top-0 ${isHeroState ? "h-24 opacity-45" : "h-32 opacity-70"} bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--highlight-base)_28%,transparent),transparent_72%)]`} aria-hidden="true" />
-
+      <div className={`ui-chat-viewport-glow pointer-events-none absolute inset-x-0 top-0 ${isHeroState ? "h-24 opacity-45" : "h-32 opacity-70"}`} aria-hidden="true" />
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`z-10 flex flex-col h-full flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-2 sm:px-6 sm:py-3 ${isEmbedded ? "pt-1 pb-1 sm:pb-2" : ""}`}
+        className="ui-chat-transcript-plane ui-chat-transcript-frame z-10 flex h-full min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
         data-chat-message-viewport="true"
+        data-chat-transcript-mode={isEmbedded ? "embedded" : "floating"}
         data-chat-transcript-plane={!isEmbedded ? "true" : undefined}
       >
         {isLoadingMessages ? (
@@ -84,16 +81,16 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
 
       {!isAtBottom && (
         <div
-          className="absolute left-0 right-0 z-10 flex justify-center px-3 pointer-events-none"
+          className="ui-chat-scroll-cta-dock absolute left-0 right-0 z-10 flex justify-center pointer-events-none"
           style={{
             bottom: isEmbedded
               ? "calc(var(--chat-scroll-cta-offset) + var(--safe-area-inset-bottom))"
-              : "max(1rem, var(--safe-area-inset-bottom))",
+              : "max(var(--space-4), var(--safe-area-inset-bottom))",
           }}
         >
           <button
             onClick={() => scrollToBottom()}
-            className="pointer-events-auto focus-ring min-h-11 rounded-full bg-[color-mix(in_oklab,var(--accent)_92%,var(--foreground))] px-4 py-2 text-[11px] font-bold text-accent-foreground shadow-[0_20px_34px_-22px_color-mix(in_srgb,var(--shadow-base)_42%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_22px_38px_-22px_color-mix(in_srgb,var(--shadow-base)_46%,transparent)]"
+            className="ui-chat-scroll-cta pointer-events-auto focus-ring min-h-11 rounded-full px-(--space-4) py-(--space-2) text-[11px] font-bold transition-all hover:scale-[1.03] hover:shadow-[0_22px_38px_-22px_color-mix(in_srgb,var(--shadow-base)_46%,transparent)]"
             aria-label="Scroll to bottom"
           >
             ↓ Scroll to bottom

@@ -3,5 +3,82 @@ export type StreamEvent =
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; result: unknown }
   | { type: "conversation_id"; id: string }
+  | {
+      type: "job_queued";
+      messageId?: string;
+      jobId: string;
+      conversationId: string;
+      sequence: number;
+      toolName: string;
+      label: string;
+      title?: string;
+      subtitle?: string;
+      updatedAt?: string;
+    }
+  | {
+      type: "job_started";
+      messageId?: string;
+      jobId: string;
+      conversationId: string;
+      sequence: number;
+      toolName: string;
+      label: string;
+      title?: string;
+      subtitle?: string;
+      updatedAt?: string;
+    }
+  | {
+      type: "job_progress";
+      messageId?: string;
+      jobId: string;
+      conversationId: string;
+      sequence: number;
+      toolName: string;
+      label: string;
+      title?: string;
+      subtitle?: string;
+      progressPercent?: number | null;
+      progressLabel?: string | null;
+      updatedAt?: string;
+    }
+  | {
+      type: "job_completed";
+      messageId?: string;
+      jobId: string;
+      conversationId: string;
+      sequence: number;
+      toolName: string;
+      label: string;
+      title?: string;
+      subtitle?: string;
+      summary?: string;
+      resultPayload?: unknown;
+      updatedAt?: string;
+    }
+  | {
+      type: "job_failed";
+      messageId?: string;
+      jobId: string;
+      conversationId: string;
+      sequence: number;
+      toolName: string;
+      label: string;
+      title?: string;
+      subtitle?: string;
+      error: string;
+      updatedAt?: string;
+    }
+  | {
+      type: "job_canceled";
+      messageId?: string;
+      jobId: string;
+      conversationId: string;
+      sequence: number;
+      toolName: string;
+      label: string;
+      title?: string;
+      subtitle?: string;
+      updatedAt?: string;
+    }
   | { type: "error"; message: string }
   | { type: "done" };

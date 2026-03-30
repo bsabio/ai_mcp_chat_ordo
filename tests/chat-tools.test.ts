@@ -1,47 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { createToolResults } from "@/lib/chat/tools";
+import { getToolsForRole } from "@/lib/chat/tools";
+import { getToolComposition } from "@/lib/chat/tool-composition-root";
 
 describe("chat tools", () => {
-  it("builds successful tool result payload", async () => {
-    const results = await createToolResults([
-      {
-        type: "tool_use",
-        id: "tool_1",
-        name: "calculator",
-        input: { operation: "add", a: 2, b: 3 },
-      },
-    ] as never);
-
-    expect(results[0].type).toBe("tool_result");
-    expect(results[0].tool_use_id).toBe("tool_1");
-    expect(results[0].content).toContain('"result":5');
+  it("executor returns correct result for calculator add", async () => {
+    const { executor } = getToolComposition();
+    const result = await executor(
+      "calculator",
+      { operation: "add", a: 2, b: 3 },
+      { role: "ANONYMOUS", userId: "test" },
+    );
+    expect(JSON.stringify(result)).toContain('"result":5');
   });
 
-  it("builds error tool result payload for bad input", async () => {
-    const results = await createToolResults([
-      {
-        type: "tool_use",
-        id: "tool_2",
-        name: "calculator",
-        input: { operation: "pow", a: 2, b: 3 },
-      },
-    ] as never);
-
-    expect(results[0].type).toBe("tool_result");
-    expect(results[0].is_error).toBe(true);
+  it("executor rejects invalid calculator operation", async () => {
+    const { executor } = getToolComposition();
+    await expect(
+      executor("calculator", { operation: "pow", a: 2, b: 3 }, { role: "ANONYMOUS", userId: "test" }),
+    ).rejects.toThrow();
   });
 
-  it("builds error for unknown tool", async () => {
-    const results = await createToolResults([
-      {
-        type: "tool_use",
-        id: "tool_3",
-        name: "unknown_tool",
-        input: {},
-      },
-    ] as never);
+  it("executor rejects unknown tool", async () => {
+    const { executor } = getToolComposition();
+    await expect(
+      executor("unknown_tool", {}, { role: "ANONYMOUS", userId: "test" }),
+    ).rejects.toThrow();
+  });
 
-    expect(results[0].is_error).toBe(true);
-    expect(results[0].content).toContain("Unknown tool");
+  it("exposes member-safe job status tools for signed-in roles only", () => {
+    const authenticated = getToolsForRole("AUTHENTICATED").map((tool) => tool.name);
+    const anonymous = getToolsForRole("ANONYMOUS").map((tool) => tool.name);
+
+    expect(authenticated).toContain("list_my_jobs");
+    expect(authenticated).toContain("get_my_job_status");
+    expect(anonymous).not.toContain("list_my_jobs");
+    expect(anonymous).not.toContain("get_my_job_status");
   });
 });

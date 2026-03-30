@@ -10,7 +10,8 @@ export type OperatorSignalId =
 	| "training_path_queue"
 	| "recurring_pain_themes"
 	| "funnel_recommendations"
-	| "system_health";
+	| "system_health"
+	| "overdue_follow_ups";
 
 export interface OperatorSignalPayload<TData> {
 	blockId: OperatorSignalId;

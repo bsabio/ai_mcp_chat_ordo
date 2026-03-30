@@ -1,4 +1,6 @@
 import type { UseCase } from "../common/UseCase";
+import { canAccessAudience, type ContentAudience } from "@/lib/access/content-access";
+import type { RoleName } from "../entities/user";
 import type { CorpusRepository } from "./CorpusRepository";
 
 export interface CorpusIndexEntry {
@@ -19,16 +21,22 @@ export interface CorpusIndexEntry {
   chapterTitle: string;
   practitioners: string[];
   checklistItems: string[];
+  audience: ContentAudience;
 }
 
-export class CorpusIndexInteractor implements UseCase<void, CorpusIndexEntry[]> {
+export class CorpusIndexInteractor implements UseCase<{ role?: RoleName } | undefined, CorpusIndexEntry[]> {
   constructor(private corpusRepository: CorpusRepository) {}
 
-  async execute(): Promise<CorpusIndexEntry[]> {
+  async execute(request?: { role?: RoleName }): Promise<CorpusIndexEntry[]> {
     const documents = await this.corpusRepository.getAllDocuments();
     const sections = await this.corpusRepository.getAllSections();
+    const role = request?.role;
 
-    return sections.map((section) => {
+    return sections.flatMap((section) => {
+      if (role && !canAccessAudience(section.audience, role)) {
+        return [];
+      }
+
       const document = documents.find((candidate) => candidate.slug === section.documentSlug);
       const documentId = document?.number || "";
       const documentTitle = document?.title || "";
@@ -52,6 +60,7 @@ export class CorpusIndexInteractor implements UseCase<void, CorpusIndexEntry[]> 
         chapterTitle: section.title,
         practitioners: section.contributors,
         checklistItems: section.supplements,
+        audience: section.audience,
       };
     });
   }

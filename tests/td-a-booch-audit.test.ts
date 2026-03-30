@@ -179,7 +179,7 @@ describe("TD-A — edge tests", () => {
 
     // Extract all block IDs from the canonical type
     const typeMembers = [...types.matchAll(/^\s*\|\s+"(\w+)"/gm)].map((m) => m[1]);
-    expect(typeMembers).toHaveLength(12);
+    expect(typeMembers).toHaveLength(13);
 
     // Ensure the set in handoff references all of them
     for (const member of typeMembers) {

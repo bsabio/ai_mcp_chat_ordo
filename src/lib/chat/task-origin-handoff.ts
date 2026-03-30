@@ -20,6 +20,7 @@ const OPERATOR_SIGNAL_ID_SET = new Set<OperatorSignalId>([
   "recurring_pain_themes",
   "funnel_recommendations",
   "system_health",
+  "overdue_follow_ups",
 ]);
 
 const HANDOFF_CONTEXT_PREFIXES: Record<OperatorSignalId, readonly string[]> = {
@@ -35,6 +36,7 @@ const HANDOFF_CONTEXT_PREFIXES: Record<OperatorSignalId, readonly string[]> = {
   recurring_pain_themes: ["recurring-pain-themes:"],
   funnel_recommendations: ["funnel-recommendations:"],
   system_health: ["system-health:"],
+  overdue_follow_ups: ["overdue-follow-ups:"],
 };
 
 function isOperatorSignalId(value: string): value is OperatorSignalId {

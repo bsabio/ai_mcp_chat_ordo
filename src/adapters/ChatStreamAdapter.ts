@@ -5,12 +5,18 @@ import type {
   FetchChatStreamOptions,
 } from "../core/use-cases/ChatStreamProvider";
 import { 
+  ConversationIdParser,
   EventParser, 
   ErrorParser,
+  JobCanceledParser,
+  JobCompletedParser,
+  JobFailedParser,
+  JobProgressParser,
+  JobQueuedParser,
+  JobStartedParser,
   TextDeltaParser, 
   ToolCallParser, 
-  ToolResultParser,
-  ConversationIdParser 
+  ToolResultParser 
 } from "./chat/EventParserStrategy";
 
 export class ChatStreamAdapter implements ChatStreamProvider {
@@ -19,6 +25,12 @@ export class ChatStreamAdapter implements ChatStreamProvider {
     new ToolCallParser(),
     new ToolResultParser(),
     new ConversationIdParser(),
+    new JobQueuedParser(),
+    new JobStartedParser(),
+    new JobProgressParser(),
+    new JobCompletedParser(),
+    new JobCanceledParser(),
+    new JobFailedParser(),
     new ErrorParser()
   ]);
 

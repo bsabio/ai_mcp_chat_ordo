@@ -8,6 +8,14 @@ export type AnthropicToolSchema = {
   input_schema: Record<string, unknown>;
 };
 
+export type ToolExecutionMode = "inline" | "deferred";
+
+export interface DeferredExecutionConfig {
+  dedupeStrategy?: "none" | "per-conversation-payload";
+  retryable?: boolean;
+  notificationPolicy?: "none" | "completion-and-failure" | "all-terminal";
+}
+
 export interface ToolDescriptor<TInput = unknown, TOutput = unknown> {
   /** Unique tool name — must match the Anthropic tool name exactly */
   name: string;
@@ -19,4 +27,8 @@ export interface ToolDescriptor<TInput = unknown, TOutput = unknown> {
   roles: RoleName[] | "ALL";
   /** Organizational category */
   category: ToolCategory;
+  /** Whether the tool runs inline with the request or through deferred job orchestration. */
+  executionMode?: ToolExecutionMode;
+  /** Deferred execution policy metadata for queue-backed tools. */
+  deferred?: DeferredExecutionConfig;
 }

@@ -30,6 +30,9 @@ function createMockRepo(
         title: seed.title,
         description: seed.description,
         content: seed.content,
+        standfirst: seed.standfirst ?? null,
+        section: seed.section ?? null,
+        heroImageAssetId: null,
         status: "draft" as const,
         publishedAt: null,
         createdAt: new Date().toISOString(),
@@ -41,6 +44,11 @@ function createMockRepo(
     findById: vi.fn().mockResolvedValue(null),
     findBySlug: vi.fn().mockResolvedValue(null),
     listPublished: vi.fn().mockResolvedValue([]),
+    listForAdmin: vi.fn().mockResolvedValue([]),
+    countForAdmin: vi.fn().mockResolvedValue(0),
+    updateDraftContent: vi.fn(),
+    updateEditorialMetadata: vi.fn(),
+    transitionWorkflow: vi.fn(),
     publishById: vi.fn().mockImplementation((id, userId) =>
       Promise.resolve({
         id,
@@ -48,6 +56,9 @@ function createMockRepo(
         title: "Test Post",
         description: "Test",
         content: "Content",
+        standfirst: null,
+        section: null,
+        heroImageAssetId: null,
         status: "published" as const,
         publishedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -56,6 +67,7 @@ function createMockRepo(
         publishedByUserId: userId,
       }),
     ),
+    setHeroImageAsset: vi.fn(),
     ...overrides,
   };
 }
@@ -174,6 +186,12 @@ describe("draft_content tool", () => {
     expect(tool.roles).toEqual(["ADMIN"]);
     expect(tool.category).toBe("content");
     expect(tool.name).toBe("draft_content");
+    expect(tool.executionMode).toBe("deferred");
+    expect(tool.deferred).toMatchObject({
+      dedupeStrategy: "per-conversation-payload",
+      retryable: true,
+      notificationPolicy: "completion-and-failure",
+    });
   });
 });
 
@@ -226,6 +244,9 @@ function createTestDb(): Database.Database {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL,
+      standfirst TEXT DEFAULT NULL,
+      section TEXT DEFAULT NULL,
+      hero_image_asset_id TEXT,
       status TEXT NOT NULL DEFAULT 'draft',
       published_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -261,6 +282,8 @@ describe("BlogPostDataMapper", () => {
     expect(post.status).toBe("draft");
     expect(post.slug).toBe("hello-world");
     expect(post.title).toBe("Hello World");
+    expect(post.standfirst).toBeNull();
+    expect(post.section).toBeNull();
 
     const found = await mapper.findById(post.id);
     expect(found).toMatchObject({ id: post.id, slug: "hello-world" });
@@ -305,6 +328,46 @@ describe("BlogPostDataMapper", () => {
     const notFound = await mapper.findBySlug("nonexistent");
     expect(notFound).toBeNull();
   });
+
+  it("P7b: persists explicit section and standfirst metadata", async () => {
+    const post = await mapper.create({
+      slug: "essay-post",
+      title: "Essay Post",
+      description: "A post",
+      content: "## Heading\n\nBody.",
+      standfirst: "A clear editorial opener.",
+      section: "essay",
+      createdByUserId: "usr_admin",
+    });
+
+    expect(post.standfirst).toBe("A clear editorial opener.");
+    expect(post.section).toBe("essay");
+  });
+
+  it("P7c: countForAdmin respects search, section, and status filters", async () => {
+    await mapper.create({
+      slug: "essay-draft",
+      title: "Essay Draft",
+      description: "Essay draft",
+      content: "## Essay\n\nDraft content.",
+      section: "essay",
+      createdByUserId: "usr_admin",
+    });
+    const reviewPost = await mapper.create({
+      slug: "briefing-review",
+      title: "Briefing Review",
+      description: "Briefing review",
+      content: "## Briefing\n\nReview content.",
+      section: "briefing",
+      createdByUserId: "usr_admin",
+    });
+    await mapper.transitionWorkflow(reviewPost.id, "review", "usr_admin");
+
+    await expect(mapper.countForAdmin()).resolves.toBe(2);
+    await expect(mapper.countForAdmin({ section: "essay" })).resolves.toBe(1);
+    await expect(mapper.countForAdmin({ status: "review" })).resolves.toBe(1);
+    await expect(mapper.countForAdmin({ search: "briefing" })).resolves.toBe(1);
+  });
 });
 
 // ── §6.3 Sitemap tests (P8–P9, N7) ──────────────────────────────────
@@ -332,6 +395,7 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
         title: "First Post",
         description: "The first post",
         content: "Content",
+        heroImageAssetId: null,
         status: "published",
         publishedAt: "2025-01-15T00:00:00.000Z",
         createdAt: "2025-01-15T00:00:00.000Z",
@@ -345,20 +409,21 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
 
 import sitemap from "@/app/sitemap";
 
+// Sitemap now emits /journal paths after blog→journal route migration
 describe("sitemap blog entries", () => {
-  it("P8: includes /blog index entry", async () => {
+  it("P8: includes /journal index entry", async () => {
     const entries = await sitemap();
-    const blogIndex = entries.find(
-      (e) => e.url === "https://studioordo.com/blog",
+    const journalIndex = entries.find(
+      (e) => e.url === "https://studioordo.com/journal",
     );
-    expect(blogIndex).toBeDefined();
-    expect(blogIndex?.priority).toBe(0.7);
+    expect(journalIndex).toBeDefined();
+    expect(journalIndex?.priority).toBe(0.7);
   });
 
-  it("P9: includes published blog post entries", async () => {
+  it("P9: includes published journal post entries", async () => {
     const entries = await sitemap();
     const postEntry = entries.find(
-      (e) => e.url === "https://studioordo.com/blog/first-post",
+      (e) => e.url === "https://studioordo.com/journal/first-post",
     );
     expect(postEntry).toBeDefined();
     expect(postEntry?.priority).toBe(0.5);
@@ -366,9 +431,10 @@ describe("sitemap blog entries", () => {
 
   it("N7: excludes draft posts (only published posts are returned by listPublished)", async () => {
     const entries = await sitemap();
-    const blogPosts = entries.filter((e) => e.url.match(/\/blog\/[^/]+$/));
-    expect(blogPosts).toHaveLength(1);
-    expect(blogPosts[0].url).toContain("first-post");
+    // Posts now live under /journal/ after migration
+    const journalPosts = entries.filter((e) => e.url.match(/\/journal\/[^/]+$/));
+    expect(journalPosts).toHaveLength(1);
+    expect(journalPosts[0].url).toContain("first-post");
   });
 });
 
@@ -389,24 +455,27 @@ describe("slug generation", () => {
   });
 });
 
+// /blog pages are now redirect stubs; canonical content lives at /journal
+// Source analysis checks the journal pages which contain the actual rendering
 describe("blog page source analysis", () => {
-  it("E3: blog index page exports generateMetadata", () => {
-    const src = readSource("src/app/blog/page.tsx");
+  it("E3: journal index page exports generateMetadata", () => {
+    const src = readSource("src/app/journal/page.tsx");
     expect(src).toContain("generateMetadata");
   });
 
-  it("E4: blog post page exports generateMetadata", () => {
-    const src = readSource("src/app/blog/[slug]/page.tsx");
+  it("E4: journal post page exports generateMetadata", () => {
+    const src = readSource("src/app/journal/[slug]/page.tsx");
     expect(src).toContain("generateMetadata");
   });
 
-  it("E5: blog post page calls notFound for missing posts", () => {
+  it("E5: blog post redirect page calls notFound for missing posts", () => {
     const src = readSource("src/app/blog/[slug]/page.tsx");
     expect(src).toContain("notFound");
   });
 
-  it("E5b: blog post page uses library markdown rendering", () => {
-    const src = readSource("src/app/blog/[slug]/page.tsx");
+  it("E5b: journal post page uses library markdown rendering", () => {
+    // Rendering moved to the shared PublicJournalPages component re-exported by journal route
+    const src = readSource("src/components/journal/PublicJournalPages.tsx");
     expect(src).toContain("MarkdownProse");
     expect(src).toContain("normalizeBlogMarkdown");
   });
@@ -416,7 +485,7 @@ describe("blog page source analysis", () => {
     expect(src).toContain("MarkdownProse");
   });
 
-  it("E6: blog pages have no auth imports", () => {
+  it("E6: blog redirect pages have no auth imports", () => {
     const indexSrc = readSource("src/app/blog/page.tsx");
     const postSrc = readSource("src/app/blog/[slug]/page.tsx");
     for (const src of [indexSrc, postSrc]) {

@@ -35,7 +35,7 @@ describe("/api/profile", () => {
 
   it("returns the current profile for authenticated users", async () => {
     getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_1" }));
-    getProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan", email: "morgan@example.com", credential: "AI practitioner", affiliateEnabled: true, referralCode: "mentor-42", referralUrl: "https://studioordo.com/?ref=mentor-42", qrCodeUrl: "/api/qr/mentor-42", roles: ["AUTHENTICATED"] });
+    getProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan", email: "morgan@example.com", credential: "AI practitioner", pushNotificationsEnabled: true, affiliateEnabled: true, referralCode: "mentor-42", referralUrl: "https://studioordo.com/?ref=mentor-42", qrCodeUrl: "/api/qr/mentor-42", roles: ["AUTHENTICATED"] });
 
     const response = await GET();
     const payload = await response.json();
@@ -47,7 +47,7 @@ describe("/api/profile", () => {
 
   it("updates the profile for authenticated users", async () => {
     getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_1" }));
-    updateProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan Lee", email: "morgan@example.com", credential: "AI strategist", affiliateEnabled: false, referralCode: null, referralUrl: null, qrCodeUrl: null, roles: ["AUTHENTICATED"] });
+    updateProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan Lee", email: "morgan@example.com", credential: "AI strategist", pushNotificationsEnabled: true, affiliateEnabled: false, referralCode: null, referralUrl: null, qrCodeUrl: null, roles: ["AUTHENTICATED"] });
 
     const response = await PATCH(
       createRouteRequest("/api/profile", "PATCH", {

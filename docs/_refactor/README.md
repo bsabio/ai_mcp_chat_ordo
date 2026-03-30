@@ -29,11 +29,13 @@ For the full workflow around specs, sprints, QA, and LLM guardrails, read:
 
 | Refactor | Status | Sprints | Scope |
 | --- | --- | --- | --- |
+| [Style System Authority And Globals Partitioning](style-system-authority-and-globals-partitioning/) | Planned | 4 | Add CSS guardrails, reduce style-authority drift, and split `src/app/globals.css` by concern without UI regressions |
 | [System Integrity Remediation Program](system-integrity-remediation-program/) | Planned | 4 | Coordinate all confirmed audit findings across auth, anonymous persistence, migration integrity, and summary safety |
 | [Session Identity Boundary Hardening](session-identity-boundary-hardening/) | Planned | 3 | Remove mock-cookie auth fallback, constrain role simulation to real sessions, and clean up invalid session state |
 | [Anonymous Conversation Consistency](anonymous-conversation-consistency/) | Planned | 3 | Align middleware, routes, and client restore flow for anonymous conversation persistence |
 | [Conversation Search Migration Integrity](conversation-search-migration-integrity/) | Planned | 3 | Preserve conversation-search index correctness across anonymous-to-authenticated migration |
 | [Summary Context Hardening](summary-context-hardening/) | Planned | 3 | Convert summary replay into server-owned context and add regression coverage |
+| [Visual Theme Runtime And Semantic Surface Architecture](visual-theme-runtime-and-semantic-surface-architecture/) | Planned | 4 | Unify runtime theme authority, extract semantic surface primitives, and make MCP-driven UI customization safer, drier, and more performant |
 
 ## Why A Separate Refactor Area
 
@@ -45,16 +47,25 @@ providing implementation-grade sprint documents.
 ## Dependency Order
 
 1. System Integrity Remediation Program
-2. Anonymous Conversation Consistency
-3. Session Identity Boundary Hardening
-4. Conversation Search Migration Integrity
-5. Summary Context Hardening
+2. Style System Authority And Globals Partitioning
+3. Anonymous Conversation Consistency
+4. Session Identity Boundary Hardening
+5. Conversation Search Migration Integrity
+6. Summary Context Hardening
+7. Visual Theme Runtime And Semantic Surface Architecture
 
 The umbrella program defines rollout order, verification gates, and ownership
-across the issue-specific workstreams. The next three are user-facing
-correctness and auth-integrity issues. The summary work is a reliability and
-prompt-boundary hardening pass that should land after identity and ownership
-rules are stable.
+across the issue-specific workstreams. The style-system workstream is a UI and
+maintainability hardening pass that introduces CSS guardrails and reduces
+single-file drift without adding product behavior. The next three are
+user-facing correctness and auth-integrity issues. The summary work is a
+reliability and prompt-boundary hardening pass that should land after identity
+and ownership rules are stable.
+
+The visual-theme runtime workstream is the follow-on design-system control pass.
+It assumes CSS ownership has already been partitioned and focuses on unifying
+theme truth, removing repeated component-level visual composition, and making
+runtime theme control a governed API for both the app and MCP tooling.
 
 ## Teaching Value
 

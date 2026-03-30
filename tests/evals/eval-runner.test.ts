@@ -104,4 +104,93 @@ describe("eval deterministic runner", () => {
       ]),
     );
   });
+
+  it("surfaces an active deferred blog job through status tools without creating a rerun", async () => {
+    const execution = await runDeterministicEvalScenario("blog-job-status-continuity-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "active-job-visible", passed: true }),
+        expect.objectContaining({ id: "status-read-no-rerun", passed: true }),
+        expect.objectContaining({ id: "progress-preserved", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.toolCalls).toEqual(
+      expect.arrayContaining(["list_deferred_jobs", "get_deferred_job_status"]),
+    );
+  });
+
+  it("covers the explicit job-id status-check conversation shape without creating a rerun", async () => {
+    const execution = await runDeterministicEvalScenario("blog-explicit-status-check-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "conversation-shape-preserved", passed: true }),
+        expect.objectContaining({ id: "explicit-status-explained", passed: true }),
+        expect.objectContaining({ id: "status-read-no-rerun", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.toolCalls).toEqual(
+      expect.arrayContaining(["list_deferred_jobs", "get_deferred_job_status"]),
+    );
+    expect(execution.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "message",
+          data: expect.objectContaining({ content: "Produce a blog post on my capabilities" }),
+        }),
+        expect.objectContaining({
+          kind: "message",
+          data: expect.objectContaining({ content: expect.stringContaining("Check the status of job job_") }),
+        }),
+        expect.objectContaining({
+          kind: "message",
+          data: expect.objectContaining({ content: expect.stringContaining("is still running") }),
+        }),
+      ]),
+    );
+  });
+
+  it("records dedupe copy that clearly states reuse of the existing blog job", async () => {
+    const execution = await runDeterministicEvalScenario("blog-job-dedupe-clarity-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "dedupe-detected", passed: true }),
+        expect.objectContaining({ id: "reuse-copy-clear", passed: true }),
+        expect.objectContaining({ id: "single-job-preserved", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.recommendation).toContain("Using existing Produce Blog Article job");
+  });
+
+  it("preserves the produced draft id and exposes a correct publish handoff", async () => {
+    const execution = await runDeterministicEvalScenario("blog-produce-publish-handoff-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "post-id-preserved", passed: true }),
+        expect.objectContaining({ id: "publish-action-visible", passed: true }),
+        expect.objectContaining({ id: "publish-command-correct", passed: true }),
+      ]),
+    );
+    expect(execution.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "tool_call", data: expect.objectContaining({ toolId: "publish_content" }) }),
+      ]),
+    );
+  });
+
+  it("recovers a completed blog job from the snapshot path after missed SSE delivery", async () => {
+    const execution = await runDeterministicEvalScenario("blog-missed-sse-recovery-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "terminal-job-recovered", passed: true }),
+        expect.objectContaining({ id: "summary-preserved", passed: true }),
+        expect.objectContaining({ id: "post-id-available", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.recommendation).toContain("Recovered terminal job");
+  });
 });

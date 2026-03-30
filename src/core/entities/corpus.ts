@@ -1,8 +1,11 @@
+import type { ContentAudience } from "@/lib/access/content-access";
+
 export interface Document {
   slug: string;
   title: string;
   id?: string;
   number: string;
+  audience: ContentAudience;
 }
 
 export class Section {
@@ -14,6 +17,7 @@ export class Section {
     public readonly contributors: string[],
     public readonly supplements: string[],
     public readonly headings: string[],
+    public readonly audience: ContentAudience = "public",
   ) {}
 
   get bookSlug(): string {

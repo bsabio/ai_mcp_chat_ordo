@@ -31,4 +31,12 @@ describe("CommandParserService", () => {
     expect(parser.parse("Normal text")).toHaveLength(0);
     expect(parser.parse("__ui_command__:invalid:val")).toHaveLength(0);
   });
+
+  it("should not treat adjust_ui as part of the legacy text-command parser contract", () => {
+    expect(parser.parse("__ui_command__:adjust_ui:compact")).toHaveLength(0);
+  });
+
+  it("should ignore unsupported legacy theme commands", () => {
+    expect(parser.parse("__ui_command__:set_theme:postmodern")).toHaveLength(0);
+  });
 });

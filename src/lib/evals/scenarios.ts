@@ -310,6 +310,255 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     ],
     scoreDimensions: ["tool_selection", "tool_correctness", "customer_clarity", "funnel_completion"],
   },
+  {
+    id: "member-job-status-summary-deterministic",
+    name: "Member job status summary deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["signed-in member conversation", "running deferred job", "member-safe job status tool surface"],
+    expectedCheckpoints: [
+      { id: "active-job-visible", label: "the signed-in member can see their active job through the member-safe read surface", required: true },
+      { id: "prose-summary-default", label: "the default answer summarizes the active job in plain language instead of a list", required: true },
+      { id: "status-read-no-rerun", label: "status inspection does not create a duplicate job", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_my_jobs"],
+        rationale: "A signed-in member asking what jobs are happening should use the user-scoped job summary surface.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "member-explicit-job-status-deterministic",
+    name: "Member explicit job status deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["signed-in member conversation", "known deferred job id", "member-safe single-job status tool"],
+    expectedCheckpoints: [
+      { id: "explicit-status-explained", label: "the explicit job-id answer explains the current state in plain language", required: true },
+      { id: "status-read-no-rerun", label: "the explicit job-id status read does not create a duplicate job", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["get_my_job_status"],
+        rationale: "A signed-in member asking what a specific job is doing should use the user-scoped single-job status surface.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "member-all-jobs-list-deterministic",
+    name: "Member all jobs list deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["signed-in member conversation", "active and terminal jobs", "member-safe list contract"],
+    expectedCheckpoints: [
+      { id: "explicit-list-rendered", label: "an explicit all-jobs request returns a concise list instead of prose-only narration", required: true },
+      { id: "terminal-jobs-included", label: "the explicit list includes recent terminal jobs", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_my_jobs"],
+        rationale: "An explicit all-jobs request should use the signed-in member list surface with terminal jobs included.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "anonymous-job-status-guidance-deterministic",
+    name: "Anonymous job status guidance deterministic",
+    cohortId: "anonymous-learner",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["anonymous chat thread", "job status question"],
+    expectedCheckpoints: [
+      { id: "chat-native-guidance", label: "anonymous status guidance stays chat-native and sign-in-aware", required: true },
+      { id: "no-jobs-route-push", label: "the anonymous reply does not push the user to /jobs", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "avoid",
+        toolIds: ["list_my_jobs", "get_my_job_status"],
+        rationale: "Anonymous users should not be routed through signed-in job surfaces for status questions.",
+      },
+    ],
+    scoreDimensions: ["customer_clarity", "safety"],
+  },
+  {
+    id: "blog-job-status-continuity-deterministic",
+    name: "Blog job status continuity deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["admin conversation", "queued deferred blog job", "status read surface"],
+    expectedCheckpoints: [
+      { id: "active-job-visible", label: "the active deferred blog job is visible through the read surface", required: true },
+      { id: "status-read-no-rerun", label: "status inspection does not create a duplicate production job", required: true },
+      { id: "progress-preserved", label: "the current progress label survives the status read", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_deferred_jobs", "get_deferred_job_status"],
+        rationale: "Deferred blog status should be handled through explicit read tools rather than a fresh production run.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "blog-explicit-status-check-deterministic",
+    name: "Blog explicit status check deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["admin conversation", "queued deferred blog job", "explicit job-id status follow-up"],
+    expectedCheckpoints: [
+      { id: "conversation-shape-preserved", label: "the produce request, queue follow-up, and explicit job-id follow-up are all preserved", required: true },
+      { id: "explicit-status-explained", label: "the explicit job-id status reply explains the current state in plain language", required: true },
+      { id: "status-read-no-rerun", label: "the explicit status check does not create a duplicate production job", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_deferred_jobs", "get_deferred_job_status"],
+        rationale: "An explicit follow-up asking for a job id status should inspect the existing deferred job instead of starting a new production run.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "blog-job-dedupe-clarity-deterministic",
+    name: "Blog job dedupe clarity deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["running deferred blog job", "deduped deferred response envelope"],
+    expectedCheckpoints: [
+      { id: "dedupe-detected", label: "the runtime detects the existing active blog job", required: true },
+      { id: "reuse-copy-clear", label: "the deduped status copy clearly states that the existing job is reused", required: true },
+      { id: "single-job-preserved", label: "dedupe does not create a second active production job", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_deferred_jobs", "get_deferred_job_status"],
+        rationale: "Deduped blog workflows should still route through explicit job inspection semantics.",
+      },
+    ],
+    scoreDimensions: ["continuity", "customer_clarity", "safety"],
+  },
+  {
+    id: "blog-produce-publish-handoff-deterministic",
+    name: "Blog produce to publish handoff deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["completed produce_blog_article job", "draft blog post", "chat presenter actions"],
+    expectedCheckpoints: [
+      { id: "post-id-preserved", label: "the completed production result preserves the draft post id", required: true },
+      { id: "publish-action-visible", label: "the chat surface exposes a publish-ready action for the produced draft", required: true },
+      { id: "publish-command-correct", label: "the publish action targets the preserved draft post id", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["publish_content"],
+        rationale: "Sprint 6 must hand operators from completed production directly into the publish tool when appropriate.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "blog-missed-sse-recovery-deterministic",
+    name: "Blog missed SSE recovery deterministic",
+    cohortId: "signed-in-buyer",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["completed deferred blog job", "terminal job snapshot", "reconciliation path"],
+    expectedCheckpoints: [
+      { id: "terminal-job-recovered", label: "a completed deferred blog job is recovered from the snapshot surface", required: true },
+      { id: "summary-preserved", label: "the terminal job summary survives recovery", required: true },
+      { id: "post-id-available", label: "the recovered terminal result still exposes the produced draft id", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_deferred_jobs", "get_deferred_job_status"],
+        rationale: "Recovery after missed SSE depends on snapshot reads rather than replaying a new job.",
+      },
+    ],
+    scoreDimensions: ["continuity", "recovery", "customer_clarity", "safety"],
+  },
+  {
+    id: "live-blog-job-status-and-publish-handoff",
+    name: "Live blog job status and publish handoff",
+    cohortId: "signed-in-buyer",
+    layer: "live_model",
+    targetEnvironment: "local",
+    requiredFixtures: ["admin blog conversation", "completed production job", "publishable draft post"],
+    expectedCheckpoints: [
+      { id: "job-inspected", label: "the model inspects the existing deferred blog job", required: true },
+      { id: "publish-triggered", label: "the model triggers publish for the produced draft when it is ready", required: true },
+      { id: "publish-complete", label: "the draft becomes published and the answer reflects that completion", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_deferred_jobs", "get_deferred_job_status", "publish_content"],
+        rationale: "The live model should inspect job state and publish the ready draft instead of re-running production.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "live-blog-job-reuse-instead-of-rerun",
+    name: "Live blog job reuse instead of rerun",
+    cohortId: "signed-in-buyer",
+    layer: "live_model",
+    targetEnvironment: "local",
+    requiredFixtures: ["admin blog conversation", "running production job", "status tool surface"],
+    expectedCheckpoints: [
+      { id: "existing-job-found", label: "the model identifies the already-running blog job", required: true },
+      { id: "rerun-avoided", label: "the model avoids triggering another production run", required: true },
+      { id: "active-status-explained", label: "the response explains that the existing job is still queued or running", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_deferred_jobs", "get_deferred_job_status"],
+        rationale: "The live model should check existing deferred work rather than calling produce_blog_article again.",
+      },
+    ],
+    scoreDimensions: ["continuity", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "live-blog-completion-recovery",
+    name: "Live blog completion recovery",
+    cohortId: "signed-in-buyer",
+    layer: "live_model",
+    targetEnvironment: "local",
+    requiredFixtures: ["admin blog conversation", "completed production job", "snapshot recovery path"],
+    expectedCheckpoints: [
+      { id: "terminal-job-recovered", label: "the model recovers the completed job through the status surface", required: true },
+      { id: "publish-readiness-explained", label: "the model explains that the produced draft is ready to publish", required: true },
+      { id: "completion-visible-without-rerun", label: "the response uses the recovered completion instead of a new production run", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["list_deferred_jobs", "get_deferred_job_status"],
+        rationale: "Completion recovery should come from snapshot reads after missed live updates.",
+      },
+    ],
+    scoreDimensions: ["continuity", "recovery", "customer_clarity", "safety"],
+  },
 ] as const;
 
 export function getEvalScenarioById(id: string): EvalScenario {
@@ -342,6 +591,18 @@ export function validateEvalCatalog(): string[] {
     "mcp-tool-avoidance",
     "mcp-calculator-must-use",
     "mcp-multi-tool-synthesis",
+    "member-job-status-summary-deterministic",
+    "member-explicit-job-status-deterministic",
+    "member-all-jobs-list-deterministic",
+    "anonymous-job-status-guidance-deterministic",
+    "blog-job-status-continuity-deterministic",
+    "blog-explicit-status-check-deterministic",
+    "blog-job-dedupe-clarity-deterministic",
+    "blog-produce-publish-handoff-deterministic",
+    "blog-missed-sse-recovery-deterministic",
+    "live-blog-job-status-and-publish-handoff",
+    "live-blog-job-reuse-instead-of-rerun",
+    "live-blog-completion-recovery",
   ];
 
   for (const scenarioId of requiredScenarioIds) {

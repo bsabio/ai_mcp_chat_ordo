@@ -6,44 +6,38 @@ import {
   supportsReducedMotion,
   supportsViewTransitions,
 } from "@/lib/ui/browserSupport";
+import {
+  DEFAULT_THEME_STATE,
+  THEME_STORAGE_KEYS,
+  applyThemeStateToDocument,
+  buildThemeState,
+  mergeThemeStateSnapshots,
+  normalizeAccessibilitySettings,
+  parseStoredAccessibilitySettings,
+  parseThemeStateFromPreferences,
+  themeStateToCookieAssignments,
+  themeStateToPreferenceEntries,
+} from "@/lib/theme/theme-state";
+import { getSupportedTheme } from "@/lib/theme/theme-manifest";
 
-export type { Theme } from "@/core/entities/theme";
-import type { Theme } from "@/core/entities/theme";
+export type {
+  AccessibilitySettings,
+  ColorBlindMode,
+  Density,
+  FontSize,
+  SpacingLevel,
+  Theme,
+  ThemeStateSnapshot,
+  UIPreset,
+} from "@/lib/theme/theme-state";
+import type {
+  AccessibilitySettings,
+  PartialThemeStateSnapshot,
+  Theme,
+  ThemeStateSnapshot,
+} from "@/lib/theme/theme-state";
 
-export type FontSize = "xs" | "sm" | "md" | "lg" | "xl";
-export type SpacingLevel = "tight" | "normal" | "relaxed";
-
-export type Density = "compact" | "normal" | "relaxed";
-
-export type ColorBlindMode = "none" | "deuteranopia" | "protanopia" | "tritanopia";
-
-export type UIPreset = "default" | "elderly" | "compact" | "high-contrast" | "color-blind-deuteranopia" | "color-blind-protanopia" | "color-blind-tritanopia";
-
-export interface AccessibilitySettings {
-  fontSize: FontSize;
-  lineHeight: SpacingLevel;
-  letterSpacing: SpacingLevel;
-  density: Density;
-  colorBlindMode: ColorBlindMode;
-}
-
-const ACCESSIBILITY_DEFAULTS: AccessibilitySettings = {
-  fontSize: "md",
-  lineHeight: "normal",
-  letterSpacing: "normal",
-  density: "normal",
-  colorBlindMode: "none",
-};
-
-export const UI_PRESETS: Record<UIPreset, Partial<AccessibilitySettings> & { dark?: boolean; theme?: Theme }> = {
-  default: { fontSize: "md", lineHeight: "normal", letterSpacing: "normal", density: "normal", colorBlindMode: "none" },
-  elderly: { fontSize: "xl", lineHeight: "relaxed", letterSpacing: "relaxed", density: "relaxed" },
-  compact: { fontSize: "xs", lineHeight: "tight", letterSpacing: "tight", density: "compact" },
-  "high-contrast": { dark: true, fontSize: "lg", lineHeight: "relaxed" },
-  "color-blind-deuteranopia": { colorBlindMode: "deuteranopia" },
-  "color-blind-protanopia": { colorBlindMode: "protanopia" },
-  "color-blind-tritanopia": { colorBlindMode: "tritanopia" },
-};
+export { UI_PRESETS } from "@/lib/theme/theme-state";
 
 interface ThemeContextType {
   theme: Theme;
@@ -56,70 +50,57 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const FONT_SIZE_MAP: Record<FontSize, string> = {
-  xs: "0.875rem",
-  sm: "0.9375rem",
-  md: "1rem",
-  lg: "1.125rem",
-  xl: "1.25rem",
-};
-
-const LINE_HEIGHT_MAP: Record<SpacingLevel, string> = {
-  tight: "1.4",
-  normal: "1.6",
-  relaxed: "1.9",
-};
-
-const LETTER_SPACING_MAP: Record<SpacingLevel, string> = {
-  tight: "-0.01em",
-  normal: "0",
-  relaxed: "0.05em",
-};
-
 export function ThemeProvider({
   children,
   respectSystemDarkMode = true,
+  initialThemeState = DEFAULT_THEME_STATE,
 }: {
   children: React.ReactNode;
   respectSystemDarkMode?: boolean;
+  initialThemeState?: ThemeStateSnapshot;
 }) {
-  const [theme, setTheme] = useState<Theme>("fluid");
-  const [isDark, setIsDark] = useState(false);
+  const resolvedInitialThemeState = mergeThemeStateSnapshots(initialThemeState);
+  const [theme, setThemeState] = useState<Theme>(resolvedInitialThemeState.theme);
+  const [isDark, setIsDarkState] = useState(resolvedInitialThemeState.isDark);
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(
-    ACCESSIBILITY_DEFAULTS,
+    resolvedInitialThemeState.accessibility,
   );
   const [mounted, setMounted] = useState(false);
+  const [hydrationComplete, setHydrationComplete] = useState(false);
   const transitionRef = useRef<ViewTransition | null>(null);
+  const lastServerSyncRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
+  const prevTheme = useRef<Theme>(resolvedInitialThemeState.theme);
+  const [transitionKey, setTransitionKey] = useState(0);
 
-    // Theme
-    const storedTheme = localStorage.getItem("pda-theme") as Theme | null;
-    if (storedTheme) setTheme(storedTheme);
+  const setTheme = useCallback((nextTheme: Theme) => {
+    setThemeState(nextTheme);
+  }, []);
 
-    // Dark Mode
-    const storedDark = localStorage.getItem("pda-dark");
-    if (storedDark !== null) {
-      setIsDark(storedDark === "true");
-    } else if (respectSystemDarkMode && prefersDarkColorScheme()) {
-      setIsDark(true);
+  const setIsDark = useCallback((dark: boolean) => {
+    setIsDarkState(dark);
+  }, []);
+
+  const setAccessibilityState = useCallback((settings: AccessibilitySettings) => {
+    setAccessibility((current) => normalizeAccessibilitySettings(settings, current));
+  }, []);
+
+  const applyThemeStateOverrides = useCallback((overrides: PartialThemeStateSnapshot) => {
+    const nextTheme = getSupportedTheme(overrides.theme);
+    if (nextTheme) {
+      setThemeState(nextTheme);
     }
 
-    // Accessibility
-    const storedAcc = localStorage.getItem("pda-accessibility");
-    if (storedAcc) {
-      try {
-        setAccessibility({
-          ...ACCESSIBILITY_DEFAULTS,
-          ...JSON.parse(storedAcc),
-        });
-      } catch {
-        /* ignore */
-      }
+    if (typeof overrides.isDark === "boolean") {
+      setIsDarkState(overrides.isDark);
     }
-  }, [respectSystemDarkMode]);
+
+    if (overrides.accessibility) {
+      setAccessibility((current) =>
+        normalizeAccessibilitySettings(overrides.accessibility, current),
+      );
+    }
+  }, []);
 
   // Server hydration: fetch preferences for authenticated users (server wins)
   const hydrateFromServer = useCallback(() => {
@@ -131,89 +112,54 @@ export function ThemeProvider({
       .then((data) => {
         if (!data) return;
         const prefs = data.preferences ?? [];
-        for (const { key, value } of prefs as Array<{ key: string; value: string }>) {
-          switch (key) {
-            case "theme":
-              setTheme(value as Theme);
-              break;
-            case "dark_mode":
-              setIsDark(value === "true");
-              break;
-            case "font_size":
-              setAccessibility((a) => ({ ...a, fontSize: value as FontSize }));
-              break;
-            case "density":
-              setAccessibility((a) => ({ ...a, density: value as Density }));
-              break;
-            case "color_blind_mode":
-              setAccessibility((a) => ({ ...a, colorBlindMode: value as ColorBlindMode }));
-              break;
-          }
-        }
+        applyThemeStateOverrides(
+          parseThemeStateFromPreferences(
+            prefs as Array<{ key: string; value: string }>,
+          ),
+        );
       })
       .catch(() => {
         /* Server unavailable — localStorage values remain */
       });
-  }, []);
+  }, [applyThemeStateOverrides]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+
+    const storedTheme = getSupportedTheme(localStorage.getItem(THEME_STORAGE_KEYS.theme));
+    const storedDark = localStorage.getItem(THEME_STORAGE_KEYS.dark);
+    const storedAccessibility = parseStoredAccessibilitySettings(
+      localStorage.getItem(THEME_STORAGE_KEYS.accessibility),
+    );
+
+    applyThemeStateOverrides({
+      theme: storedTheme ?? undefined,
+      isDark:
+        storedDark === null
+          ? respectSystemDarkMode && prefersDarkColorScheme()
+            ? true
+            : undefined
+          : storedDark === "true",
+      accessibility: storedAccessibility ?? undefined,
+    });
+
+    Promise.resolve(hydrateFromServer()).finally(() => {
+      setHydrationComplete(true);
+    });
+  }, [applyThemeStateOverrides, respectSystemDarkMode, hydrateFromServer]);
 
   useEffect(() => {
     if (!mounted) return;
-    hydrateFromServer();
-  }, [mounted, hydrateFromServer]);
 
-  useEffect(() => {
-    if (!mounted) return;
-
-    localStorage.setItem("pda-theme", theme);
-    localStorage.setItem("pda-dark", String(isDark));
-    localStorage.setItem("pda-accessibility", JSON.stringify(accessibility));
+    const snapshot = buildThemeState(DEFAULT_THEME_STATE, {
+      theme,
+      isDark,
+      accessibility,
+    });
 
     const updateState = () => {
-      const root = document.documentElement;
-
-      // Theme class
-      const themes: Theme[] = [
-        "fluid",
-        "bauhaus",
-        "swiss",
-        "skeuomorphic",
-      ];
-      root.classList.remove(...themes.map((t) => `theme-${t}`));
-      root.classList.add(`theme-${theme}`);
-
-      // Dark mode class
-      if (isDark) root.classList.add("dark");
-      else root.classList.remove("dark");
-
-      // Accessibility CSS Variables
-      root.style.setProperty(
-        "--font-size-base",
-        FONT_SIZE_MAP[accessibility.fontSize],
-      );
-      root.style.setProperty(
-        "--line-height-base",
-        LINE_HEIGHT_MAP[accessibility.lineHeight],
-      );
-      root.style.setProperty(
-        "--letter-spacing-base",
-        LETTER_SPACING_MAP[accessibility.letterSpacing],
-      );
-
-      // Density attribute
-      document.documentElement.setAttribute(
-        "data-density",
-        accessibility.density,
-      );
-
-      // Color-blind mode
-      if (accessibility.colorBlindMode !== "none") {
-        document.documentElement.setAttribute(
-          "data-color-blind",
-          accessibility.colorBlindMode,
-        );
-      } else {
-        document.documentElement.removeAttribute("data-color-blind");
-      }
+      applyThemeStateToDocument(document.documentElement, snapshot);
     };
 
     if (
@@ -227,7 +173,77 @@ export function ThemeProvider({
     } else {
       updateState();
     }
+
+    // Trigger overlay animation
+    if (prevTheme.current !== theme) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: drives CSS transition overlay
+      setTransitionKey((key) => key + 1);
+      prevTheme.current = theme;
+    }
   }, [theme, isDark, accessibility, mounted]);
+
+  useEffect(() => {
+    if (!mounted || !hydrationComplete) {
+      return;
+    }
+
+    const snapshot = buildThemeState(DEFAULT_THEME_STATE, {
+      theme,
+      isDark,
+      accessibility,
+    });
+    const serializedAccessibility = JSON.stringify(snapshot.accessibility);
+
+    if (typeof localStorage?.setItem === "function") {
+      if (localStorage.getItem(THEME_STORAGE_KEYS.theme) !== snapshot.theme) {
+        localStorage.setItem(THEME_STORAGE_KEYS.theme, snapshot.theme);
+      }
+
+      if (localStorage.getItem(THEME_STORAGE_KEYS.dark) !== String(snapshot.isDark)) {
+        localStorage.setItem(THEME_STORAGE_KEYS.dark, String(snapshot.isDark));
+      }
+
+      if (localStorage.getItem(THEME_STORAGE_KEYS.accessibility) !== serializedAccessibility) {
+        localStorage.setItem(
+          THEME_STORAGE_KEYS.accessibility,
+          serializedAccessibility,
+        );
+      }
+    }
+
+    const secure = typeof window !== "undefined" && window.location.protocol === "https:";
+    for (const cookie of themeStateToCookieAssignments(snapshot, { secure })) {
+      document.cookie = cookie;
+    }
+
+    const payload = JSON.stringify(themeStateToPreferenceEntries(snapshot));
+    if (payload === lastServerSyncRef.current) {
+      return;
+    }
+
+    lastServerSyncRef.current = payload;
+    fetch("/api/preferences", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ preferences: JSON.parse(payload) }),
+    })
+      .then((response) => {
+        if (response.status === 401) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Theme preference persistence failed with status ${response.status}`);
+        }
+
+        return response.json();
+      })
+      .catch(() => {
+        // Keep local and cookie persistence even when the authenticated endpoint is unavailable.
+      });
+  }, [accessibility, hydrationComplete, isDark, mounted, theme]);
 
   const contextValue = useMemo(
     () => ({
@@ -236,14 +252,21 @@ export function ThemeProvider({
       isDark,
       setIsDark,
       accessibility,
-      setAccessibility,
+      setAccessibility: setAccessibilityState,
     }),
-    [theme, isDark, accessibility],
+    [theme, setTheme, isDark, setIsDark, accessibility, setAccessibilityState],
   );
 
   return (
     <ThemeContext.Provider value={contextValue}>
       {children}
+      {transitionKey > 0 && mounted && (
+        <div
+          key={transitionKey}
+          data-testid="theme-transition-overlay"
+          className="pointer-events-none fixed inset-0 z-9999 bg-[oklch(0.5_0_0)] animate-[theme-fade-out_350ms_ease-in-out_forwards]"
+        />
+      )}
     </ThemeContext.Provider>
   );
 }
@@ -251,7 +274,12 @@ export function ThemeProvider({
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
+    return {
+      ...DEFAULT_THEME_STATE,
+      setTheme: () => {},
+      setIsDark: () => {},
+      setAccessibility: () => {},
+    };
   }
   return context;
 }

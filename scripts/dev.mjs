@@ -5,7 +5,7 @@
  * the next one, up to 10 attempts.
  */
 import { createServer } from "net";
-import { execFileSync } from "child_process";
+import { spawn } from "child_process";
 import { resolve } from "path";
 
 const PREFERRED = parseInt(process.env.PORT || "3000", 10);
@@ -37,11 +37,58 @@ if (port !== PREFERRED) {
 }
 
 const nextBin = resolve("node_modules/.bin/next");
-try {
-  execFileSync(nextBin, ["dev", "--port", String(port)], {
+
+function spawnManaged(command, args, env) {
+  return spawn(command, args, {
     stdio: "inherit",
-    env: { ...process.env, PORT: String(port) },
+    env,
   });
-} catch {
-  process.exit(1);
 }
+
+const tsxCli = resolve("node_modules", "tsx", "dist", "cli.mjs");
+const sharedEnv = { ...process.env, PORT: String(port) };
+const nextProcess = spawnManaged(nextBin, ["dev", "--port", String(port)], sharedEnv);
+const workerProcess = spawnManaged(process.execPath, [tsxCli, "scripts/process-deferred-jobs.ts"], {
+  ...sharedEnv,
+  DEFERRED_JOB_WORKER_ID: process.env.DEFERRED_JOB_WORKER_ID ?? `worker_dev_${port}`,
+});
+
+let shuttingDown = false;
+
+function terminate(child, signal = "SIGTERM") {
+  if (!child.killed) {
+    child.kill(signal);
+  }
+}
+
+function shutdown(signal, exitCode = 0) {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  terminate(workerProcess, signal);
+  terminate(nextProcess, signal);
+  setTimeout(() => process.exit(exitCode), 250).unref();
+}
+
+process.on("SIGINT", () => shutdown("SIGINT", 0));
+process.on("SIGTERM", () => shutdown("SIGTERM", 0));
+
+workerProcess.on("exit", (code, signal) => {
+  if (shuttingDown) {
+    return;
+  }
+
+  console.error("[deferred-jobs] worker exited unexpectedly", { code, signal });
+  shutdown("SIGTERM", code ?? 1);
+});
+
+nextProcess.on("exit", (code, signal) => {
+  if (shuttingDown) {
+    return;
+  }
+
+  console.error("[next-dev] process exited", { code, signal });
+  shutdown("SIGTERM", code ?? 1);
+});

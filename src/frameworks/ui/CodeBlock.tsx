@@ -11,14 +11,14 @@ export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
     setTimeout(() => setCopied(false), UI_CONSTANTS.COPY_TIMEOUT_MS);
   }
   return (
-    <div className="my-4 rounded-theme overflow-hidden border-theme text-sm">
-      <div className="flex items-center justify-between code-chrome px-4 py-2">
+    <div className="my-(--space-4) rounded-theme overflow-hidden border-theme text-sm">
+      <div className="flex items-center justify-between code-chrome px-(--space-4) py-(--space-2)">
         <span className="text-label font-mono opacity-70">
           {lang || "code"}
         </span>
         <button
           onClick={copyCode}
-          className="text-[10px] opacity-60 hover:opacity-100 transition-colors flex items-center gap-1"
+          className="text-[10px] opacity-60 hover:opacity-100 transition-colors flex items-center gap-(--space-1)"
         >
           {copied ? (
             <>
@@ -44,7 +44,7 @@ export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
           )}
         </button>
       </div>
-      <pre className="code-chrome px-4 py-4 overflow-x-auto font-mono text-[13px] leading-relaxed">
+      <pre className="code-chrome px-(--space-4) py-(--space-4) overflow-x-auto font-mono text-[13px] leading-relaxed">
         <code>{code}</code>
       </pre>
     </div>

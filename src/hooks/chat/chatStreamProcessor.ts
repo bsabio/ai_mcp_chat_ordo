@@ -1,6 +1,12 @@
 import {
   ConversationIdStrategy,
   ErrorStrategy,
+  JobCanceledStrategy,
+  JobCompletedStrategy,
+  JobFailedStrategy,
+  JobProgressStrategy,
+  JobQueuedStrategy,
+  JobStartedStrategy,
   StreamProcessor,
   TextDeltaStrategy,
   ToolCallStrategy,
@@ -14,5 +20,11 @@ export function createChatStreamProcessor(): StreamProcessor {
     new ToolResultStrategy(),
     new ErrorStrategy(),
     new ConversationIdStrategy(),
+    new JobQueuedStrategy(),
+    new JobStartedStrategy(),
+    new JobProgressStrategy(),
+    new JobCompletedStrategy(),
+    new JobCanceledStrategy(),
+    new JobFailedStrategy(),
   ]);
 }

@@ -11,7 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx next build
 
-# ── Stage 3: production runner (standalone output) ──────────────────
+# ── Stage 3: production runner ───────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app
 
@@ -24,21 +24,20 @@ RUN addgroup --system --gid 1001 nodejs \
 
 RUN mkdir -p /app/.data && chown -R nextjs:nodejs /app
 
-# Copy standalone server + trimmed node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-
-# Copy static assets and public dir (not included in standalone output)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy the production build, runtime scripts, and source needed by the deferred worker.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
-
-# Copy release manifest for health/version endpoints
 COPY --from=builder --chown=nextjs:nodejs /app/release ./release
-
-# Copy config directory for identity and prompt customization
 COPY --from=builder --chown=nextjs:nodejs /app/config ./config
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/src ./src
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "scripts/start-server.mjs"]

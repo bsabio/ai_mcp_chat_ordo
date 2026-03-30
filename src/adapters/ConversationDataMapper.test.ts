@@ -268,4 +268,34 @@ describe("MessageDataMapper", () => {
     expect(second).toBeNull();
     expect(await mapper.countByConversation("conv_msg")).toBe(1);
   });
+
+  it("updates content and parts for an existing message", async () => {
+    const created = await mapper.create({
+      conversationId: "conv_msg",
+      role: "assistant",
+      content: "",
+      parts: [{ type: "job_status", jobId: "job_1", toolName: "draft_content", label: "Draft Content", status: "queued" }],
+    });
+
+    const updated = await mapper.update(created.id, {
+      content: "",
+      parts: [{
+        type: "job_status",
+        jobId: "job_1",
+        toolName: "draft_content",
+        label: "Draft Content",
+        status: "succeeded",
+        summary: "Draft is ready.",
+      }],
+    });
+
+    expect(updated.parts).toEqual([{
+      type: "job_status",
+      jobId: "job_1",
+      toolName: "draft_content",
+      label: "Draft Content",
+      status: "succeeded",
+      summary: "Draft is ready.",
+    }]);
+  });
 });

@@ -382,6 +382,138 @@ const LIVE_SCENARIO_FIXTURES: Record<string, LiveEvalScenarioFixture> = {
       { role: "user", content: "Please recommend the next scoping-ready founder-approved step for this implementation request." },
     ],
   },
+  "live-blog-job-status-and-publish-handoff": {
+    scenarioId: "live-blog-job-status-and-publish-handoff",
+    role: "ADMIN",
+    userId: "usr_eval_live_blog_admin",
+    seedPack: {
+      scenarioId: "live-blog-job-status-and-publish-handoff",
+      seedSetId: "seed-live-blog-status-publish-v1",
+      refs: {
+        primaryConversationId: "conv_eval_live_blog_status_publish",
+        authenticatedUserId: "usr_eval_live_blog_admin",
+      },
+      users: [
+        { id: "usr_eval_live_blog_admin", email: "blog.live.admin@example.com", name: "Live Blog Admin" },
+      ],
+      conversations: [
+        buildAuthConversation({
+          id: "conv_eval_live_blog_status_publish",
+          userId: "usr_eval_live_blog_admin",
+          title: "Live blog job status and publish handoff",
+          lane: "organization",
+          confidence: 0.95,
+          recommendedNextStep: "Inspect the current production job and publish the draft if it is complete.",
+          detectedNeedSummary: "Operator needs blog job continuity and publish handoff.",
+          messages: [
+            {
+              id: "msg_eval_live_blog_status_publish_1",
+              role: "user",
+              content: "Check the latest blog production job and publish it if the draft is ready.",
+              createdAt: "2026-03-20T19:01:00.000Z",
+            },
+          ],
+        }),
+      ],
+      conversationEvents: [],
+      leads: [],
+      consultationRequests: [],
+      deals: [],
+      trainingPaths: [],
+      toolFixtures: [],
+    },
+    promptMessages: [
+      { role: "user", content: "Use the deferred job tools to inspect the latest blog production job, then publish the resulting draft if the job already completed." },
+    ],
+  },
+  "live-blog-job-reuse-instead-of-rerun": {
+    scenarioId: "live-blog-job-reuse-instead-of-rerun",
+    role: "ADMIN",
+    userId: "usr_eval_live_blog_admin",
+    seedPack: {
+      scenarioId: "live-blog-job-reuse-instead-of-rerun",
+      seedSetId: "seed-live-blog-reuse-v1",
+      refs: {
+        primaryConversationId: "conv_eval_live_blog_reuse",
+        authenticatedUserId: "usr_eval_live_blog_admin",
+      },
+      users: [
+        { id: "usr_eval_live_blog_admin", email: "blog.live.admin@example.com", name: "Live Blog Admin" },
+      ],
+      conversations: [
+        buildAuthConversation({
+          id: "conv_eval_live_blog_reuse",
+          userId: "usr_eval_live_blog_admin",
+          title: "Live blog job reuse instead of rerun",
+          lane: "organization",
+          confidence: 0.94,
+          recommendedNextStep: "Check the already-running production job before doing anything else.",
+          detectedNeedSummary: "Operator asked for another run even though one is already active.",
+          messages: [
+            {
+              id: "msg_eval_live_blog_reuse_1",
+              role: "user",
+              content: "Do not start over if the article is already in progress. Tell me the status.",
+              createdAt: "2026-03-20T19:11:00.000Z",
+            },
+          ],
+        }),
+      ],
+      conversationEvents: [],
+      leads: [],
+      consultationRequests: [],
+      deals: [],
+      trainingPaths: [],
+      toolFixtures: [],
+    },
+    promptMessages: [
+      { role: "user", content: "Use the deferred job tools to find the existing production job and explain its active status without running a new one." },
+    ],
+  },
+  "live-blog-completion-recovery": {
+    scenarioId: "live-blog-completion-recovery",
+    role: "ADMIN",
+    userId: "usr_eval_live_blog_admin",
+    seedPack: {
+      scenarioId: "live-blog-completion-recovery",
+      seedSetId: "seed-live-blog-recovery-v1",
+      refs: {
+        primaryConversationId: "conv_eval_live_blog_recovery",
+        authenticatedUserId: "usr_eval_live_blog_admin",
+      },
+      users: [
+        { id: "usr_eval_live_blog_admin", email: "blog.live.admin@example.com", name: "Live Blog Admin" },
+      ],
+      conversations: [
+        buildAuthConversation({
+          id: "conv_eval_live_blog_recovery",
+          userId: "usr_eval_live_blog_admin",
+          title: "Live blog completion recovery",
+          lane: "organization",
+          confidence: 0.93,
+          recommendedNextStep: "Recover the completed production job and explain whether the draft is publish-ready.",
+          detectedNeedSummary: "Operator missed the live completion signal and needs snapshot recovery.",
+          messages: [
+            {
+              id: "msg_eval_live_blog_recovery_1",
+              role: "user",
+              content: "I think I missed the completion update. Recover the latest result and tell me if it is ready to publish.",
+              createdAt: "2026-03-20T19:21:00.000Z",
+            },
+          ],
+        }),
+      ],
+      conversationEvents: [],
+      leads: [],
+      consultationRequests: [],
+      deals: [],
+      trainingPaths: [],
+      toolFixtures: [],
+    },
+    promptMessages: [
+      { role: "user", content: "Use the deferred job tools to recover the completed blog production job and explain the publish-ready outcome without starting a new run." },
+    ],
+  },
   "mcp-tool-choice-and-recovery": {
     scenarioId: "mcp-tool-choice-and-recovery",
     role: "AUTHENTICATED",

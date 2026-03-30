@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/AppShell";
@@ -13,6 +13,7 @@ let pathname = "/dashboard";
 const pushMock = vi.fn();
 const switchRoleMock = vi.fn();
 const logoutMock = vi.fn();
+const fetchMock = vi.fn();
 
 const localStorageMock = {
   getItem: vi.fn(() => null),
@@ -63,6 +64,11 @@ beforeEach(() => {
   pushMock.mockReset();
   switchRoleMock.mockReset();
   logoutMock.mockReset();
+  fetchMock.mockReset();
+  fetchMock.mockResolvedValue({
+    ok: true,
+    json: async () => ({ preferences: [] }),
+  });
   localStorageMock.getItem.mockReset();
   localStorageMock.getItem.mockReturnValue(null);
   localStorageMock.setItem.mockReset();
@@ -70,6 +76,7 @@ beforeEach(() => {
   localStorageMock.clear.mockReset();
   vi.stubGlobal("localStorage", localStorageMock);
   vi.stubGlobal("matchMedia", matchMediaMock);
+  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
@@ -77,14 +84,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("shell visual system", () => {
-  it("reuses shell brand sizing and truthful footer roles across shell surfaces", () => {
-    const { container } = render(
+async function renderWithTheme(children: React.ReactNode) {
+  let view: ReturnType<typeof render> | undefined;
+
+  await act(async () => {
+    view = render(
       <ThemeProvider>
-        <AppShell user={authenticatedUser}>
-          <div>Shell Content</div>
-        </AppShell>
+        {children}
       </ThemeProvider>,
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  return view!;
+}
+
+describe("shell visual system", () => {
+  it("reuses shell brand sizing and truthful footer roles across shell surfaces", async () => {
+    const { container } = await renderWithTheme(
+      <AppShell user={authenticatedUser}>
+        <div>Shell Content</div>
+      </AppShell>,
     );
 
     expect(screen.queryByText("Global Status: Optimal")).toBeNull();
@@ -100,8 +121,10 @@ describe("shell visual system", () => {
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(within(nav).getByRole("link", { name: /studio ordo home/i }).className).toContain("whitespace-nowrap");
+    // Sprint 8 (UX-32): primary-links region absent when no nav items
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.firstElementChild?.className).toContain("justify-between");
+    expect(nav.firstElementChild?.className).toContain("shell-nav-frame");
+    // Sprint 8 (UX-32): no primary links → flex layout (not grid)
 
     const footer = screen.getByRole("contentinfo");
     expect(within(footer).getByText("Information").className).toContain("shell-section-heading");
@@ -110,17 +133,15 @@ describe("shell visual system", () => {
   });
 
   it("uses shared shell role primitives inside the real account menu", async () => {
-    render(
-      <ThemeProvider>
-        <AccountMenu user={authenticatedUser} />
-      </ThemeProvider>,
-    );
+    await renderWithTheme(<AccountMenu user={authenticatedUser} />);
 
     fireEvent.click(screen.getByRole("button", { name: /test user/i }));
 
     const legibilityToggle = await screen.findByRole("button", { name: "System Legibility" });
     expect(screen.getByRole("button", { name: /test user/i }).className).toContain("shell-account-trigger");
     expect(legibilityToggle.className).toContain("shell-account-label");
+    expect(screen.getByRole("link", { name: "Jobs" })).toHaveAttribute("href", "/jobs");
+    expect(screen.getByRole("link", { name: "Jobs" }).className).toContain("shell-account-label");
     expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
     expect(screen.getByRole("link", { name: "Profile" }).className).toContain("shell-account-label");
     expect(screen.queryByRole("link", { name: "Dashboard" })).toBeNull();
@@ -149,12 +170,8 @@ describe("shell visual system", () => {
     expect(screen.getByRole("button", { name: "Set density to compact" }).className).toContain("shell-micro-text");
   });
 
-  it("keeps unauthenticated account links on shared shell nav label styling", () => {
-    render(
-      <ThemeProvider>
-        <AccountMenu user={anonymousUser} />
-      </ThemeProvider>,
-    );
+  it("keeps unauthenticated account links on shared shell nav label styling", async () => {
+    await renderWithTheme(<AccountMenu user={anonymousUser} />);
 
     expect(screen.getByRole("link", { name: "Sign In" }).className).toContain("shell-account-trigger");
     expect(screen.getByRole("link", { name: "Sign In" }).className).toContain("shell-account-label");
@@ -162,12 +179,8 @@ describe("shell visual system", () => {
     expect(screen.getByRole("link", { name: "Register" }).className).toContain("shell-account-label");
   });
 
-  it("lets anonymous users toggle dark mode from the account rail", () => {
-    render(
-      <ThemeProvider>
-        <AccountMenu user={anonymousUser} />
-      </ThemeProvider>,
-    );
+  it("lets anonymous users toggle dark mode from the account rail", async () => {
+    await renderWithTheme(<AccountMenu user={anonymousUser} />);
 
     const toggle = screen.getByRole("button", { name: "Switch to dark mode" });
     fireEvent.click(toggle);

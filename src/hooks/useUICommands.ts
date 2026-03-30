@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme, type Theme, type AccessibilitySettings, type FontSize, type SpacingLevel, type Density, type ColorBlindMode, type UIPreset, UI_PRESETS } from "@/components/ThemeProvider";
+import { getSupportedTheme } from "@/lib/theme/theme-manifest";
 import type { PresentedMessage } from "../adapters/ChatPresenter";
 
 export function useUICommands(
@@ -43,7 +44,10 @@ export function useUICommands(
 
         executedCommandKeysRef.current.add(cmdKey);
         if (cmd.type === "set_theme") {
-          setTheme(cmd.theme as Theme);
+          const theme = getSupportedTheme(cmd.theme);
+          if (theme) {
+            setTheme(theme);
+          }
         } else if (cmd.type === "navigate" && typeof cmd.path === "string") {
           if (cmd.path.startsWith("/")) router.push(cmd.path);
           else window.location.href = cmd.path;
@@ -84,7 +88,8 @@ function applyUIAdjustment(
   if (settings.density) acc.density = settings.density as Density;
   if (settings.colorBlindMode) acc.colorBlindMode = settings.colorBlindMode as ColorBlindMode;
   if (settings.dark !== undefined) setIsDark(settings.dark as boolean);
-  if (settings.theme) setTheme(settings.theme as Theme);
+  const theme = getSupportedTheme(settings.theme);
+  if (theme) setTheme(theme);
 
   setAccessibility(acc);
 }

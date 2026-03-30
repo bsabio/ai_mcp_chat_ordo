@@ -6,6 +6,7 @@ import {
   getModelFallbacks,
 } from "@/lib/config/env";
 import { createAbortTimeout } from "@/lib/chat/disposability";
+import { CHAT_CONFIG } from "@/lib/chat/chat-config";
 
 export interface StreamCallbacks {
   onDelta?: (text: string) => void;
@@ -68,7 +69,7 @@ export async function runClaudeAgentLoopStream({
   apiKey,
   messages,
   callbacks,
-  maxToolRounds = 4,
+  maxToolRounds = CHAT_CONFIG.maxToolRounds,
   signal,
   systemPrompt,
   tools,

@@ -126,6 +126,394 @@ describe("ChatPresenter", () => {
     expect(presented.actions).toEqual([]);
   });
 
+  it("derives publish and revise actions for completed draft jobs", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-1",
+      role: "assistant",
+      content: "Your draft is ready.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "job_1",
+          toolName: "draft_content",
+          label: "Draft Content",
+          status: "succeeded",
+          summary: 'Draft journal article "Launch Plan" ready at /admin/journal/preview/launch-plan.',
+          resultPayload: {
+            id: "post_1",
+            slug: "launch-plan",
+            title: "Launch Plan",
+            status: "draft",
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "job-status",
+        actions: [
+          expect.objectContaining({ label: "Revise", actionType: "send" }),
+          expect.objectContaining({ label: "Publish", actionType: "send" }),
+        ],
+      }),
+    );
+  });
+
+  it("derives retry action for failed jobs", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-2",
+      role: "assistant",
+      content: "Draft failed.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "job_2",
+          toolName: "draft_content",
+          label: "Draft Content",
+          status: "failed",
+          error: "Provider offline",
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "job-status",
+        actions: [expect.objectContaining({ label: "Retry", actionType: "job", value: "job_2" })],
+      }),
+    );
+  });
+
+  it("derives image and linked-post actions for completed image-generation jobs", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-image-1",
+      role: "assistant",
+      content: "Hero image is ready.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "job_image_1",
+          toolName: "generate_blog_image",
+          label: "Generate Blog Image",
+          status: "succeeded",
+          summary: 'Generated hero image for "Launch Plan" and linked it at /journal/launch-plan.',
+          resultPayload: {
+            assetId: "asset_1",
+            imageUrl: "/api/blog/assets/asset_1",
+            postSlug: "launch-plan",
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "job-status",
+        actions: [
+          expect.objectContaining({ label: "Open article", actionType: "route", value: "/journal/launch-plan" }),
+          expect.objectContaining({ label: "Open image", actionType: "route", value: "/api/blog/assets/asset_1" }),
+        ],
+      }),
+    );
+  });
+
+  it("derives draft and hero-image actions for completed article-orchestration jobs", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-produce-1",
+      role: "assistant",
+      content: "Article production is complete.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "job_produce_1",
+          toolName: "produce_blog_article",
+          label: "Produce Blog Article",
+          status: "succeeded",
+          summary: 'Produced draft "Launch Plan" at /journal/launch-plan with hero asset asset_1.',
+          resultPayload: {
+            id: "post_1",
+            slug: "launch-plan",
+            title: "Launch Plan",
+            status: "draft",
+            imageAssetId: "asset_1",
+            stages: [
+              "compose_blog_article",
+              "qa_blog_article",
+              "resolve_blog_article_qa",
+              "generate_blog_image_prompt",
+              "generate_blog_image",
+              "draft_content",
+            ],
+            summary: 'Produced draft "Launch Plan" at /journal/launch-plan with hero asset asset_1.',
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "job-status",
+        actions: [
+          expect.objectContaining({ label: "Open draft", actionType: "route", value: "/admin/journal/preview/launch-plan" }),
+          expect.objectContaining({ label: "Publish", actionType: "send" }),
+          expect.objectContaining({ label: "Open hero image", actionType: "route", value: "/api/blog/assets/asset_1" }),
+        ],
+      }),
+    );
+  });
+
+  it("renders deferred status tool results even when the assistant text is empty", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-status-tool-1",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "get_deferred_job_status",
+          args: { job_id: "job_1" },
+        },
+        {
+          type: "tool_result",
+          name: "get_deferred_job_status",
+          result: {
+            ok: true,
+            job: {
+              messageId: "jobmsg_job_1",
+              part: {
+                type: "job_status",
+                jobId: "job_1",
+                toolName: "produce_blog_article",
+                label: "Produce Blog Article",
+                status: "queued",
+                sequence: 3,
+                updatedAt: "2026-03-25T14:52:00.000Z",
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "job-status",
+        jobId: "job_1",
+        status: "queued",
+        actions: [expect.objectContaining({ label: "Cancel", actionType: "job", value: "job_1" })],
+      }),
+    );
+  });
+
+  it("renders workflow-summary tool results as operator-facing journal blocks", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-workflow-summary-1",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "get_journal_workflow_summary",
+          args: {},
+        },
+        {
+          type: "tool_result",
+          name: "get_journal_workflow_summary",
+          result: {
+            action: "get_journal_workflow_summary",
+            summary: "1 journal post is approved and ready to publish.",
+            counts: {
+              draft: 2,
+              review: 1,
+              approved: 1,
+              blocked: 1,
+              ready_to_publish: 1,
+              active_jobs: 0,
+            },
+            blocked_posts: [
+              {
+                title: "Blocked Draft",
+                detail_route: "/admin/journal/post_2",
+                blockers: ["Standfirst is missing."],
+              },
+            ],
+            ready_to_publish_posts: [
+              {
+                title: "Launch Plan",
+                detail_route: "/admin/journal/post_1",
+                preview_route: "/admin/journal/preview/launch-plan",
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "heading",
+        content: [expect.objectContaining({ text: "Journal Workflow Summary" })],
+      }),
+    );
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "table",
+      }),
+    );
+  });
+
+  it("renders inspect_theme tool results as operator-facing theme summary blocks", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-inspect-theme-1",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "inspect_theme",
+          args: {},
+        },
+        {
+          type: "tool_result",
+          name: "inspect_theme",
+          result: {
+            action: "inspect_theme",
+            message: "Returned the manifest-backed supported theme profiles and bounded control metadata.",
+            supported_theme_ids: ["bauhaus", "swiss"],
+            ordered_theme_profiles: [
+              {
+                id: "bauhaus",
+                name: "Bauhaus",
+                description: "Functionalism, grid-based, bold primary colors.",
+                yearRange: "1919-1933",
+                primaryAttributes: ["Geometry", "Primary Colors"],
+                motionIntent: "restrained",
+                shadowIntent: "editorial",
+                densityDefaults: {
+                  standard: "normal",
+                  dataDense: "compact",
+                  touch: "relaxed",
+                },
+                approvedControlAxes: ["theme", "density"],
+              },
+            ],
+            approved_control_axes: [
+              {
+                id: "theme",
+                label: "Named theme selection",
+                options: ["bauhaus", "swiss"],
+                defaultValue: "fluid",
+                mutationTools: ["set_theme", "adjust_ui"],
+              },
+            ],
+            active_theme_state: {
+              available: false,
+              reason: "Active theme selection is applied in the client runtime.",
+            },
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "heading",
+        content: [expect.objectContaining({ text: "Theme Profiles" })],
+      }),
+    );
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "table",
+        rows: [
+          [
+            [expect.objectContaining({ text: "Bauhaus (bauhaus)" })],
+            [expect.objectContaining({ text: "restrained motion / editorial depth" })],
+            [expect.objectContaining({ text: "standard normal, data-dense compact, touch relaxed" })],
+            [expect.objectContaining({ text: "Geometry, Primary Colors" })],
+          ],
+        ],
+      }),
+    );
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "blockquote",
+        content: [expect.objectContaining({ text: "Active theme selection is applied in the client runtime." })],
+      }),
+    );
+  });
+
+  it("derives workspace, preview, and publish actions for completed journal readiness jobs", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-ready-1",
+      role: "assistant",
+      content: "Publish readiness is complete.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "job_ready_1",
+          toolName: "prepare_journal_post_for_publish",
+          label: "Prepare Journal Post For Publish",
+          title: "Journal publish readiness for post_1",
+          subtitle: "Check blockers, active work, and QA before publication",
+          status: "succeeded",
+          summary: '"Launch Plan" is ready to publish.',
+          resultPayload: {
+            action: "prepare_journal_post_for_publish",
+            ready: true,
+            summary: '"Launch Plan" is ready to publish.',
+            blockers: [],
+            revision_count: 2,
+            post: {
+              id: "post_1",
+              title: "Launch Plan",
+              detail_route: "/admin/journal/post_1",
+              preview_route: "/admin/journal/preview/launch-plan",
+            },
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.content.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "job-status",
+        actions: [
+          expect.objectContaining({ label: "Open journal workspace", actionType: "route", value: "/admin/journal/post_1" }),
+          expect.objectContaining({ label: "Open journal draft", actionType: "route", value: "/admin/journal/preview/launch-plan" }),
+          expect.objectContaining({ label: "Publish", actionType: "send" }),
+        ],
+      }),
+    );
+  });
+
   it("maps structured UI tool_call parts into UI commands", () => {
     const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
     const message: ChatMessage = {
@@ -154,6 +542,37 @@ describe("ChatPresenter", () => {
       {
         type: "adjust_ui",
         settings: { density: "compact", fontSize: "xl" },
+      },
+    ]);
+  });
+
+  it("drops unsupported theme values from structured UI tool calls", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-ui-invalid-theme-1",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "set_theme",
+          args: { theme: "postmodern" },
+        },
+        {
+          type: "tool_call",
+          name: "adjust_ui",
+          args: { theme: "postmodern", density: "compact" },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.commands).toEqual([
+      {
+        type: "adjust_ui",
+        settings: { density: "compact" },
       },
     ]);
   });

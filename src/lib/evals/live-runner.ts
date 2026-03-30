@@ -1,18 +1,22 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
+import { BlogPostDataMapper } from "@/adapters/BlogPostDataMapper";
+import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import type { ConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { isDealCustomerVisibleStatus } from "@/core/entities/deal-record";
 import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-path-record";
+import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
 import { buildSystemPrompt } from "@/lib/chat/policy";
 import { buildRoutingContextBlock } from "@/lib/chat/routing-context";
-import { getToolExecutor } from "@/lib/chat/tool-composition-root";
+import { getToolComposition } from "@/lib/chat/tool-composition-root";
+import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import type { EvalObservation, EvalRunConfig, EvalScenario, EvalTargetEnvironment } from "./domain";
 import { resolveEvalRuntimeConfig } from "./config";
 import { getEvalScenarioById } from "./scenarios";
 import { inflateDeterministicSeedPack, type DeterministicEvalToolFixture, type InflatedDeterministicEvalSeedPack } from "./seeding";
 import { resolveLiveEvalScenarioFixture } from "./live-scenarios";
-import { createEvalWorkspace } from "./workspace";
+import { createEvalWorkspace, type EvalWorkspace } from "./workspace";
 import { executeLiveEvalRuntime, type LiveEvalRuntimeRequest, type LiveEvalRuntimeResult } from "./live-runtime";
 import type { EvalCheckpointResult } from "./runner";
 
@@ -108,17 +112,182 @@ function matchesToolFixtureArgs(args: Record<string, unknown>, fixture: Determin
   return Object.entries(fixture.args).every(([key, value]) => args[key] === value);
 }
 
+interface LiveBlogScenarioState {
+  draftPostId: string;
+  draftSlug: string;
+  draftTitle: string;
+  produceJobId: string;
+  produceJobStatus: "running" | "succeeded";
+}
+
+const LIVE_BLOG_SCENARIOS = new Set([
+  "live-blog-job-status-and-publish-handoff",
+  "live-blog-job-reuse-instead-of-rerun",
+  "live-blog-completion-recovery",
+]);
+
+async function seedLiveBlogScenarioState(options: {
+  scenarioId: string;
+  workspace: EvalWorkspace;
+  conversationId: string;
+  userId: string;
+}): Promise<LiveBlogScenarioState | null> {
+  if (!LIVE_BLOG_SCENARIOS.has(options.scenarioId)) {
+    return null;
+  }
+
+  const blogRepo = new BlogPostDataMapper(options.workspace.db);
+  const jobRepo = new JobQueueDataMapper(options.workspace.db);
+  const isRunningScenario = options.scenarioId === "live-blog-job-reuse-instead-of-rerun";
+  const slug = options.scenarioId === "live-blog-completion-recovery"
+    ? "blog-recovery-playbook"
+    : "blog-operator-playbook";
+  const title = options.scenarioId === "live-blog-completion-recovery"
+    ? "Blog Recovery Playbook"
+    : "Blog Operator Playbook";
+  const draftPost = await blogRepo.create({
+    slug,
+    title,
+    description: "Live eval draft used for deferred blog job continuity.",
+    content: `# ${title}\n\nDeferred blog workflow output.`,
+    createdByUserId: options.userId,
+  });
+  const produceJob = await jobRepo.createJob({
+    conversationId: options.conversationId,
+    userId: options.userId,
+    toolName: "produce_blog_article",
+    dedupeKey: `produce:${slug}`,
+    requestPayload: {
+      brief: `Create ${title}.`,
+    },
+  });
+
+  if (isRunningScenario) {
+    await jobRepo.updateJobStatus(produceJob.id, {
+      status: "running",
+      startedAt: "2026-03-20T19:11:10.000Z",
+      progressPercent: 34,
+      progressLabel: "Reviewing article",
+      claimedBy: "eval_live_worker",
+      leaseExpiresAt: "2026-03-20T19:16:10.000Z",
+    });
+    await jobRepo.appendEvent({
+      jobId: produceJob.id,
+      conversationId: options.conversationId,
+      eventType: "progress",
+      payload: {
+        progressPercent: 34,
+        progressLabel: "Reviewing article",
+      },
+    });
+  } else {
+    await jobRepo.updateJobStatus(produceJob.id, {
+      status: "succeeded",
+      startedAt: "2026-03-20T19:01:10.000Z",
+      completedAt: "2026-03-20T19:03:00.000Z",
+      resultPayload: {
+        id: draftPost.id,
+        slug: draftPost.slug,
+        title: draftPost.title,
+        status: "draft",
+        imageAssetId: "asset_live_blog_1",
+        stages: [
+          "compose_blog_article",
+          "qa_blog_article",
+          "resolve_blog_article_qa",
+          "generate_blog_image_prompt",
+          "generate_blog_image",
+          "draft_content",
+        ],
+        summary: `Produced draft "${draftPost.title}" at /journal/${draftPost.slug} with hero asset asset_live_blog_1.`,
+      },
+    });
+    await jobRepo.appendEvent({
+      jobId: produceJob.id,
+      conversationId: options.conversationId,
+      eventType: "result",
+      payload: {
+        result: {
+          id: draftPost.id,
+          slug: draftPost.slug,
+          title: draftPost.title,
+          status: "draft",
+          imageAssetId: "asset_live_blog_1",
+          stages: [
+            "compose_blog_article",
+            "qa_blog_article",
+            "resolve_blog_article_qa",
+            "generate_blog_image_prompt",
+            "generate_blog_image",
+            "draft_content",
+          ],
+          summary: `Produced draft "${draftPost.title}" at /journal/${draftPost.slug} with hero asset asset_live_blog_1.`,
+        },
+      },
+    });
+  }
+
+  return {
+    draftPostId: draftPost.id,
+    draftSlug: draftPost.slug,
+    draftTitle: draftPost.title,
+    produceJobId: produceJob.id,
+    produceJobStatus: isRunningScenario ? "running" : "succeeded",
+  };
+}
+
 function createLiveEvalToolExecutor(options: {
   scenarioId: string;
   role: LiveEvalRuntimeRequest["role"];
   userId: string;
   inflated: InflatedDeterministicEvalSeedPack;
+  workspace: EvalWorkspace;
+  conversationId: string;
 }): LiveEvalRuntimeRequest["toolExecutor"] | undefined {
   const execContext: ToolExecutionContext = {
     role: options.role,
     userId: options.userId,
+    conversationId: options.conversationId,
   };
-  const baseExecutor = getToolExecutor();
+  const baseExecutor = getToolComposition().executor;
+
+  if (LIVE_BLOG_SCENARIOS.has(options.scenarioId)) {
+    const jobRepo = new JobQueueDataMapper(options.workspace.db);
+    const blogRepo = new BlogPostDataMapper(options.workspace.db);
+
+    return async (name, input) => {
+      if (name === "list_deferred_jobs") {
+        const activeOnly = typeof input.active_only === "boolean" ? input.active_only : true;
+        const limit = typeof input.limit === "number" ? Math.min(Math.max(input.limit, 1), 25) : 10;
+        const jobs = await jobRepo.listJobsByConversation(options.conversationId, {
+          statuses: activeOnly ? getActiveJobStatuses() : undefined,
+          limit,
+        });
+        const snapshots = await Promise.all(jobs.map(async (job) => {
+          const event = await jobRepo.findLatestEventForJob(job.id);
+          return buildJobStatusSnapshot(job, event);
+        }));
+        return { ok: true, jobs: snapshots };
+      }
+
+      if (name === "get_deferred_job_status") {
+        const jobId = typeof input.job_id === "string" ? input.job_id : "";
+        const job = await jobRepo.findJobById(jobId);
+        if (!job) {
+          throw new Error(`Deferred job not found: ${jobId}`);
+        }
+        const event = await jobRepo.findLatestEventForJob(job.id);
+        return { ok: true, job: buildJobStatusSnapshot(job, event) };
+      }
+
+      if (name === "publish_content") {
+        const postId = typeof input.post_id === "string" ? input.post_id : "";
+        return executePublishContent(blogRepo, { post_id: postId }, { userId: options.userId, role: options.role });
+      }
+
+      return baseExecutor(name, input, execContext);
+    };
+  }
 
   if (options.scenarioId !== "mcp-tool-choice-and-recovery") {
     return (name, input) => baseExecutor(name, input, execContext);
@@ -283,6 +452,7 @@ export async function runLiveEvalScenario(
   let finalLane: string | null = null;
   let finalRecommendation: string | null = null;
   let toolCalls: string[] = [];
+  let liveBlogState: LiveBlogScenarioState | null = null;
 
   try {
     const inflated = await inflateDeterministicSeedPack(workspace, fixture.seedPack);
@@ -305,6 +475,12 @@ export async function runLiveEvalScenario(
 
     finalLane = seededConversation.routingSnapshot.lane;
     finalRecommendation = seededConversation.routingSnapshot.recommendedNextStep;
+    liveBlogState = await seedLiveBlogScenarioState({
+      scenarioId,
+      workspace,
+      conversationId: primaryConversationId,
+      userId: fixture.userId,
+    });
 
     if (scenarioId === "live-anonymous-signup-continuity") {
       const anonymousUserId = inflated.refs.anonymousUserId;
@@ -340,6 +516,8 @@ export async function runLiveEvalScenario(
         role: fixture.role,
         userId: fixture.userId,
         inflated,
+        workspace,
+        conversationId: primaryConversationId,
       });
     const anthropicMessages: Anthropic.MessageParam[] = seededMessages.map((message) => ({
       role: message.role as "user" | "assistant",
@@ -514,6 +692,94 @@ export async function runLiveEvalScenario(
 
         finalLane = visibleTrainingPath?.lane ?? finalLane;
         finalRecommendation = visibleTrainingPath?.customerSummary ?? runtimeResult.assistantText;
+        break;
+      }
+      case "live-blog-job-status-and-publish-handoff": {
+        const blogRepo = new BlogPostDataMapper(workspace.db);
+        const publishedDraft = liveBlogState ? await blogRepo.findById(liveBlogState.draftPostId) : null;
+        const calledToolIds = new Set(runtimeResult.toolCalls.map((toolCall) => toolCall.name));
+        const publishedClearly = containsAny(runtimeResult.assistantText, [/published/i, /ready/i, /live/i, /journal/i]);
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "job-inspected",
+            calledToolIds.has("list_deferred_jobs") && calledToolIds.has("get_deferred_job_status"),
+            JSON.stringify(Array.from(calledToolIds)),
+          ),
+          createCheckpointResult(
+            scenario,
+            "publish-triggered",
+            calledToolIds.has("publish_content"),
+            JSON.stringify(Array.from(calledToolIds)),
+          ),
+          createCheckpointResult(
+            scenario,
+            "publish-complete",
+            publishedDraft?.status === "published" && publishedClearly,
+            publishedDraft?.status ?? runtimeResult.assistantText,
+          ),
+        );
+
+        finalRecommendation = runtimeResult.assistantText;
+        break;
+      }
+      case "live-blog-job-reuse-instead-of-rerun": {
+        const calledToolIds = new Set(runtimeResult.toolCalls.map((toolCall) => toolCall.name));
+        const activeStatusExplained = containsAny(runtimeResult.assistantText, [/running/i, /in progress/i, /queued/i, /existing job/i]);
+        const rerunAvoided = !calledToolIds.has("produce_blog_article");
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "existing-job-found",
+            calledToolIds.has("list_deferred_jobs") && calledToolIds.has("get_deferred_job_status"),
+            JSON.stringify(Array.from(calledToolIds)),
+          ),
+          createCheckpointResult(
+            scenario,
+            "rerun-avoided",
+            rerunAvoided,
+            JSON.stringify(Array.from(calledToolIds)),
+          ),
+          createCheckpointResult(
+            scenario,
+            "active-status-explained",
+            activeStatusExplained,
+            runtimeResult.assistantText,
+          ),
+        );
+
+        finalRecommendation = runtimeResult.assistantText;
+        break;
+      }
+      case "live-blog-completion-recovery": {
+        const calledToolIds = new Set(runtimeResult.toolCalls.map((toolCall) => toolCall.name));
+        const explainedPublishReadiness = containsAny(runtimeResult.assistantText, [/ready to publish/i, /publish-ready/i, /draft is ready/i, /ready for publish/i]);
+        const rerunAvoided = !calledToolIds.has("produce_blog_article");
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "terminal-job-recovered",
+            calledToolIds.has("list_deferred_jobs") && calledToolIds.has("get_deferred_job_status"),
+            JSON.stringify(Array.from(calledToolIds)),
+          ),
+          createCheckpointResult(
+            scenario,
+            "publish-readiness-explained",
+            explainedPublishReadiness,
+            runtimeResult.assistantText,
+          ),
+          createCheckpointResult(
+            scenario,
+            "completion-visible-without-rerun",
+            rerunAvoided,
+            JSON.stringify(Array.from(calledToolIds)),
+          ),
+        );
+
+        finalRecommendation = runtimeResult.assistantText;
         break;
       }
       case "development-prospect-funnel": {

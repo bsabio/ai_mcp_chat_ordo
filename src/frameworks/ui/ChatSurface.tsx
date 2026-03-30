@@ -17,12 +17,20 @@ const EMBEDDED_CONTAINER_CLASSES =
 
 export function ChatSurface({ mode }: { mode: ChatSurfaceMode }) {
   const pathname = usePathname();
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
+  const routeTone = pathname === "/journal"
+    || pathname.startsWith("/journal/")
+    || pathname === "/blog"
+    || pathname.startsWith("/blog/")
+    ? "quiet"
+    : "default";
 
   if (mode === "floating" && pathname === "/") return null;
+  if (mode === "floating" && isAdminRoute) return null;
 
   if (mode === "embedded") return <EmbeddedSurface />;
 
-  return <FloatingSurface />;
+  return <FloatingSurface routeTone={routeTone} />;
 }
 
 function EmbeddedSurface() {
@@ -50,7 +58,7 @@ function EmbeddedSurface() {
   );
 }
 
-function FloatingSurface() {
+function FloatingSurface({ routeTone }: { routeTone: "default" | "quiet" }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const surfaceState = useChatSurfaceState({ isEmbedded: false });
@@ -72,13 +80,14 @@ function FloatingSurface() {
   }, []);
 
   if (!isOpen) {
-    return <FloatingChatLauncher onOpen={() => setIsOpen(true)} />;
+    return <FloatingChatLauncher onOpen={() => setIsOpen(true)} routeTone={routeTone} />;
   }
 
   return (
     <FloatingChatFrame
       canUseViewTransitions={canUseViewTransitions}
       isFullScreen={isFullScreen}
+      routeTone={routeTone}
     >
       <ChatSurfaceHeader
         mode="floating"

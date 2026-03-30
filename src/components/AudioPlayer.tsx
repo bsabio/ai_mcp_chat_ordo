@@ -403,7 +403,7 @@ export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlay
             </svg>
           }
         >
-          <div className="flex flex-col gap-2 px-3 py-2.5 w-full">
+          <div className="flex w-full flex-col gap-(--space-cluster-tight) px-(--space-inset-compact) py-(--space-inset-compact)">
             {/* ── Progress bar (during loading) ──────────────────────── */}
             {state.isLoading && (
               <div className="w-full h-1 rounded-full bg-border overflow-hidden">
@@ -415,11 +415,11 @@ export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlay
             )}
 
             {/* ── Control Row ────────────────────────────────────────── */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-(--space-3)">
               <button
                 onClick={handlePlayToggle}
                 disabled={state.isLoading || !!state.error}
-                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-accent text-accent-foreground hover:bg-accent-theme/90 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
+                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-accent-interactive text-accent-foreground hover:bg-accent-interactive/90 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
               >
                 {state.isLoading ? (
                   <svg
@@ -438,14 +438,14 @@ export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlay
                     <rect x="14" y="4" width="4" height="16" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+                  <svg className="ml-px h-4 w-4 fill-current" viewBox="0 0 24 24">
                     <polygon points="5 3 19 12 5 21 5 3" />
                   </svg>
                 )}
               </button>
 
               {/* Shuttle & Timestamps */}
-              <div className="flex flex-col flex-1 gap-1 min-w-0">
+              <div className="flex flex-col flex-1 gap-(--space-1) min-w-0">
                 <input
                   type="range"
                   min={0}
@@ -453,10 +453,10 @@ export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlay
                   value={state.currentTime}
                   onChange={handleSeek}
                   disabled={!state.audioUrl}
-                  className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
+                  className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-accent-interactive"
                   style={{
                     background: state.audioUrl
-                      ? `linear-gradient(to right, var(--accent) ${(state.currentTime / state.duration) * 100}%, var(--border) ${(state.currentTime / state.duration) * 100}%)`
+                      ? `linear-gradient(to right, var(--accent-interactive) ${(state.currentTime / state.duration) * 100}%, var(--border) ${(state.currentTime / state.duration) * 100}%)`
                       : undefined,
                   }}
                 />
@@ -477,11 +477,11 @@ export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlay
 
       {/* ── #5: Off-screen toast ──────────────────────────────────── */}
       {offScreenReady && (
-        <div className="fixed bottom-6 left-1/2 z-9999 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in duration-300">
+        <div className="fixed bottom-(--space-6) left-1/2 z-9999 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in duration-300">
           <button
             type="button"
             onClick={scrollToPlayer}
-            className="flex items-center gap-2 rounded-full accent-fill px-4 py-2 text-xs font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-95"
+            className="flex items-center gap-(--space-2) rounded-full accent-fill px-(--space-4) py-(--space-2) text-xs font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-95"
           >
             <span>🎧</span>
             <span>Audio ready — {title}</span>

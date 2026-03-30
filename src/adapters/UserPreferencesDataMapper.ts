@@ -8,12 +8,15 @@ const ALLOWED_KEYS = new Set([
   "theme",
   "dark_mode",
   "font_size",
+  "line_height",
+  "letter_spacing",
   "density",
   "color_blind_mode",
   "response_style",
   "tone",
   "business_context",
   "preferred_name",
+  "push_notifications",
 ]);
 
 const MAX_VALUE_LENGTHS: Record<string, number> = {

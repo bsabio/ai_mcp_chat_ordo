@@ -1,4 +1,4 @@
-import { LocalEmbedder } from "@/adapters/LocalEmbedder";
+import { localEmbedder } from "@/adapters/LocalEmbedder";
 import { SQLiteVectorStore } from "@/adapters/SQLiteVectorStore";
 import { EmbeddingPipelineFactory } from "@/core/search/EmbeddingPipelineFactory";
 import type { EmbeddingPipeline } from "@/core/search/EmbeddingPipeline";
@@ -9,7 +9,7 @@ const MODEL_VERSION = "all-MiniLM-L6-v2@1.0";
 
 export function getEmbeddingPipelineFactory(): EmbeddingPipelineFactory {
   return new EmbeddingPipelineFactory(
-    new LocalEmbedder(),
+    localEmbedder,
     new SQLiteVectorStore(getDb()),
     MODEL_VERSION,
   );

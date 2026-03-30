@@ -151,7 +151,9 @@ export function scoreEvalExecution(execution: EvalExecutionLike): EvalScoreDimen
         );
       }
       case "recovery": {
-        const recoveryCheckpoint = getCheckpoint(execution.checkpointResults, "tool-recovery");
+        const recoveryCheckpoint = getCheckpoint(execution.checkpointResults, "tool-recovery")
+          ?? getCheckpoint(execution.checkpointResults, "terminal-job-recovered")
+          ?? getCheckpoint(execution.checkpointResults, "existing-job-found");
         return buildDimension(
           dimensionId,
           recoveryCheckpoint?.passed ? 1 : 0,

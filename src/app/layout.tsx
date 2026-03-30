@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Script from "next/script";
 import {
   Fraunces,
@@ -28,11 +29,23 @@ const fraunces = Fraunces({
 });
 
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper";
 import { AppShell } from "@/components/AppShell";
 import { ChatSurface } from "@/frameworks/ui/ChatSurface";
 import { getSessionUser } from "@/lib/auth";
 import { getInstanceIdentity, getInstancePrompts } from "@/lib/config/instance";
 import { InstanceConfigProvider } from "@/lib/config/InstanceConfigContext";
+import { getDb } from "@/lib/db";
+import { searchAction } from "@/lib/search/global-search-actions";
+import {
+  DEFAULT_THEME_STATE,
+  THEME_COOKIE_KEYS,
+  buildThemeBootstrapScript,
+  getThemeDocumentState,
+  mergeThemeStateSnapshots,
+  parseThemeStateFromCookies,
+  parseThemeStateFromPreferences,
+} from "@/lib/theme/theme-state";
 
 export async function generateMetadata(): Promise<Metadata> {
   const identity = getInstanceIdentity();
@@ -66,16 +79,58 @@ export default async function RootLayout({
   const prompts = getInstancePrompts();
   const user = await getSessionUser();
   const respectSystemDarkMode = !user.roles.includes("ANONYMOUS");
+  const cookieStore = await cookies();
+
+  const cookieThemeState = parseThemeStateFromCookies({
+    theme: cookieStore.get(THEME_COOKIE_KEYS.theme)?.value,
+    dark: cookieStore.get(THEME_COOKIE_KEYS.dark)?.value,
+    fontSize: cookieStore.get(THEME_COOKIE_KEYS.fontSize)?.value,
+    lineHeight: cookieStore.get(THEME_COOKIE_KEYS.lineHeight)?.value,
+    letterSpacing: cookieStore.get(THEME_COOKIE_KEYS.letterSpacing)?.value,
+    density: cookieStore.get(THEME_COOKIE_KEYS.density)?.value,
+    colorBlindMode: cookieStore.get(THEME_COOKIE_KEYS.colorBlindMode)?.value,
+  });
+
+  const preferenceThemeState = user.roles.includes("ANONYMOUS")
+    ? null
+    : parseThemeStateFromPreferences(
+        await new UserPreferencesDataMapper(getDb()).getAll(user.id),
+      );
+
+  const initialThemeState = mergeThemeStateSnapshots(
+    DEFAULT_THEME_STATE,
+    preferenceThemeState,
+    cookieThemeState,
+  );
+  const themeDocumentState = getThemeDocumentState(initialThemeState);
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={themeDocumentState.className}
+      data-theme={themeDocumentState.attributes["data-theme"]}
+      data-theme-mode={themeDocumentState.attributes["data-theme-mode"]}
+      data-theme-transition={themeDocumentState.attributes["data-theme-transition"]}
+      data-density={themeDocumentState.attributes["data-density"]}
+      data-color-blind={themeDocumentState.attributes["data-color-blind"]}
+      style={themeDocumentState.style}
+    >
+      <head>
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {buildThemeBootstrapScript({ respectSystemDarkMode })}
+        </Script>
+      </head>
       <body
         className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${fraunces.variable} antialiased`}
       >
-        <ThemeProvider respectSystemDarkMode={respectSystemDarkMode}>
+        <ThemeProvider
+          respectSystemDarkMode={respectSystemDarkMode}
+          initialThemeState={initialThemeState}
+        >
           <InstanceConfigProvider identity={identity} prompts={prompts}>
             <ChatProvider initialRole={user.roles[0]}>
-              <AppShell user={user}>{children}</AppShell>
+              <AppShell user={user} searchAction={searchAction}>{children}</AppShell>
               <Suspense fallback={null}>
                 <ChatSurface mode="floating" />
               </Suspense>

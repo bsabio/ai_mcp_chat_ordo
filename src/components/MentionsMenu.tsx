@@ -34,7 +34,7 @@ export default function MentionsMenu({
       role="listbox"
       aria-label="Mention suggestions"
     >
-      <div className="px-3 py-2 border-b border-border bg-surface-muted flex items-center justify-between">
+      <div className="px-(--space-3) py-(--space-2) border-b border-border bg-surface-muted flex items-center justify-between">
         <span className="text-label opacity-50">
           Suggestions
         </span>
@@ -42,22 +42,22 @@ export default function MentionsMenu({
           TAB / ↑↓
         </span>
       </div>
-      <div className="max-h-80 overflow-y-auto p-1.5 flex flex-col gap-1">
+      <div className="max-h-80 overflow-y-auto p-(--space-2) flex flex-col gap-(--space-1)">
         {suggestions.map((item, index) => {
           const strategy = registry.getStrategy(item);
           return (
             <button
               key={item.id}
               onClick={() => onSelect(item)}
-              className={`focus-ring flex min-h-12 w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-all ${
+              className={`focus-ring flex min-h-12 w-full items-start gap-(--space-3) rounded-lg px-(--space-3) py-(--space-3) text-left transition-all ${
                 index === activeIndex
-                  ? "accent-fill shadow-lg shadow-accent/20"
+                  ? "accent-interactive-fill shadow-lg shadow-accent-interactive/20"
                   : "hover-surface"
               }`}
               role="option"
               aria-selected={index === activeIndex}
             >
-              <span className="text-base mt-0.5 shrink-0">
+              <span className="text-base mt-(--space-1) shrink-0">
                 {strategy?.getIcon() || "❓"}
               </span>
               <div className="flex flex-col min-w-0">
@@ -65,7 +65,7 @@ export default function MentionsMenu({
                   {item.name}
                 </span>
                 <span
-                  className={`text-[10px] truncate mt-0.5 ${index === activeIndex ? "text-current" : ""}`}
+                  className={`text-[10px] truncate mt-(--space-1) ${index === activeIndex ? "text-current" : ""}`}
                 >
                   {strategy?.renderDescription(item)}
                 </span>

@@ -1,5 +1,5 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 import { useChatSurfaceState } from "@/frameworks/ui/useChatSurfaceState";
 
@@ -97,6 +97,10 @@ describe("handleActionClick", () => {
     refreshConversationMock.mockReset();
     chatState.conversationId = null;
     vi.stubGlobal("open", openMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("dispatches route action via router.push for valid paths", () => {
@@ -210,6 +214,30 @@ describe("handleActionClick", () => {
     });
     expect(setConversationIdMock).not.toHaveBeenCalled();
     expect(refreshConversationMock).not.toHaveBeenCalled();
+  });
+
+  it("posts job actions and refreshes the conversation", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ job: { conversationId: "conv_jobs" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    await act(async () => {
+      result.current.handleActionClick("job", "job_123", { operation: "retry" });
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/chat/jobs/job_123", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "retry" }),
+    });
+    expect(refreshConversationMock).toHaveBeenCalledWith("conv_jobs");
   });
 
   describe("action dispatch security", () => {

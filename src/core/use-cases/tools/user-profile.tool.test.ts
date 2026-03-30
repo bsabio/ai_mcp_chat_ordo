@@ -13,6 +13,7 @@ function makeProfile(overrides: Partial<UserProfileViewModel> = {}): UserProfile
     name: "Morgan Lee",
     email: "morgan@example.com",
     credential: "Enterprise AI practitioner",
+    pushNotificationsEnabled: true,
     affiliateEnabled: true,
     referralCode: "mentor-42",
     referralUrl: "https://studioordo.com/?ref=mentor-42",

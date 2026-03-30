@@ -12,6 +12,7 @@ import {
   type LeadQueueRow,
   type TrainingPathQueueBlockData,
   type TrainingPathQueueRow,
+  type OverdueFollowUpsBlockData,
 } from "../operator-shared";
 import {
   buildConsultationRequestQueueData,
@@ -181,5 +182,50 @@ export async function loadTrainingPathQueueBlock(
     blockId: "training_path_queue",
     state: trainingPaths.length > 0 ? "ready" : "empty",
     data: buildTrainingPathQueueData(trainingPaths),
+  };
+}
+
+export async function loadOverdueFollowUpsBlock(
+  user: Pick<SessionUser, "id" | "roles">,
+): Promise<OperatorBlockPayload<OverdueFollowUpsBlockData>> {
+  const db = requireAdminDb(user);
+  const now = new Date().toISOString();
+
+  const overdueLeads = db
+    .prepare(
+      `SELECT id, name, follow_up_at
+       FROM lead_records
+       WHERE follow_up_at IS NOT NULL AND follow_up_at < ?
+       ORDER BY follow_up_at ASC`,
+    )
+    .all(now) as Array<{ id: string; name: string; follow_up_at: string }>;
+
+  const overdueDeals = db
+    .prepare(
+      `SELECT id, title, follow_up_at
+       FROM deal_records
+       WHERE follow_up_at IS NOT NULL AND follow_up_at < ?
+       ORDER BY follow_up_at ASC`,
+    )
+    .all(now) as Array<{ id: string; title: string; follow_up_at: string }>;
+
+  const summary = {
+    overdueLeadCount: overdueLeads.length,
+    overdueDealCount: overdueDeals.length,
+    totalOverdueCount: overdueLeads.length + overdueDeals.length,
+  };
+
+  return {
+    blockId: "overdue_follow_ups",
+    state: summary.totalOverdueCount > 0 ? "ready" : "empty",
+    data: {
+      summary,
+      oldestOverdueLead: overdueLeads[0]
+        ? { id: overdueLeads[0].id, name: overdueLeads[0].name, followUpAt: overdueLeads[0].follow_up_at }
+        : null,
+      oldestOverdueDeal: overdueDeals[0]
+        ? { id: overdueDeals[0].id, title: overdueDeals[0].title, followUpAt: overdueDeals[0].follow_up_at }
+        : null,
+    },
   };
 }

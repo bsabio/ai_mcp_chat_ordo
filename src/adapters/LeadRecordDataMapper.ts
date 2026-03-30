@@ -315,4 +315,118 @@ export class LeadRecordDataMapper implements LeadRecordRepository {
 
     return this.findById(id);
   }
+
+  // ── Admin query methods ─────────────────────────────────────────────
+
+  async listForAdmin(filters: { triageState?: string; limit?: number; offset?: number }): Promise<LeadAdminRow[]> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.triageState) {
+      clauses.push("triage_state = ?");
+      params.push(filters.triageState);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const limit = filters.limit ?? 100;
+    const offset = filters.offset ?? 0;
+
+    const rows = this.db
+      .prepare(
+        `SELECT id, conversation_id, lane, name, email, organization, triage_state, follow_up_at, created_at
+         FROM lead_records ${where}
+         ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      )
+      .all(...params, limit, offset) as Array<{
+        id: string; conversation_id: string; lane: string; name: string | null;
+        email: string | null; organization: string | null; triage_state: string;
+        follow_up_at: string | null; created_at: string;
+      }>;
+
+    return rows.map((r) => ({
+      id: r.id,
+      conversationId: r.conversation_id,
+      lane: r.lane,
+      name: r.name,
+      email: r.email,
+      organization: r.organization,
+      triageState: r.triage_state,
+      followUpAt: r.follow_up_at,
+      createdAt: r.created_at,
+    }));
+  }
+
+  async countForAdmin(filters: { triageState?: string }): Promise<number> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.triageState) {
+      clauses.push("triage_state = ?");
+      params.push(filters.triageState);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS cnt FROM lead_records ${where}`)
+      .get(...params) as { cnt: number };
+
+    return row.cnt;
+  }
+
+  async countByTriageState(): Promise<Record<string, number>> {
+    const rows = this.db
+      .prepare(`SELECT triage_state, COUNT(*) AS cnt FROM lead_records GROUP BY triage_state`)
+      .all() as Array<{ triage_state: string; cnt: number }>;
+
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.triage_state] = row.cnt;
+    }
+    return counts;
+  }
+
+  async listOverdueFollowUps(): Promise<LeadAdminRow[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT id, conversation_id, lane, name, email, organization, triage_state, follow_up_at, created_at
+         FROM lead_records
+         WHERE follow_up_at IS NOT NULL AND follow_up_at < datetime('now')
+         ORDER BY follow_up_at ASC`,
+      )
+      .all() as Array<{
+        id: string; conversation_id: string; lane: string; name: string | null;
+        email: string | null; organization: string | null; triage_state: string;
+        follow_up_at: string | null; created_at: string;
+      }>;
+
+    return rows.map((r) => ({
+      id: r.id,
+      conversationId: r.conversation_id,
+      lane: r.lane,
+      name: r.name,
+      email: r.email,
+      organization: r.organization,
+      triageState: r.triage_state,
+      followUpAt: r.follow_up_at,
+      createdAt: r.created_at,
+    }));
+  }
+
+  async updateFollowUp(id: string, followUpAt: string | null): Promise<void> {
+    this.db
+      .prepare(`UPDATE lead_records SET follow_up_at = ?, updated_at = datetime('now') WHERE id = ?`)
+      .run(followUpAt, id);
+  }
+}
+
+export interface LeadAdminRow {
+  id: string;
+  conversationId: string;
+  lane: string;
+  name: string | null;
+  email: string | null;
+  organization: string | null;
+  triageState: string;
+  followUpAt: string | null;
+  createdAt: string;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 export interface ToolCardProps {
@@ -32,41 +32,33 @@ export function ToolCard({
   className = "",
 }: ToolCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
 
   const renderModal = () => {
-    if (!mounted || !isExpanded) return null;
-
     return (
       <Dialog.Root open={isExpanded} onOpenChange={setIsExpanded}>
         <Dialog.Portal>
           <Dialog.Overlay className="glass-overlay fixed inset-0 z-99999 animate-in fade-in duration-200" />
-          <Dialog.Content className="fixed inset-0 z-100000 flex items-start justify-center p-3 pt-[max(0.75rem,var(--safe-area-inset-top))] pb-[max(0.75rem,var(--safe-area-inset-bottom))] sm:p-6 sm:pt-[max(1.5rem,var(--safe-area-inset-top))] sm:pb-[max(1.5rem,var(--safe-area-inset-bottom))] outline-none">
+          <Dialog.Content className="fixed inset-0 z-100000 flex items-start justify-center p-(--space-3) pt-[max(var(--space-inset-compact),var(--safe-area-inset-top))] pb-[max(var(--space-inset-compact),var(--safe-area-inset-bottom))] sm:p-(--space-inset-panel) sm:pt-[max(var(--space-6),var(--safe-area-inset-top))] sm:pb-[max(var(--space-6),var(--safe-area-inset-bottom))] outline-none">
             <div className="glass-surface flex max-h-full w-full max-w-7xl flex-col overflow-hidden rounded-[28px] border-theme text-foreground shadow-[0_32px_90px_color-mix(in_srgb,var(--shadow-base)_20%,transparent)] animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between border-b border-border bg-surface/80 p-4 sm:p-5">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between border-b border-border bg-surface/80 p-(--space-inset-default) sm:p-(--space-inset-panel)">
+                <div className="flex items-center gap-(--space-3)">
                   <span className="text-xl">{icon}</span>
                   <div>
-                    <Dialog.Title className="m-0 text-lg font-semibold">{title}</Dialog.Title>
+                    <Dialog.Title className="m-(--space-0) text-lg font-semibold">{title}</Dialog.Title>
                     {subtitle && (
-                      <Dialog.Description className="m-0 mb-0.5 mt-0.5 text-sm opacity-60">{subtitle}</Dialog.Description>
+                      <Dialog.Description className="m-(--space-0) mb-(--space-1) mt-(--space-1) text-sm opacity-60">{subtitle}</Dialog.Description>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-(--space-2)">
                   {actions}
                   {onDownload && (
                     <button
                       onClick={onDownload}
                       title={downloadTooltip}
-                      className="focus-ring min-h-11 min-w-11 rounded-lg p-2 opacity-70 transition-all hover:bg-surface-hover hover:opacity-100 active:scale-90"
+                      className="focus-ring min-h-11 min-w-11 rounded-lg p-(--space-2) opacity-70 transition-all hover:bg-surface-hover hover:opacity-100 active:scale-90"
                       aria-label="Download"
                     >
                       <svg
@@ -87,7 +79,7 @@ export function ToolCard({
                   )}
                   <Dialog.Close asChild>
                     <button
-                      className="focus-ring min-h-11 min-w-11 rounded-lg bg-surface-hover/50 p-2 text-text transition-all hover:bg-surface-hover active:scale-90"
+                      className="focus-ring min-h-11 min-w-11 rounded-lg bg-surface-hover/50 p-(--space-2) text-text transition-all hover:bg-surface-hover active:scale-90"
                       aria-label="Close"
                     >
                       <svg
@@ -108,7 +100,7 @@ export function ToolCard({
                 </div>
               </div>
 
-              <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col items-center justify-center">
+              <div className="flex-1 overflow-auto p-(--space-inset-default) sm:p-(--space-inset-panel) flex flex-col items-center justify-center">
                 {children}
               </div>
             </div>
@@ -121,11 +113,11 @@ export function ToolCard({
   return (
     <>
       <div
-        className={`flex flex-col rounded-theme border-theme bg-surface-hover/30 shadow-sm overflow-hidden my-2 max-w-full relative transition-all duration-300 ${className}`}
+        className={`flex flex-col rounded-theme border-theme bg-surface-hover/30 shadow-sm overflow-hidden my-(--space-2) max-w-full relative transition-all duration-300 ${className}`}
       >
         {/* Visual Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-surface-muted">
-          <div className="flex items-center gap-2 overflow-hidden">
+        <div className="flex items-center justify-between px-(--space-inset-compact) py-(--space-inset-tight) border-b border-border/50 bg-surface-muted">
+          <div className="flex items-center gap-(--space-2) overflow-hidden">
             {status === "loading" ? (
               <span className="w-4 h-4 rounded-full border-2 border-text/30 border-t-text animate-spin shrink-0" />
             ) : (
@@ -148,7 +140,7 @@ export function ToolCard({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end px-1 gap-1 shrink-0 ml-4">
+          <div className="flex items-center justify-end px-(--space-1) gap-(--space-1) shrink-0 ml-(--space-4)">
             {status === "loading" ? null : (
               <>
                 {actions}
@@ -216,7 +208,7 @@ export function ToolCard({
             </div>
             <div className="absolute inset-0 bg-linear-to-t from-surface via-surface/60 to-transparent" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[11px] font-semibold uppercase tracking-wider opacity-70 group-hover:opacity-100 transition-opacity bg-surface-muted border-theme rounded-full px-3 py-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider opacity-70 group-hover:opacity-100 transition-opacity bg-surface-muted border-theme rounded-full px-(--space-3) py-(--space-1)">
                 View diagram
               </span>
             </div>
@@ -229,5 +221,6 @@ export function ToolCard({
       {/* Render Portal Modal if expanded */}
       {renderModal()}
     </>
+
   );
 }

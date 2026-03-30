@@ -16,7 +16,7 @@ const MermaidRenderer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-40 w-full flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-2">
+      <div className="h-40 w-full flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-(--space-2)">
         Loading Diagram Engine...
       </div>
     ),
@@ -28,7 +28,7 @@ const GraphRenderer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-40 w-full flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-2">
+      <div className="h-40 w-full flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-(--space-2)">
         Loading Graph Engine...
       </div>
     ),
@@ -40,7 +40,7 @@ const AudioPlayer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-18 w-full max-w-sm flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-2">
+      <div className="h-18 w-full max-w-sm flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-(--space-2)">
         Loading Audio Engine...
       </div>
     ),
@@ -55,7 +55,7 @@ const WebSearchResultCard = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-18 w-full max-w-2xl flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-2">
+      <div className="h-18 w-full max-w-2xl flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-(--space-2)">
         Loading Web Search...
       </div>
     ),
@@ -74,7 +74,7 @@ export const RichContentRenderer: React.FC<Props> = ({
   onActionClick,
 }) => {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-(--space-stack-default)">
       {content.blocks.map((block, i) => {
         // Use stable keys for stateful blocks so React doesn't remount them
         // when preceding blocks shift indices during streaming.
@@ -97,7 +97,7 @@ type BlockProps<T extends BlockNode> = { block: T; onLinkClick?: (slug: string) 
 
 const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<BlockNode, { type: K }>>> } = {
   paragraph: ({ block, onLinkClick, onActionClick }) => (
-    <p className="mb-2 last:mb-0 leading-[inherit]">
+    <p className="mb-(--space-stack-tight) last:mb-(--space-0) leading-[inherit]">
       <InlineRenderer nodes={block.content} onLinkClick={onLinkClick} onActionClick={onActionClick} />
     </p>
   ),
@@ -110,43 +110,43 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
           ? "theme-display tier-body text-[1em] tracking-[-0.025em]"
           : "theme-label tier-micro text-foreground/62";
     return (
-      <Tag className={`${sizeClass} mt-4 mb-2 font-medium`}>
+      <Tag className={`${sizeClass} mt-(--space-stack-default) mb-(--space-stack-tight) font-medium`}>
         <InlineRenderer nodes={block.content} onLinkClick={onLinkClick} onActionClick={onActionClick} />
       </Tag>
     );
   },
   blockquote: ({ block, onLinkClick, onActionClick }) => (
-    <blockquote className="my-3 pl-4 italic text-foreground/68 leading-[inherit]">
+    <blockquote className="my-(--space-stack-default) pl-(--space-inset-default) italic text-foreground/68 leading-[inherit]">
       <InlineRenderer nodes={block.content} onLinkClick={onLinkClick} onActionClick={onActionClick} />
     </blockquote>
   ),
   list: ({ block, onLinkClick, onActionClick }) => (
-    <ul className="mb-4 ml-6 space-y-2 list-disc marker:text-accent/58">
+    <ul className="mb-(--space-stack-default) ml-(--space-6) space-y-(--space-2) list-disc marker:text-accent/58">
       {block.items.map((item, i) => (
-        <li key={i} className="leading-relaxed pl-1">
+        <li key={i} className="leading-relaxed pl-(--space-1)">
           <InlineRenderer nodes={item} onLinkClick={onLinkClick} onActionClick={onActionClick} />
         </li>
       ))}
     </ul>
   ),
-  divider: () => <hr className="my-4 border-border" />,
+  divider: () => <hr className="my-(--space-stack-default) border-border" />,
   "operator-brief": ({ block, onLinkClick, onActionClick }) => (
-    <div className="grid gap-3 lg:grid-cols-3" data-operator-brief="true">
+    <div className="grid gap-(--space-cluster-default) lg:grid-cols-3" data-operator-brief="true">
       {block.sections.map((section) => (
         <section
           key={section.label}
-          className="rounded-[1.3rem] border border-border/70 bg-surface-muted/55 px-4 py-4 shadow-[0_14px_30px_-24px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
+          className="rounded-[1.3rem] border border-border/70 bg-surface-muted/55 px-(--space-inset-default) py-(--space-inset-default) shadow-[0_14px_30px_-24px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
           aria-label={section.label}
         >
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-foreground/42">{section.label}</p>
-          <div className="mt-2 text-sm leading-6 text-foreground">
+          <div className="mt-(--space-2) text-sm leading-6 text-foreground">
             <InlineRenderer nodes={section.summary} onLinkClick={onLinkClick} onActionClick={onActionClick} />
           </div>
           {section.items && section.items.length > 0 ? (
-            <ul className="mt-3 space-y-2 text-sm leading-6 text-foreground/72">
+            <ul className="mt-(--space-3) space-y-(--space-2) text-sm leading-6 text-foreground/72">
               {section.items.map((item, index) => (
-                <li key={`${section.label}-${index}`} className="flex gap-2">
-                  <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/28" />
+                <li key={`${section.label}-${index}`} className="flex gap-(--space-2)">
+                  <span aria-hidden="true" className="mt-(--space-2) h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/28" />
                   <span>
                     <InlineRenderer nodes={item} onLinkClick={onLinkClick} onActionClick={onActionClick} />
                   </span>
@@ -158,6 +158,64 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
       ))}
     </div>
   ),
+  "job-status": ({ block, onActionClick }) => {
+    const statusTone =
+      block.status === "failed"
+        ? "border-[color:color-mix(in_srgb,var(--danger,#b42318)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--danger,#b42318)_8%,var(--surface))]"
+        : block.status === "succeeded"
+          ? "border-[color:color-mix(in_srgb,var(--accent)_28%,transparent)] bg-[color:color-mix(in_srgb,var(--accent)_7%,var(--surface))]"
+          : "border-border/70 bg-surface-muted/55";
+
+    return (
+      <section className={`rounded-[1.2rem] border px-(--space-inset-default) py-(--space-inset-compact) shadow-[0_14px_30px_-24px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)] ${statusTone}`} aria-label={`${block.label} status`}>
+        <div className="flex items-start justify-between gap-(--space-cluster-default)">
+          <div>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-foreground/42">{block.label}</p>
+            {block.title ? (
+              <p className="mt-(--space-1) text-sm font-medium text-foreground">{block.title}</p>
+            ) : null}
+            {block.subtitle ? (
+              <p className="mt-(--space-1) text-xs text-foreground/56">{block.subtitle}</p>
+            ) : null}
+            <p className="mt-(--space-1) text-sm font-medium text-foreground">{block.status.replace(/^[a-z]/, (char) => char.toUpperCase())}</p>
+          </div>
+          {block.progressPercent != null ? (
+            <p className="text-xs font-medium tabular-nums text-foreground/48">{Math.round(block.progressPercent)}%</p>
+          ) : null}
+        </div>
+
+        {block.progressPercent != null ? (
+          <div className="mt-(--space-3) h-2 overflow-hidden rounded-full bg-background/80">
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-300"
+              style={{ width: `${Math.max(0, Math.min(100, block.progressPercent))}%` }}
+            />
+          </div>
+        ) : null}
+
+        {block.progressLabel ? (
+          <p className="mt-(--space-3) text-sm text-foreground/72">{block.progressLabel}</p>
+        ) : null}
+        {block.summary ? (
+          <p className="mt-(--space-3) text-sm text-foreground/72">{block.summary}</p>
+        ) : null}
+        {block.error ? (
+          <p className="mt-(--space-3) text-sm text-foreground/72">{block.error}</p>
+        ) : null}
+        {block.actions && block.actions.length > 0 ? (
+          <div className="mt-(--space-4) flex flex-wrap gap-(--space-2)">
+            {block.actions.map((action, index) => (
+              <InlineRenderer
+                key={`${block.jobId}-action-${index}`}
+                nodes={[action]}
+                onActionClick={onActionClick}
+              />
+            ))}
+          </div>
+        ) : null}
+      </section>
+    );
+  },
   "code-block": ({ block }) => {
     if (block.language === "mermaid") {
       return (
@@ -190,7 +248,7 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
     />
   ),
   audio: ({ block }) => (
-    <div className="my-2 max-w-sm">
+    <div className="my-(--space-2) max-w-sm">
       <AudioPlayer
         text={block.text}
         title={block.title}
@@ -223,7 +281,7 @@ const inlineRegistry: { [K in InlineNode["type"]]: React.FC<InlineProps<Extract<
   text: ({ node }) => <>{node.text}</>,
   bold: ({ node }) => <strong>{node.text}</strong>,
   "code-inline": ({ node }) => (
-    <code className="bg-surface-muted/72 text-foreground px-1.5 py-0.5 rounded-md text-[0.85em] font-mono">
+    <code className="bg-surface-muted/72 text-foreground px-(--space-2) py-(--space-inset-tight) rounded-md text-[0.85em] font-mono">
       {node.text}
     </code>
   ),
@@ -238,7 +296,7 @@ const inlineRegistry: { [K in InlineNode["type"]]: React.FC<InlineProps<Extract<
   "action-link": ({ node, onActionClick }) => (
     <button
       onClick={() => onActionClick?.(node.actionType, node.value, node.params)}
-      className="inline-flex items-center gap-1 font-semibold text-accent underline decoration-accent/30 underline-offset-2 transition-colors hover:text-accent/80 hover:decoration-accent/50 focus-ring rounded-sm"
+      className="inline-flex items-center gap-(--space-1) font-semibold text-accent-interactive underline decoration-accent-interactive/30 underline-offset-2 transition-colors hover:text-accent-interactive/80 hover:decoration-accent-interactive/50 focus-ring rounded-sm"
       data-chat-action-link={node.actionType}
       aria-label={`${node.label} (${node.actionType})`}
     >
@@ -270,7 +328,7 @@ const TableRenderer: React.FC<{
   onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
 }> = ({ header, rows, onLinkClick, onActionClick }) => {
   return (
-    <div className="my-4 w-full overflow-x-auto border-theme rounded-theme">
+    <div className="my-(--space-stack-default) w-full overflow-x-auto border-theme rounded-theme">
       <table className="w-full text-sm border-collapse">
         {header && (
           <thead>
@@ -278,7 +336,7 @@ const TableRenderer: React.FC<{
               {header.map((cell, i) => (
                 <th
                   key={i}
-                  className="px-5 py-3 text-left font-bold text-xs uppercase tracking-wider"
+                  className="px-(--space-inset-default) py-(--space-inset-compact) text-left font-bold text-xs uppercase tracking-wider"
                 >
                   <InlineRenderer nodes={cell} onLinkClick={onLinkClick} onActionClick={onActionClick} />
                 </th>
@@ -299,7 +357,7 @@ const TableRenderer: React.FC<{
               {row.map((cell, ci) => (
                 <td
                   key={ci}
-                  className="px-5 py-3.5 align-top leading-relaxed border-b border-border"
+                  className="px-(--space-inset-default) py-(--space-inset-compact) align-top leading-relaxed border-b border-border"
                 >
                   <InlineRenderer nodes={cell} onLinkClick={onLinkClick} onActionClick={onActionClick} />
                 </td>

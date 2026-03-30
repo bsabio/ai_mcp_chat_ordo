@@ -1,4 +1,5 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
+import { SUPPORTED_THEME_IDS } from "@/lib/theme/theme-manifest";
 import { SetThemeCommand } from "./UiTools";
 
 export const setThemeTool: ToolDescriptor = {
@@ -8,7 +9,7 @@ export const setThemeTool: ToolDescriptor = {
     input_schema: {
       type: "object",
       properties: {
-        theme: { type: "string", enum: ["bauhaus", "swiss", "skeuomorphic", "fluid"] },
+        theme: { type: "string", enum: [...SUPPORTED_THEME_IDS] },
       },
       required: ["theme"],
     },

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getToolRegistry } from "@/lib/chat/tool-composition-root";
+import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { buildCorpusBasePrompt } from "./corpus-vocabulary";
 
 describe("buildCorpusBasePrompt", () => {
   const prompt = buildCorpusBasePrompt();
-  const registryToolNames = getToolRegistry().getToolNames();
+  const registryToolNames = getToolComposition().registry.getToolNames();
 
   // --- Section presence ---
   it("contains INTERACTIVE ACTION FORMATTING section header", () => {

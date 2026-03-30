@@ -8,6 +8,7 @@ type SerializedProfile = {
   name: string;
   email: string;
   credential: string | null;
+  push_notifications_enabled: boolean;
   affiliate_enabled: boolean;
   referral_code: string | null;
   referral_url: string | null;
@@ -55,6 +56,7 @@ function serializeProfile(profile: UserProfileViewModel) {
     name: profile.name,
     email: profile.email,
     credential: profile.credential || null,
+    push_notifications_enabled: profile.pushNotificationsEnabled,
     affiliate_enabled: profile.affiliateEnabled,
     referral_code: profile.referralCode,
     referral_url: profile.referralUrl,

@@ -12,8 +12,8 @@ export class RbacGuardMiddleware implements ToolMiddleware {
     context: ToolExecutionContext,
     next: ToolExecuteFn,
   ): Promise<unknown> {
-    const toolNames = this.registry.getToolNames();
-    if (!toolNames.includes(name)) {
+    const descriptor = this.registry.getDescriptor(name);
+    if (!descriptor) {
       throw new UnknownToolError(name);
     }
     if (!this.registry.canExecute(name, context.role)) {
