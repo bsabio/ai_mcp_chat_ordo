@@ -54,7 +54,7 @@ The solution must separate these responsibilities structurally, not cosmetically
 3. **Composer isolation.** The composer must live in its own non-scrolling row so message growth can never displace it. `[HCS-032]`
 4. **Message-first scroll.** The message viewport must be the default scroll owner inside the homepage stage. `[HCS-033]`
 5. **Intentional outer scroll.** Reaching the footer must require an intentional outer-page scroll gesture outside the message region. `[HCS-034]`
-6. **Minimal nav contract.** The homepage nav must remain one line with brand on the left and a compact utility cluster on the right. That cluster may collapse browse and account actions into a single workspace menu trigger and may include notifications when product requirements call for them. `[HCS-035]`
+6. **Minimal nav contract.** The homepage nav must remain visually compact with brand on the left, shared search available on wider viewports, and a compact utility cluster on the right. That cluster may collapse browse and account actions into a single workspace menu trigger and may include notifications when product requirements call for them. `[HCS-035]`
 7. **Reliable browser behavior.** The solution must survive Safari/mobile scroll chaining and dynamic viewport behavior more reliably than a pure CSS-only flex stack. `[HCS-036]`
 
 ---
@@ -160,9 +160,10 @@ This requirement rules out home-only substitutes such as drawers, buttons, or si
 Homepage navigation must remain intentionally sparse:
 
 1. Brand identity on the left
-2. A compact utility cluster on the right that may include notifications and one shared workspace/auth menu trigger
-3. No separate left-side nav drawer, extra center rail, or second visual row in the homepage header
-4. Public wayfinding and account actions exposed from the homepage header must collapse into that single workspace menu rather than separate header surfaces
+2. Shared search may occupy the center rail on wider viewports
+3. A compact utility cluster on the right that may include notifications and one shared workspace/auth menu trigger
+4. No separate left-side nav drawer or duplicate header surfaces in the homepage shell
+5. Public wayfinding and account actions exposed from the homepage header must collapse into that single workspace menu rather than separate header surfaces
 
 Any additional state indicator must live elsewhere in the chat experience, not in the primary nav line. `[HCS-045]`
 

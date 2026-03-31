@@ -165,7 +165,7 @@ describe("homepage shell ownership", () => {
     expect(viewportStage).not.toContainElement(footer);
   });
 
-  it("renders the canonical homepage nav contract", () => {
+  it("renders the canonical homepage nav contract with shared search intact", () => {
     render(
       <AppShell user={baseUser}>
         <div>Homepage Stage</div>
@@ -175,12 +175,12 @@ describe("homepage shell ownership", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="search"]')).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
     expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
     expect(within(nav).queryByTestId("account-menu")).toBeNull();
-    expect(within(nav).queryByTestId("global-search")).toBeNull();
+    expect(within(nav).getByTestId("global-search")).toBeInTheDocument();
     expect(within(nav).getByTestId("notification-feed")).toBeInTheDocument();
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
   });

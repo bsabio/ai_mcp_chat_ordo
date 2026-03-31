@@ -31,7 +31,6 @@ export function SiteNav({ user, searchAction }: SiteNavProps) {
     || pathname.startsWith("/journal/")
     || pathname === "/blog"
     || pathname.startsWith("/blog/");
-  const isHomeRoute = pathname === "/";
   const navTone = isJournalRoute ? "quiet" : "default";
   const homeHref = resolveShellHomeHref();
 
@@ -54,7 +53,7 @@ export function SiteNav({ user, searchAction }: SiteNavProps) {
     return () => mediaQuery.removeListener(syncSearchVisibility);
   }, []);
 
-  const showSearch = !isHomeRoute && showDesktopSearch;
+  const showSearch = showDesktopSearch;
 
   return (
     <nav

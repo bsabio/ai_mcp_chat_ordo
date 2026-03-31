@@ -150,7 +150,7 @@ describe("site shell composition", () => {
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
   });
 
-  it("keeps the home header on the unified utility cluster", () => {
+  it("keeps the home header on the unified utility cluster while preserving search", () => {
     pathname = "/";
 
     renderShell();
@@ -158,7 +158,8 @@ describe("site shell composition", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="search"]')).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
+    expect(within(nav).getByTestId("global-search")).toBeInTheDocument();
     expect(within(nav).getByTestId("notification-feed")).toBeInTheDocument();
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
     expect(within(nav).queryByTestId("account-menu")).toBeNull();

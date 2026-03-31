@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Home shell header", () => {
-  test("desktop home uses the unified right-side utility cluster", async ({ page }) => {
+  test("desktop home keeps shared search with the unified right-side utility cluster", async ({ page }) => {
     await page.goto("/");
 
     const nav = page.getByRole("navigation", { name: "Primary" });
@@ -10,7 +10,7 @@ test.describe("Home shell header", () => {
     await expect(nav.getByRole("button", { name: "Open notifications" })).toBeVisible();
     await expect(nav.getByRole("button", { name: "Open workspace menu" })).toBeVisible();
     await expect(nav.getByRole("button", { name: "Open navigation menu" })).toHaveCount(0);
-    await expect(page.getByLabel("Search pages and accessible content")).toHaveCount(0);
+    await expect(page.getByLabel("Search pages and accessible content")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open search" })).toHaveCount(0);
 
     await nav.getByRole("button", { name: "Open workspace menu" }).click();

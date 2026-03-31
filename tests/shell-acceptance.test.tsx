@@ -135,6 +135,7 @@ describe("shell acceptance", () => {
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="search"]')).toBeNull();
+    expect(within(nav).queryByTestId("global-search")).toBeNull();
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
     fireEvent.click(within(nav).getByRole("button", { name: "Open workspace menu" }));
 

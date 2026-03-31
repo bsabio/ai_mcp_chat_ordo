@@ -101,7 +101,7 @@ describe("SiteNav", () => {
     expect(screen.queryByTestId("account-menu")).toBeNull();
   });
 
-  it("uses the unified home utility cluster on the homepage", () => {
+  it("keeps shell search available alongside the unified home utility cluster", () => {
     usePathnameMock.mockReturnValue("/");
 
     render(<SiteNav user={user} />);
@@ -112,9 +112,9 @@ describe("SiteNav", () => {
     expect(screen.getByTestId("workspace-menu")).toBeInTheDocument();
     expect(screen.queryByTestId("shell-nav-drawer")).toBeNull();
     expect(screen.queryByTestId("account-menu")).toBeNull();
-    expect(screen.queryByTestId("global-search")).toBeNull();
+    expect(screen.getByTestId("global-search")).toBeInTheDocument();
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="search"]')).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
   });
 
   it("keeps spacing ladder and rail tokens in the global foundation authority", () => {
