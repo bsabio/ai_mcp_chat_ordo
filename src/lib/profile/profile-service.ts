@@ -3,17 +3,13 @@ import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper"
 import type { UserProfilePatch } from "@/core/entities/user-profile";
 import { GetUserProfileInteractor } from "@/core/use-cases/GetUserProfileInteractor";
 import { UpdateUserProfileInteractor } from "@/core/use-cases/UpdateUserProfileInteractor";
-import { getInstanceIdentity } from "@/lib/config/instance";
 import { getDb } from "@/lib/db";
 import type { UserProfileViewModel } from "@/lib/profile/types";
+import { buildPublicReferralUrl } from "@/lib/referrals/referral-origin";
 import {
   isPushNotificationsEnabledValue,
   PUSH_NOTIFICATIONS_PREFERENCE_KEY,
 } from "@/lib/push/push-preferences";
-
-function buildReferralUrl(domain: string, referralCode: string): string {
-  return `https://${domain}/?ref=${encodeURIComponent(referralCode)}`;
-}
 
 function buildQrCodeUrl(referralCode: string): string {
   return `/api/qr/${encodeURIComponent(referralCode)}`;
@@ -24,7 +20,7 @@ function toViewModel(
   pushNotificationsEnabled: boolean,
 ): UserProfileViewModel {
   const referralUrl = profile.referralCode
-    ? buildReferralUrl(getInstanceIdentity().domain, profile.referralCode)
+    ? buildPublicReferralUrl(profile.referralCode)
     : null;
 
   return {

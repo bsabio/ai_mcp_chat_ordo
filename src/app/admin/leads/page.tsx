@@ -8,7 +8,6 @@ import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { LeadsTableClient } from "@/components/admin/LeadsTableClient";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
-import { AdminWorkspaceNav } from "@/components/admin/AdminWorkspaceNav";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import {
   loadAdminLeadsPipeline,
@@ -141,24 +140,11 @@ export default async function AdminLeadsPage({
       ])
     : null;
 
-  const { activeTab, pipelineCounts, tabData } = pipeline;
-  const workspaceItems = [
-    {
-      id: "pipeline",
-      label: "Pipeline",
-      href: buildLeadsHref({ tab: activeTab, status: tabData.statusFilter || undefined }),
-    },
-    {
-      id: "attention",
-      label: "Attention",
-      href: buildLeadsHref({
-        view: "attention",
-        tab: activeTab,
-        status: tabData.statusFilter || undefined,
-      }),
-    },
-  ] as const;
+  if (activeView === "attention" && !attentionData) {
+    throw new Error("Attention data is unavailable.");
+  }
 
+  const { activeTab, pipelineCounts, tabData } = pipeline;
   // Pipeline summary cards (always visible)
   const pipelineCards = [
     { label: "Leads", count: pipelineCounts.leads, active: activeTab === "leads" },
@@ -220,12 +206,6 @@ export default async function AdminLeadsPage({
       description="Lead capture, consultation requests, deals, and training paths."
     >
       <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
-        <AdminWorkspaceNav
-          ariaLabel="Leads workspace views"
-          items={workspaceItems}
-          currentItemId={activeView}
-        />
-
         {/* Pipeline summary cards */}
         <AdminStatusCounts items={pipelineCards} />
 
@@ -277,9 +257,9 @@ export default async function AdminLeadsPage({
               baseHref="/admin/leads"
             />
           </>
-        ) : (
+        ) : attentionData ? (
           (() => {
-            const [leadQueue, consultationQueue, trainingQueue, overdueFollowUps] = attentionData!;
+            const [leadQueue, consultationQueue, trainingQueue, overdueFollowUps] = attentionData;
 
             return (
               <div className="grid gap-(--space-section-default) lg:grid-cols-2">
@@ -561,7 +541,7 @@ export default async function AdminLeadsPage({
               </div>
             );
           })()
-        )}
+        ) : null}
       </div>
     </AdminSection>
   );

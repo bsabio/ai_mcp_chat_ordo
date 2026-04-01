@@ -222,6 +222,6 @@ describe("GenerateGraphCommand", () => {
           yField: "leads",
         } as never,
       }),
-    ).rejects.toThrow(/Admin operator loaders require|signed-in user|resolved tool result/i);
+    ).rejects.toThrow(/Admin operator loaders require|signed-in user|resolved tool result|not available to the current viewer/i);
   });
 });

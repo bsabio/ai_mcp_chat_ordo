@@ -4,19 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { User as SessionUser } from "@/core/entities/user";
-
-export interface FeedNotification {
-  id: string;
-  title: string;
-  body: string;
-  href?: string;
-  scope: "admin" | "user";
-  unread?: boolean;
-}
+import type { FeedNotification } from "@/lib/notifications/feed-notification";
 
 interface NotificationFeedProps {
   notifications?: FeedNotification[];
-  user?: Pick<SessionUser, "roles">;
+  user?: Pick<SessionUser, "id" | "roles">;
 }
 
 const DEFAULT_NOTIFICATIONS: FeedNotification[] = [
@@ -52,17 +44,71 @@ export function NotificationFeed({
 }: NotificationFeedProps) {
   const [open, setOpen] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const [dynamicNotifications, setDynamicNotifications] = useState<FeedNotification[]>([]);
   const visibleNotifications = useMemo(
     () => notifications.filter((item) => item.scope !== "admin" || user?.roles.includes("ADMIN")),
     [notifications, user],
   );
-  const [items, setItems] = useState(visibleNotifications);
+  const mergedVisibleNotifications = useMemo(() => {
+    const visibleDynamicNotifications = dynamicNotifications.filter((item) => item.scope !== "admin" || user?.roles.includes("ADMIN"));
+    const merged = new Map<string, FeedNotification>();
+
+    for (const item of [...visibleDynamicNotifications, ...visibleNotifications]) {
+      if (!merged.has(item.id)) {
+        merged.set(item.id, item);
+      }
+    }
+
+    return Array.from(merged.values()).sort((left, right) => {
+      if (!left.createdAt && !right.createdAt) {
+        return 0;
+      }
+      if (!left.createdAt) {
+        return 1;
+      }
+      if (!right.createdAt) {
+        return -1;
+      }
+      return right.createdAt.localeCompare(left.createdAt);
+    });
+  }, [dynamicNotifications, user, visibleNotifications]);
+  const [items, setItems] = useState(mergedVisibleNotifications);
 
   const unreadCount = useMemo(() => items.filter((item) => item.unread).length, [items]);
 
   useEffect(() => {
-    setItems(visibleNotifications);
-  }, [visibleNotifications]);
+    setItems(mergedVisibleNotifications);
+  }, [mergedVisibleNotifications]);
+
+  useEffect(() => {
+    if (user?.id == null || notifications !== DEFAULT_NOTIFICATIONS || typeof fetch !== "function") {
+      return;
+    }
+
+    let active = true;
+
+    void fetch("/api/notifications/feed")
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+
+        const payload = await response.json().catch(() => null) as { notifications?: FeedNotification[] } | null;
+        return payload?.notifications ?? [];
+      })
+      .then((payload) => {
+        if (!active || !payload) {
+          return;
+        }
+
+        setDynamicNotifications(payload);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [notifications, user?.id]);
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {

@@ -16,6 +16,7 @@ export interface Conversation {
   sessionSource: string;
   promptVersion: number | null;
   routingSnapshot: ConversationRoutingSnapshot;
+  referralId?: string | null;
   referralSource: string | null;
 }
 

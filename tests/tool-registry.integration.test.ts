@@ -44,9 +44,9 @@ describe("Tool Registry Integration", () => {
   });
 
   // TEST-REG-01
-  it("registry has the full Sprint 2B tool surface after composition", () => {
+  it("registry has the full Sprint 3 tool surface after composition", () => {
     const { registry } = buildStack();
-    expect(registry.getToolNames()).toHaveLength(50);
+    expect(registry.getToolNames()).toHaveLength(54);
   });
 
   // TEST-REG-02
@@ -75,7 +75,7 @@ describe("Tool Registry Integration", () => {
   it("AUTHENTICATED gets all member tools", () => {
     const { registry } = buildStack();
     const schemas = registry.getSchemasForRole("AUTHENTICATED");
-    expect(schemas).toHaveLength(23);
+    expect(schemas).toHaveLength(25);
   });
 
   it("ADMIN gets the journal wrapper tools alongside compatibility-safe blog tools", () => {

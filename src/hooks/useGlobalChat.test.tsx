@@ -80,6 +80,14 @@ function renderChatProvider(initialRole: "ANONYMOUS" | "AUTHENTICATED" | "STAFF"
   );
 }
 
+function createNoReferralVisitResponse() {
+  return {
+    status: 404,
+    ok: false,
+    json: async () => ({ error: "No referral visit" }),
+  };
+}
+
 describe("ChatProvider active conversation restore", () => {
   const fetchMock = vi.fn();
   let warnSpy: ReturnType<typeof vi.spyOn>;
@@ -588,6 +596,7 @@ describe("ChatProvider active conversation restore", () => {
           ],
         }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
@@ -684,6 +693,7 @@ describe("ChatProvider active conversation restore", () => {
         ok: false,
         json: async () => ({ error: "No active conversation" }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         status: 404,
         ok: false,
@@ -747,8 +757,9 @@ describe("ChatProvider active conversation restore", () => {
     fireEvent.click(screen.getByRole("button", { name: "send" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/conversations/conv_new", undefined);
-      expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/conversations/active", undefined);
+      expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/referral/visit");
+      expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/conversations/conv_new", undefined);
+      expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/conversations/active", undefined);
       expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_new");
       expect(screen.getByTestId("message-count")).toHaveTextContent("2");
     });
@@ -824,42 +835,43 @@ describe("ChatProvider active conversation restore", () => {
         ok: false,
         json: async () => ({ error: "No active conversation" }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
-      status: 200,
-      ok: true,
-      json: async () => ({
-        conversation: {
-          id: "conv_new",
-          userId: "anon_123",
-          title: "Send this",
-          status: "active",
-          createdAt: "2026-03-18T10:00:00.000Z",
-          updatedAt: "2026-03-18T10:00:01.000Z",
-          convertedFrom: null,
-          messageCount: 2,
-          firstMessageAt: "2026-03-18T10:00:00.000Z",
-          lastToolUsed: null,
-          sessionSource: "anonymous_cookie",
-          promptVersion: null,
-          routingSnapshot: createConversationRoutingSnapshot({ lane: "individual", confidence: 0.78 }),
-        },
-        messages: [
-          {
-            id: "msg_1",
-            role: "user",
-            content: "Send this",
-            parts: [{ type: "text", text: "Send this" }],
+        status: 200,
+        ok: true,
+        json: async () => ({
+          conversation: {
+            id: "conv_new",
+            userId: "anon_123",
+            title: "Send this",
+            status: "active",
             createdAt: "2026-03-18T10:00:00.000Z",
+            updatedAt: "2026-03-18T10:00:01.000Z",
+            convertedFrom: null,
+            messageCount: 2,
+            firstMessageAt: "2026-03-18T10:00:00.000Z",
+            lastToolUsed: null,
+            sessionSource: "anonymous_cookie",
+            promptVersion: null,
+            routingSnapshot: createConversationRoutingSnapshot({ lane: "individual", confidence: 0.78 }),
           },
-          {
-            id: "msg_2",
-            role: "assistant",
-            content: "Assistant reply",
-            parts: [{ type: "text", text: "Assistant reply" }],
-            createdAt: "2026-03-18T10:00:01.000Z",
-          },
-        ],
-      }),
+          messages: [
+            {
+              id: "msg_1",
+              role: "user",
+              content: "Send this",
+              parts: [{ type: "text", text: "Send this" }],
+              createdAt: "2026-03-18T10:00:00.000Z",
+            },
+            {
+              id: "msg_2",
+              role: "assistant",
+              content: "Assistant reply",
+              parts: [{ type: "text", text: "Assistant reply" }],
+              createdAt: "2026-03-18T10:00:01.000Z",
+            },
+          ],
+        }),
       });
     fetchStreamMock.mockResolvedValue({
       events: async function* () {
@@ -899,6 +911,7 @@ describe("ChatProvider active conversation restore", () => {
         ok: false,
         json: async () => ({ error: "No active conversation" }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
@@ -974,6 +987,7 @@ describe("ChatProvider active conversation restore", () => {
         ok: false,
         json: async () => ({ error: "No active conversation" }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -1042,6 +1056,7 @@ describe("ChatProvider active conversation restore", () => {
         ok: false,
         json: async () => ({ error: "No active conversation" }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -1073,6 +1088,7 @@ describe("ChatProvider active conversation restore", () => {
         ok: false,
         json: async () => ({ error: "No active conversation" }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -1105,7 +1121,7 @@ describe("ChatProvider active conversation restore", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenNthCalledWith(
-        3,
+        4,
         "/api/chat/uploads",
         expect.objectContaining({
           method: "DELETE",

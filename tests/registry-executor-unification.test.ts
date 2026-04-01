@@ -74,6 +74,7 @@ vi.mock("@/lib/operator/operator-signal-loaders", () => ({
   loadOperatorLeadQueue: vi.fn(),
   loadOperatorFunnelRecommendations: vi.fn(),
   loadOperatorAnonymousOpportunities: vi.fn(),
+  loadOperatorRecentConversations: vi.fn(),
   loadOperatorRoutingReview: vi.fn(),
 }));
 

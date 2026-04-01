@@ -95,10 +95,11 @@ function getColumns(graph: GraphSpec): string[] {
 
 function getSeriesKeys(graph: GraphSpec): string[] {
   if (!graph.series) return ["Series 1"];
+  const seriesField = graph.series.field;
   const keys = Array.from(
     new Set(
       graph.data
-        .map((row) => row[graph.series!.field])
+        .map((row) => row[seriesField])
         .filter((value): value is GraphValue => value !== undefined)
         .map((value) => String(value ?? "Unspecified")),
     ),
@@ -201,11 +202,13 @@ function getGraphValidationIssue(graph: GraphSpec): string | undefined {
 
 function buildSeriesPoints(graph: GraphSpec): SeriesPoint[] {
   if (!graph.x || !graph.y) return [];
+  const xField = graph.x.field;
+  const yField = graph.y.field;
 
   return graph.data
     .map<SeriesPoint | null>((row) => {
-      const xValue = row[graph.x!.field];
-      const yValue = row[graph.y!.field];
+      const xValue = row[xField];
+      const yValue = row[yField];
       const numericY = typeof yValue === "number" && Number.isFinite(yValue) ? yValue : undefined;
       if (xValue === undefined || xValue === null || numericY === undefined) return null;
       return {
@@ -457,10 +460,17 @@ export function GraphRenderer({
         })),
       }))
     : [];
-  const heatmapXDomain = graph.kind === "heatmap" && graph.x ? getCategoricalDomain(graph.data, graph.x.field, graph.x.type) : [];
-  const heatmapYDomain = graph.kind === "heatmap" && graph.y ? getCategoricalDomain(graph.data, graph.y.field, graph.y.type) : [];
-  const heatmapColorValues = graph.kind === "heatmap" && graph.color
-    ? graph.data.map((row) => Number(row[graph.color!.field] ?? 0)).filter((value) => Number.isFinite(value))
+  const heatmapFields = graph.kind === "heatmap" && graph.x && graph.y && graph.color
+    ? {
+        xField: graph.x.field,
+        yField: graph.y.field,
+        colorField: graph.color.field,
+      }
+    : null;
+  const heatmapXDomain = heatmapFields ? getCategoricalDomain(graph.data, heatmapFields.xField, graph.x?.type) : [];
+  const heatmapYDomain = heatmapFields ? getCategoricalDomain(graph.data, heatmapFields.yField, graph.y?.type) : [];
+  const heatmapColorValues = heatmapFields
+    ? graph.data.map((row) => Number(row[heatmapFields.colorField] ?? 0)).filter((value) => Number.isFinite(value))
     : [];
   const [heatmapMin, heatmapMax] = getContinuousDomain(heatmapColorValues);
   const heatmapColor = (value: number) => {
@@ -697,15 +707,15 @@ export function GraphRenderer({
                   ))
                 : null}
 
-              {graph.kind === "heatmap" && graph.x && graph.y && graph.color
+              {graph.kind === "heatmap" && heatmapFields
                 ? graph.data.map((row, index) => {
-                    const xIndex = heatmapXDomain.findIndex((entry) => entry === row[graph.x!.field]);
-                    const yIndex = heatmapYDomain.findIndex((entry) => entry === row[graph.y!.field]);
+                    const xIndex = heatmapXDomain.findIndex((entry) => entry === row[heatmapFields.xField]);
+                    const yIndex = heatmapYDomain.findIndex((entry) => entry === row[heatmapFields.yField]);
                     const cellWidth = innerWidth / Math.max(heatmapXDomain.length, 1);
                     const cellHeight = innerHeight / Math.max(heatmapYDomain.length, 1);
                     const x = margin.left + xIndex * cellWidth;
                     const y = margin.top + yIndex * cellHeight;
-                    const value = Number(row[graph.color!.field] ?? 0);
+                    const value = Number(row[heatmapFields.colorField] ?? 0);
                     return (
                       <rect
                         key={`heat-${index}`}

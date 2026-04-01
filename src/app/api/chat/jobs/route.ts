@@ -44,8 +44,9 @@ export async function GET(request: NextRequest) {
       const { userId } = await resolveUserId();
       const requestedConversationId = request.nextUrl.searchParams.get("conversationId");
       const conversationId = await resolveConversationId(request, userId);
+      const resolvedConversationId = conversationId ?? requestedConversationId;
 
-      if (!conversationId && !requestedConversationId) {
+      if (!resolvedConversationId) {
         return errorJson(
           context,
           "No active conversation",
@@ -56,14 +57,14 @@ export async function GET(request: NextRequest) {
       const activeOnly = request.nextUrl.searchParams.get("activeOnly") === "true";
       const limit = parsePositiveInteger(request.nextUrl.searchParams.get("limit"), 25);
 
-      const jobs = await getJobStatusQuery().listConversationJobSnapshots(conversationId!, {
+      const jobs = await getJobStatusQuery().listConversationJobSnapshots(resolvedConversationId, {
         statuses: activeOnly ? getActiveJobStatuses() : undefined,
         limit,
       });
 
       return successJson(context, {
         ok: true,
-        conversationId,
+        conversationId: resolvedConversationId,
         jobs,
       });
     },

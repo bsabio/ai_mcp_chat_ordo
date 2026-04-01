@@ -1,10 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import Database from "better-sqlite3";
 import { ensureSchema } from "@/lib/db/schema";
+import type { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
+
+type ReferralLedgerModule = Record<string, unknown> & {
+  getReferralLedgerService: typeof getReferralLedgerService;
+};
 
 const authTestState = vi.hoisted(() => ({
   testDb: undefined as ReturnType<typeof Database> | undefined,
   cookieJar: new Map<string, string>(),
+  failReferralLinkCount: 0,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -18,6 +24,30 @@ const { repairConversationOwnershipIndex } = vi.hoisted(() => ({
 vi.mock("@/lib/chat/embed-conversation", () => ({
   repairConversationOwnershipIndex,
 }));
+
+vi.mock("@/lib/referrals/referral-ledger", async () => {
+  const actual = await vi.importActual<ReferralLedgerModule>("@/lib/referrals/referral-ledger");
+
+  return {
+    ...actual,
+    getReferralLedgerService: () => {
+      const service = actual.getReferralLedgerService();
+      return {
+        ...service,
+        async linkConversationToAuthenticatedUser(
+          input: Parameters<typeof service.linkConversationToAuthenticatedUser>[0],
+        ) {
+          if (authTestState.failReferralLinkCount > 0) {
+            authTestState.failReferralLinkCount -= 1;
+            throw new Error("simulated referral linkage failure");
+          }
+
+          return service.linkConversationToAuthenticatedUser(input);
+        },
+      };
+    },
+  };
+});
 
 // Mock next/headers cookies
 vi.mock("next/headers", () => ({
@@ -59,6 +89,7 @@ describe("Auth API routes — full lifecycle", () => {
     authTestState.testDb = new Database(":memory:");
     ensureSchema(authTestState.testDb);
     authTestState.cookieJar = new Map();
+    authTestState.failReferralLinkCount = 0;
     repairConversationOwnershipIndex.mockClear();
   });
 
@@ -82,6 +113,51 @@ describe("Auth API routes — full lifecycle", () => {
       .prepare(`INSERT INTO conversations (id, user_id, title, status, session_source) VALUES (?, ?, ?, 'archived', 'anonymous_cookie')`)
       .run("conv_anon", anonUserId, "Anonymous chat");
     return anonUserId;
+  }
+
+  function seedCanonicalReferralForConversation(conversationId = "conv_anon") {
+    getTestDb()
+      .prepare(
+        `INSERT OR IGNORE INTO users (
+           id,
+           email,
+           name,
+           affiliate_enabled,
+           referral_code,
+           credential
+         ) VALUES (?, ?, ?, 1, ?, ?)`,
+      )
+      .run("usr_affiliate", "affiliate@test.com", "Ada Lovelace", "mentor-42", "Founder");
+    getTestDb()
+      .prepare(
+        `INSERT INTO referrals (
+           id,
+           referrer_user_id,
+           conversation_id,
+           referral_code,
+           visit_id,
+           status,
+           credit_status,
+           scanned_at,
+           last_validated_at,
+           last_event_at,
+           metadata_json
+         ) VALUES (?, ?, ?, ?, ?, 'engaged', 'tracked', ?, ?, ?, ?)`,
+      )
+      .run(
+        "ref_anon",
+        "usr_affiliate",
+        conversationId,
+        "mentor-42",
+        "visit_anon",
+        "2026-04-01T10:00:00.000Z",
+        "2026-04-01T10:00:00.000Z",
+        "2026-04-01T10:00:00.000Z",
+        JSON.stringify({ referrerName: "Ada Lovelace", referrerCredential: "Founder" }),
+      );
+    getTestDb()
+      .prepare(`UPDATE conversations SET referral_id = ?, referral_source = ? WHERE id = ?`)
+      .run("ref_anon", "mentor-42", conversationId);
   }
 
   it("register → login → me → logout → me(401)", async () => {
@@ -209,6 +285,33 @@ describe("Auth API routes — full lifecycle", () => {
     authTestState.testDb?.close();
   });
 
+  it("preserves canonical referral linkage during registration migration", async () => {
+    const anonSessionId = "anon_seed";
+    seedAnonymousConversation(anonSessionId);
+    seedCanonicalReferralForConversation();
+    authTestState.cookieJar.set("lms_anon_session", anonSessionId);
+
+    const res = await registerRoute(
+      jsonRequest({ email: "ref-reg@test.com", password: "password123", name: "Referral User" }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+
+    const referral = getTestDb()
+      .prepare(`SELECT referred_user_id, status FROM referrals WHERE id = 'ref_anon'`)
+      .get() as { referred_user_id: string | null; status: string };
+    expect(referral.referred_user_id).toBe(body.user.id);
+    expect(referral.status).toBe("registered");
+
+    const event = getTestDb()
+      .prepare(`SELECT event_type FROM referral_events WHERE referral_id = 'ref_anon' AND event_type = 'registered'`)
+      .get() as { event_type: string } | undefined;
+    expect(event?.event_type).toBe("registered");
+
+    authTestState.testDb?.close();
+  });
+
   it("repairs migrated anonymous conversation indexes during login", async () => {
     const regRes = await registerRoute(
       jsonRequest({ email: "login-migrate@test.com", password: "password123", name: "Returning User" }),
@@ -231,6 +334,86 @@ describe("Auth API routes — full lifecycle", () => {
       anonUserId,
     );
     expect(authTestState.cookieJar.has("lms_anon_session")).toBe(false);
+
+    authTestState.testDb?.close();
+  });
+
+  it("preserves canonical referral linkage during login migration", async () => {
+    const regRes = await registerRoute(
+      jsonRequest({ email: "ref-login@test.com", password: "password123", name: "Returning User" }),
+    );
+    const regBody = await regRes.json();
+
+    const anonSessionId = "anon_login_seed";
+    seedAnonymousConversation(anonSessionId);
+    seedCanonicalReferralForConversation();
+    authTestState.cookieJar.clear();
+    authTestState.cookieJar.set("lms_anon_session", anonSessionId);
+
+    const res = await loginRoute(
+      jsonRequest({ email: "ref-login@test.com", password: "password123" }),
+    );
+
+    expect(res.status).toBe(200);
+
+    const referral = getTestDb()
+      .prepare(`SELECT referred_user_id, status FROM referrals WHERE id = 'ref_anon'`)
+      .get() as { referred_user_id: string | null; status: string };
+    expect(referral.referred_user_id).toBe(regBody.user.id);
+    expect(referral.status).toBe("engaged");
+
+    const event = getTestDb()
+      .prepare(`SELECT event_type FROM referral_events WHERE referral_id = 'ref_anon' AND event_type = 'user_linked'`)
+      .get() as { event_type: string } | undefined;
+    expect(event?.event_type).toBe("user_linked");
+
+    authTestState.testDb?.close();
+  });
+
+  it("preserves the anonymous retry path when referral linkage fails during login migration", async () => {
+    const regRes = await registerRoute(
+      jsonRequest({ email: "retry-login@test.com", password: "password123", name: "Returning User" }),
+    );
+    const regBody = await regRes.json();
+
+    const anonSessionId = "anon_retry_login";
+    const anonUserId = seedAnonymousConversation(anonSessionId);
+    seedCanonicalReferralForConversation();
+    authTestState.cookieJar.clear();
+    authTestState.cookieJar.set("lms_anon_session", anonSessionId);
+    authTestState.failReferralLinkCount = 1;
+
+    const failedRes = await loginRoute(
+      jsonRequest({ email: "retry-login@test.com", password: "password123" }),
+    );
+
+    expect(failedRes.status).toBe(500);
+    expect(authTestState.cookieJar.has("lms_session_token")).toBe(false);
+    expect(authTestState.cookieJar.get("lms_anon_session")).toBe(anonSessionId);
+
+    const migratedConversation = getTestDb()
+      .prepare(`SELECT user_id, converted_from FROM conversations WHERE id = 'conv_anon'`)
+      .get() as { user_id: string; converted_from: string | null };
+    expect(migratedConversation.user_id).toBe(regBody.user.id);
+    expect(migratedConversation.converted_from).toBe(anonUserId);
+
+    const retryRes = await loginRoute(
+      jsonRequest({ email: "retry-login@test.com", password: "password123" }),
+    );
+
+    expect(retryRes.status).toBe(200);
+    expect(authTestState.cookieJar.has("lms_session_token")).toBe(true);
+    expect(authTestState.cookieJar.has("lms_anon_session")).toBe(false);
+
+    const referral = getTestDb()
+      .prepare(`SELECT referred_user_id FROM referrals WHERE id = 'ref_anon'`)
+      .get() as { referred_user_id: string | null };
+    expect(referral.referred_user_id).toBe(regBody.user.id);
+
+    const event = getTestDb()
+      .prepare(`SELECT event_type FROM referral_events WHERE referral_id = 'ref_anon' AND event_type = 'user_linked'`)
+      .get() as { event_type: string } | undefined;
+    expect(event?.event_type).toBe("user_linked");
 
     authTestState.testDb?.close();
   });

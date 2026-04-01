@@ -56,7 +56,7 @@ describe("searchAdminEntities", () => {
   });
 
   it("filters by entity types when provided", async () => {
-    const prepareMock = vi.fn((_sql: string) => ({ all: vi.fn().mockReturnValue([]) }));
+    const prepareMock = vi.fn((sql: string) => ({ all: vi.fn().mockReturnValue([]), sql }));
     getDbMock.mockReturnValue({ prepare: prepareMock });
 
     await searchAdminEntities("test", { entityTypes: ["user", "lead"] });
@@ -76,7 +76,7 @@ describe("searchAdminEntities", () => {
   });
 
   it("respects limit option", async () => {
-    const prepareMock = vi.fn((_sql: string) => ({ all: vi.fn().mockReturnValue([]) }));
+    const prepareMock = vi.fn((sql: string) => ({ all: vi.fn().mockReturnValue([]), sql }));
     getDbMock.mockReturnValue({ prepare: prepareMock });
 
     await searchAdminEntities("test", { limit: 5 });
@@ -86,7 +86,7 @@ describe("searchAdminEntities", () => {
   });
 
   it("includes all 9 entity types in default query", async () => {
-    const prepareMock = vi.fn((_sql: string) => ({ all: vi.fn().mockReturnValue([]) }));
+    const prepareMock = vi.fn((sql: string) => ({ all: vi.fn().mockReturnValue([]), sql }));
     getDbMock.mockReturnValue({ prepare: prepareMock });
 
     await searchAdminEntities("test");

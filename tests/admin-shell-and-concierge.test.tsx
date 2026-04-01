@@ -83,7 +83,10 @@ import {
   getAdminUserDetailPath,
   getAdminUsersPath,
 } from "@/lib/admin/admin-routes";
-import { resolveAdminNavigationItems } from "@/lib/admin/admin-navigation";
+import {
+  resolveAdminNavigationItems,
+  resolveAdminWorkspaceContext,
+} from "@/lib/admin/admin-navigation";
 import { resolveAccountMenuRoutes } from "@/lib/shell/shell-navigation";
 import type { RoleName } from "@/core/entities/user";
 
@@ -188,6 +191,38 @@ describe("admin shell and concierge", () => {
 
     expect(Array.from(sidebarRoutes, (route) => route.getAttribute("href"))).toEqual(expectedRoutes);
     expect(Array.from(drawerRoutes, (route) => route.getAttribute("href"))).toEqual(expectedRoutes);
+  });
+
+  it("resolves route-aware workspace context for admin sub-workspaces", () => {
+    expect(resolveAdminWorkspaceContext("/admin/leads", new URLSearchParams("view=attention&tab=deals"))).toEqual(
+      expect.objectContaining({
+        currentItemId: "attention",
+        items: expect.arrayContaining([
+          expect.objectContaining({ id: "pipeline", href: "/admin/leads?tab=deals" }),
+          expect.objectContaining({ id: "attention", href: "/admin/leads?view=attention&tab=deals" }),
+        ]),
+      }),
+    );
+
+    expect(resolveAdminWorkspaceContext("/admin/conversations", new URLSearchParams("view=themes"))).toEqual(
+      expect.objectContaining({
+        currentItemId: "themes",
+        items: expect.arrayContaining([
+          expect.objectContaining({ id: "inbox", href: "/admin/conversations" }),
+          expect.objectContaining({ id: "themes", href: "/admin/conversations?view=themes" }),
+        ]),
+      }),
+    );
+
+    expect(resolveAdminWorkspaceContext("/admin/journal/attribution")).toEqual(
+      expect.objectContaining({
+        currentItemId: "attribution",
+        items: expect.arrayContaining([
+          expect.objectContaining({ id: "inventory", href: "/admin/journal" }),
+          expect.objectContaining({ id: "attribution", href: "/admin/journal/attribution" }),
+        ]),
+      }),
+    );
   });
 
   it("returns the expected admin route helpers", () => {

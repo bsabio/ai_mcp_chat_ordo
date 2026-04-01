@@ -2,13 +2,10 @@ import type { Metadata } from "next";
 
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminSection } from "@/components/admin/AdminSection";
-import { AdminWorkspaceNav } from "@/components/admin/AdminWorkspaceNav";
 import { loadJournalAttribution } from "@/lib/admin/attribution/admin-attribution";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import {
-  getAdminJournalAttributionPath,
   getAdminJournalDetailPath,
-  getAdminJournalListPath,
 } from "@/lib/journal/admin-journal-routes";
 
 export const dynamic = "force-dynamic";
@@ -17,11 +14,6 @@ export const metadata: Metadata = {
   title: "Content Attribution — Admin",
   robots: { index: false, follow: false },
 };
-
-const JOURNAL_WORKSPACE_NAV_ITEMS = [
-  { id: "inventory", label: "Inventory", href: getAdminJournalListPath() },
-  { id: "attribution", label: "Attribution", href: getAdminJournalAttributionPath() },
-] as const;
 
 export default async function AttributionPage({
   searchParams,
@@ -57,12 +49,6 @@ export default async function AttributionPage({
       description="See how journal articles drive conversations, leads, and revenue through the AI concierge."
     >
       <div className="grid gap-(--space-stack-default)">
-        <AdminWorkspaceNav
-          ariaLabel="Journal workspace navigation"
-          items={JOURNAL_WORKSPACE_NAV_ITEMS}
-          currentItemId="attribution"
-        />
-
         {/* Date range filter */}
         <form method="get" className="flex flex-wrap items-end gap-(--space-cluster-default)">
           <label className="grid gap-(--space-1) text-sm text-foreground/66">

@@ -1,3 +1,4 @@
+import { createElement, type ImgHTMLAttributes } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -22,12 +23,11 @@ const {
 }));
 
 vi.mock("next/image", () => ({
-  default: ({
-    priority: _priority,
-    ...props
-  }: React.ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => (
-    <img {...props} alt={props.alt ?? ""} />
-  ),
+  default: (props: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => {
+    const imageProps = { ...props };
+    delete imageProps.priority;
+    return createElement("img", { ...imageProps, alt: props.alt ?? "" });
+  },
 }));
 
 vi.mock("next/navigation", () => ({

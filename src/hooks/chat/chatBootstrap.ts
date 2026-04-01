@@ -21,12 +21,6 @@ interface BootstrapRefreshOptions {
   isSending: boolean;
 }
 
-export function extractReferralCode(cookie: string): string | null {
-  const match = cookie.match(/(?:^|;\s*)lms_referral_code=([^;]+)/);
-
-  return match?.[1] ?? null;
-}
-
 export function buildReferralContext(data: ReferralApiResponse | null | undefined): ReferralContext | null {
   const referrer = data?.referrer;
   const referrerName = referrer?.name?.trim();

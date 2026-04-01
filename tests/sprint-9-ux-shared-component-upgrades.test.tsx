@@ -1,14 +1,10 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 function readSource(relativePath: string): string {
   return readFileSync(join(process.cwd(), relativePath), "utf-8");
-}
-
-function fileExists(relativePath: string): boolean {
-  return existsSync(join(process.cwd(), relativePath));
 }
 
 // ── D9.1: AdminSection heading level + breadcrumbs prop ───────────────

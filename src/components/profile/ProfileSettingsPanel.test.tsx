@@ -2,15 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserProfileViewModel } from "@/lib/profile/types";
 
-const { downloadFileFromUrlMock, writeTextMock } = vi.hoisted(() => ({
-  downloadFileFromUrlMock: vi.fn(),
-  writeTextMock: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("@/lib/download-browser", () => ({
-  downloadFileFromUrl: downloadFileFromUrlMock,
-}));
-
 import { ProfileSettingsPanel } from "@/components/profile/ProfileSettingsPanel";
 
 const registerMock = vi.fn();
@@ -27,7 +18,7 @@ function buildProfile(overrides: Partial<UserProfileViewModel> = {}): UserProfil
     pushNotificationsEnabled: true,
     affiliateEnabled: true,
     referralCode: "mentor-42",
-    referralUrl: "https://studioordo.com/?ref=mentor-42",
+    referralUrl: "https://studioordo.com/r/mentor-42",
     qrCodeUrl: "/api/qr/mentor-42",
     roles: ["APPRENTICE"],
     ...overrides,
@@ -72,41 +63,19 @@ describe("ProfileSettingsPanel", () => {
         register: registerMock,
       },
     });
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: writeTextMock,
-      },
-    });
   });
 
-  it("starts a named QR download from the profile page", () => {
+  it("renders a compact referral workspace entry for affiliate-enabled accounts", () => {
     const { container } = render(
       <ProfileSettingsPanel
         initialProfile={buildProfile()}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Download QR" }));
-
-    expect(downloadFileFromUrlMock).toHaveBeenCalledWith("/api/qr/mentor-42", "referral-mentor-42.png");
-    expect(screen.getByText("Referral QR download started.")).toBeInTheDocument();
     expect(container.querySelector('[data-profile-surface="details-panel"]')?.className).toContain("profile-panel-surface");
     expect(container.querySelector('[data-profile-surface="referral-panel"]')?.className).toContain("profile-feature-surface");
-    expect(container.querySelector('[data-profile-notice="success"]')?.className).toContain("profile-success-notice");
-  });
-
-  it("copies the referral link from the profile page", async () => {
-    render(
-      <ProfileSettingsPanel
-        initialProfile={buildProfile()}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
-
-    await waitFor(() => {
-      expect(writeTextMock).toHaveBeenCalledWith("https://studioordo.com/?ref=mentor-42");
-    });
+    expect(screen.getByRole("link", { name: "Open referrals workspace" })).toHaveAttribute("href", "/referrals");
+    expect(screen.queryByRole("button", { name: "Download QR" })).not.toBeInTheDocument();
   });
 
   it("enables push notifications from the profile panel", async () => {
@@ -174,5 +143,16 @@ describe("ProfileSettingsPanel", () => {
       );
     });
     expect(await screen.findByText("Push notifications disabled for your account.")).toBeInTheDocument();
+  });
+
+  it("renders the deployment-level push configuration message deterministically", () => {
+    vi.stubEnv("NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY", "");
+
+    render(<ProfileSettingsPanel initialProfile={buildProfile({ pushNotificationsEnabled: false })} />);
+
+    expect(
+      screen.getByText("Push notifications are not configured for this deployment yet."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enable notifications" })).toBeDisabled();
   });
 });

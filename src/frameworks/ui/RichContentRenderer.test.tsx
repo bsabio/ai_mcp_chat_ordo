@@ -290,7 +290,7 @@ describe("RichContentRenderer", () => {
         {
           type: "paragraph",
           content: [
-            { type: "action-link", label: "Open referral link", actionType: "external", value: "https://studioordo.com/?ref=mentor-42" },
+            { type: "action-link", label: "Open referral link", actionType: "external", value: "https://studioordo.com/r/mentor-42" },
           ],
         },
       ],
@@ -298,7 +298,7 @@ describe("RichContentRenderer", () => {
 
     render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
     fireEvent.click(screen.getByRole("button", { name: "Open referral link (external)" }));
-    expect(onActionClick).toHaveBeenCalledWith("external", "https://studioordo.com/?ref=mentor-42", undefined);
+    expect(onActionClick).toHaveBeenCalledWith("external", "https://studioordo.com/r/mentor-42", undefined);
   });
 
   it("should render action link as no-op when onActionClick is not provided", () => {

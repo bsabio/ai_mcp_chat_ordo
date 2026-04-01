@@ -207,8 +207,20 @@ export default async function AdminConversationDetailPage({
                     <dd>{conv.sessionSource}</dd>
                   </div>
                   <div className="flex justify-between text-foreground/60">
+                    <dt>Referral ID</dt>
+                    <dd>{conv.referralId || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
                     <dt>Referral</dt>
                     <dd>{conv.referralSource || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Trusted referrer</dt>
+                    <dd>{conv.trustedReferrerName || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Credential</dt>
+                    <dd>{conv.trustedReferrerCredential || "—"}</dd>
                   </div>
                   <div className="flex justify-between text-foreground/60">
                     <dt>Converted from</dt>

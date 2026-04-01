@@ -2,7 +2,9 @@ import type { IdentitySource } from "@/core/ports/IdentitySource";
 import type { RoleDirectiveSource } from "@/core/ports/RoleDirectiveSource";
 import type { RoleName } from "@/core/entities/user";
 import type { ConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
+import type { TrustedReferralContext } from "@/core/entities/Referral";
 import type { UserPreference } from "@/core/ports/UserPreferencesRepository";
+import { buildReferralContextBlock } from "@/lib/chat/referral-context";
 import { buildSummaryContextBlock } from "@/lib/chat/summary-context";
 import { buildRoutingContextBlock } from "@/lib/chat/routing-context";
 
@@ -77,6 +79,15 @@ export class SystemPromptBuilder {
     if (content) {
       this.sections.set("routing", { key: "routing", content, priority: 50 });
     }
+    return this;
+  }
+
+  withTrustedReferralContext(context: TrustedReferralContext | null): this {
+    this.sections.set("trusted_referral", {
+      key: "trusted_referral",
+      content: buildReferralContextBlock(context),
+      priority: 45,
+    });
     return this;
   }
 

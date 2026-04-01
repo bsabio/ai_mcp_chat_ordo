@@ -6,6 +6,8 @@ import {
 } from "@/lib/config/env";
 import { getLivenessProbe, getReadinessProbe } from "@/lib/health/probes";
 import { getMetricsSnapshot } from "@/lib/observability/metrics";
+import { buildReferralContextBlock } from "@/lib/chat/referral-context";
+import { resolveReferralPublicOrigin, type ReferralOriginSource } from "@/lib/referrals/referral-origin";
 
 export type AdminStatus = "ok" | "error";
 
@@ -20,6 +22,16 @@ export interface ReleaseManifestReport {
     builtAt: string | null;
     nodeVersion: string | null;
   } | null;
+}
+
+export interface ReferralOperationalDiagnostics {
+  status: AdminStatus;
+  publicOrigin: string;
+  originSource: ReferralOriginSource;
+  localhostFallback: boolean;
+  knownReferrerPromptVerified: boolean;
+  missingReferrerPromptVerified: boolean;
+  warnings: string[];
 }
 
 export function getReleaseManifestReport(): ReleaseManifestReport {
@@ -78,6 +90,7 @@ export function getDiagnosticsReport() {
     version?: string;
     name?: string;
   };
+  const referral = getReferralOperationalDiagnostics();
 
   return {
     status: "ok" as const,
@@ -89,6 +102,52 @@ export function getDiagnosticsReport() {
     anthropicModel: getAnthropicModel(),
     releaseManifestPresent: fs.existsSync(releaseManifestPath),
     metrics: getMetricsSnapshot(),
+    referral,
+  };
+}
+
+export function getReferralOperationalDiagnostics(): ReferralOperationalDiagnostics {
+  const origin = resolveReferralPublicOrigin();
+  const knownReferrerBlock = buildReferralContextBlock({
+    referralId: "ref_diag",
+    referralCode: "mentor-42",
+    referrerUserId: "usr_affiliate",
+    referrerName: "Ada Lovelace",
+    referrerCredential: "Founder",
+    referredUserId: null,
+    conversationId: "conv_diag",
+    status: "engaged",
+    creditStatus: "tracked",
+  });
+  const missingReferrerBlock = buildReferralContextBlock(null);
+  const warnings: string[] = [];
+
+  if (origin.invalidConfiguredOrigin) {
+    warnings.push(`Configured public origin is invalid: ${origin.invalidConfiguredOrigin}`);
+  }
+
+  const knownReferrerPromptVerified = knownReferrerBlock.includes("referral_known=true")
+    && knownReferrerBlock.includes('referrer_name="Ada Lovelace"')
+    && knownReferrerBlock.includes("referral_instruction=");
+  const missingReferrerPromptVerified = missingReferrerBlock.includes("referral_known=false")
+    && missingReferrerBlock.includes("cannot identify a validated referrer");
+
+  if (!knownReferrerPromptVerified) {
+    warnings.push("Known-referrer prompt verification failed.");
+  }
+
+  if (!missingReferrerPromptVerified) {
+    warnings.push("Missing-referrer prompt verification failed.");
+  }
+
+  return {
+    status: warnings.length === 0 ? "ok" : "error",
+    publicOrigin: origin.origin,
+    originSource: origin.source,
+    localhostFallback: origin.localhostFallback,
+    knownReferrerPromptVerified,
+    missingReferrerPromptVerified,
+    warnings,
   };
 }
 

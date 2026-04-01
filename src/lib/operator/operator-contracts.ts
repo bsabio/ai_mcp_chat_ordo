@@ -120,6 +120,14 @@ export interface SystemHealthBlockData {
     mode: string;
     details: string;
   };
+  referral: {
+    publicOrigin: string;
+    originSource: string;
+    localhostFallback: boolean;
+    knownReferrerPromptVerified: boolean;
+    missingReferrerPromptVerified: boolean;
+    warnings: string[];
+  };
   warnings: string[];
   generatedAt: string;
 }

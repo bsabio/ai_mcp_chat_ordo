@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // Mock all heavy dependencies so bundles can register without real DB/services
 vi.mock("@/lib/db", () => ({ getDb: vi.fn(() => ({ prepare: vi.fn(() => ({ run: vi.fn(), get: vi.fn(), all: vi.fn() })) })) }));
@@ -24,6 +24,7 @@ vi.mock("@/lib/operator/operator-signal-loaders", () => ({
   loadOperatorLeadQueue: vi.fn(),
   loadOperatorFunnelRecommendations: vi.fn(),
   loadOperatorAnonymousOpportunities: vi.fn(),
+  loadOperatorRecentConversations: vi.fn(),
   loadOperatorRoutingReview: vi.fn(),
 }));
 vi.mock("@/lib/blog/blog-production-root", () => ({
@@ -46,11 +47,7 @@ import { RoleAwareSearchFormatter } from "@/core/tool-registry/ToolResultFormatt
 import { registerCalculatorTools } from "@/lib/chat/tool-bundles/calculator-tools";
 import { registerThemeTools } from "@/lib/chat/tool-bundles/theme-tools";
 import { registerCorpusTools } from "@/lib/chat/tool-bundles/corpus-tools";
-import { registerConversationTools } from "@/lib/chat/tool-bundles/conversation-tools";
-import { registerAdminTools } from "@/lib/chat/tool-bundles/admin-tools";
 import { registerBlogTools } from "@/lib/chat/tool-bundles/blog-tools";
-import { registerProfileTools } from "@/lib/chat/tool-bundles/profile-tools";
-import { registerJobTools } from "@/lib/chat/tool-bundles/job-tools";
 import { createToolRegistry } from "@/lib/chat/tool-composition-root";
 import { getCorpusRepository } from "@/adapters/RepositoryFactory";
 

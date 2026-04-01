@@ -29,7 +29,6 @@ import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 import { useInstancePrompts } from "@/lib/config/InstanceConfigContext";
 import {
   buildReferralContext,
-  extractReferralCode,
   shouldRefreshBootstrapMessages,
 } from "@/hooks/chat/chatBootstrap";
 import type { FailedSendPayload } from "@/hooks/chat/useChatSend";
@@ -92,13 +91,10 @@ export function ChatProvider({
 
   // Fetch referral context from cookie
   useEffect(() => {
-    if (referralResolved.current) return;
+    if (referralResolved.current || initialRole !== "ANONYMOUS") return;
     referralResolved.current = true;
 
-    const refCode = extractReferralCode(document.cookie);
-    if (!refCode) return;
-
-    fetch(`/api/referral/${encodeURIComponent(refCode)}`)
+    fetch("/api/referral/visit")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const ctx = buildReferralContext(data);

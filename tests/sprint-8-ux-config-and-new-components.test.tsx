@@ -40,6 +40,7 @@ describe("D8.1: shell-navigation config — header visibility", () => {
       "admin-dashboard",
       "admin-users",
       "admin-leads",
+      "admin-affiliates",
       "admin-conversations",
       "admin-jobs",
       "admin-prompts",

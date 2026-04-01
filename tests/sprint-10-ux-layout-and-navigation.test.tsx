@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -203,6 +203,30 @@ describe("D10.5: Detail pages — breadcrumbs and back-link", () => {
       const source = readSource(page.path);
       expect(source, `${page.path} breadcrumb root`).toContain("/admin");
     }
+  });
+
+  // ── D10.5a: Admin workspace pages avoid duplicate local rails ────────
+
+  describe("D10.5a: Admin workspace pages — one shared rail", () => {
+    const adminWorkspacePages = [
+      "src/app/admin/leads/page.tsx",
+      "src/app/admin/conversations/page.tsx",
+      "src/app/admin/journal/page.tsx",
+      "src/app/admin/journal/[id]/page.tsx",
+      "src/app/admin/journal/attribution/page.tsx",
+    ];
+
+    for (const pagePath of adminWorkspacePages) {
+      it(`${pagePath} does not import AdminWorkspaceNav`, () => {
+        const source = readSource(pagePath);
+        expect(source).not.toMatch(/AdminWorkspaceNav/);
+      });
+    }
+
+    it("ShellWorkspaceMenu resolves route-aware admin workspace context", () => {
+      const source = readSource("src/components/ShellWorkspaceMenu.tsx");
+      expect(source).toMatch(/resolveAdminWorkspaceContext/);
+    });
   });
 });
 

@@ -15,7 +15,11 @@ export function getAdminJournalDetailPath(postId: string): string {
 }
 
 export function getAdminJournalPreviewPath(slug: string): string {
-  return journalRoutes.preview!(slug);
+  const preview = journalRoutes.preview;
+  if (!preview) {
+    throw new Error("Journal preview route is not configured.");
+  }
+  return preview(slug);
 }
 
 export function getAdminBlogHeroImagesApiPath(postId: string): string {

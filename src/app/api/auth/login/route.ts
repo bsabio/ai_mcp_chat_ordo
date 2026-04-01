@@ -18,7 +18,9 @@ export async function POST(req: Request) {
 
     const result = await login({ email, password });
 
-    // Set session cookie
+    await migrateAnonymousConversationsToUser(result.user.id, "login");
+
+    // Set session cookie only after anonymous migration succeeds.
     const cookieStore = await cookies();
     cookieStore.set("lms_session_token", result.sessionToken, {
       path: "/",
@@ -27,8 +29,6 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60, // 7 days
     });
-
-    await migrateAnonymousConversationsToUser(result.user.id, "login");
 
     return NextResponse.json({ user: result.user });
   } catch (error) {

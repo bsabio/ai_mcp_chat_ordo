@@ -52,6 +52,38 @@ describe("ConversationDataMapper", () => {
     expect(found.routingSnapshot).toEqual(createConversationRoutingSnapshot());
   });
 
+  it("persists canonical referral linkage alongside the debug referral source", async () => {
+    const conv = await mapper.create({
+      id: "conv_ref",
+      userId: "usr_test",
+      title: "Referral",
+      referralId: "ref_1",
+      referralSource: "mentor-42",
+    });
+
+    expect(conv.referralId).toBe("ref_1");
+    expect(conv.referralSource).toBe("mentor-42");
+
+    const found = requireValue(await mapper.findById("conv_ref"));
+    expect(found.referralId).toBe("ref_1");
+    expect(found.referralSource).toBe("mentor-42");
+  });
+
+  it("replaces stale debug referral_source values when canonical attribution is attached", async () => {
+    await mapper.create({
+      id: "conv_stale_ref",
+      userId: "usr_test",
+      title: "Referral",
+      referralSource: "raw-unvalidated-code",
+    });
+
+    await mapper.setReferralAttribution("conv_stale_ref", "ref_1", "mentor-42");
+
+    const found = requireValue(await mapper.findById("conv_stale_ref"));
+    expect(found.referralId).toBe("ref_1");
+    expect(found.referralSource).toBe("mentor-42");
+  });
+
   it("listByUser returns summaries with messageCount ordered by updated_at desc", async () => {
     await mapper.create({ id: "conv_a", userId: "usr_test", title: "First" });
     await mapper.create({ id: "conv_b", userId: "usr_test", title: "Second" });

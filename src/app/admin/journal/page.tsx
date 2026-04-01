@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
 
 import { AdminSection } from "@/components/admin/AdminSection";
-import { AdminWorkspaceNav } from "@/components/admin/AdminWorkspaceNav";
 import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { loadAdminJournalList, requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";
-import {
-  getAdminJournalAttributionPath,
-  getAdminJournalListPath,
-} from "@/lib/journal/admin-journal-routes";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +16,6 @@ export const metadata: Metadata = {
     follow: false,
   },
 };
-
-const JOURNAL_WORKSPACE_NAV_ITEMS = [
-  { id: "inventory", label: "Inventory", href: getAdminJournalListPath() },
-  { id: "attribution", label: "Attribution", href: getAdminJournalAttributionPath() },
-] as const;
 
 export default async function AdminJournalPage({
   searchParams,
@@ -45,12 +35,6 @@ export default async function AdminJournalPage({
       description="Inspect journal inventory, review workflow state, and manage preview and detail surfaces."
     >
       <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
-        <AdminWorkspaceNav
-          ariaLabel="Journal workspace navigation"
-          items={JOURNAL_WORKSPACE_NAV_ITEMS}
-          currentItemId="inventory"
-        />
-
         <AdminBrowseFilters
           fields={[
             { name: "q", label: "Search", type: "search", placeholder: "Search title or slug" },

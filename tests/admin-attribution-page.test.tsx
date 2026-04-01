@@ -38,9 +38,9 @@ describe("AttributionPage", () => {
     render(jsx);
 
     expect(screen.getByText("Content Attribution")).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Journal workspace navigation" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Inventory" })).toHaveAttribute("href", "/admin/journal");
-    expect(screen.getByRole("link", { name: "Attribution" })).toHaveAttribute("href", "/admin/journal/attribution");
+    expect(screen.getByRole("button", { name: "Filter" })).toBeInTheDocument();
+    expect(screen.getByLabelText("After")).toBeInTheDocument();
+    expect(screen.getByLabelText("Before")).toBeInTheDocument();
   });
 
   it("renders empty state when no entries exist", async () => {

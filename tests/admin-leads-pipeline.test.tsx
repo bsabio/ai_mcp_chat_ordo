@@ -505,7 +505,7 @@ describe("D3.6 — leads Browse page", () => {
     const jsx = await AdminLeadsPage({ searchParams: Promise.resolve({ view: "attention" }) });
     render(jsx);
 
-    expect(screen.getByRole("navigation", { name: "Leads workspace views" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Leads Pipeline" })).toBeInTheDocument();
     expect(screen.getByText("Submitted leads")).toBeInTheDocument();
     expect(screen.getByText("Consultation requests")).toBeInTheDocument();
     expect(screen.getByText("Training paths")).toBeInTheDocument();

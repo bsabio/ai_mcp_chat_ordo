@@ -24,14 +24,42 @@ const localStorageMock = {
 };
 
 const skipTransitionMock = vi.fn();
-const startViewTransitionMock = vi.fn((callback: () => void) => {
-  callback();
+
+function createViewTransitionTypeSet(): ViewTransitionTypeSet {
+  return new Set<string>() as unknown as ViewTransitionTypeSet;
+}
+
+function createViewTransition(options?: { pending?: boolean; throwAbortOnSkip?: boolean }): ViewTransition {
+  let resolveFinished: (() => void) | null = null;
+  const finished = options?.pending
+    ? new Promise<void>((resolve) => {
+      resolveFinished = resolve;
+    })
+    : Promise.resolve();
+
+  const skipTransition = vi.fn(() => {
+    resolveFinished?.();
+
+    if (options?.throwAbortOnSkip) {
+      throw new DOMException(
+        "Skipping view transition because skipTransition() was called.",
+        "AbortError",
+      );
+    }
+  });
+
   return {
-    finished: Promise.resolve(),
+    finished,
     ready: Promise.resolve(),
     updateCallbackDone: Promise.resolve(),
-    skipTransition: skipTransitionMock,
+    skipTransition,
+    types: createViewTransitionTypeSet(),
   };
+}
+
+const startViewTransitionMock = vi.fn((callback: () => void) => {
+  callback();
+  return createViewTransition();
 });
 
 function installMatchMedia(prefersDark = false) {
@@ -284,6 +312,27 @@ describe("ThemeProvider — theme switching", () => {
   });
 
   it("skips the outgoing view transition when switching rapidly", async () => {
+    const interruptedTransition = createViewTransition({ pending: true });
+    const rapidStartViewTransitionMock = vi
+      .fn<(callback: () => void) => ViewTransition>()
+      .mockImplementationOnce((callback) => {
+        callback();
+        return createViewTransition();
+      })
+      .mockImplementationOnce((callback) => {
+        callback();
+        return interruptedTransition;
+      })
+      .mockImplementation((callback) => {
+        callback();
+        return createViewTransition();
+      });
+
+    Object.defineProperty(document, "startViewTransition", {
+      value: rapidStartViewTransitionMock,
+      configurable: true,
+    });
+
     let ctx: ReturnType<typeof useTheme>;
     render(
       <ThemeProvider>
@@ -304,7 +353,58 @@ describe("ThemeProvider — theme switching", () => {
     });
 
     // The skipTransition guard should have been called for the interrupted transition
-    expect(skipTransitionMock).toHaveBeenCalled();
+    expect(interruptedTransition.skipTransition).toHaveBeenCalled();
+  });
+
+  it("ignores AbortError when skipping an interrupted view transition", async () => {
+    const interruptedTransition = createViewTransition({ pending: true, throwAbortOnSkip: true });
+    const abortingStartViewTransitionMock = vi
+      .fn<(callback: () => void) => ViewTransition>()
+      .mockImplementationOnce((callback) => {
+        callback();
+        return createViewTransition();
+      })
+      .mockImplementationOnce((callback) => {
+        callback();
+        return interruptedTransition;
+      })
+      .mockImplementation((callback) => {
+        callback();
+        return createViewTransition();
+      });
+
+    Object.defineProperty(document, "startViewTransition", {
+      value: abortingStartViewTransitionMock,
+      configurable: true,
+    });
+
+    let ctx: ReturnType<typeof useTheme>;
+    render(
+      <ThemeProvider>
+        <ThemeHarness onContext={(c) => { ctx = c; }} />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("theme-fluid")).toBe(true);
+    });
+
+    await act(() => { ctx!.setTheme("bauhaus"); });
+
+    let thrownError: unknown;
+    try {
+      await act(() => { ctx!.setTheme("swiss"); });
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBeUndefined();
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("theme-swiss")).toBe(true);
+    });
+
+    expect(interruptedTransition.skipTransition).toHaveBeenCalled();
   });
 
   it("detects system dark preference on first visit", async () => {

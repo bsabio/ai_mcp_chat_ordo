@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { revalidatePath } from "next/cache";
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getBlogPostRepository } from "@/adapters/RepositoryFactory";
-import { AdminWorkspaceNav } from "@/components/admin/AdminWorkspaceNav";
 import {
   createJournalEditorialInteractor,
   parseDraftBodyForm,
@@ -16,7 +16,6 @@ import {
 import { loadSinglePostAttribution } from "@/lib/admin/attribution/admin-attribution";
 import { loadAdminJournalDetail, requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import {
-  getAdminJournalAttributionPath,
   getAdminJournalDetailPath,
   getAdminJournalListPath,
   getAdminJournalPreviewPath,
@@ -31,11 +30,6 @@ export const metadata: Metadata = {
     follow: false,
   },
 };
-
-const JOURNAL_WORKSPACE_NAV_ITEMS = [
-  { id: "inventory", label: "Inventory", href: getAdminJournalListPath() },
-  { id: "attribution", label: "Attribution", href: getAdminJournalAttributionPath() },
-] as const;
 
 function compactPreview(value: string | null | undefined, fallback: string, maxLength = 140): string {
   const normalized = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
@@ -209,12 +203,6 @@ export default async function AdminJournalDetailPage({
           </div>
         </header>
 
-        <AdminWorkspaceNav
-          ariaLabel="Journal workspace navigation"
-          items={JOURNAL_WORKSPACE_NAV_ITEMS}
-          currentItemId="inventory"
-        />
-
         <div className="grid gap-(--space-stack-default) lg:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.75fr)]">
           <section className="grid gap-(--space-stack-default)">
             <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
@@ -222,23 +210,23 @@ export default async function AdminJournalDetailPage({
               <form action={saveMetadataAction} className="mt-(--space-stack-default) grid gap-(--space-stack-default) sm:grid-cols-2">
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
                   <span className="font-medium text-foreground/72">Title</span>
-                  <input name="title" defaultValue={detail.post.title} className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                  <input name="title" defaultValue={detail.post.title} className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
                 </label>
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
                   <span className="font-medium text-foreground/72">Slug</span>
-                  <input name="slug" defaultValue={detail.post.slug} className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                  <input name="slug" defaultValue={detail.post.slug} className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
                 </label>
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66 sm:col-span-2">
                   <span className="font-medium text-foreground/72">Description</span>
-                  <textarea name="description" defaultValue={detail.post.description} className="min-h-24 rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                  <textarea name="description" defaultValue={detail.post.description} className="min-h-24 rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
                 </label>
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66 sm:col-span-2">
                   <span className="font-medium text-foreground/72">Standfirst</span>
-                  <textarea name="standfirst" defaultValue={detail.post.standfirst ?? ""} placeholder="Optional standfirst for the journal article." className="min-h-20 rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                  <textarea name="standfirst" defaultValue={detail.post.standfirst ?? ""} placeholder="Optional standfirst for the journal article." className="min-h-20 rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
                 </label>
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
                   <span className="font-medium text-foreground/72">Section</span>
-                  <select name="section" defaultValue={detail.post.section ?? ""} className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground">
+                  <select name="section" defaultValue={detail.post.section ?? ""} className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground">
                     <option value="">Legacy / unset</option>
                     <option value="essay">Essay</option>
                     <option value="briefing">Briefing</option>
@@ -246,11 +234,11 @@ export default async function AdminJournalDetailPage({
                 </label>
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
                   <span className="font-medium text-foreground/72">Workflow</span>
-                  <input readOnly value={detail.post.statusLabel} className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                  <input readOnly value={detail.post.statusLabel} className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
                 </label>
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66 sm:col-span-2">
                   <span className="font-medium text-foreground/72">Metadata change note</span>
-                  <input name="changeNote" defaultValue="" placeholder="Optional note describing this metadata edit." className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                  <input name="changeNote" defaultValue="" placeholder="Optional note describing this metadata edit." className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
                 </label>
                 <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-(--space-cluster-default) border-t border-foreground/10 pt-(--space-stack-default)">
                   <p className="text-sm leading-6 text-foreground/60">Metadata edits record a revision before the change is applied.</p>
@@ -280,7 +268,7 @@ export default async function AdminJournalDetailPage({
                         defaultValue=""
                         aria-label={`Workflow change note for ${action.label}`}
                         placeholder="Optional note for the revision timeline."
-                        className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
+                        className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
                       />
                     </label>
                   </form>
@@ -294,11 +282,11 @@ export default async function AdminJournalDetailPage({
               <form action={saveDraftBodyAction} className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
                   <span className="font-medium text-foreground/72">Draft body</span>
-                  <textarea name="content" aria-label="Draft body" defaultValue={detail.post.content} className="min-h-80 w-full rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) font-mono text-sm text-foreground" />
+                  <textarea name="content" aria-label="Draft body" defaultValue={detail.post.content} className="min-h-80 w-full rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) font-mono text-sm text-foreground" />
                 </label>
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
                   <span className="font-medium text-foreground/72">Draft body change note</span>
-                  <input name="changeNote" defaultValue="" placeholder="Optional note describing this draft revision." className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                  <input name="changeNote" defaultValue="" placeholder="Optional note describing this draft revision." className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
                 </label>
                 <div className="flex flex-wrap items-center justify-between gap-(--space-cluster-default) border-t border-foreground/10 pt-(--space-stack-default)">
                   <p className="text-sm leading-6 text-foreground/60">Use this editor for canonical draft-body updates without bypassing revision history.</p>
@@ -324,7 +312,16 @@ export default async function AdminJournalDetailPage({
                         <span>{asset.selectionState}</span>
                         <span>{asset.visibility}</span>
                       </div>
-                      <img src={asset.imageHref} alt={asset.altText} className="mt-(--space-3) aspect-[16/9] w-full rounded-xl object-cover" />
+                      <div className="relative mt-(--space-3) aspect-video w-full overflow-hidden rounded-xl">
+                        <Image
+                          src={asset.imageHref}
+                          alt={asset.altText}
+                          fill
+                          unoptimized
+                          sizes="(max-width: 1280px) 100vw, 33vw"
+                          className="object-cover"
+                        />
+                      </div>
                       <p className="mt-(--space-3) text-sm text-foreground">{asset.altText}</p>
                       <p className="mt-(--space-1) text-xs text-foreground/52">Created {asset.createdAtLabel}</p>
                     </li>
@@ -376,7 +373,7 @@ export default async function AdminJournalDetailPage({
                       </div>
                       <p className="mt-(--space-3) text-sm font-medium text-foreground">{revision.snapshot.title}</p>
                       <p className="mt-(--space-1) text-sm leading-6 text-foreground/64">{revision.changeNoteLabel}</p>
-                      <div className="mt-(--space-stack-default) rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-(--space-inset-panel)">
+                      <div className="mt-(--space-stack-default) rounded-2xl border border-foreground/10 bg-foreground/2 p-(--space-inset-panel)">
                         <div className="flex flex-wrap items-center justify-between gap-(--space-cluster-default)">
                           <h3 className="text-sm font-semibold text-foreground">Restore preview</h3>
                           <p className="text-xs font-medium uppercase tracking-[0.14em] text-foreground/52">
@@ -389,14 +386,14 @@ export default async function AdminJournalDetailPage({
                             <p className="text-sm font-medium text-foreground">{detail.post.title}</p>
                             <p className="text-sm leading-6 text-foreground/64">{compactPreview(detail.post.description, "No description recorded yet.")}</p>
                             <p className="text-xs text-foreground/52">{detail.post.statusLabel} · {detail.post.sectionLabel}</p>
-                            <p className="rounded-xl bg-foreground/[0.03] px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(detail.post.content, "No draft body recorded yet.")}</p>
+                            <p className="rounded-xl bg-foreground/3 px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(detail.post.content, "No draft body recorded yet.")}</p>
                           </div>
                           <div className="grid gap-(--space-cluster-tight) rounded-2xl border border-foreground/10 bg-background p-(--space-inset-panel)">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">Revision snapshot</p>
                             <p className="text-sm font-medium text-foreground">{revision.snapshot.title}</p>
                             <p className="text-sm leading-6 text-foreground/64">{compactPreview(revision.snapshot.description, "No description recorded yet.")}</p>
                             <p className="text-xs text-foreground/52">{revision.statusLabel} · {revision.sectionLabel}</p>
-                            <p className="rounded-xl bg-foreground/[0.03] px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(revision.snapshot.content, "No draft body recorded yet.")}</p>
+                            <p className="rounded-xl bg-foreground/3 px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(revision.snapshot.content, "No draft body recorded yet.")}</p>
                           </div>
                         </div>
                       </div>
@@ -409,7 +406,7 @@ export default async function AdminJournalDetailPage({
                             defaultValue=""
                             aria-label={`Restore note for ${revision.id}`}
                             placeholder="Optional note for why this revision is being restored."
-                            className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
+                            className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
                           />
                         </label>
                         <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">Restore revision</button>

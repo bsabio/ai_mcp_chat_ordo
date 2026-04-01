@@ -11,6 +11,7 @@ import type { ConversationRepository } from "./ConversationRepository";
 import type { DealRecordRepository } from "./DealRecordRepository";
 import type { LeadRecordRepository } from "./LeadRecordRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
 
 function makeDeal(overrides: Partial<DealRecord> = {}): DealRecord {
   return {
@@ -112,6 +113,7 @@ describe("CreateDealFromWorkflowInteractor", () => {
   let leadRecordRepo: LeadRecordRepository;
   let conversationRepo: ConversationRepository;
   let eventRecorder: ConversationEventRecorder;
+  let referralRecorder: ReferralLifecycleRecorder;
   let interactor: CreateDealFromWorkflowInteractor;
 
   beforeEach(() => {
@@ -167,12 +169,21 @@ describe("CreateDealFromWorkflowInteractor", () => {
       record: vi.fn(async () => undefined),
     } as unknown as ConversationEventRecorder;
 
+    referralRecorder = {
+      recordLeadSubmitted: vi.fn(async () => undefined),
+      recordConsultationRequested: vi.fn(async () => undefined),
+      recordDealCreated: vi.fn(async () => undefined),
+      recordTrainingPathCreated: vi.fn(async () => undefined),
+      recordCreditStateChanged: vi.fn(async () => undefined),
+    };
+
     interactor = new CreateDealFromWorkflowInteractor(
       dealRecordRepo,
       consultationRequestRepo,
       leadRecordRepo,
       conversationRepo,
       eventRecorder,
+      referralRecorder,
     );
   });
 
@@ -191,6 +202,13 @@ describe("CreateDealFromWorkflowInteractor", () => {
       sourceType: "consultation_request",
       sourceId: "cr_1",
     }));
+    expect(referralRecorder.recordDealCreated).toHaveBeenCalledWith({
+      conversationId: "conv_1",
+      dealId: "deal_1",
+      lane: "organization",
+      sourceType: "consultation_request",
+      sourceId: "cr_1",
+    });
     expect(deal.consultationRequestId).toBe("cr_1");
   });
 
@@ -208,6 +226,13 @@ describe("CreateDealFromWorkflowInteractor", () => {
       sourceType: "lead_record",
       sourceId: "lead_1",
     }));
+    expect(referralRecorder.recordDealCreated).toHaveBeenCalledWith({
+      conversationId: "conv_1",
+      dealId: "deal_1",
+      lane: "development",
+      sourceType: "lead_record",
+      sourceId: "lead_1",
+    });
     expect(deal.leadRecordId).toBe("lead_1");
   });
 

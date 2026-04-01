@@ -154,9 +154,10 @@ export async function searchAdminEntities(
   const db = getDb();
   const limit = options?.limit ?? 20;
   const pattern = `%${trimmed}%`;
+  const entityTypes = options?.entityTypes;
 
-  const activeConfigs = options?.entityTypes?.length
-    ? ENTITY_CONFIGS.filter((c) => options.entityTypes!.includes(c.entityType))
+  const activeConfigs = entityTypes?.length
+    ? ENTITY_CONFIGS.filter((c) => entityTypes.includes(c.entityType))
     : ENTITY_CONFIGS;
 
   if (activeConfigs.length === 0) return [];

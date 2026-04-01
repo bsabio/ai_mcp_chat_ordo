@@ -1,4 +1,4 @@
-export default {
+const config = {
   extends: ["stylelint-config-standard"],
   ignoreFiles: [
     ".next/**",
@@ -38,3 +38,5 @@ export default {
     "value-keyword-case": null,
   },
 };
+
+export default config;

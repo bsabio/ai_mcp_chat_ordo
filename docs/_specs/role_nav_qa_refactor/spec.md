@@ -149,7 +149,7 @@ The role-aware navigation model also depends on keeping overview routes distinct
 Rules:
 
 1. `/admin` should remain an overview page that summarizes cross-workspace health rather than hosting every queue and analytics slice directly. `[RNQ-056]`
-2. Secondary operational and analytics surfaces should live inside workspace-local navigation, not the global admin drawer. Current examples are leads `Attention`, conversation `Routing Review`, `Opportunities`, and `Themes`, plus journal `Attribution`. `[RNQ-057]`
+2. Secondary operational and analytics surfaces should live in route-aware workspace switching owned by the shared workspace drawer rather than a second in-page admin rail. Current examples are leads `Attention`, conversation `Routing Review`, `Opportunities`, and `Themes`, plus journal `Attribution`. `[RNQ-057]`
 3. Duplicate detail routes must redirect to the owning workspace detail page rather than pretending to be separate workspaces. Current examples are `/admin/deals/[id]` and `/admin/training/[id]` redirecting to `/admin/leads/[id]`. `[RNQ-058]`
 
 #### 3.4.4 Unified shell rail and workspace menu
@@ -164,7 +164,7 @@ Recommended product shape:
 4. The combined sheet should absorb the current shell drawer responsibilities and the account-menu responsibilities instead of keeping separate global nav and self-service controls in the rail. `[RNQ-062]`
 5. Notifications should remain a separate bell affordance in the rail instead of being buried inside the combined sheet. Notification state is time-sensitive and should stay one tap away. `[RNQ-063]`
 6. The sheet must be assembled from the same canonical metadata already used by `src/lib/shell/shell-navigation.ts` and `src/lib/admin/admin-navigation.ts`; this change must not introduce new local route arrays. `[RNQ-064]`
-7. The active admin layout must not render a second global navigation system. Desktop sidebar wayfinding and mobile-only admin hamburgers should be retired from the active layout in favor of the shared workspace sheet, while workspace-local tabs remain inside page content where needed. `[RNQ-088]`
+7. The active admin layout and admin workspace pages must not render a second global or workspace-level navigation rail. Desktop sidebar wayfinding, mobile-only admin hamburgers, and duplicated `AdminWorkspaceNav` blocks should be retired in favor of the shared workspace sheet. Only truly intra-page controls, such as leads pipeline tabs, may remain inside page content. `[RNQ-088]`
 8. On wider non-home routes, search may remain in the center rail region, but it must not reintroduce a second global nav or account surface. `[RNQ-087]`
 9. The homepage shell remains a dependency with its own compact shared-rail contract. `docs/_specs/homepage-chat-shell/spec.md` allows the same global control model on `/`: brand left, shared search available on wider viewports, and a compact right-side utility cluster with notifications plus one shared workspace menu trigger. The rest of the application should converge toward that same truthful shell model rather than branching away from it. `[RNQ-066]`
 10. Discoverability matters. If visual space permits, prefer a hamburger plus short `Menu` label over a purely icon-only control on mobile. If the design remains icon-only, the accessible name must still describe the actual behavior, such as `Open workspace menu`. `[RNQ-067]`
@@ -174,8 +174,9 @@ Recommended information architecture inside the combined sheet:
 1. **Header:** identity block, current role/account context, close button. `[RNQ-068]`
 2. **Primary navigation:** public shell destinations such as `Library` and `Blog`, plus signed-in workspace destinations such as `Jobs` and `Profile` when allowed by role. `[RNQ-069]`
 3. **Admin section:** canonical grouped admin destinations only for `ADMIN`, matching the existing grouped route model and still keeping deep secondary views in local workspace subnav rather than the global sheet. `[RNQ-072]`
-4. **System controls:** theme, legibility, and other local shell controls that currently live in the account menu. `[RNQ-073]`
-5. **Session action:** sign in/register for anonymous users or sign out for authenticated users. `[RNQ-074]`
+4. **Current workspace section:** when the active route belongs to an admin workspace with owned subviews, the shared sheet should expose those subviews there instead of rendering a second in-page admin rail. Examples include leads `Pipeline`/`Attention`, conversations `Inbox`/`Routing Review`/`Opportunities`/`Themes`, and journal `Inventory`/`Attribution`. `[RNQ-089]`
+5. **System controls:** theme, legibility, and other local shell controls that currently live in the account menu. `[RNQ-073]`
+6. **Session action:** sign in/register for anonymous users or sign out for authenticated users. `[RNQ-074]`
 
 Required interaction contract for the combined sheet:
 
@@ -261,7 +262,7 @@ Required matrices:
 | --- | --- |
 | Shell/account navigation | `/jobs` visibility for signed-in roles including `APPRENTICE`, absence for anonymous users, no false redirects to admin |
 | Admin navigation | `/admin/jobs` exposure only for roles that can actually load the page |
-| Combined mobile shell panel | single right-rail workspace trigger plus separate bell on mobile shell routes, canonical shell/admin route grouping inside the shared sheet, no competing admin-only hamburger, homepage exception handling, and correct focus-trap/route-change-dismiss behavior |
+| Combined mobile shell panel | single right-rail workspace trigger plus separate bell on mobile shell routes, canonical shell/admin route grouping inside the shared sheet, route-aware current-workspace links for admin sub-workspaces, no competing admin-only hamburger or duplicate in-page admin workspace rail, homepage exception handling, and correct focus-trap/route-change-dismiss behavior |
 | User job APIs | authenticated access, owner access, unauthorized access, cancel/retry state transitions |
 | Global jobs loaders | cross-user visibility, status/tool filters, privileged action gating |
 | Capability registry | current editorial tools resolve to admin-only policy, future user-safe tools can be added without route rewrites |

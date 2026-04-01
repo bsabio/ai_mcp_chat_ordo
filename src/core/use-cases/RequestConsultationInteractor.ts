@@ -2,12 +2,14 @@ import type { ConsultationRequest } from "../entities/consultation-request";
 import type { ConsultationRequestRepository } from "./ConsultationRequestRepository";
 import type { ConversationRepository } from "./ConversationRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
 
 export class RequestConsultationInteractor {
   constructor(
     private readonly consultationRequestRepo: ConsultationRequestRepository,
     private readonly conversationRepo: ConversationRepository,
     private readonly eventRecorder?: ConversationEventRecorder,
+    private readonly referralRecorder?: ReferralLifecycleRecorder,
   ) {}
 
   async requestConsultation(
@@ -38,6 +40,11 @@ export class RequestConsultationInteractor {
     });
 
     await this.eventRecorder?.record(conversationId, "consultation_requested", {
+      consultationRequestId: request.id,
+      lane,
+    });
+    await this.referralRecorder?.recordConsultationRequested({
+      conversationId,
       consultationRequestId: request.id,
       lane,
     });

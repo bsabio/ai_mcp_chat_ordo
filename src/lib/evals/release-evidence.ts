@@ -1,8 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { ReleaseManifestReport } from "@/lib/admin/processes";
-import { getHealthSweepReport, getReleaseManifestReport } from "@/lib/admin/processes";
+import type {
+  ReferralOperationalDiagnostics,
+  ReleaseManifestReport,
+} from "@/lib/admin/processes";
+import {
+  getHealthSweepReport,
+  getReferralOperationalDiagnostics,
+  getReleaseManifestReport,
+} from "@/lib/admin/processes";
 import type { StagingCanarySummary } from "./staging-canary";
 
 export interface ReleaseEvidence {
@@ -11,6 +18,7 @@ export interface ReleaseEvidence {
   status: "approved" | "conditional" | "blocked";
   manifest: ReleaseManifestReport;
   health: ReturnType<typeof getHealthSweepReport>;
+  referralDiagnostics: ReferralOperationalDiagnostics;
   canary: {
     present: boolean;
     artifactPath: string;
@@ -26,6 +34,7 @@ export interface ReleaseEvidence {
 interface CreateReleaseEvidenceOptions {
   manifest?: ReleaseManifestReport;
   health?: ReturnType<typeof getHealthSweepReport>;
+  referralDiagnostics?: ReferralOperationalDiagnostics;
   canarySummary?: StagingCanarySummary | null;
   warnings?: string[];
   manualChecks?: string[];
@@ -48,8 +57,9 @@ function uniqueNonEmpty(values: string[] | undefined): string[] {
 export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}): ReleaseEvidence {
   const manifest = options.manifest ?? getReleaseManifestReport();
   const health = options.health ?? getHealthSweepReport();
+  const referralDiagnostics = options.referralDiagnostics ?? getReferralOperationalDiagnostics();
   const canarySummary = options.canarySummary ?? null;
-  const warnings = uniqueNonEmpty(options.warnings);
+  const warnings = uniqueNonEmpty([...(options.warnings ?? []), ...referralDiagnostics.warnings]);
   const manualChecks = uniqueNonEmpty(options.manualChecks);
   const blockingReasons: string[] = [];
 
@@ -67,6 +77,10 @@ export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}
     blockingReasons.push("One or more staging canary scenarios failed.");
   }
 
+  if (!referralDiagnostics.knownReferrerPromptVerified || !referralDiagnostics.missingReferrerPromptVerified) {
+    blockingReasons.push("Referral identity verification checks failed.");
+  }
+
   const status = blockingReasons.length > 0
     ? "blocked"
     : warnings.length > 0 || manualChecks.length > 0
@@ -79,6 +93,7 @@ export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}
     status,
     manifest,
     health,
+    referralDiagnostics,
     canary: {
       present: canarySummary !== null,
       artifactPath: options.canaryArtifactPath ?? "release/canary-summary.json",
@@ -101,6 +116,10 @@ export function validateReleaseEvidence(evidence: ReleaseEvidence): string[] {
 
   if (evidence.health.status === "error") {
     errors.push("Health evidence reported an error.");
+  }
+
+  if (!evidence.referralDiagnostics.knownReferrerPromptVerified || !evidence.referralDiagnostics.missingReferrerPromptVerified) {
+    errors.push("Referral identity verification evidence failed.");
   }
 
   if (!evidence.canary.present || !evidence.canary.summary) {

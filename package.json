@@ -43,6 +43,7 @@
     "eval:deployed-canary": "tsx scripts/run-staging-canary.ts",
     "release:evidence": "tsx scripts/generate-release-evidence.ts",
     "qa:sprint-3": "tsx scripts/run-sprint-3-qa.ts",
+    "qa:sprint-4": "tsx scripts/run-sprint-4-qa.ts",
     "qa:sprint-6": "tsx scripts/run-sprint-6-qa.ts",
     "qa:roles": "vitest run tests/core-policy.test.ts tests/tool-registry.integration.test.ts tests/customer-workflow-evals.test.ts src/app/dashboard/page.test.tsx",
     "typecheck": "tsc --noEmit",

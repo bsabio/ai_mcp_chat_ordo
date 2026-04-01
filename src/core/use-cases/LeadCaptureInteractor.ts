@@ -1,5 +1,6 @@
 import type { ConversationRepository } from "./ConversationRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
 import type {
   LeadCaptureSubmission,
   LeadRecord,
@@ -12,6 +13,7 @@ export class LeadCaptureInteractor {
     private readonly leadRecordRepo: LeadRecordRepository,
     private readonly conversationRepo: ConversationRepository,
     private readonly eventRecorder?: ConversationEventRecorder,
+    private readonly referralRecorder?: ReferralLifecycleRecorder,
   ) {}
 
   async markCaptureTriggered(
@@ -47,6 +49,13 @@ export class LeadCaptureInteractor {
       email: leadRecord.email,
       organization: leadRecord.organization,
       role_or_title: leadRecord.roleOrTitle,
+    });
+    await this.referralRecorder?.recordLeadSubmitted({
+      conversationId: submission.conversationId,
+      leadRecordId: leadRecord.id,
+      captureStatus: leadRecord.captureStatus,
+      triageState: leadRecord.triageState,
+      lane: leadRecord.lane,
     });
 
     return leadRecord;

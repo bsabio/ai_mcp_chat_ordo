@@ -16,7 +16,7 @@ function makeProfile(overrides: Partial<UserProfileViewModel> = {}): UserProfile
     pushNotificationsEnabled: true,
     affiliateEnabled: true,
     referralCode: "mentor-42",
-    referralUrl: "https://studioordo.com/?ref=mentor-42",
+    referralUrl: "https://studioordo.com/r/mentor-42",
     qrCodeUrl: "/api/qr/mentor-42",
     roles: ["APPRENTICE"],
     ...overrides,
@@ -69,7 +69,7 @@ describe("user profile tools", () => {
     expect(result).toMatchObject({
       action: "get_my_referral_qr",
       qr_code_url: "/api/qr/mentor-42",
-      manage_route: "/profile",
+      manage_route: "/referrals",
     });
   });
 

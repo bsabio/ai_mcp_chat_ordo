@@ -381,12 +381,12 @@ describe("Overdue follow-ups loader", () => {
 // ── D5.9: Navigation configuration ────────────────────────────────────
 
 describe("admin navigation configuration", () => {
-  it("all 8 nav items are set to live status", () => {
+  it("all 9 nav items are set to live status", () => {
     const source = readSource("src/lib/admin/admin-navigation.ts");
 
-    // Count occurrences of 'status: "live"' — should be 8
+    // Count occurrences of 'status: "live"' — should be 9
     const liveMatches = source.match(/status:\s*"live"/g) ?? [];
-    expect(liveMatches.length).toBe(8);
+    expect(liveMatches.length).toBe(9);
 
     // No preview items remain in the config array (the type definition still defines the union)
     const configBlock = source.slice(source.indexOf("ADMIN_NAV_CONFIG"));
@@ -397,6 +397,7 @@ describe("admin navigation configuration", () => {
     expect(source).toContain("admin-dashboard");
     expect(source).toContain("admin-users");
     expect(source).toContain("admin-leads");
+    expect(source).toContain("admin-affiliates");
     expect(source).toContain("journal-admin");
     expect(source).toContain("admin-prompts");
     expect(source).toContain("admin-conversations");

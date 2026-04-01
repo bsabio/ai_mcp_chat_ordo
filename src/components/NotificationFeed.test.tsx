@@ -5,7 +5,7 @@ import { NotificationFeed } from "@/components/NotificationFeed";
 
 describe("NotificationFeed", () => {
   it("hides admin notifications from non-admin users", () => {
-    render(<NotificationFeed user={{ roles: ["AUTHENTICATED"] }} />);
+    render(<NotificationFeed user={{ id: "user_1", roles: ["AUTHENTICATED"] }} />);
 
     expect(screen.getByText("1")).toBeInTheDocument();
 
@@ -17,7 +17,7 @@ describe("NotificationFeed", () => {
   });
 
   it("shows admin notifications to admins", () => {
-    render(<NotificationFeed user={{ roles: ["ADMIN"] }} />);
+    render(<NotificationFeed user={{ id: "admin_1", roles: ["ADMIN"] }} />);
 
     expect(screen.getByText("3")).toBeInTheDocument();
 

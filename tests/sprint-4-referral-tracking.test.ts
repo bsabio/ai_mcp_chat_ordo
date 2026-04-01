@@ -157,11 +157,18 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
       const ref = mapper.create({
         id: "ref_1",
         referrerUserId: "u1",
+        referredUserId: null,
         conversationId: null,
         referralCode: "TESTCODE1234567890AB",
+        visitId: null,
+        status: "visited",
+        creditStatus: "tracked",
         scannedAt: null,
         convertedAt: null,
+        lastValidatedAt: null,
+        lastEventAt: null,
         outcome: null,
+        metadataJson: "{}",
       });
       expect(ref.id).toBe("ref_1");
       expect(ref.referrerUserId).toBe("u1");
@@ -180,11 +187,18 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
       mapper.create({
         id: "ref_1",
         referrerUserId: "u1",
+        referredUserId: null,
         conversationId: null,
         referralCode: "CODE10",
+        visitId: null,
+        status: "visited",
+        creditStatus: "tracked",
         scannedAt: null,
         convertedAt: null,
+        lastValidatedAt: null,
+        lastEventAt: null,
         outcome: null,
+        metadataJson: "{}",
       });
       const found = mapper.findByCode("CODE10");
       expect(found).not.toBeNull();
@@ -199,11 +213,18 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
         mapper.create({
           id: `ref_${i}`,
           referrerUserId: "u1",
+          referredUserId: null,
           conversationId: null,
           referralCode: `CODE_${i}`,
+          visitId: null,
+          status: "visited",
+          creditStatus: "tracked",
           scannedAt: null,
           convertedAt: null,
+          lastValidatedAt: null,
+          lastEventAt: null,
           outcome: null,
+          metadataJson: "{}",
         });
       }
       const refs = mapper.findByReferrer("u1");
@@ -216,6 +237,7 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
         id: "u1",
         email: "u1@test.com",
         name: "Prof Smith",
+        affiliateEnabled: 1,
         credential: "Enterprise AI practitioner",
         referralCode: "REFCODE12",
       });
@@ -223,11 +245,18 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
       mapper.create({
         id: "ref_1",
         referrerUserId: "u1",
+        referredUserId: null,
         conversationId: null,
         referralCode: "REFCODE12",
+        visitId: null,
+        status: "visited",
+        creditStatus: "tracked",
         scannedAt: null,
         convertedAt: null,
+        lastValidatedAt: null,
+        lastEventAt: null,
         outcome: null,
+        metadataJson: "{}",
       });
       const info = mapper.getReferrerUser("REFCODE12");
       expect(info).not.toBeNull();
@@ -236,15 +265,16 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
       expect(info!.credential).toBe("Enterprise AI practitioner");
     });
 
-    it("P13: proxy sets lms_referral_code cookie when ?ref= present on page route", () => {
+    it("P13: proxy redirects legacy ?ref= links to the canonical referral route", () => {
       const res = proxy(makeRequest("/?ref=abc123"));
-      const setCookie = res.headers.get("set-cookie");
-      expect(setCookie).toContain("lms_referral_code=abc123");
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/r/abc123");
     });
 
-    it("P14: proxy forwards page request normally after setting referral cookie", () => {
-      const res = proxy(makeRequest("/?ref=abc123"));
-      expect(res.status).toBe(200);
+    it("P14: proxy preserves non-referral query params when redirecting legacy referral links", () => {
+      const res = proxy(makeRequest("/?ref=abc123&utm_source=qr"));
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/r/abc123?utm_source=qr");
     });
 
     it("P15: ConversationInteractor stores referral_source when option provided", async () => {
@@ -484,13 +514,13 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
       expect(codes.size).toBe(1000);
     });
 
-    it("E2: proxy preserves existing cookies when adding referral cookie", () => {
+    it("E2: proxy leaves existing session cookies untouched while redirecting legacy referral links", () => {
       const res = proxy(
         makeRequest("/?ref=abc123", "lms_session_token=tok123"),
       );
-      expect(res.status).toBe(200);
-      const setCookie = res.headers.get("set-cookie");
-      expect(setCookie).toContain("lms_referral_code=abc123");
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/r/abc123");
+      expect(res.headers.get("set-cookie") ?? "").not.toContain("lms_session_token");
     });
 
     it("E3: referral attribution preserved when anonymous conversation migrates to authenticated", async () => {
@@ -521,9 +551,10 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
 
     it("E4: QR code URL uses domain from instance config (via code pattern)", () => {
       const src = readSource("src/app/api/qr/[code]/route.ts");
-      expect(src).toContain("getInstanceIdentity");
-      expect(src).toContain("domain");
-      expect(src).toContain("?ref=");
+      expect(src).toContain("buildPublicReferralUrl");
+      expect(readSource("src/lib/referrals/referral-origin.ts")).toContain("getInstanceIdentity");
+      expect(readSource("src/lib/referrals/referral-origin.ts")).toContain("PUBLIC_SITE_ORIGIN");
+      expect(src).not.toContain("?ref=");
     });
 
     it("E5: withReferral template falls back to default when referral context missing", () => {

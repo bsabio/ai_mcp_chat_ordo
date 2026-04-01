@@ -830,7 +830,7 @@ describe("D4.9 — Conversations Browse page", () => {
     });
     render(jsx);
 
-    expect(screen.getByRole("navigation", { name: "Conversation workspace views" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Conversations" })).toBeInTheDocument();
     expect(screen.getByText("Recently changed")).toBeInTheDocument();
     expect(screen.getByText("Uncertain routes")).toBeInTheDocument();
     expect(screen.getByText("Follow-up ready")).toBeInTheDocument();

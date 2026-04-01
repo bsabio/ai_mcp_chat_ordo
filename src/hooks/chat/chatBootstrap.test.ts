@@ -4,7 +4,6 @@ import type { ChatMessage } from "@/core/entities/chat-message";
 
 import {
   buildReferralContext,
-  extractReferralCode,
   hasOnlyBootstrapAssistantMessage,
   shouldRefreshBootstrapMessages,
 } from "./chatBootstrap";
@@ -20,11 +19,6 @@ function createMessage(role: ChatMessage["role"], content: string): ChatMessage 
 }
 
 describe("chatBootstrap", () => {
-  it("extracts the referral code from document.cookie", () => {
-    expect(extractReferralCode("theme=light; lms_referral_code=mentor-42; session=abc")).toBe("mentor-42");
-    expect(extractReferralCode("theme=light")).toBeNull();
-  });
-
   it("builds referral context only when a referrer name is present", () => {
     expect(
       buildReferralContext({

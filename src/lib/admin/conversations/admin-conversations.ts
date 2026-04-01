@@ -8,6 +8,7 @@
 import { getConversationDataMapper, getMessageDataMapper, getUserDataMapper } from "@/adapters/RepositoryFactory";
 import type { Message } from "@/core/entities/conversation";
 import { getAdminConversationDetailPath } from "./admin-conversations-routes";
+import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 
 // ── View-model types ───────────────────────────────────────────────────
 
@@ -33,7 +34,10 @@ export interface AdminConversationDetailViewModel {
     detectedNeedSummary: string | null;
     recommendedNextStep: string | null;
     promptVersion: number | null;
+    referralId: string | null;
     referralSource: string | null;
+    trustedReferrerName: string | null;
+    trustedReferrerCredential: string | null;
     convertedFrom: string | null;
   };
   messages: Array<{
@@ -124,6 +128,7 @@ export async function loadAdminConversationDetail(
 
   const user = await userMapper.findById(conv.userId);
   const userName = user?.name ?? user?.email ?? conv.userId;
+  const trustedReferral = await getReferralLedgerService().getTrustedReferrerContext(id);
 
   const messages = await msgMapper.listByConversation(id);
   const totalTokens = messages.reduce((sum: number, m: Message) => sum + m.tokenEstimate, 0);
@@ -146,7 +151,10 @@ export async function loadAdminConversationDetail(
     detectedNeedSummary: conv.routingSnapshot.detectedNeedSummary,
     recommendedNextStep: conv.routingSnapshot.recommendedNextStep,
     promptVersion: conv.promptVersion,
+    referralId: conv.referralId ?? trustedReferral?.referralId ?? null,
     referralSource: conv.referralSource,
+    trustedReferrerName: trustedReferral?.referrerName ?? null,
+    trustedReferrerCredential: trustedReferral?.referrerCredential ?? null,
     convertedFrom: conv.convertedFrom,
   };
 

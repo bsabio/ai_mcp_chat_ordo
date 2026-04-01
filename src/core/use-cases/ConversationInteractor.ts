@@ -55,7 +55,7 @@ export class ConversationInteractor {
 
   async ensureActive(
     userId: string,
-    options?: { sessionSource?: string; referralSource?: string },
+    options?: { sessionSource?: string; referralId?: string; referralSource?: string },
   ): Promise<Conversation> {
     const existing = await this.conversationRepo.findActiveByUser(userId);
     if (existing) return existing;
@@ -66,13 +66,14 @@ export class ConversationInteractor {
   private async create(
     userId: string,
     title: string = "",
-    options?: { sessionSource?: string; referralSource?: string },
+    options?: { sessionSource?: string; referralId?: string; referralSource?: string },
   ): Promise<Conversation> {
     // Archive any existing active conversation before creating a new one
     await this.conversationRepo.archiveByUser(userId);
 
     const id = `conv_${crypto.randomUUID()}`;
     const sessionSource = options?.sessionSource ?? (userId.startsWith("anon_") ? "anonymous_cookie" : "authenticated");
+    const referralId = options?.referralId;
     const referralSource = options?.referralSource;
     const conversation = await this.conversationRepo.create({
       id,
@@ -80,6 +81,7 @@ export class ConversationInteractor {
       title,
       status: "active",
       sessionSource,
+      referralId,
       referralSource,
     });
 

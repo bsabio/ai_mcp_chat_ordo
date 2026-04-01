@@ -16,6 +16,7 @@ import { CreateTrainingPathFromWorkflowInteractor } from "../../core/use-cases/C
 import { SummarizationInteractor } from "../../core/use-cases/SummarizationInteractor";
 import { AnthropicSummarizer } from "../../adapters/AnthropicSummarizer";
 import { getAnthropicApiKey, getModelFallbacks } from "../config/env";
+import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 import {
   HeuristicConversationRoutingAnalyzer,
   type ConversationRoutingAnalyzer,
@@ -121,7 +122,12 @@ export function getLeadCaptureInteractor(): LeadCaptureInteractor {
   const { leadRecordRepo } = createWorkflowRepositories();
   const { conversationRepo } = createConversationPersistence();
   const eventRecorder = createEventRecorder();
-  return new LeadCaptureInteractor(leadRecordRepo, conversationRepo, eventRecorder);
+  return new LeadCaptureInteractor(
+    leadRecordRepo,
+    conversationRepo,
+    eventRecorder,
+    getReferralLedgerService(),
+  );
 }
 
 export function getLeadRecordRepository(): LeadRecordDataMapper {
@@ -144,7 +150,12 @@ export function getRequestConsultationInteractor(): RequestConsultationInteracto
   const { consultationRequestRepo } = createWorkflowRepositories();
   const { conversationRepo } = createConversationPersistence();
   const eventRecorder = createEventRecorder();
-  return new RequestConsultationInteractor(consultationRequestRepo, conversationRepo, eventRecorder);
+  return new RequestConsultationInteractor(
+    consultationRequestRepo,
+    conversationRepo,
+    eventRecorder,
+    getReferralLedgerService(),
+  );
 }
 
 export function getTriageConsultationRequestInteractor(): TriageConsultationRequestInteractor {
@@ -163,6 +174,7 @@ export function getCreateDealFromWorkflowInteractor(): CreateDealFromWorkflowInt
     leadRecordRepo,
     conversationRepo,
     eventRecorder,
+    getReferralLedgerService(),
   );
 }
 
@@ -176,6 +188,7 @@ export function getCreateTrainingPathFromWorkflowInteractor(): CreateTrainingPat
     leadRecordRepo,
     conversationRepo,
     eventRecorder,
+    getReferralLedgerService(),
   );
 }
 

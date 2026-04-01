@@ -56,7 +56,7 @@ describe("adminSearchTool", () => {
   });
 
   it("passes entity type filter to search", async () => {
-    const prepareMock = vi.fn((_sql: string) => ({ all: vi.fn().mockReturnValue([]) }));
+    const prepareMock = vi.fn((sql: string) => ({ all: vi.fn().mockReturnValue([]), sql }));
     getDbMock.mockReturnValue({ prepare: prepareMock });
 
     await adminSearchTool.command.execute({

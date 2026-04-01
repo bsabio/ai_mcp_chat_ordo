@@ -50,6 +50,27 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function isAbortError(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "name" in error
+    && error.name === "AbortError";
+}
+
+function skipViewTransition(transition: ViewTransition | null): void {
+  if (!transition) {
+    return;
+  }
+
+  try {
+    transition.skipTransition();
+  } catch (error) {
+    if (!isAbortError(error)) {
+      throw error;
+    }
+  }
+}
+
 export function ThemeProvider({
   children,
   respectSystemDarkMode = true,
@@ -167,9 +188,17 @@ export function ThemeProvider({
       !supportsReducedMotion() &&
       document.visibilityState === "visible"
     ) {
-      // Skip the outgoing transition so it doesn't flash the old state
-      transitionRef.current?.skipTransition();
-      transitionRef.current = document.startViewTransition(updateState);
+      const activeTransition = transitionRef.current;
+      transitionRef.current = null;
+      skipViewTransition(activeTransition);
+
+      const nextTransition = document.startViewTransition(updateState);
+      transitionRef.current = nextTransition;
+      void nextTransition.finished.catch(() => undefined).finally(() => {
+        if (transitionRef.current === nextTransition) {
+          transitionRef.current = null;
+        }
+      });
     } else {
       updateState();
     }

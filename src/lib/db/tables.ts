@@ -41,6 +41,7 @@ export function createTables(db: Database.Database): void {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       title TEXT NOT NULL DEFAULT '',
+      referral_id TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
@@ -247,18 +248,44 @@ export function createTables(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS referrals (
       id TEXT PRIMARY KEY,
       referrer_user_id TEXT NOT NULL,
+      referred_user_id TEXT DEFAULT NULL,
       conversation_id TEXT,
       referral_code TEXT NOT NULL,
+      visit_id TEXT DEFAULT NULL,
+      status TEXT NOT NULL DEFAULT 'visited',
+      credit_status TEXT NOT NULL DEFAULT 'tracked',
       scanned_at TEXT,
       converted_at TEXT,
+      last_validated_at TEXT DEFAULT NULL,
+      last_event_at TEXT DEFAULT NULL,
       outcome TEXT DEFAULT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (referrer_user_id) REFERENCES users(id),
+      FOREIGN KEY (referred_user_id) REFERENCES users(id),
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
     );
     CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals(referral_code);
     CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_user_id);
     CREATE INDEX IF NOT EXISTS idx_referrals_conversation ON referrals(conversation_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS referral_events (
+      id TEXT PRIMARY KEY,
+      referral_id TEXT NOT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      event_type TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (referral_id) REFERENCES referrals(id) ON DELETE CASCADE,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_referral_events_referral ON referral_events(referral_id);
+    CREATE INDEX IF NOT EXISTS idx_referral_events_type ON referral_events(event_type);
+    CREATE INDEX IF NOT EXISTS idx_referral_events_conversation ON referral_events(conversation_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_events_dedupe ON referral_events(referral_id, idempotency_key);
   `);
 
   db.exec(`

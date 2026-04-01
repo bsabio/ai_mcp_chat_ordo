@@ -146,6 +146,16 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     showInCommands: true,
   },
   {
+    id: "admin-affiliates",
+    label: "Affiliates",
+    href: "/admin/affiliates",
+    kind: "internal",
+    description: "Review affiliate performance, exception backlog, and credit-ready referrals.",
+    accountVisibility: ["ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
     id: "admin-prompts",
     label: "Prompts",
     href: "/admin/prompts",

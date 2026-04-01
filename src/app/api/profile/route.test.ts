@@ -35,7 +35,7 @@ describe("/api/profile", () => {
 
   it("returns the current profile for authenticated users", async () => {
     getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_1" }));
-    getProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan", email: "morgan@example.com", credential: "AI practitioner", pushNotificationsEnabled: true, affiliateEnabled: true, referralCode: "mentor-42", referralUrl: "https://studioordo.com/?ref=mentor-42", qrCodeUrl: "/api/qr/mentor-42", roles: ["AUTHENTICATED"] });
+    getProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan", email: "morgan@example.com", credential: "AI practitioner", pushNotificationsEnabled: true, affiliateEnabled: true, referralCode: "mentor-42", referralUrl: "https://studioordo.com/r/mentor-42", qrCodeUrl: "/api/qr/mentor-42", roles: ["AUTHENTICATED"] });
 
     const response = await GET();
     const payload = await response.json();

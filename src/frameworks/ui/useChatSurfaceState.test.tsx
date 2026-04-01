@@ -147,10 +147,10 @@ describe("handleActionClick", () => {
   it("opens absolute external URLs in a new tab", () => {
     const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
     act(() => {
-      result.current.handleActionClick("external", "https://studioordo.com/?ref=mentor-42");
+      result.current.handleActionClick("external", "https://studioordo.com/r/mentor-42");
     });
     expect(openMock).toHaveBeenCalledWith(
-      "https://studioordo.com/?ref=mentor-42",
+      "https://studioordo.com/r/mentor-42",
       "_blank",
       "noopener,noreferrer",
     );

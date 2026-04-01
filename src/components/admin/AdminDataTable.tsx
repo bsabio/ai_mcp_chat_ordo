@@ -47,7 +47,11 @@ export function AdminDataTable({
       const next = new Set(selectedIds);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      onSelectionChange ? onSelectionChange(next) : setInternalSelected(next);
+      if (onSelectionChange) {
+        onSelectionChange(next);
+      } else {
+        setInternalSelected(next);
+      }
     },
     [selectedIds, onSelectionChange],
   );
@@ -55,10 +59,18 @@ export function AdminDataTable({
   const toggleAll = useCallback(() => {
     if (selectedIds.size === rows.length) {
       const next = new Set<string>();
-      onSelectionChange ? onSelectionChange(next) : setInternalSelected(next);
+      if (onSelectionChange) {
+        onSelectionChange(next);
+      } else {
+        setInternalSelected(next);
+      }
     } else {
       const next = new Set(rows.map((r) => getRowId(r, rowKey)));
-      onSelectionChange ? onSelectionChange(next) : setInternalSelected(next);
+      if (onSelectionChange) {
+        onSelectionChange(next);
+      } else {
+        setInternalSelected(next);
+      }
     }
   }, [selectedIds, rows, rowKey, onSelectionChange]);
 

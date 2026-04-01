@@ -10,6 +10,7 @@ import type { ConsultationRequestRepository } from "./ConsultationRequestReposit
 import type { ConversationRepository } from "./ConversationRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
 import type { LeadRecordRepository } from "./LeadRecordRepository";
+import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
 import type { TrainingPathRecordRepository } from "./TrainingPathRecordRepository";
 
 function normalizeText(value: string | null | undefined): string | null {
@@ -114,6 +115,7 @@ export class CreateTrainingPathFromWorkflowInteractor {
     private readonly leadRecordRepo: LeadRecordRepository,
     private readonly conversationRepo: ConversationRepository,
     private readonly eventRecorder?: ConversationEventRecorder,
+    private readonly referralRecorder?: ReferralLifecycleRecorder,
   ) {}
 
   async createFromQualifiedLead(
@@ -264,6 +266,13 @@ export class CreateTrainingPathFromWorkflowInteractor {
       sourceType,
       sourceId,
       sourceStatus,
+    });
+    await this.referralRecorder?.recordTrainingPathCreated({
+      conversationId: trainingPathRecord.conversationId,
+      trainingPathId: trainingPathRecord.id,
+      recommendedPath: trainingPathRecord.recommendedPath,
+      sourceType,
+      sourceId,
     });
   }
 }

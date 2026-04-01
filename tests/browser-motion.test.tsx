@@ -48,6 +48,7 @@ function installMatchMedia(reducedMotion: boolean) {
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn() }),
 }));
 

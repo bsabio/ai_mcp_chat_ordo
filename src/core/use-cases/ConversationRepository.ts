@@ -8,6 +8,7 @@ export interface ConversationRepository {
     title: string;
     status?: "active" | "archived";
     sessionSource?: string;
+    referralId?: string;
     referralSource?: string;
   }): Promise<Conversation>;
   listByUser(userId: string): Promise<ConversationSummary[]>;

@@ -18,6 +18,14 @@ export async function loadSystemHealthBlock(
   assertAdminUser(user);
 
   const diagnostics = getDiagnosticsReport();
+  const referralDiagnostics = diagnostics.referral ?? {
+    publicOrigin: "unknown",
+    originSource: "environment",
+    localhostFallback: false,
+    knownReferrerPromptVerified: true,
+    missingReferrerPromptVerified: true,
+    warnings: [],
+  };
   const healthSweep = getHealthSweepReport();
   const envValidation = getEnvValidationReport();
   const releaseManifest = getReleaseManifestReport();
@@ -34,6 +42,8 @@ export async function loadSystemHealthBlock(
   if (!releaseManifest.present) {
     warnings.push(releaseManifest.error ?? "Release manifest is missing.");
   }
+
+  warnings.push(...referralDiagnostics.warnings);
 
   return {
     blockId: "system_health",
@@ -54,6 +64,7 @@ export async function loadSystemHealthBlock(
         nodeVersion: releaseManifest.manifest?.nodeVersion ?? diagnostics.nodeVersion,
       },
       metrics: diagnostics.metrics,
+      referral: referralDiagnostics,
       warnings,
       generatedAt: healthSweep.generatedAt,
     },

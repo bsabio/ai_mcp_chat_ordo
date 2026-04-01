@@ -121,5 +121,34 @@ test.describe("Admin shell responsive", () => {
       await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
       await expect(page.getByRole("dialog", { name: "Workspace menu" })).toHaveCount(0);
     });
+
+    test("mobile admin sub-workspaces use the drawer instead of a duplicate in-page rail", async ({ page }) => {
+      await stubShellRequests(page);
+      await registerAndSimulateAdmin(page);
+
+      await page.goto("/admin/leads?view=attention");
+      await expect(page.locator(".admin-workspace-nav")).toHaveCount(0);
+
+      await page.locator('[data-shell-workspace-menu-trigger="true"]').click();
+
+      const leadsDialog = page.getByRole("dialog", { name: "Workspace menu" });
+      await expect(leadsDialog.getByRole("heading", { name: "Current workspace" })).toBeVisible();
+      await expect(leadsDialog.getByRole("link", { name: "Pipeline" })).toBeVisible();
+      await expect(leadsDialog.getByRole("link", { name: "Attention" })).toBeVisible();
+      await leadsDialog.getByRole("link", { name: "Pipeline" }).click();
+      await expect(page).toHaveURL(/\/admin\/leads(?:$|\?)/);
+
+      await page.goto("/admin/journal/attribution");
+      await expect(page.locator(".admin-workspace-nav")).toHaveCount(0);
+
+      await page.locator('[data-shell-workspace-menu-trigger="true"]').click();
+
+      const journalDialog = page.getByRole("dialog", { name: "Workspace menu" });
+      await expect(journalDialog.getByRole("heading", { name: "Current workspace" })).toBeVisible();
+      await expect(journalDialog.getByRole("link", { name: "Inventory" })).toBeVisible();
+      await expect(journalDialog.getByRole("link", { name: "Attribution" })).toBeVisible();
+      await journalDialog.getByRole("link", { name: "Inventory" }).click();
+      await expect(page).toHaveURL(/\/admin\/journal$/);
+    });
   });
 });

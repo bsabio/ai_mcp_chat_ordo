@@ -6,6 +6,7 @@ import { createConversationRoutingSnapshot } from "@/core/entities/conversation-
 import type { ConsultationRequestRepository } from "./ConsultationRequestRepository";
 import type { ConversationRepository } from "./ConversationRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
 import {
   RequestConsultationInteractor,
   ConsultationRequestError,
@@ -51,6 +52,7 @@ describe("RequestConsultationInteractor", () => {
   let consultationRepo: ConsultationRequestRepository;
   let conversationRepo: Pick<ConversationRepository, "findById">;
   let eventRecorder: ConversationEventRecorder;
+  let referralRecorder: ReferralLifecycleRecorder;
   let interactor: RequestConsultationInteractor;
 
   beforeEach(() => {
@@ -70,10 +72,19 @@ describe("RequestConsultationInteractor", () => {
       record: vi.fn(async () => {}),
     } as unknown as ConversationEventRecorder;
 
+    referralRecorder = {
+      recordLeadSubmitted: vi.fn(async () => undefined),
+      recordConsultationRequested: vi.fn(async () => undefined),
+      recordDealCreated: vi.fn(async () => undefined),
+      recordTrainingPathCreated: vi.fn(async () => undefined),
+      recordCreditStateChanged: vi.fn(async () => undefined),
+    };
+
     interactor = new RequestConsultationInteractor(
       consultationRepo,
       conversationRepo as ConversationRepository,
       eventRecorder,
+      referralRecorder,
     );
   });
 
@@ -93,6 +104,11 @@ describe("RequestConsultationInteractor", () => {
       "consultation_requested",
       expect.objectContaining({ lane: "organization" }),
     );
+    expect(referralRecorder.recordConsultationRequested).toHaveBeenCalledWith({
+      conversationId: "conv_1",
+      consultationRequestId: "cr_abc123",
+      lane: "organization",
+    });
   });
 
   it("rejects if conversation does not belong to user", async () => {

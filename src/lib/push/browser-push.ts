@@ -26,7 +26,20 @@ function getPublicKey(): string | null {
   return publicKey && publicKey.length > 0 ? publicKey : null;
 }
 
+export function getPushNotificationsRenderUnavailableReason(): string | null {
+  if (!getPublicKey()) {
+    return "Push notifications are not configured for this deployment yet.";
+  }
+
+  return null;
+}
+
 export function getPushNotificationsUnavailableReason(): string | null {
+  const renderUnavailableReason = getPushNotificationsRenderUnavailableReason();
+  if (renderUnavailableReason) {
+    return renderUnavailableReason;
+  }
+
   if (typeof window === "undefined") {
     return "Push notifications are only available in the browser.";
   }

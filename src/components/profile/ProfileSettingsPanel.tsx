@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useState, useSyncExternalStore, useTransition } from "react";
 
 import type { UserProfileViewModel } from "@/lib/profile/types";
-import { downloadFileFromUrl } from "@/lib/download-browser";
 import {
   disablePushNotifications,
   enablePushNotifications,
+  getPushNotificationsRenderUnavailableReason,
   getPushNotificationsUnavailableReason,
 } from "@/lib/push/browser-push";
 
@@ -30,7 +31,11 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
   const [credential, setCredential] = useState(initialProfile.credential);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [pushState, setPushState] = useState<SaveState>({ kind: "idle" });
-  const [pushUnavailableReason] = useState<string | null>(() => getPushNotificationsUnavailableReason());
+  const pushUnavailableReason = useSyncExternalStore(
+    () => () => undefined,
+    getPushNotificationsUnavailableReason,
+    getPushNotificationsRenderUnavailableReason,
+  );
   const [isPending, startTransition] = useTransition();
   const [isPushPending, startPushTransition] = useTransition();
   const referralCode = profile.referralCode;
@@ -64,24 +69,6 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
       setCredential(payload.profile.credential);
       setSaveState({ kind: "success", message: "Profile updated." });
     });
-  };
-
-  const handleCopy = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setSaveState({ kind: "success", message: `${label} copied.` });
-    } catch {
-      setSaveState({ kind: "error", message: `Unable to copy ${label.toLowerCase()}.` });
-    }
-  };
-
-  const handleDownloadQr = () => {
-    if (!profile.qrCodeUrl || !profile.referralCode) {
-      return;
-    }
-
-    downloadFileFromUrl(profile.qrCodeUrl, `referral-${profile.referralCode}.png`);
-    setSaveState({ kind: "success", message: "Referral QR download started." });
   };
 
   const handlePushNotificationsToggle = () => {
@@ -213,68 +200,41 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
         <div className="flex flex-col gap-(--space-6)">
           <aside className="profile-feature-surface p-(--space-inset-panel)" data-profile-surface="referral-panel">
             <div className="flex flex-col gap-(--space-2)">
-              <p className="theme-label tier-micro uppercase text-foreground/42">Referral QR</p>
-              <h2 className="theme-display text-xl font-semibold tracking-tight">Your share link</h2>
+              <p className="theme-label tier-micro uppercase text-foreground/42">Affiliate workspace</p>
+              <h2 className="theme-display text-xl font-semibold tracking-tight">Referral performance</h2>
               <p className="text-sm leading-6 text-foreground/56">
-                If admin has enabled referrals for your account, your QR code and landing link appear here.
+                Share assets, charts, and recent milestone visibility now live in the dedicated referrals workspace.
               </p>
             </div>
 
-            {profile.affiliateEnabled && referralCode && profile.qrCodeUrl && referralUrl ? (
+            {profile.affiliateEnabled && referralCode && referralUrl ? (
               <div className="mt-(--space-6) flex flex-col gap-(--space-4)">
-                <div className="profile-qr-frame overflow-hidden p-(--space-inset-default)" data-profile-surface="qr-frame">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={profile.qrCodeUrl}
-                    alt={`Referral QR code for ${profile.name}`}
-                    className="mx-auto h-auto w-full max-w-56"
-                  />
+                <div className="rounded-3xl border border-foreground/10 bg-background/70 p-(--space-inset-default)" data-profile-surface="referral-summary-card">
+                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/38">Referral code</p>
+                  <div className="mt-(--space-2) flex flex-wrap items-center gap-(--space-2)">
+                    <code className="rounded-md bg-background/80 px-(--space-inset-compact) py-(--space-inset-tight) text-sm text-foreground/78">
+                      {referralCode}
+                    </code>
+                    <span className="rounded-full border border-border/70 bg-background/80 px-(--space-inset-compact) py-(--space-1) text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-foreground/48">
+                      Active
+                    </span>
+                  </div>
+                  <p className="mt-(--space-3) text-sm leading-6 text-foreground/58">
+                    Your public referral link is ready. Open the workspace to copy assets, download the QR code, and review performance.
+                  </p>
                 </div>
 
                 <div className="space-y-(--space-3)">
                   <div>
-                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/38">Referral code</p>
-                    <div className="mt-(--space-1) flex items-center gap-(--space-2)">
-                      <code className="rounded-md bg-background/80 px-(--space-inset-compact) py-(--space-inset-tight) text-sm text-foreground/78">
-                        {referralCode}
-                      </code>
-                      <button
-                        type="button"
-                        className="profile-inline-action focus-ring rounded-full px-(--space-3) py-(--space-inset-tight) text-xs font-semibold transition-colors"
-                        onClick={() => handleCopy(referralCode, "Referral code")}
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/38">Referral link</p>
-                    <div className="mt-(--space-1) flex flex-col gap-(--space-2) sm:flex-row">
-                      <input readOnly value={referralUrl} className="input-field flex-1" />
-                      <button
-                        type="button"
-                        className="profile-inline-action focus-ring rounded-full px-(--space-inset-default) py-(--space-inset-tight) text-xs font-semibold transition-colors"
-                        onClick={() => handleCopy(referralUrl, "Referral link")}
-                      >
-                        Copy link
-                      </button>
-                    </div>
+                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/38">Public link</p>
+                    <p className="mt-(--space-1) break-all text-sm leading-6 text-foreground/58">{referralUrl}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-(--space-2)">
-                  <button type="button" className="btn-primary" onClick={handleDownloadQr}>
-                    Download QR
-                  </button>
-                  <a
-                    href={profile.qrCodeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="profile-inline-action focus-ring inline-flex min-h-11 items-center justify-center rounded-full px-(--space-inset-default) py-(--space-inset-tight) text-sm font-semibold transition-colors"
-                  >
-                    Open QR
-                  </a>
+                  <Link href="/referrals" className="btn-primary">
+                    Open referrals workspace
+                  </Link>
                   <a
                     href={referralUrl}
                     target="_blank"
@@ -287,7 +247,7 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
               </div>
             ) : (
               <div className="profile-empty-state mt-(--space-6) p-(--space-inset-panel) text-sm leading-6 text-foreground/52" data-profile-surface="empty-state">
-                Referral access is not enabled for this account yet. Once an administrator enables affiliate status, your QR code will appear here automatically.
+                Referral access is not enabled for this account yet. Once an administrator enables affiliate status, the referrals workspace will show your link, QR code, and performance summary automatically.
               </div>
             )}
           </aside>
@@ -342,5 +302,6 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
           </section>
         </div>
       </div>
-    </div>  );
+    </div>
+  );
 }

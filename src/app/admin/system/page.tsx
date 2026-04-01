@@ -27,6 +27,7 @@ export default async function AdminSystemPage() {
   const systemHealth = await loadSystemHealthBlock(user);
   const healthSummary = systemHealth.data.summary;
   const warnings = systemHealth.data.warnings;
+  const referralDiagnostics = systemHealth.data.referral;
 
   const envVars: Array<{ key: string; value: string }> = [
     { key: "ANTHROPIC_MODEL", value: redactValue("ANTHROPIC_MODEL", process.env.ANTHROPIC_MODEL) },
@@ -108,6 +109,42 @@ export default async function AdminSystemPage() {
               <dd>Anthropic</dd>
             </div>
           </dl>
+        </AdminCard>
+
+        <AdminCard
+          title="Referral diagnostics"
+          description="Public origin configuration and anonymous 'who referred me?' verification live in the same release-readiness surface."
+          status={referralDiagnostics.warnings.length === 0 ? "ok" : "warning"}
+        >
+          <dl className="grid gap-(--space-2) text-sm text-foreground/62">
+            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+              <dt>Public origin</dt>
+              <dd className="font-mono text-xs">{referralDiagnostics.publicOrigin}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+              <dt>Origin source</dt>
+              <dd>{referralDiagnostics.originSource}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+              <dt>Localhost fallback</dt>
+              <dd>{referralDiagnostics.localhostFallback ? "active" : "inactive"}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+              <dt>Known-referrer prompt check</dt>
+              <dd>{referralDiagnostics.knownReferrerPromptVerified ? "verified" : "failed"}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+              <dt>No-referrer prompt check</dt>
+              <dd>{referralDiagnostics.missingReferrerPromptVerified ? "verified" : "failed"}</dd>
+            </div>
+          </dl>
+          {referralDiagnostics.warnings.length > 0 ? (
+            <ul className="mt-(--space-3) grid gap-(--space-1) text-xs text-foreground/50">
+              {referralDiagnostics.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
         </AdminCard>
 
         {/* Section 4 — Registered Tools */}

@@ -12,6 +12,13 @@ function makeRequest(path: string, cookie?: string): NextRequest {
 }
 
 describe("Edge proxy", () => {
+  it("redirects legacy referral links to the canonical referral route", () => {
+    const res = proxy(makeRequest("/?ref=mentor-42&utm_source=qr"));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/r/mentor-42?utm_source=qr");
+  });
+
   it("passes public auth routes without cookie", () => {
     const res = proxy(makeRequest("/api/auth/register"));
     expect(res.status).toBe(200);

@@ -876,7 +876,7 @@ describe("ChatPresenter", () => {
               credential: "Enterprise AI practitioner",
               affiliate_enabled: true,
               referral_code: "mentor-42",
-              referral_url: "https://studioordo.com/?ref=mentor-42",
+              referral_url: "https://studioordo.com/r/mentor-42",
               qr_code_url: "/api/qr/mentor-42",
               roles: ["APPRENTICE"],
             },
@@ -921,7 +921,7 @@ describe("ChatPresenter", () => {
             action: "get_my_referral_qr",
             message: "Returned the share link and QR code URL for this account's referral code.",
             referral_code: "mentor-42",
-            referral_url: "https://studioordo.com/?ref=mentor-42",
+            referral_url: "https://studioordo.com/r/mentor-42",
             qr_code_url: "/api/qr/mentor-42",
             manage_route: "/profile",
           },
@@ -939,7 +939,7 @@ describe("ChatPresenter", () => {
       type: "list",
       items: [
         [{ type: "text", text: "Use the referral link for direct sharing." }],
-        [{ type: "action-link", label: "Open referral link", actionType: "external", value: "https://studioordo.com/?ref=mentor-42" }],
+        [{ type: "action-link", label: "Open referral link", actionType: "external", value: "https://studioordo.com/r/mentor-42" }],
         [{ type: "action-link", label: "Open QR image", actionType: "external", value: "/api/qr/mentor-42" }],
         [
           { type: "text", text: "Open your " },

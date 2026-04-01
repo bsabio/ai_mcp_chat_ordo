@@ -3,7 +3,7 @@
  * Sprint 11 — D11.2.
  */
 
-import { AdminPaginationParams } from "@/lib/admin/admin-pagination";
+import type { AdminPaginationParams } from "@/lib/admin/admin-pagination";
 import { getUserDataMapper } from "@/adapters/RepositoryFactory";
 import type { UserAdminFilters, UserAdminRecord } from "@/adapters/UserDataMapper";
 import { parseAdminUserFilters, type AdminUserListFilters } from "./admin-users";

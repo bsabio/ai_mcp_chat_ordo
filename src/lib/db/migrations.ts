@@ -19,7 +19,15 @@ export function addColumnIfNotExists(
   const columns = db.pragma(`table_info(${safeTable})`) as Array<{ name: string }>;
 
   if (!columns.some((current) => current.name === safeColumn)) {
-    db.exec(`ALTER TABLE ${safeTable} ADD COLUMN ${safeColumn} ${definition}`);
+    try {
+      db.exec(`ALTER TABLE ${safeTable} ADD COLUMN ${safeColumn} ${definition}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(`duplicate column name: ${safeColumn}`)) {
+        return;
+      }
+
+      throw error;
+    }
   }
 }
 
@@ -77,7 +85,9 @@ export function runMigrations(db: Database.Database): void {
     "lane_last_analyzed_at",
     "TEXT DEFAULT NULL",
   );
+  addColumnIfNotExists(db, "conversations", "referral_id", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "conversations", "referral_source", "TEXT DEFAULT NULL");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_referral_id ON conversations(referral_id)`);
 
   addColumnIfNotExists(
     db,
@@ -139,6 +149,61 @@ export function runMigrations(db: Database.Database): void {
   addColumnIfNotExists(db, "users", "referral_code", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "users", "credential", "TEXT DEFAULT NULL");
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)`);
+
+  addColumnIfNotExists(db, "referrals", "referred_user_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "referrals", "visit_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "referrals", "status", "TEXT NOT NULL DEFAULT 'visited'");
+  addColumnIfNotExists(db, "referrals", "credit_status", "TEXT NOT NULL DEFAULT 'tracked'");
+  addColumnIfNotExists(db, "referrals", "last_validated_at", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "referrals", "last_event_at", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "referrals", "metadata_json", "TEXT NOT NULL DEFAULT '{}'"
+  );
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_referrals_visit_id ON referrals(visit_id) WHERE visit_id IS NOT NULL`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referred_user ON referrals(referred_user_id)`);
+  db.exec(`
+    UPDATE referrals
+    SET last_validated_at = COALESCE(last_validated_at, scanned_at, converted_at, created_at)
+    WHERE last_validated_at IS NULL
+  `);
+  db.exec(`
+    UPDATE referrals
+    SET last_event_at = COALESCE(last_event_at, converted_at, scanned_at, created_at)
+    WHERE last_event_at IS NULL
+  `);
+  db.exec(`
+    UPDATE conversations
+    SET referral_id = (
+      SELECT r.id
+      FROM referrals r
+      WHERE r.conversation_id = conversations.id
+      ORDER BY r.created_at DESC
+      LIMIT 1
+    )
+    WHERE referral_id IS NULL
+      AND EXISTS (
+        SELECT 1
+        FROM referrals r
+        WHERE r.conversation_id = conversations.id
+      )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS referral_events (
+      id TEXT PRIMARY KEY,
+      referral_id TEXT NOT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      event_type TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (referral_id) REFERENCES referrals(id) ON DELETE CASCADE,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_referral_events_referral ON referral_events(referral_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_referral_events_type ON referral_events(event_type)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_referral_events_conversation ON referral_events(conversation_id)`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_events_dedupe ON referral_events(referral_id, idempotency_key)`);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS blog_assets (

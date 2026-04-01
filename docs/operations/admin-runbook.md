@@ -31,6 +31,10 @@ This document is intentionally narrow: these are operational commands, not featu
 
 This distinction matters because LLM-assisted teams often over-claim verification by mixing operational checks with product QA.
 
+## Related Docs
+
+- Referral and affiliate operations: `docs/operations/referral-affiliate-runbook.md`
+
 ## CI/Automation
 
 - Commands are non-interactive and shell-friendly.

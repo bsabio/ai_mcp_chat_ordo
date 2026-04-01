@@ -8,12 +8,10 @@ import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { ConversationsTableClient } from "@/components/admin/ConversationsTableClient";
-import { AdminWorkspaceNav } from "@/components/admin/AdminWorkspaceNav";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminConversations } from "@/lib/admin/conversations/admin-conversations";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";
 import { bulkArchiveConversationsAction } from "@/lib/admin/conversations/admin-conversations-actions";
-import { getAdminConversationsPath } from "@/lib/admin/conversations/admin-conversations-routes";
 import { loadRoutingReviewBlock } from "@/lib/operator/loaders/admin-loaders";
 import {
   loadAnonymousOpportunitiesBlock,
@@ -48,39 +46,6 @@ function resolveWorkspaceView(
   }
 
   return "inbox";
-}
-
-function buildConversationsHref({
-  view = "inbox",
-  status,
-  lane,
-  sessionSource,
-}: {
-  view?: ConversationsWorkspaceView;
-  status?: string;
-  lane?: string;
-  sessionSource?: string;
-}): string {
-  const params = new URLSearchParams();
-
-  if (view !== "inbox") {
-    params.set("view", view);
-  }
-
-  if (status) {
-    params.set("status", status);
-  }
-
-  if (lane) {
-    params.set("lane", lane);
-  }
-
-  if (sessionSource) {
-    params.set("sessionSource", sessionSource);
-  }
-
-  const query = params.toString();
-  return query ? `${getAdminConversationsPath()}?${query}` : getAdminConversationsPath();
 }
 
 function formatDateLabel(value: string | null): string | null {
@@ -120,6 +85,22 @@ export default async function AdminConversationsPage({
     ? await loadRecurringPainThemesBlock(user)
     : null;
 
+  if (activeView === "review" && !reviewData) {
+    throw new Error("Routing review data is unavailable.");
+  }
+
+  if (activeView === "opportunities" && !opportunitiesData) {
+    throw new Error("Opportunity data is unavailable.");
+  }
+
+  if (activeView === "themes" && !themesData) {
+    throw new Error("Theme data is unavailable.");
+  }
+
+  const review = reviewData?.data ?? null;
+  const opportunities = opportunitiesData?.data ?? null;
+  const themes = themesData?.data ?? null;
+
   const statusCards = Object.entries(data.statusCounts).map(([key, value]) => ({
     label: key.charAt(0).toUpperCase() + key.slice(1),
     count: value,
@@ -131,25 +112,6 @@ export default async function AdminConversationsPage({
     count: value,
     active: data.filters.lane === key,
   }));
-
-  const workspaceItems = [
-    {
-      id: "inbox",
-      label: "Inbox",
-      href: buildConversationsHref({
-        status: data.filters.status || undefined,
-        lane: data.filters.lane || undefined,
-        sessionSource: data.filters.sessionSource || undefined,
-      }),
-    },
-    { id: "review", label: "Routing Review", href: buildConversationsHref({ view: "review" }) },
-    {
-      id: "opportunities",
-      label: "Opportunities",
-      href: buildConversationsHref({ view: "opportunities" }),
-    },
-    { id: "themes", label: "Themes", href: buildConversationsHref({ view: "themes" }) },
-  ] as const;
 
   const description = activeView === "review"
     ? "Routing changes, uncertain lane assignments, and follow-up-ready conversations."
@@ -165,12 +127,6 @@ export default async function AdminConversationsPage({
       description={description}
     >
       <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
-        <AdminWorkspaceNav
-          ariaLabel="Conversation workspace views"
-          items={workspaceItems}
-          currentItemId={activeView}
-        />
-
         {activeView === "inbox" ? (
           <>
             <AdminStatusCounts items={statusCards} />
@@ -238,10 +194,8 @@ export default async function AdminConversationsPage({
               baseHref="/admin/conversations"
             />
           </>
-        ) : activeView === "review" ? (
+        ) : activeView === "review" && review ? (
           (() => {
-            const review = reviewData!.data;
-
             return (
               <div className="grid gap-(--space-section-default) xl:grid-cols-3">
                 <AdminCard
@@ -387,35 +341,35 @@ export default async function AdminConversationsPage({
               </div>
             );
           })()
-        ) : activeView === "opportunities" ? (
+        ) : activeView === "opportunities" && opportunities ? (
           <AdminCard
             title="Anonymous opportunities"
             description="High-intent anonymous conversations that are likely worth founder outreach."
-            status={opportunitiesData!.data.summary.opportunityCount > 0 ? "warning" : "ok"}
+            status={opportunities.summary.opportunityCount > 0 ? "warning" : "ok"}
           >
             <div className="grid gap-(--space-4)">
               <div className="flex flex-wrap items-end gap-(--space-3)">
                 <p className="text-3xl font-semibold tracking-tight text-foreground">
-                  {opportunitiesData!.data.summary.opportunityCount}
+                  {opportunities.summary.opportunityCount}
                 </p>
                 <p className="pb-1 text-sm text-foreground/62">anonymous conversations above the review threshold</p>
               </div>
 
               <div className="flex flex-wrap gap-(--space-2)">
                 <span className="rounded-full border border-foreground/12 px-3 py-1 text-sm font-medium text-foreground/72">
-                  Organizations {opportunitiesData!.data.summary.organizationCount}
+                  Organizations {opportunities.summary.organizationCount}
                 </span>
                 <span className="rounded-full border border-foreground/12 px-3 py-1 text-sm font-medium text-foreground/72">
-                  Individuals {opportunitiesData!.data.summary.individualCount}
+                  Individuals {opportunities.summary.individualCount}
                 </span>
                 <span className="rounded-full border border-foreground/12 px-3 py-1 text-sm font-medium text-foreground/72">
-                  Development {opportunitiesData!.data.summary.developmentCount}
+                  Development {opportunities.summary.developmentCount}
                 </span>
               </div>
 
-              {opportunitiesData!.data.opportunities.length > 0 ? (
+              {opportunities.opportunities.length > 0 ? (
                 <ul className="grid gap-(--space-3)">
-                  {opportunitiesData!.data.opportunities.map((opportunity) => (
+                  {opportunities.opportunities.map((opportunity) => (
                     <li
                       key={opportunity.conversationId}
                       className="rounded-[1.15rem] border border-foreground/8 bg-background/55 px-(--space-4) py-(--space-3)"
@@ -447,30 +401,30 @@ export default async function AdminConversationsPage({
                 </ul>
               ) : (
                 <p className="text-sm leading-6 text-foreground/62">
-                  {opportunitiesData!.data.emptyReason}
+                  {opportunities.emptyReason}
                 </p>
               )}
             </div>
           </AdminCard>
-        ) : (
+        ) : themes ? (
           <AdminCard
             title="Recurring pain themes"
             description="Repeated needs and friction patterns gathered from recent conversation summaries."
-            status={themesData!.data.summary.recurringThemeCount > 0 ? "warning" : "ok"}
+            status={themes.summary.recurringThemeCount > 0 ? "warning" : "ok"}
           >
             <div className="grid gap-(--space-4)">
               <div className="flex flex-wrap items-end gap-(--space-3)">
                 <p className="text-3xl font-semibold tracking-tight text-foreground">
-                  {themesData!.data.summary.recurringThemeCount}
+                  {themes.summary.recurringThemeCount}
                 </p>
                 <p className="pb-1 text-sm text-foreground/62">
-                  recurring themes across {themesData!.data.summary.analyzedSummaryCount} analyzed summaries
+                  recurring themes across {themes.summary.analyzedSummaryCount} analyzed summaries
                 </p>
               </div>
 
-              {themesData!.data.themes.length > 0 ? (
+              {themes.themes.length > 0 ? (
                 <ul className="grid gap-(--space-3)">
-                  {themesData!.data.themes.map((theme) => (
+                  {themes.themes.map((theme) => (
                     <li
                       key={theme.id}
                       className="rounded-[1.15rem] border border-foreground/8 bg-background/55 px-(--space-4) py-(--space-3)"
@@ -506,11 +460,11 @@ export default async function AdminConversationsPage({
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm leading-6 text-foreground/62">{themesData!.data.emptyReason}</p>
+                <p className="text-sm leading-6 text-foreground/62">{themes.emptyReason}</p>
               )}
             </div>
           </AdminCard>
-        )}
+        ) : null}
       </div>
     </AdminSection>
   );

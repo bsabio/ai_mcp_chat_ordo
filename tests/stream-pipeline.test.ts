@@ -10,11 +10,24 @@ const getSessionUserMock = vi.fn();
 const resolveUserIdMock = vi.fn();
 const setMockSessionMock = vi.fn();
 const getSessionMock = vi.fn();
+const resolveValidatedReferralVisitMock = vi.fn();
+const attachValidatedVisitToConversationMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
   setMockSession: setMockSessionMock,
   getSession: getSessionMock,
+}));
+
+vi.mock("@/lib/referrals/referral-visit", () => ({
+  REFERRAL_VISIT_COOKIE_NAME: "lms_referral_visit",
+  resolveValidatedReferralVisit: resolveValidatedReferralVisitMock,
+}));
+
+vi.mock("@/lib/referrals/referral-ledger", () => ({
+  getReferralLedgerService: vi.fn(() => ({
+    attachValidatedVisitToConversation: attachValidatedVisitToConversationMock,
+  })),
 }));
 
 vi.mock("@/lib/chat/resolve-user", () => ({
@@ -146,7 +159,7 @@ vi.mock("@/lib/observability/reason-codes", () => ({
 }));
 
 vi.mock("@/lib/chat/message-attachments", () => ({
-  buildMessageContextText: vi.fn((_text: string) => "ctx"),
+  buildMessageContextText: vi.fn(() => "ctx"),
 }));
 
 vi.mock("@/lib/chat/math-classifier", () => ({
@@ -170,6 +183,8 @@ vi.mock("@/lib/chat/http-facade", () => ({
 describe("Spec 10 — Stream Route Decomposition", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveValidatedReferralVisitMock.mockReturnValue(null);
+    attachValidatedVisitToConversationMock.mockResolvedValue(null);
   });
 
   // --- Pipeline class tests ---
@@ -240,6 +255,41 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const fakeReq = { cookies: { get: () => undefined } } as never;
     const state = await pipeline.ensureConversation("u1", fakeReq, mockServices as never);
     expect(state.conversationId).toBe("conv-123");
+  });
+
+  it("ensureConversation attaches validated referral visits to the canonical ledger", async () => {
+    resolveValidatedReferralVisitMock.mockReturnValue({
+      visitId: "visit_123",
+      code: "mentor-42",
+      issuedAt: "2026-04-01T10:00:00.000Z",
+      referrer: {
+        userId: "usr_affiliate",
+        code: "mentor-42",
+        name: "Ada Lovelace",
+        credential: "Founder",
+      },
+    });
+
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const mockServices = {
+      interactor: {
+        ensureActive: vi.fn(async () => ({ id: "conv-123" })),
+      },
+    };
+    const fakeReq = { cookies: { get: () => ({ value: "signed-cookie" }) } } as never;
+
+    await pipeline.ensureConversation("anon_123", fakeReq, mockServices as never);
+
+    expect(mockServices.interactor.ensureActive).toHaveBeenCalledWith(
+      "anon_123",
+      { referralSource: "mentor-42" },
+    );
+    expect(attachValidatedVisitToConversationMock).toHaveBeenCalledWith({
+      conversationId: "conv-123",
+      userId: "anon_123",
+      visit: expect.objectContaining({ code: "mentor-42", visitId: "visit_123" }),
+    });
   });
 
   it("assignAttachments returns null for empty attachments", async () => {

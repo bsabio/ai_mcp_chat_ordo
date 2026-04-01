@@ -39,6 +39,14 @@ vi.mock("@/hooks/useCommandRegistry", () => ({
   }),
 }));
 
+function createNoReferralVisitResponse() {
+  return {
+    status: 404,
+    ok: false,
+    json: async () => ({ error: "No referral visit" }),
+  };
+}
+
 describe("browser FAB chat flow", () => {
   const fetchMock = vi.fn();
 
@@ -54,6 +62,7 @@ describe("browser FAB chat flow", () => {
         ok: false,
         json: async () => ({ error: "No active conversation" }),
       })
+      .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
@@ -218,7 +227,7 @@ describe("browser FAB chat flow", () => {
       expect(screen.getByText(/For a user onboarding flow, start by checking where activation drops/i)).toBeInTheDocument();
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("renders action link as a focusable button inside the assistant bubble", async () => {
@@ -257,6 +266,7 @@ describe("browser FAB chat flow", () => {
           ],
         }),
       });
+    fetchMock.mockResolvedValueOnce(createNoReferralVisitResponse());
 
     const { container } = render(
       <ChatProvider>
@@ -311,6 +321,7 @@ describe("browser FAB chat flow", () => {
           ],
         }),
       });
+    fetchMock.mockResolvedValueOnce(createNoReferralVisitResponse());
 
     const { container } = render(
       <ChatProvider>

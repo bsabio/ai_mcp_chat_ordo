@@ -15,16 +15,18 @@ export class ConversationDataMapper implements ConversationRepository {
     title: string;
     status?: "active" | "archived";
     sessionSource?: string;
+    referralId?: string;
     referralSource?: string;
   }): Promise<Conversation> {
     const status = conv.status ?? "active";
     const sessionSource = conv.sessionSource ?? "unknown";
+    const referralId = conv.referralId ?? null;
     const referralSource = conv.referralSource ?? null;
     this.db
       .prepare(
-        `INSERT INTO conversations (id, user_id, title, status, session_source, referral_source) VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO conversations (id, user_id, title, status, session_source, referral_id, referral_source) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(conv.id, conv.userId, conv.title, status, sessionSource, referralSource);
+      .run(conv.id, conv.userId, conv.title, status, sessionSource, referralId, referralSource);
 
     const row = this.db
       .prepare(`SELECT * FROM conversations WHERE id = ?`)
@@ -165,6 +167,20 @@ export class ConversationDataMapper implements ConversationRepository {
     this.db
       .prepare(`UPDATE conversations SET referral_source = ? WHERE id = ?`)
       .run(referralSource, id);
+  }
+
+  async setReferralAttribution(id: string, referralId: string, referralSource: string): Promise<void> {
+    this.db
+      .prepare(
+        `UPDATE conversations
+         SET referral_id = COALESCE(referral_id, ?),
+             referral_source = CASE
+               WHEN referral_id IS NULL OR referral_id = ? THEN ?
+               ELSE referral_source
+             END
+         WHERE id = ?`,
+      )
+      .run(referralId, referralId, referralSource, id);
   }
 
   async updateRoutingSnapshot(
@@ -309,6 +325,14 @@ export class ConversationDataMapper implements ConversationRepository {
 
     return rows.map((r) => r.id);
   }
+
+  async findIdsByUserAndConvertedFrom(userId: string, anonUserId: string): Promise<string[]> {
+    const rows = this.db
+      .prepare(`SELECT id FROM conversations WHERE user_id = ? AND converted_from = ?`)
+      .all(userId, anonUserId) as Array<{ id: string }>;
+
+    return rows.map((row) => row.id);
+  }
 }
 
 type ConversationRow = {
@@ -329,6 +353,7 @@ type ConversationRow = {
   recommended_next_step: string | null;
   detected_need_summary: string | null;
   lane_last_analyzed_at: string | null;
+  referral_id: string | null;
   referral_source: string | null;
 };
 
@@ -353,6 +378,7 @@ function mapRow(row: ConversationRow): Conversation {
       detectedNeedSummary: row.detected_need_summary,
       lastAnalyzedAt: row.lane_last_analyzed_at,
     }),
+    referralId: row.referral_id,
     referralSource: row.referral_source,
   };
 }

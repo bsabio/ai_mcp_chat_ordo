@@ -1,4 +1,4 @@
-import type { ImgHTMLAttributes } from "react";
+import { createElement, type ImgHTMLAttributes } from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -11,7 +11,11 @@ import {
 } from "@/components/journal/JournalLayout";
 
 vi.mock("next/image", () => ({
-  default: ({ priority: _priority, ...props }: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => <img {...props} alt={props.alt ?? ""} />,
+  default: (props: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => {
+    const imageProps = { ...props };
+    delete imageProps.priority;
+    return createElement("img", { ...imageProps, alt: props.alt ?? "" });
+  },
 }));
 
 describe("JournalLayout", () => {

@@ -18,12 +18,14 @@ import { registerBlogTools } from "./tool-bundles/blog-tools";
 import { registerProfileTools } from "./tool-bundles/profile-tools";
 import { registerJobTools } from "./tool-bundles/job-tools";
 import { registerNavigationTools } from "./tool-bundles/navigation-tools";
+import { registerAffiliateAnalyticsTools } from "./tool-bundles/affiliate-tools";
 
 export function createToolRegistry(corpusRepo: CorpusRepository, handler?: SearchHandler): ToolRegistry {
   const reg = new ToolRegistry(new RoleAwareSearchFormatter());
   registerCalculatorTools(reg);
   registerThemeTools(reg);
   registerProfileTools(reg);
+  registerAffiliateAnalyticsTools(reg);
   registerCorpusTools(reg, { corpusRepo, handler });
   registerConversationTools(reg);
   registerAdminTools(reg);
@@ -43,10 +45,8 @@ let cached: ToolCompositionResult | null = null;
 export function getToolComposition(): ToolCompositionResult {
   if (!cached) {
     const registry = createToolRegistry(getCorpusRepository(), getSearchHandler());
-    const executor = composeMiddleware(
-      [new LoggingMiddleware(), new RbacGuardMiddleware(registry)],
-      registry.execute.bind(registry),
-    );
+    const middleware = [new LoggingMiddleware(), new RbacGuardMiddleware(registry)];
+    const executor = composeMiddleware(middleware, registry.execute.bind(registry));
     cached = Object.freeze({ registry, executor });
   }
   return cached;

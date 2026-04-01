@@ -1,10 +1,11 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
+import { ANALYTICS_GRAPH_SOURCE_TYPES } from "@/lib/analytics/analytics-dataset-registry";
 import { GenerateGraphCommand } from "./UiTools";
 
 export const generateGraphTool: ToolDescriptor = {
   name: "generate_graph",
   schema: {
-    description: "Generate a quantitative graph or data table for time-series questions, comparisons across segments or categories, distributions, outlier analysis, and explicit requests for a graph, trend, plot, values over time, or custom visualization. Prefer the structured spec with graphType plus x/y/color/size encodings and validated transforms. Use data.source only for approved server-owned datasets such as analytics_funnel, lead_queue, routing_review, and conversation_activity.",
+    description: "Generate a quantitative graph or data table for time-series questions, comparisons across segments or categories, distributions, outlier analysis, and explicit requests for a graph, trend, plot, values over time, or custom visualization. Prefer the structured spec with graphType plus x/y/color/size encodings and validated transforms. Use data.source only for approved server-owned datasets such as analytics_funnel, lead_queue, routing_review, conversation_activity, affiliate_my_* referral datasets, and the admin_affiliate_* referral datasets.",
     input_schema: {
       type: "object",
       properties: {
@@ -39,7 +40,7 @@ export const generateGraphTool: ToolDescriptor = {
               properties: {
                 sourceType: {
                   type: "string",
-                  enum: ["analytics_funnel", "lead_queue", "routing_review", "conversation_activity"],
+                  enum: [...ANALYTICS_GRAPH_SOURCE_TYPES],
                 },
                 params: { type: "object" },
               },

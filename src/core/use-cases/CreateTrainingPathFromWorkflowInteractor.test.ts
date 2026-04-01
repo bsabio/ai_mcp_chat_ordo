@@ -14,6 +14,7 @@ import {
 import type { ConsultationRequestRepository } from "./ConsultationRequestRepository";
 import type { ConversationRepository } from "./ConversationRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
 import type { LeadRecordRepository } from "./LeadRecordRepository";
 import type { TrainingPathRecordRepository } from "./TrainingPathRecordRepository";
 
@@ -112,6 +113,7 @@ describe("CreateTrainingPathFromWorkflowInteractor", () => {
   let leadRecordRepo: LeadRecordRepository;
   let conversationRepo: ConversationRepository;
   let eventRecorder: ConversationEventRecorder;
+  let referralRecorder: ReferralLifecycleRecorder;
   let interactor: CreateTrainingPathFromWorkflowInteractor;
 
   beforeEach(() => {
@@ -168,12 +170,21 @@ describe("CreateTrainingPathFromWorkflowInteractor", () => {
       record: vi.fn(async () => undefined),
     } as unknown as ConversationEventRecorder;
 
+    referralRecorder = {
+      recordLeadSubmitted: vi.fn(async () => undefined),
+      recordConsultationRequested: vi.fn(async () => undefined),
+      recordDealCreated: vi.fn(async () => undefined),
+      recordTrainingPathCreated: vi.fn(async () => undefined),
+      recordCreditStateChanged: vi.fn(async () => undefined),
+    };
+
     interactor = new CreateTrainingPathFromWorkflowInteractor(
       trainingPathRecordRepo,
       consultationRequestRepo,
       leadRecordRepo,
       conversationRepo,
       eventRecorder,
+      referralRecorder,
     );
   });
 
@@ -192,6 +203,13 @@ describe("CreateTrainingPathFromWorkflowInteractor", () => {
       sourceType: "lead_record",
       sourceId: "lead_1",
     }));
+    expect(referralRecorder.recordTrainingPathCreated).toHaveBeenCalledWith({
+      conversationId: "conv_1",
+      trainingPathId: "training_1",
+      recommendedPath: "apprenticeship_screening",
+      sourceType: "lead_record",
+      sourceId: "lead_1",
+    });
     expect(trainingPath.leadRecordId).toBe("lead_1");
   });
 
@@ -208,6 +226,13 @@ describe("CreateTrainingPathFromWorkflowInteractor", () => {
       sourceType: "consultation_request",
       sourceId: "cr_1",
     }));
+    expect(referralRecorder.recordTrainingPathCreated).toHaveBeenCalledWith({
+      conversationId: "conv_1",
+      trainingPathId: "training_1",
+      recommendedPath: "mentorship_sprint",
+      sourceType: "consultation_request",
+      sourceId: "cr_1",
+    });
     expect(trainingPath.consultationRequestId).toBe("cr_1");
   });
 

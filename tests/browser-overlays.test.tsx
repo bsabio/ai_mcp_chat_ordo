@@ -34,6 +34,7 @@ const matchMediaMock = vi.fn((query: string) => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
   usePathname: () => "/dashboard",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/hooks/useMockAuth", () => ({

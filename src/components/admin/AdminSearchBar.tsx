@@ -15,14 +15,7 @@ export function AdminSearchBar({
 }: {
   searchAction?: (formData: FormData) => Promise<AdminSearchResult[]>;
 }) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  let router: { push: (url: string) => void } = { push: () => {} };
-  try {
-    router = NextNavigation.useRouter!();
-  } catch (error) {
-    void error;
-    // Test environments can render this component without a mocked router.
-  }
+  const router = NextNavigation.useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AdminSearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -156,7 +149,7 @@ export function AdminSearchBar({
             onChange={(e) => handleChange(e.target.value)}
             placeholder={isCommandMode ? commandPlaceholder : entityPlaceholder}
             aria-label={isCommandMode ? "Navigate to admin section" : "Search admin entities"}
-            className="w-full rounded-full border border-foreground/12 bg-foreground/[0.02] py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-foreground/40 focus:border-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/10"
+            className="w-full rounded-full border border-foreground/12 bg-foreground/2 py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-foreground/40 focus:border-foreground/25 focus:outline-none focus:ring-1 focus:ring-foreground/10"
           />
           {!isCommandMode && (
             <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-foreground/12 px-1.5 py-0.5 text-[10px] font-medium text-foreground/40 sm:inline-block">
@@ -168,7 +161,7 @@ export function AdminSearchBar({
 
       {/* Dropdown results */}
       {open && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[24rem] overflow-y-auto rounded-2xl border border-foreground/12 bg-background shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-96 overflow-y-auto rounded-2xl border border-foreground/12 bg-background shadow-lg">
           {/* Command mode */}
           {isCommandMode && (
             <ul role="listbox">
@@ -179,7 +172,7 @@ export function AdminSearchBar({
                   <li key={cmd.id} role="option" aria-selected="false">
                     <button
                       type="button"
-                      className="flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-foreground/[0.04] focus:bg-foreground/[0.04] focus:outline-none"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-foreground/4 focus:bg-foreground/4 focus:outline-none"
                       onClick={() => {
                         setOpen(false);
                         setQuery("");
@@ -221,7 +214,7 @@ export function AdminSearchBar({
                     <li key={`${result.entityType}-${result.id}`}>
                       <a
                         href={result.href}
-                        className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-foreground/[0.04] focus:bg-foreground/[0.04] focus:outline-none"
+                        className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-foreground/4 focus:bg-foreground/4 focus:outline-none"
                         onClick={() => setOpen(false)}
                       >
                         <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${BADGE_COLORS[result.entityType] ?? "bg-gray-100 text-gray-800"}`}>

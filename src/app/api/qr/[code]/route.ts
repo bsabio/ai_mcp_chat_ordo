@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import QRCode from "qrcode";
 import { getDb } from "@/lib/db";
-import { getInstanceIdentity } from "@/lib/config/instance";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { buildPublicReferralUrl } from "@/lib/referrals/referral-origin";
 
 const limiter = createRateLimiter(60_000, 60);
 
@@ -32,8 +32,7 @@ export async function GET(
     return Response.json({ error: "Referral code not found" }, { status: 404 });
   }
 
-  const domain = getInstanceIdentity().domain;
-  const url = `https://${domain}/?ref=${code}`;
+  const url = buildPublicReferralUrl(code);
   const buffer = await QRCode.toBuffer(url, { type: "png", width: 300 });
 
   return new Response(new Uint8Array(buffer), {

@@ -65,7 +65,6 @@ describe("TD-C3 hardening audit", () => {
       "src/components/GraphRenderer.tsx:1",
       "src/components/MermaidRenderer.tsx:1",
       "src/components/WebSearchResultCard.tsx:1",
-      "src/components/profile/ProfileSettingsPanel.tsx:1",
       "src/core/use-cases/tools/UiTools.ts:1",
       "src/core/use-cases/tools/graph-payload.ts:1",
       "src/frameworks/ui/MessageList.tsx:1",

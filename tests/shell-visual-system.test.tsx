@@ -50,6 +50,7 @@ const anonymousUser: User = {
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
   useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/hooks/useMockAuth", () => ({

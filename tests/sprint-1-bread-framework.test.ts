@@ -270,10 +270,10 @@ describe("page context injection", () => {
 // ── D1.10: Admin navigation config ─────────────────────────────────────
 
 describe("admin navigation config", () => {
-  it("has exactly 8 navigation items", async () => {
+  it("has exactly 9 navigation items", async () => {
     const { resolveAdminNavigationItems } = await import("@/lib/admin/admin-navigation");
     const items = resolveAdminNavigationItems();
-    expect(items).toHaveLength(8);
+    expect(items).toHaveLength(9);
   });
 
   it("includes all expected route IDs", async () => {
@@ -282,6 +282,7 @@ describe("admin navigation config", () => {
     expect(ids).toContain("admin-dashboard");
     expect(ids).toContain("admin-users");
     expect(ids).toContain("admin-leads");
+    expect(ids).toContain("admin-affiliates");
     expect(ids).toContain("journal-admin");
     expect(ids).toContain("admin-prompts");
     expect(ids).toContain("admin-conversations");
@@ -295,6 +296,7 @@ describe("admin navigation config", () => {
 describe("shell route registration", () => {
   it("new admin routes are registered in SHELL_ROUTES", async () => {
     const { SHELL_ROUTE_BY_ID } = await import("@/lib/shell/shell-navigation");
+    expect(SHELL_ROUTE_BY_ID.get("admin-affiliates")).toBeDefined();
     expect(SHELL_ROUTE_BY_ID.get("admin-prompts")).toBeDefined();
     expect(SHELL_ROUTE_BY_ID.get("admin-conversations")).toBeDefined();
     expect(SHELL_ROUTE_BY_ID.get("admin-jobs")).toBeDefined();
@@ -302,6 +304,7 @@ describe("shell route registration", () => {
 
   it("getShellRouteById resolves new admin routes without error", async () => {
     const { getShellRouteById } = await import("@/lib/shell/shell-navigation");
+    expect(() => getShellRouteById("admin-affiliates")).not.toThrow();
     expect(() => getShellRouteById("admin-prompts")).not.toThrow();
     expect(() => getShellRouteById("admin-conversations")).not.toThrow();
     expect(() => getShellRouteById("admin-jobs")).not.toThrow();

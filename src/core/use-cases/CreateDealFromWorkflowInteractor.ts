@@ -6,6 +6,7 @@ import type { ConversationRepository } from "./ConversationRepository";
 import type { DealRecordRepository } from "./DealRecordRepository";
 import type { LeadRecordRepository } from "./LeadRecordRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
 
 function deriveLaneServiceType(lane: DealLane): string {
   return lane === "development" ? "delivery" : "advisory";
@@ -33,6 +34,7 @@ export class CreateDealFromWorkflowInteractor {
     private readonly leadRecordRepo: LeadRecordRepository,
     private readonly conversationRepo: ConversationRepository,
     private readonly eventRecorder?: ConversationEventRecorder,
+    private readonly referralRecorder?: ReferralLifecycleRecorder,
   ) {}
 
   async createFromConsultationRequest(
@@ -203,6 +205,13 @@ export class CreateDealFromWorkflowInteractor {
       sourceType,
       sourceId,
       sourceStatus,
+    });
+    await this.referralRecorder?.recordDealCreated({
+      conversationId: dealRecord.conversationId,
+      dealId: dealRecord.id,
+      lane: dealRecord.lane,
+      sourceType,
+      sourceId,
     });
   }
 }

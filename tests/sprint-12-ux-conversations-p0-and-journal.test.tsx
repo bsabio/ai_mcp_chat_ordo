@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -20,7 +20,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-const noopConversationTableAction = (_formData: FormData) => {};
+const noopConversationTableAction = () => {};
 
 // ── D12.1: ConversationsTableClient source checks ─────────────────────
 
@@ -238,10 +238,10 @@ describe("D12.5: Journal admin page — layout, filters, and table accessibility
     const attributionSource = readSource("src/app/admin/journal/attribution/page.tsx");
     const detailSource = readSource("src/app/admin/journal/[id]/page.tsx");
 
-    expect(listSource).toContain("AdminWorkspaceNav");
-    expect(attributionSource).toContain("AdminWorkspaceNav");
-    expect(detailSource).toContain("AdminWorkspaceNav");
-    expect(listSource).toContain("Journal workspace navigation");
+    expect(listSource).not.toContain("AdminWorkspaceNav");
+    expect(attributionSource).not.toContain("AdminWorkspaceNav");
+    expect(detailSource).not.toContain("AdminWorkspaceNav");
+    expect(listSource).toContain("AdminBrowseFilters");
   });
 
   it("journal page does NOT have raw inline <form> filter block", () => {

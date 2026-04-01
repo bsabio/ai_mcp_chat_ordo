@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 
 import { useTheme } from "@/components/ThemeProvider";
@@ -12,6 +12,7 @@ import { useMockAuth } from "@/hooks/useMockAuth";
 import {
   isAdminNavigationItemActive,
   resolveAdminNavigationGroups,
+  resolveAdminWorkspaceContext,
 } from "@/lib/admin/admin-navigation";
 import {
   isShellRouteActive,
@@ -115,6 +116,7 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
   const [showAccessibility, setShowAccessibility] = useState(false);
   const [showSimulation, setShowSimulation] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const previousPathname = useRef(pathname);
@@ -128,6 +130,9 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
 
   const drawerGroups = resolveShellNavDrawerGroups(user);
   const adminGroups = user.roles.includes("ADMIN") ? resolveAdminNavigationGroups() : [];
+  const adminWorkspaceContext = user.roles.includes("ADMIN")
+    ? resolveAdminWorkspaceContext(pathname, searchParams)
+    : null;
   const primaryRole = user.roles[0] ?? "ANONYMOUS";
   const isAuthenticated = user.roles.some((role) => role !== "ANONYMOUS");
   const canSimulate = user.roles.includes("ADMIN") || process.env.NODE_ENV === "development";
@@ -442,6 +447,46 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
                     </div>
                   ))}
                 </div>
+              </section>
+            ) : null}
+
+            {adminWorkspaceContext ? (
+              <section className="flex flex-col gap-(--space-2)">
+                <div className="grid gap-1 px-(--space-1)">
+                  <h2 className="shell-section-heading text-foreground/42">{adminWorkspaceContext.label}</h2>
+                  <p className="shell-supporting-text text-foreground/58">
+                    {adminWorkspaceContext.description}
+                  </p>
+                </div>
+
+                <ul className="flex flex-col gap-(--space-1)">
+                  {adminWorkspaceContext.items.map((item) => {
+                    const isActive = item.id === adminWorkspaceContext.currentItemId;
+                    const labelId = `shell-workspace-context-${adminWorkspaceContext.id}-${item.id}-label`;
+                    const descriptionId = `shell-workspace-context-${adminWorkspaceContext.id}-${item.id}-description`;
+
+                    return (
+                      <li key={item.id}>
+                        <Link
+                          href={item.href}
+                          aria-current={isActive ? "page" : undefined}
+                          aria-labelledby={labelId}
+                          aria-describedby={descriptionId}
+                          className={`block rounded-2xl px-(--space-inset-default) py-(--space-3) transition-all haptic-press hover-surface focus-ring ${isActive ? "ui-shell-menu-link-active" : ""}`}
+                          onClick={() => closeMenu()}
+                        >
+                          <span id={labelId} className="shell-account-label block">{item.label}</span>
+                          <span
+                            id={descriptionId}
+                            className="shell-supporting-text mt-(--space-1) block text-foreground/58"
+                          >
+                            {item.description}
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
               </section>
             ) : null}
 

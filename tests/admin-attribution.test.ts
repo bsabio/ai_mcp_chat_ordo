@@ -47,7 +47,7 @@ describe("loadJournalAttribution", () => {
   });
 
   it("applies date filters when provided", async () => {
-    const prepareMock = vi.fn((_sql: string) => ({ all: vi.fn().mockReturnValue([]) }));
+    const prepareMock = vi.fn((sql: string) => ({ all: vi.fn().mockReturnValue([]), sql }));
     getDbMock.mockReturnValue({ prepare: prepareMock });
 
     await loadJournalAttribution({
@@ -96,7 +96,7 @@ describe("loadSinglePostAttribution", () => {
   });
 
   it("queries with the post slug parameter", async () => {
-    const prepareMock = vi.fn((_sql: string) => ({ get: vi.fn().mockReturnValue(undefined) }));
+    const prepareMock = vi.fn((sql: string) => ({ get: vi.fn().mockReturnValue(undefined), sql }));
     getDbMock.mockReturnValue({ prepare: prepareMock });
 
     await loadSinglePostAttribution("my-article-slug");

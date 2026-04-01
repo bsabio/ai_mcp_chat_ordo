@@ -73,11 +73,22 @@ const HEALTH_OK = {
   readiness: createProbeResult("ok"),
 };
 
+const REFERRAL_DIAGNOSTICS_OK = {
+  status: "ok" as const,
+  publicOrigin: "https://www.studioordo.com",
+  originSource: "environment" as const,
+  localhostFallback: false,
+  knownReferrerPromptVerified: true,
+  missingReferrerPromptVerified: true,
+  warnings: [],
+};
+
 describe("release evidence", () => {
   it("approves a release when manifest, health, and canaries are all green", () => {
     const evidence = createReleaseEvidence({
       manifest: MANIFEST,
       health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       canarySummary: createCanarySummary(),
       now: new Date("2026-03-20T13:00:00.000Z"),
     });
@@ -90,6 +101,7 @@ describe("release evidence", () => {
     const evidence = createReleaseEvidence({
       manifest: MANIFEST,
       health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       canarySummary: null,
     });
 
@@ -106,6 +118,7 @@ describe("release evidence", () => {
         status: "error",
         readiness: createProbeResult("error"),
       },
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       canarySummary: createCanarySummary(),
     });
 
@@ -117,6 +130,7 @@ describe("release evidence", () => {
     const evidence = createReleaseEvidence({
       manifest: MANIFEST,
       health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       canarySummary: createCanarySummary(),
       warnings: ["Known non-blocking copy issue."],
       manualChecks: ["Founder sign-off pending."],
@@ -135,6 +149,7 @@ describe("release evidence", () => {
       releaseDir,
       manifest: MANIFEST,
       health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       canarySummary,
     });
 
@@ -142,5 +157,23 @@ describe("release evidence", () => {
     expect(fs.existsSync(qaEvidencePath)).toBe(true);
     expect(JSON.parse(fs.readFileSync(canarySummaryPath, "utf8"))).toEqual(canarySummary);
     expect(JSON.parse(fs.readFileSync(qaEvidencePath, "utf8"))).toEqual(evidence);
+  });
+
+  it("blocks a release when referral identity verification fails", () => {
+    const evidence = createReleaseEvidence({
+      manifest: MANIFEST,
+      health: HEALTH_OK,
+      referralDiagnostics: {
+        ...REFERRAL_DIAGNOSTICS_OK,
+        status: "error",
+        knownReferrerPromptVerified: false,
+        warnings: ["Known-referrer prompt verification failed."],
+      },
+      canarySummary: createCanarySummary(),
+    });
+
+    expect(evidence.status).toBe("blocked");
+    expect(evidence.review.blockingReasons).toContain("Referral identity verification checks failed.");
+    expect(validateReleaseEvidence(evidence)).toContain("Referral identity verification evidence failed.");
   });
 });

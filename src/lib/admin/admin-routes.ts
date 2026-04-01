@@ -23,6 +23,10 @@ export function getAdminLeadsPath(): string {
   return "/admin/leads";
 }
 
+export function getAdminAffiliatesPath(): string {
+  return "/admin/affiliates";
+}
+
 export function getAdminJournalPath(): string {
   return getAdminJournalListPath();
 }

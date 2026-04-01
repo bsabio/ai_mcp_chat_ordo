@@ -2,22 +2,20 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { looksLikeMath } from "@/lib/chat/math-classifier";
-import { createSystemPromptBuilder } from "@/lib/chat/policy";
+import type { createSystemPromptBuilder } from "@/lib/chat/policy";
 import {
   errorJson,
   successText,
   type RouteContext,
 } from "@/lib/chat/http-facade";
 import { runClaudeAgentLoopStream } from "@/lib/chat/anthropic-stream";
-import { type ToolCompositionResult } from "@/lib/chat/tool-composition-root";
+import type { ToolCompositionResult } from "@/lib/chat/tool-composition-root";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { getSessionUser } from "@/lib/auth";
 import type { RoleName } from "@/core/entities/user";
 import type { JobEvent, JobRequest } from "@/core/entities/job";
 import type { MessagePart } from "@/core/entities/message-parts";
-import {
-  createConversationRuntimeServices,
-} from "@/lib/chat/conversation-root";
+import type { createConversationRuntimeServices } from "@/lib/chat/conversation-root";
 import { MessageLimitError } from "@/core/use-cases/ConversationInteractor";
 import { resolveUserId } from "@/lib/chat/resolve-user";
 import { buildContextWindow } from "@/lib/chat/context-window";
@@ -28,9 +26,7 @@ import {
 } from "@/lib/chat/task-origin-handoff";
 import { UserFileDataMapper } from "@/adapters/UserFileDataMapper";
 import { getDb } from "@/lib/db";
-import {
-  type AttachmentPart,
-} from "@/lib/chat/message-attachments";
+import type { AttachmentPart } from "@/lib/chat/message-attachments";
 import { UserFileSystem } from "@/lib/user-files";
 import { createConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
 import { getJobQueueRepository } from "@/adapters/RepositoryFactory";
@@ -48,6 +44,11 @@ import {
 import { ChatStreamRequestSchema } from "@/app/api/chat/stream/schema";
 import { logDegradation, logFailure } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
+import {
+  REFERRAL_VISIT_COOKIE_NAME,
+  resolveValidatedReferralVisit,
+} from "@/lib/referrals/referral-visit";
+import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -170,8 +171,25 @@ export class ChatStreamPipeline {
     services: ReturnType<typeof createConversationRuntimeServices>,
   ): Promise<ConversationState> {
     const { interactor } = services;
-    const referralSource = request.cookies?.get("lms_referral_code")?.value || undefined;
-    const conversation = await interactor.ensureActive(userId, { referralSource });
+    const referralVisit = resolveValidatedReferralVisit(
+      request.cookies?.get(REFERRAL_VISIT_COOKIE_NAME)?.value,
+    );
+    const conversation = await interactor.ensureActive(
+      userId,
+      referralVisit
+        ? {
+            referralSource: referralVisit.code,
+          }
+        : undefined,
+    );
+
+    if (referralVisit) {
+      await getReferralLedgerService().attachValidatedVisitToConversation({
+        conversationId: conversation.id,
+        userId,
+        visit: referralVisit,
+      });
+    }
 
     return {
       conversationId: conversation.id,

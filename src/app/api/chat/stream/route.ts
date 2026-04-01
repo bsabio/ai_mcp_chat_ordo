@@ -10,7 +10,7 @@ import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper"
 import { getDb } from "@/lib/db";
 import { buildMessageContextText } from "@/lib/chat/message-attachments";
 import { ChatStreamPipeline } from "@/lib/chat/stream-pipeline";
-
+import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 const pipeline = new ChatStreamPipeline();
 
 export async function POST(request: NextRequest) {
@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
       const apiKey = getAnthropicApiKey();
       const { user, role, userId, isAnonymous } = await pipeline.resolveSession();
 
-      const raw = await request.json();
-      const parseResultOrResponse = pipeline.validateAndParse(raw, context);
+      const parseResultOrResponse = pipeline.validateAndParse(await request.json(), context);
       if (parseResultOrResponse instanceof Response) return parseResultOrResponse;
       const { parsed: { incomingMessages, incomingAttachments, taskOriginHandoff }, body } = parseResultOrResponse;
 
@@ -52,6 +51,7 @@ export async function POST(request: NextRequest) {
       const latestUserContent = buildMessageContextText(latestUserText, incomingAttachments);
 
       const { conversationId } = await pipeline.ensureConversation(userId, request, services);
+      builder.withTrustedReferralContext(await getReferralLedgerService().getTrustedReferrerContext(conversationId));
       const execContext: ToolExecutionContext = { role, userId, conversationId };
       const toolExecutor = await pipeline.createDeferredToolExecutor({
         conversationId, isAnonymous, registry: toolRegistry, baseExecutor: baseToolExecutor, context: execContext,

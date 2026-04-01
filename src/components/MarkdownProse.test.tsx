@@ -1,10 +1,13 @@
+import { createElement, type ImgHTMLAttributes } from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/image", () => ({
-  default: ({ priority: _priority, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => (
-    <img {...props} alt={props.alt ?? ""} />
-  ),
+  default: (props: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => {
+    const imageProps = { ...props };
+    delete imageProps.priority;
+    return createElement("img", { ...imageProps, alt: props.alt ?? "" });
+  },
 }));
 
 import { MarkdownProse } from "@/components/MarkdownProse";
