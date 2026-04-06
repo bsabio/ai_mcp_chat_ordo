@@ -94,8 +94,8 @@ describe("site shell composition", () => {
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
   });
 
-  it("renders the public blog route in both the primary nav and footer", () => {
-    pathname = "/blog";
+  it("renders the public journal route in both the primary nav and footer", () => {
+    pathname = "/journal";
 
     renderShell();
 
@@ -104,7 +104,7 @@ describe("site shell composition", () => {
 
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
-    expect(within(footer).getByRole("link", { name: "Blog" })).toHaveAttribute("href", "/blog");
+    expect(within(footer).getByRole("link", { name: "Journal" })).toHaveAttribute("href", "/journal");
   });
 
   it("does not reintroduce the dead footer routes removed from the canonical shell model", () => {
@@ -140,7 +140,7 @@ describe("site shell composition", () => {
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
-    expect(resolvePrimaryNavRoutes(baseUser).map((route) => route.id)).toEqual(["corpus", "blog"]);
+    expect(resolvePrimaryNavRoutes(baseUser).map((route) => route.id)).toEqual(["corpus", "journal"]);
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
@@ -148,6 +148,29 @@ describe("site shell composition", () => {
     expect(within(nav).getByTestId("global-search")).toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
+  });
+
+  it("shows guest access links on the home rail for anonymous users", () => {
+    pathname = "/";
+
+    const anonymousUser: User = {
+      id: "usr_anon",
+      email: "anonymous@example.com",
+      name: "Anonymous User",
+      roles: ["ANONYMOUS"],
+    };
+
+    render(
+      <AppShell user={anonymousUser}>
+        <div>Shell Content</div>
+      </AppShell>,
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+
+    expect(within(nav).queryByTestId("notification-feed")).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
+    expect(within(nav).getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
   });
 
   it("keeps the home header on the unified utility cluster while preserving search", () => {

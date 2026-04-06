@@ -57,11 +57,11 @@ describe("shell command parity", () => {
         href: "/library",
       },
       {
-        id: "nav-blog",
-        title: "Blog",
+        id: "nav-journal",
+        title: "Journal",
         category: "Navigation",
         kind: "navigation",
-        href: "/blog",
+        href: "/journal",
       },
     ]);
   });

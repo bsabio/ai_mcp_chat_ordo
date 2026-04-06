@@ -10,7 +10,7 @@ describe("shell primary nav routes", () => {
   it("keeps the dedicated drawer browse routes available to anonymous users", () => {
     const routes = resolvePrimaryNavRoutes({ roles: ["ANONYMOUS"] });
 
-    expect(routes.map((route) => route.id)).toEqual(["corpus", "blog"]);
+    expect(routes.map((route) => route.id)).toEqual(["corpus", "journal"]);
   });
 });
 
@@ -36,6 +36,6 @@ describe("shell account menu routes", () => {
   it("keeps shared browse routes available in the compact rail menu", () => {
     const routes = resolveRailMenuRoutes({ roles: ["ANONYMOUS"] });
 
-    expect(routes.map((route) => route.id)).toEqual(["corpus", "blog"]);
+    expect(routes.map((route) => route.id)).toEqual(["corpus", "journal"]);
   });
 });

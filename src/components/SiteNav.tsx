@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ShellBrand } from "@/components/shell/ShellBrand";
@@ -17,6 +18,11 @@ interface SiteNavProps {
   user: SessionUser;
   searchAction?: GlobalSearchAction;
 }
+
+const GUEST_ACCESS_LINKS = [
+  { href: "/login", label: "Login" },
+  { href: "/register", label: "Register" },
+] as const;
 
 export function SiteNav({ user, searchAction }: SiteNavProps) {
   const pathname = usePathname();
@@ -54,6 +60,7 @@ export function SiteNav({ user, searchAction }: SiteNavProps) {
   }, []);
 
   const showSearch = showDesktopSearch;
+  const isAnonymous = user.roles.every((role) => role === "ANONYMOUS");
 
   return (
     <nav
@@ -88,7 +95,21 @@ export function SiteNav({ user, searchAction }: SiteNavProps) {
             className="shell-nav-actions"
             data-shell-nav-region="account-access"
           >
-            <NotificationFeed user={user} />
+            {isAnonymous ? (
+              <div className="shell-action-row" data-shell-nav-guest-access="true">
+                {GUEST_ACCESS_LINKS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="shell-nav-icon-button shell-micro-text min-w-[5.25rem] justify-center rounded-full px-(--space-3)"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <NotificationFeed user={user} />
+            )}
             <ShellWorkspaceMenu user={user} tone={navTone} />
           </div>
         </div>

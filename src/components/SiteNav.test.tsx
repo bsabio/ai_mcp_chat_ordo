@@ -55,6 +55,13 @@ const user: User = {
   roles: ["AUTHENTICATED"],
 };
 
+const anonymousUser: User = {
+  id: "usr_anon",
+  email: "anonymous@example.com",
+  name: "Anonymous User",
+  roles: ["ANONYMOUS"],
+};
+
 describe("SiteNav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,6 +122,19 @@ describe("SiteNav", () => {
     expect(screen.getByTestId("global-search")).toBeInTheDocument();
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
+  });
+
+  it("replaces notifications with login and register links for anonymous users", () => {
+    usePathnameMock.mockReturnValue("/");
+
+    render(<SiteNav user={anonymousUser} />);
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+
+    expect(screen.queryByTestId("notification-feed")).toBeNull();
+    expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
+    expect(nav.querySelector('[data-shell-nav-guest-access="true"]')).not.toBeNull();
   });
 
   it("keeps spacing ladder and rail tokens in the global foundation authority", () => {

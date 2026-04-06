@@ -25,8 +25,7 @@ describe("journal public route convergence static guard", () => {
     const jobStatus = readSource("src/lib/jobs/job-status.ts");
 
     expect(sitemap).toContain("/journal");
-    // shell-navigation still uses /blog href; will migrate to /journal in Sprint 1 (D1.10)
-    expect(shellNavigation).toContain('href: "/blog"');
+    expect(shellNavigation).toContain('href: "/journal"');
     expect(presenter).toContain("/journal/");
     expect(jobStatus).toContain("/journal/");
   });

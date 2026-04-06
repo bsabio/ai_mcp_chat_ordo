@@ -33,8 +33,7 @@ describe("Sprint 3 public route cutover QA guards", () => {
     const siteNav = readSource("src/components/SiteNav.tsx");
 
     expect(sitemap).toContain("${base}/journal");
-    // shell-navigation still uses /blog href; full migration deferred to Sprint 1 (D1.10)
-    expect(shellNavigation).toContain('href: "/blog"');
+    expect(shellNavigation).toContain('href: "/journal"');
     // AppShell and SiteNav handle both /journal and /blog routes during migration
     expect(appShell).toContain('pathname === "/journal"');
     expect(siteNav).toContain('pathname === "/journal"');

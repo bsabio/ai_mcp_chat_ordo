@@ -36,10 +36,10 @@ describe("searchGlobalEntities", () => {
         description: "Browse the library and structured reference material.",
       },
       {
-        id: "blog",
-        label: "Blog",
-        href: "/blog",
-        description: "Read published journal and blog content.",
+        id: "journal",
+        label: "Journal",
+        href: "/journal",
+        description: "Read published journal content.",
       },
     ]);
     searchAdminEntitiesMock.mockResolvedValue([

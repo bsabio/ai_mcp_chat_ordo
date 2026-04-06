@@ -77,11 +77,11 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     showInCommands: true,
   },
   {
-    id: "blog",
-    label: "Blog",
-    href: "/blog",
+    id: "journal",
+    label: "Journal",
+    href: "/journal",
     kind: "internal",
-    description: "Read published journal and blog content.",
+    description: "Read published journal content.",
     footerVisibility: "all",
     showInCommands: true,
   },
@@ -281,7 +281,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   {
     id: "information",
     label: "Information",
-    routeIds: ["corpus", "blog"],
+    routeIds: ["corpus", "journal"],
     visibility: "all",
   },
   {
@@ -298,16 +298,16 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   },
 ] as const;
 
-export const PRIMARY_NAV_ROUTE_IDS = ["corpus", "blog"] as const;
+export const PRIMARY_NAV_ROUTE_IDS = ["corpus", "journal"] as const;
 export const ACCOUNT_MENU_ROUTE_IDS = ["jobs", "profile"] as const;
-export const RAIL_MENU_ROUTE_IDS = ["corpus", "blog"] as const;
+export const RAIL_MENU_ROUTE_IDS = ["corpus", "journal"] as const;
 
 export const SHELL_NAV_DRAWER_GROUPS: readonly ShellNavDrawerGroup[] = [
   {
     id: "explore",
     label: "Explore",
     description: "Browse the public library and published journal surfaces.",
-    routeIds: ["corpus", "blog"],
+    routeIds: ["corpus", "journal"],
     visibility: "all",
   },
   {

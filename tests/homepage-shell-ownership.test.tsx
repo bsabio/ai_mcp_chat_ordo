@@ -185,6 +185,28 @@ describe("homepage shell ownership", () => {
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
   });
 
+  it("shows login and register links instead of notifications for anonymous users", () => {
+    const anonymousUser: User = {
+      id: "usr_anon",
+      email: "anonymous@example.com",
+      name: "Anonymous User",
+      roles: ["ANONYMOUS"],
+    };
+
+    render(
+      <AppShell user={anonymousUser}>
+        <div>Homepage Stage</div>
+      </AppShell>,
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+
+    expect(within(nav).queryByTestId("notification-feed")).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
+    expect(within(nav).getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
+    expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
+  });
+
   it("does not render a footer substitute inside the embedded chat container", () => {
     render(<ChatSurface mode="embedded" />);
 
