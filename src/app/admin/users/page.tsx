@@ -11,6 +11,21 @@ import { loadAdminUserList } from "@/lib/admin/users/admin-users";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";
 import { ROLE_OPTIONS, bulkRoleChangeAction } from "@/lib/admin/users/admin-users-actions";
 
+function buildUsersHref({ q, role }: { q?: string; role?: string }): string {
+  const params = new URLSearchParams();
+
+  if (q) {
+    params.set("q", q);
+  }
+
+  if (role && role !== "all") {
+    params.set("role", role);
+  }
+
+  const query = params.toString();
+  return query ? `/admin/users?${query}` : "/admin/users";
+}
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -28,32 +43,35 @@ export default async function AdminUsersPage({
   const pagination = buildAdminPaginationParams(raw);
   const listView = await loadAdminUserList(raw);
 
-  const roleFilterOptions = ROLE_OPTIONS.map((r) => ({
-    value: r.roleName,
-    label: r.label,
-  }));
-
-  const roleCounts = ROLE_OPTIONS.map((r) => ({
-    label: r.label,
-    count: listView.counts[r.roleName] ?? 0,
-    active: listView.filters.role === r.roleName,
-  }));
+  const roleCounts = [
+    {
+      label: "All",
+      count: listView.total,
+      filterHref: buildUsersHref({ q: listView.filters.search }),
+      active: listView.filters.role === "all",
+    },
+    ...ROLE_OPTIONS.map((r) => ({
+      label: r.label,
+      count: listView.counts[r.roleName] ?? 0,
+      filterHref: buildUsersHref({ q: listView.filters.search, role: r.roleName }),
+      active: listView.filters.role === r.roleName,
+    })),
+  ];
 
   return (
     <AdminSection
       title="Users"
       description="People and roles. Browse, inspect, and manage user accounts."
     >
-      <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
+      <div className="admin-route-stack">
+        <AdminStatusCounts items={roleCounts} />
+
         <AdminBrowseFilters
           fields={[
             { name: "q", label: "Search", type: "search", placeholder: "Search name or email…" },
-            { name: "role", label: "Role", type: "select", options: roleFilterOptions },
           ]}
-          values={{ q: listView.filters.search, role: listView.filters.role === "all" ? "" : listView.filters.role }}
+          values={{ q: listView.filters.search }}
         />
-
-        <AdminStatusCounts items={roleCounts} />
 
         {listView.users.length === 0 ? (
           <AdminEmptyState

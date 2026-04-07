@@ -45,6 +45,7 @@ export class ChatStreamAdapter implements ChatStreamProvider {
         messages,
         conversationId: options?.conversationId,
         currentPathname: options?.currentPathname,
+        currentPageSnapshot: options?.currentPageSnapshot,
         attachments: options?.attachments,
         taskOriginHandoff: options?.taskOriginHandoff,
       }),

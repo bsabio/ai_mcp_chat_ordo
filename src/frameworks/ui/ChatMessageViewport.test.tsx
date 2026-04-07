@@ -12,6 +12,7 @@ vi.mock("@/hooks/useChatScroll", () => ({
     isAtBottom: true,
     scrollToBottom: vi.fn(),
     handleScroll: vi.fn(),
+    resetPin: vi.fn(),
   })),
 }));
 
@@ -73,7 +74,7 @@ describe("ChatMessageViewport", () => {
         onLinkClick={vi.fn()}
         onActionClick={vi.fn()}
         onSuggestionClick={vi.fn()}
-        scrollDependency="messages"
+        scrollDependency={1}
         searchQuery=""
       />,
     );
@@ -92,6 +93,7 @@ describe("ChatMessageViewport", () => {
       isAtBottom: false,
       scrollToBottom,
       handleScroll: vi.fn(),
+      resetPin: vi.fn(),
     });
 
     render(
@@ -106,7 +108,7 @@ describe("ChatMessageViewport", () => {
         onLinkClick={vi.fn()}
         onActionClick={vi.fn()}
         onSuggestionClick={vi.fn()}
-        scrollDependency="messages"
+        scrollDependency={1}
         searchQuery=""
       />,
     );

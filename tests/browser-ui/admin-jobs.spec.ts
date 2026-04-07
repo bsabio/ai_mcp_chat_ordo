@@ -3,6 +3,7 @@ import path from "node:path";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 import { JobQueueDataMapper } from "../../src/adapters/JobQueueDataMapper";
+import { backdateRegisterFormStart, finishRegisterNavigation } from "./helpers/public-form";
 
 function resolveBrowserDbPath(): string {
   const configuredPath = process.env.STUDIO_ORDO_DB_PATH?.trim();
@@ -77,13 +78,15 @@ async function registerAndSimulateAdmin(page: Page): Promise<{ seedKey: string; 
   const seedKey = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const uniqueEmail = `admin-jobs-${seedKey}@example.com`;
 
+  await backdateRegisterFormStart(page);
   await page.goto("/register");
   await page.getByLabel("Name").fill("Admin Jobs User");
   await page.getByLabel("Email").fill(uniqueEmail);
   await page.getByLabel("Password").fill("AdminJobsPass123");
   await page.getByRole("button", { name: "Create Account" }).click();
 
-  await expect(page).toHaveURL(/\/$/);
+  const userId = await waitForUserIdByEmail(uniqueEmail);
+  await finishRegisterNavigation(page);
 
   await page.context().addCookies([
     {
@@ -97,7 +100,7 @@ async function registerAndSimulateAdmin(page: Page): Promise<{ seedKey: string; 
 
   return {
     seedKey,
-    userId: await waitForUserIdByEmail(uniqueEmail),
+    userId,
   };
 }
 
@@ -230,8 +233,7 @@ test.describe("Admin jobs", () => {
       await expect(desktopTable.locator(`a[href="/admin/jobs/${seededJobs.failedJobId}"]`)).toBeVisible();
       await expect(desktopTable.locator(`a[href="/admin/jobs/${seededJobs.hiddenJobId}"]`)).toHaveCount(0);
 
-      await page.getByLabel("Status").selectOption("failed");
-      await page.getByRole("button", { name: "Filter" }).click();
+      await page.locator('[data-admin-status-counts="true"]').getByRole("link", { name: /Failed/ }).click();
 
       await expect(page).toHaveURL(/\/admin\/jobs\?status=failed(&|$)/);
       await expect(desktopTable.locator(`a[href="/admin/jobs/${seededJobs.failedJobId}"]`)).toBeVisible();

@@ -115,10 +115,10 @@ describe("journal public rendering", () => {
       },
       {
         id: "post_2",
-        slug: "field-note",
-        title: "Field Note",
-        description: "Notes from the latest delivery cycle.",
-        content: "A field note opening.\n\nMore paragraphs.",
+        slug: "essay-on-systems",
+        title: "Essay On Systems",
+        description: "A reflective piece on system design.",
+        content: "A slow opening paragraph about systems.\n\n## Reflection\n\nMore narrative prose.",
         heroImageAssetId: null,
         status: "published",
         publishedAt: "2026-04-03T00:00:00.000Z",
@@ -129,10 +129,10 @@ describe("journal public rendering", () => {
       },
       {
         id: "post_3",
-        slug: "qa-playbook",
-        title: "QA Playbook",
-        description: "A practical walkthrough for release checks.",
-        content: "## Checklist\n\n- Verify jobs\n- Verify release\n\n```ts\nconsole.log('ship');\n```",
+        slug: "field-note",
+        title: "Field Note",
+        description: "Notes from the latest delivery cycle.",
+        content: "A field note opening.\n\nMore paragraphs.",
         heroImageAssetId: null,
         status: "published",
         publishedAt: "2026-04-02T00:00:00.000Z",
@@ -143,6 +143,34 @@ describe("journal public rendering", () => {
       },
       {
         id: "post_4",
+        slug: "qa-playbook",
+        title: "QA Playbook",
+        description: "A practical walkthrough for release checks.",
+        content: "## Checklist\n\n- Verify jobs\n- Verify release\n\n```ts\nconsole.log('ship');\n```",
+        heroImageAssetId: null,
+        status: "published",
+        publishedAt: "2026-04-01T00:00:00.000Z",
+        createdAt: "2026-04-01T00:00:00.000Z",
+        updatedAt: "2026-04-01T00:00:00.000Z",
+        createdByUserId: "usr_admin",
+        publishedByUserId: "usr_admin",
+      },
+      {
+        id: "post_5",
+        slug: "release-runbook",
+        title: "Release Runbook",
+        description: "Operational release procedure.",
+        content: "## Checklist\n\n- Verify jobs\n- Verify release",
+        heroImageAssetId: null,
+        status: "published",
+        publishedAt: "2026-03-30T00:00:00.000Z",
+        createdAt: "2026-03-29T00:00:00.000Z",
+        updatedAt: "2026-03-30T00:00:00.000Z",
+        createdByUserId: "usr_admin",
+        publishedByUserId: "usr_admin",
+      },
+      {
+        id: "post_6",
         slug: "continuity-brief",
         title: "Continuity Brief",
         description: "Deferred work continuity in production.",
@@ -156,7 +184,7 @@ describe("journal public rendering", () => {
         publishedByUserId: "usr_admin",
       },
       {
-        id: "post_5",
+        id: "post_7",
         slug: "older-systems-note",
         title: "Older Systems Note",
         description: "A prior argument kept for reference.",
@@ -170,7 +198,7 @@ describe("journal public rendering", () => {
         publishedByUserId: "usr_admin",
       },
       {
-        id: "post_6",
+        id: "post_8",
         slug: "archive-runbook",
         title: "Archive Runbook",
         description: "Legacy release procedure retained for comparison.",
@@ -184,7 +212,7 @@ describe("journal public rendering", () => {
         publishedByUserId: "usr_admin",
       },
       {
-        id: "post_7",
+        id: "post_9",
         slug: "older-release-check",
         title: "Older Release Check",
         description: "An older operational checklist kept in the archive.",
@@ -194,6 +222,20 @@ describe("journal public rendering", () => {
         publishedAt: "2023-08-08T00:00:00.000Z",
         createdAt: "2023-08-07T00:00:00.000Z",
         updatedAt: "2023-08-08T00:00:00.000Z",
+        createdByUserId: "usr_admin",
+        publishedByUserId: "usr_admin",
+      },
+      {
+        id: "post_10",
+        slug: "legacy-systems-note",
+        title: "Legacy Systems Note",
+        description: "A prior essay retained in the archive.",
+        content: "A reflective archive entry.\n\n## Context\n\nMore reflective prose.",
+        heroImageAssetId: null,
+        status: "published",
+        publishedAt: "2024-01-15T00:00:00.000Z",
+        createdAt: "2024-01-14T00:00:00.000Z",
+        updatedAt: "2024-01-15T00:00:00.000Z",
         createdByUserId: "usr_admin",
         publishedByUserId: "usr_admin",
       },
@@ -212,22 +254,33 @@ describe("journal public rendering", () => {
     expect(screen.getByRole("heading", { name: "Operational work" })).toBeInTheDocument();
     expect(screen.getByText("Browse by year")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Back issues" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "2024" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "2023" })).toBeInTheDocument();
 
     const essayRegion = container.querySelector('[data-journal-region="essays"]');
     const briefingRegion = container.querySelector('[data-journal-region="briefings"]');
     const archiveRegion = container.querySelector('[data-journal-region="archive"]');
     const leadEntry = container.querySelector('[data-journal-role="lead-entry"]');
+    const archiveYearList = container.querySelector('[data-journal-role="archive-year-list"]');
+    const archiveYearLinks = container.querySelectorAll('[data-journal-role="archive-year-link"]');
+    const archiveYearGroups = container.querySelectorAll('[data-journal-role="archive-year-group"]');
 
     expect(essayRegion).not.toBeNull();
     expect(briefingRegion).not.toBeNull();
     expect(archiveRegion).not.toBeNull();
+    expect(archiveYearList).not.toBeNull();
+    expect(archiveYearLinks).toHaveLength(2);
+    expect(archiveYearGroups).toHaveLength(2);
     expect(leadEntry).toHaveAttribute("data-journal-layout", "lead-ledger");
     expect(essayRegion?.querySelector('[data-journal-entry-tone="essay"][data-journal-layout="essay-ledger"]')).not.toBeNull();
     expect(briefingRegion?.querySelector('[data-journal-entry-tone="briefing"][data-journal-layout="briefing-ledger"]')).not.toBeNull();
     expect(archiveRegion?.querySelector('[data-journal-entry-tone="archive"][data-journal-layout="archive-row"]')).not.toBeNull();
+    expect(archiveYearList?.querySelector('[href="#archive-2024"]')).not.toBeNull();
+    expect(archiveYearList?.querySelector('[href="#archive-2023"]')).not.toBeNull();
     expect(within(archiveRegion as HTMLElement).queryByText("Field Note")).toBeNull();
     expect(within(archiveRegion as HTMLElement).queryByText("QA Playbook")).toBeNull();
+    expect(within(archiveRegion as HTMLElement).getByText("Archive Runbook")).toBeInTheDocument();
+    expect(within(archiveRegion as HTMLElement).getByText("Legacy Systems Note")).toBeInTheDocument();
     expect(within(archiveRegion as HTMLElement).getByText("Older Release Check")).toBeInTheDocument();
   }, 10000);
 
@@ -381,7 +434,8 @@ describe("journal public rendering", () => {
     expect(articleHeader).not.toHaveTextContent("Journal article");
     expect(standfirst).toBeInTheDocument();
     expect(standfirst).not.toBeNull();
-    expect(standfirst!.compareDocumentPosition(heroImage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(standfirst!.compareDocumentPosition(articleBody!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(articleBody).toContainElement(heroImage);
     expect(articleBody).toContainElement(bodyCopy);
     expect(metadata.openGraph).toMatchObject({
       images: [

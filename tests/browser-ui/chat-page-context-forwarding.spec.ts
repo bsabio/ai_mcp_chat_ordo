@@ -79,12 +79,20 @@ test.describe("Chat page context forwarding", () => {
 
       const requestBody = route.request().postDataJSON() as {
         currentPathname?: string;
+        currentPageSnapshot?: {
+          pathname?: string;
+          mainHeading?: string | null;
+          contentExcerpt?: string | null;
+        };
         messages?: Array<{ content?: string }>;
       };
       const userMessage = requestBody.messages?.at(-1)?.content ?? "";
 
       if (streamCallCount === 1) {
         expect(requestBody.currentPathname).toBe("/library");
+        expect(requestBody.currentPageSnapshot?.pathname).toBe("/library");
+        expect(requestBody.currentPageSnapshot?.mainHeading).toBe("Books, chapters, and reusable reference material.");
+        expect(requestBody.currentPageSnapshot?.contentExcerpt).toContain("The library is organized as books");
         expect(userMessage).toContain("What page am I on");
 
         persistedMessages.push(
@@ -118,6 +126,9 @@ test.describe("Chat page context forwarding", () => {
 
       expect(streamCallCount).toBe(2);
       expect(requestBody.currentPathname).toBe("/register");
+      expect(requestBody.currentPageSnapshot?.pathname).toBe("/register");
+      expect(requestBody.currentPageSnapshot?.mainHeading).toBe("Create Account");
+      expect(requestBody.currentPageSnapshot?.contentExcerpt).toContain("Save conversations, unlock richer tools");
       expect(userMessage).toContain("Tell me about the page");
 
       persistedMessages.push(
@@ -161,7 +172,7 @@ test.describe("Chat page context forwarding", () => {
     const floatingShell = page.locator('[data-chat-floating-shell="true"]');
     await expect(floatingShell).toBeVisible();
 
-    const textarea = floatingShell.getByPlaceholder("Bring the messy workflow, bold idea, or handoff...");
+    const textarea = floatingShell.getByPlaceholder("Ask Studio Ordo...");
     await expect(textarea).toBeVisible();
 
     await textarea.fill("What page am I on?");

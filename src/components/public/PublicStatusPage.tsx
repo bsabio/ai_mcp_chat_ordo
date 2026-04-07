@@ -24,36 +24,40 @@ export function PublicStatusPage({
   secondaryAction,
 }: PublicStatusPageProps) {
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-4xl items-center px-(--space-frame-default) py-(--space-section-loose)">
+    <main className="public-entry-shell" data-public-status-route="true">
       <section
-        className="profile-panel-surface grid w-full gap-(--space-6) p-(--space-inset-panel)"
+        className="profile-panel-surface public-entry-card"
         data-public-status-page="true"
       >
-        <div className="grid gap-(--space-3)">
-          <p className="theme-label tier-micro uppercase text-foreground/42">{eyebrow}</p>
-          <h1 className="theme-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+        <div className="public-entry-header">
+          <p className="public-entry-kicker">{eyebrow}</p>
+          <h1 className="public-entry-title max-w-3xl" data-public-entry-title="true">
             {title}
           </h1>
-          <p className="max-w-2xl text-sm leading-6 text-foreground/62 sm:text-base">
+          <p className="public-entry-description">
             {description}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-(--space-3)">
-          <Link href={primaryAction.href} className="btn-primary">
+        <div className="public-entry-actions">
+          <Link
+            href={primaryAction.href}
+            className="btn-primary focus-ring inline-flex w-full items-center justify-center sm:w-auto"
+            data-public-entry-primary-action="true"
+          >
             {primaryAction.label}
           </Link>
           {secondaryAction ? (
             <Link
               href={secondaryAction.href}
-              className="profile-inline-action focus-ring inline-flex min-h-11 items-center justify-center rounded-full px-(--space-inset-default) py-(--space-inset-tight) text-sm font-semibold transition-colors"
+              className="btn-secondary focus-ring w-full sm:w-auto"
             >
               {secondaryAction.label}
             </Link>
           ) : null}
         </div>
 
-        <p className="text-xs uppercase tracking-[0.14em] text-foreground/38">
+        <p className="font-(--font-label) text-[0.64rem] uppercase tracking-[0.14em] text-foreground/40">
           {brandName}
         </p>
       </section>

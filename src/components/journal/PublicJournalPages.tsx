@@ -18,7 +18,12 @@ import {
   JournalStoryCard,
 } from "@/components/journal/JournalLayout";
 import { getBlogAssetUrl, loadPublishedHeroAsset, loadPublishedHeroAssets } from "@/lib/blog/hero-images";
-import { buildJournalPublicationStructure, describeJournalPost, splitJournalStandfirst } from "@/lib/blog/journal-taxonomy";
+import {
+  buildJournalPublicationStructure,
+  describeJournalPost,
+  splitJournalLeadBody,
+  splitJournalStandfirst,
+} from "@/lib/blog/journal-taxonomy";
 import { normalizeBlogMarkdown } from "@/lib/blog/normalize-markdown";
 import { getInstanceIdentity } from "@/lib/config/instance";
 
@@ -215,15 +220,15 @@ export async function renderPublicJournalIndexPage() {
                 title="Back issues"
                 description="Older work only. Live shelf entries do not repeat here."
               />
-              <div className="journal-archive-shell px-(--space-inset-panel) py-(--space-inset-panel)" data-journal-surface="archive-shell">
+              <div className="journal-archive-shell px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)" data-journal-surface="archive-shell">
                 {publication.archiveGroups.map((group) => (
-                  <section key={group.year} id={`archive-${group.year.toLowerCase()}`} className="flex scroll-mt-(--space-28) flex-col gap-(--space-4) first:pt-(--space-0) not-first:border-t not-first:border-foreground/8 not-first:pt-(--space-6)">
-                    <div className="journal-archive-year-header flex items-end justify-between gap-(--space-4) pb-(--space-3)">
+                  <section key={group.year} id={`archive-${group.year.toLowerCase()}`} className="flex scroll-mt-(--space-28) flex-col gap-(--space-3) first:pt-(--space-0) not-first:border-t not-first:border-foreground/8 not-first:pt-(--space-section-tight) sm:gap-(--space-4) sm:not-first:pt-(--space-6)" data-journal-role="archive-year-group">
+                    <div className="journal-archive-year-header flex items-end justify-between gap-(--space-3) pb-(--space-2) sm:gap-(--space-4) sm:pb-(--space-3)">
                       <div>
                         <p className="font-(--font-label) text-[0.64rem] uppercase tracking-[0.16em] text-foreground/60">Year</p>
-                        <h3 className="font-(--font-display) text-[1.7rem] leading-[0.98] tracking-[-0.04em]">{group.year}</h3>
+                        <h3 className="font-(--font-display) text-[1.42rem] leading-[0.98] tracking-[-0.04em] sm:text-[1.7rem]">{group.year}</h3>
                       </div>
-                      <span className="font-(--font-label) text-[0.64rem] uppercase tracking-[0.16em] text-foreground/60">{group.posts.length} entries</span>
+                      <span className="font-(--font-label) text-[0.6rem] uppercase tracking-[0.16em] text-foreground/60 sm:text-[0.64rem]">{group.posts.length} entries</span>
                     </div>
                     <div className="flex flex-col">
                       {group.posts.map((entry) => (
@@ -303,12 +308,22 @@ export async function renderPublicJournalPostPage({
   const { standfirst, body } = splitJournalStandfirst(normalizedContent, post.standfirst);
   const articleProfile = describeJournalPost(post);
   const heroAsset = await loadPublishedHeroAsset(post);
+  const articleBodyContent = body || normalizedContent;
+  const { lead: candidateLeadBody, remainder: remainingBody } = heroAsset
+    ? splitJournalLeadBody(articleBodyContent)
+    : { lead: null, remainder: null };
   const identity = getInstanceIdentity();
   const publishedDate = formatPublishedDate(post.publishedAt);
   const fallbackDek = `An essay from the ${identity.name} journal archive.`;
   const duplicateOpenerCopy = standfirst != null
     && normalizeOpenerText(standfirst) !== ""
     && normalizeOpenerText(standfirst) === normalizeOpenerText(post.description);
+  const duplicateLeadCopy = candidateLeadBody != null
+    && !candidateLeadBody.trim().startsWith("#")
+    && standfirst != null
+    && normalizeOpenerText(candidateLeadBody) === normalizeOpenerText(standfirst);
+  const leadBody = duplicateLeadCopy ? null : candidateLeadBody;
+  const useSplitArticleBody = heroAsset != null && leadBody != null;
   const dek = duplicateOpenerCopy ? null : (post.description ?? fallbackDek);
   const identityLink = identity.linkedInUrl ? {
     href: identity.linkedInUrl,
@@ -330,17 +345,44 @@ export async function renderPublicJournalPostPage({
 
       {standfirst ? <JournalStandfirst>{standfirst}</JournalStandfirst> : null}
 
-      {heroAsset ? (
-        <JournalHeroFigure
-          src={getBlogAssetUrl(heroAsset.id)}
-          alt={heroAsset.altText}
-          width={heroAsset.width ?? 1200}
-          height={heroAsset.height ?? 630}
-        />
-      ) : null}
-
       <JournalArticleBody>
-        <MarkdownProse content={body || normalizedContent} className="blog-article-prose library-prose max-w-none" variant="journal" />
+        {useSplitArticleBody ? (
+          <>
+            <div data-journal-role="article-body-opening">
+              <MarkdownProse content={leadBody} className="blog-article-prose library-prose journal-article-prose" variant="journal" />
+            </div>
+
+            <div className="pt-(--space-6) sm:pt-(--space-8)" data-journal-role="article-hero">
+              <JournalHeroFigure
+                src={getBlogAssetUrl(heroAsset.id)}
+                alt={heroAsset.altText}
+                width={heroAsset.width ?? 1200}
+                height={heroAsset.height ?? 630}
+              />
+            </div>
+
+            {remainingBody ? (
+              <div className="pt-(--space-6) sm:pt-(--space-8)" data-journal-role="article-body-remainder">
+                <MarkdownProse content={remainingBody} className="blog-article-prose library-prose journal-article-prose" variant="journal" />
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {heroAsset ? (
+              <div className="pb-(--space-6) sm:pb-(--space-8)" data-journal-role="article-hero">
+                <JournalHeroFigure
+                  src={getBlogAssetUrl(heroAsset.id)}
+                  alt={heroAsset.altText}
+                  width={heroAsset.width ?? 1200}
+                  height={heroAsset.height ?? 630}
+                />
+              </div>
+            ) : null}
+
+            <MarkdownProse content={articleBodyContent} className="blog-article-prose library-prose journal-article-prose" variant="journal" />
+          </>
+        )}
       </JournalArticleBody>
     </JournalPageShell>
   );

@@ -42,6 +42,11 @@ import {
   jobStatusSnapshotToStreamEvent,
 } from "@/lib/jobs/job-status-snapshots";
 import { ChatStreamRequestSchema } from "@/app/api/chat/stream/schema";
+import type { ChatStreamRequest } from "@/app/api/chat/stream/schema";
+import {
+  normalizeCurrentPageSnapshot,
+  type CurrentPageSnapshot,
+} from "@/lib/chat/current-page-context";
 import { logDegradation, logFailure } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
 import {
@@ -63,6 +68,10 @@ type ParsedRequestBody = {
   incomingMessages: ChatMessage[];
   incomingAttachments: AttachmentPart[];
   taskOriginHandoff: ReturnType<typeof normalizeTaskOriginHandoff>;
+};
+
+type NormalizedChatStreamRequest = Omit<ChatStreamRequest, "currentPageSnapshot"> & {
+  currentPageSnapshot?: CurrentPageSnapshot;
 };
 
 type ConversationState = {
@@ -153,12 +162,12 @@ export class ChatStreamPipeline {
   validateAndParse(
     raw: unknown,
     context: RouteContext,
-  ): { parsed: ParsedRequestBody; body: ReturnType<typeof ChatStreamRequestSchema.parse> } | Response {
+  ): { parsed: ParsedRequestBody; body: NormalizedChatStreamRequest } | Response {
     const parseResult = ChatStreamRequestSchema.safeParse(raw);
     if (!parseResult.success) {
       return errorJson(context, "messages must be a non-empty array.", 400);
     }
-    const body = parseResult.data;
+    const body = this.normalizeValidatedRequest(parseResult.data);
     const parsed = this.parseRequestBody(body);
     return { parsed, body };
   }
@@ -539,6 +548,20 @@ export class ChatStreamPipeline {
   }
 
   /* ---- Private helpers ---- */
+
+  private normalizeValidatedRequest(body: ChatStreamRequest): NormalizedChatStreamRequest {
+    const { currentPageSnapshot, ...rest } = body;
+    const normalizedSnapshot = normalizeCurrentPageSnapshot(currentPageSnapshot);
+
+    if (!normalizedSnapshot) {
+      return rest;
+    }
+
+    return {
+      ...rest,
+      currentPageSnapshot: normalizedSnapshot,
+    };
+  }
 
   private parseRequestBody(body: {
     messages?: ChatMessage[];

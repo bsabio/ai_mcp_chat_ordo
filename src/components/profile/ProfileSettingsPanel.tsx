@@ -111,8 +111,8 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)">
-      <header className="flex flex-col gap-(--space-3)">
+    <div className="profile-page-shell mx-auto flex w-full max-w-5xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)" data-profile-page="true">
+      <header className="profile-route-header flex flex-col gap-(--space-3)" data-profile-header="true">
         <p className="theme-label tier-micro uppercase text-foreground/42">Account</p>
         <h1 className="theme-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Profile
@@ -122,16 +122,16 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
         </p>
       </header>
 
-      <div className="grid gap-(--space-6) lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
-        <section className="profile-panel-surface p-(--space-inset-panel)" data-profile-surface="details-panel">
-          <div className="mb-(--space-6) flex items-center justify-between gap-(--space-3)">
+      <div className="profile-workspace-grid grid gap-(--space-6) lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]" data-profile-workspace-grid="true">
+        <section className="profile-panel-surface profile-primary-panel p-(--space-inset-default) sm:p-(--space-inset-panel)" data-profile-surface="details-panel" data-profile-primary-surface="true">
+          <div className="profile-panel-header mb-(--space-4) flex items-center justify-between gap-(--space-3) sm:mb-(--space-6)">
             <div>
               <h2 className="theme-display text-xl font-semibold tracking-tight">Profile details</h2>
               <p className="mt-(--space-1) text-sm text-foreground/52">
                 These values are used by your account surface and by the profile MCP tools.
               </p>
             </div>
-            <div className="flex flex-wrap gap-(--space-2)">
+            <div className="profile-role-list flex flex-wrap gap-(--space-2)">
               {profile.roles.map((role) => (
                 <span
                   key={role}
@@ -143,7 +143,7 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-(--space-4)">
+          <form onSubmit={handleSubmit} className="profile-form-grid space-y-(--space-4)" data-profile-form="true">
             <div className="space-y-(--space-2)">
               <label htmlFor="profile-name" className="form-label">Name</label>
               <input
@@ -188,7 +188,7 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
               {saveState.kind !== "idle" ? saveState.message : ""}
             </div>
 
-            <div className="flex items-center justify-between gap-(--space-3) pt-(--space-2)">
+            <div className="profile-form-actions flex items-center justify-between gap-(--space-3) pt-(--space-2)">
               <p className="text-xs text-foreground/42">Changes save to the same backend used by the chat tools.</p>
               <button type="submit" className="btn-primary" disabled={isPending}>
                 {isPending ? "Saving..." : "Save profile"}
@@ -197,8 +197,8 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
           </form>
         </section>
 
-        <div className="flex flex-col gap-(--space-6)">
-          <aside className="profile-feature-surface p-(--space-inset-panel)" data-profile-surface="referral-panel">
+        <div className="profile-secondary-column flex flex-col gap-(--space-6)">
+          <aside className="profile-feature-surface p-(--space-inset-default) sm:p-(--space-inset-panel)" data-profile-surface="referral-panel">
             <div className="flex flex-col gap-(--space-2)">
               <p className="theme-label tier-micro uppercase text-foreground/42">Affiliate workspace</p>
               <h2 className="theme-display text-xl font-semibold tracking-tight">Referral performance</h2>
@@ -252,7 +252,7 @@ export function ProfileSettingsPanel({ initialProfile }: ProfileSettingsPanelPro
             )}
           </aside>
 
-          <section className="profile-panel-surface p-(--space-inset-panel)" data-profile-surface="notifications-panel">
+          <section className="profile-panel-surface p-(--space-inset-default) sm:p-(--space-inset-panel)" data-profile-surface="notifications-panel">
             <div className="flex items-start justify-between gap-(--space-4)">
               <div>
                 <p className="theme-label tier-micro uppercase text-foreground/42">Notifications</p>

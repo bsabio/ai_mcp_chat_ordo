@@ -12,7 +12,7 @@ test.describe("FAB live smoke", () => {
 
     await expect(page.locator('[data-chat-floating-shell="true"]')).toBeVisible();
     await expect(page.locator('[data-chat-composer-helper="true"]')).toContainText(
-      "Enter to send. Shift+Enter for line break. Attach files if needed.",
+      "Enter to send. Shift+Enter for line breaks.",
     );
     await expect(page.getByRole("button", { name: "Audit this workflow" })).toBeVisible();
 

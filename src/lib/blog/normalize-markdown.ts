@@ -1,3 +1,5 @@
+import { stripLeadingMarkdownTitle } from "../markdown/strip-leading-markdown-title";
+
 const INLINE_MARKDOWN_PATTERN = /(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(`[^`]+`)/;
 const BLOCK_MARKDOWN_PATTERN = /(^|\n)(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|```|\|.+\|)/m;
 
@@ -62,39 +64,17 @@ function isTitleCaseHeading(line: string): boolean {
   });
 }
 
-function stripDuplicateTitle(title: string, lines: string[]): string[] {
-  let index = 0;
-  while (index < lines.length && lines[index]?.trim() === "") {
-    index += 1;
-  }
-
-  const firstMeaningfulLine = lines[index]?.trim();
-  if (!firstMeaningfulLine) {
-    return lines;
-  }
-
-  if (firstMeaningfulLine === title.trim() || firstMeaningfulLine === `# ${title.trim()}`) {
-    index += 1;
-    while (index < lines.length && lines[index]?.trim() === "") {
-      index += 1;
-    }
-    return lines.slice(index);
-  }
-
-  return lines;
-}
-
 export function hasStructuredMarkdown(content: string): boolean {
   return BLOCK_MARKDOWN_PATTERN.test(content) || INLINE_MARKDOWN_PATTERN.test(content);
 }
 
 export function normalizeBlogMarkdown(title: string, content: string): string {
-  const trimmedContent = content.replace(/\r\n/g, "\n").trim();
+  const trimmedContent = stripLeadingMarkdownTitle(title, content);
   if (!trimmedContent) {
     return trimmedContent;
   }
 
-  const lines = stripDuplicateTitle(title, trimmedContent.split("\n"));
+  const lines = trimmedContent.split("\n");
 
   return lines
     .map((line, index, source) => {

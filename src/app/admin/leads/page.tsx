@@ -4,7 +4,6 @@ import Link from "next/link";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminStatusCounts } from "@/components/admin/AdminStatusCounts";
-import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { LeadsTableClient } from "@/components/admin/LeadsTableClient";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
@@ -146,12 +145,12 @@ export default async function AdminLeadsPage({
 
   const { activeTab, pipelineCounts, tabData } = pipeline;
   // Pipeline summary cards (always visible)
-  const pipelineCards = [
-    { label: "Leads", count: pipelineCounts.leads, active: activeTab === "leads" },
-    { label: "Consultations", count: pipelineCounts.consultations, active: activeTab === "consultations" },
-    { label: "Deals", count: pipelineCounts.deals, active: activeTab === "deals" },
-    { label: "Training", count: pipelineCounts.training, active: activeTab === "training" },
-  ];
+  const pipelineCards = TAB_DEFS.map((tab) => ({
+    label: tab.label,
+    count: pipelineCounts[tab.key],
+    filterHref: buildLeadsHref({ tab: tab.key }),
+    active: activeTab === tab.key,
+  }));
 
   // Tab-specific status filter options + columns
   let statusOptions: Array<{ value: string; label: string }>;
@@ -194,47 +193,32 @@ export default async function AdminLeadsPage({
     }
   }
 
-  const statusCountCards = statusOptions.map((opt) => ({
-    label: opt.label,
-    count: statusCounts[opt.value] ?? 0,
-    active: tabData.statusFilter === opt.value,
-  }));
+  const statusCountCards = [
+    {
+      label: "All",
+      count: total,
+      filterHref: buildLeadsHref({ tab: activeTab }),
+      active: !tabData.statusFilter,
+    },
+    ...statusOptions.map((opt) => ({
+      label: opt.label,
+      count: statusCounts[opt.value] ?? 0,
+      filterHref: buildLeadsHref({ tab: activeTab, status: opt.value }),
+      active: tabData.statusFilter === opt.value,
+    })),
+  ];
 
   return (
     <AdminSection
       title="Leads Pipeline"
       description="Lead capture, consultation requests, deals, and training paths."
     >
-      <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
+      <div className="admin-route-stack">
         {/* Pipeline summary cards */}
         <AdminStatusCounts items={pipelineCards} />
 
         {activeView === "pipeline" ? (
           <>
-            <nav className="flex gap-(--space-1) border-b border-foreground/8 pb-0" aria-label="Pipeline tabs">
-              {TAB_DEFS.map((t) => (
-                <a
-                  key={t.key}
-                  href={buildLeadsHref({ tab: t.key })}
-                  className={`rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition ${
-                    activeTab === t.key
-                      ? "border-foreground text-foreground"
-                      : "border-transparent text-foreground/50 hover:text-foreground/70"
-                  }`}
-                >
-                  {t.label}
-                </a>
-              ))}
-            </nav>
-
-            <AdminBrowseFilters
-              fields={[
-                { name: "status", label: "Status", type: "select", options: statusOptions },
-              ]}
-              values={{ status: tabData.statusFilter || "" }}
-              hiddenFields={activeTab !== "leads" ? { tab: activeTab } : undefined}
-            />
-
             <AdminStatusCounts items={statusCountCards} />
 
             {total === 0 ? (

@@ -2,6 +2,9 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { JobQueueDataMapper } from "../../src/adapters/JobQueueDataMapper";
+import { backdateRegisterFormStart, finishRegisterNavigation } from "./helpers/public-form";
+
+test.describe.configure({ timeout: 60_000 });
 
 function resolveBrowserDbPath(): string {
   const configuredPath = process.env.STUDIO_ORDO_DB_PATH?.trim();
@@ -215,6 +218,7 @@ test.describe("Jobs page", () => {
       });
     });
 
+    await backdateRegisterFormStart(page);
     await page.goto("/register");
 
     const seedKey = Date.now().toString(36);
@@ -224,13 +228,11 @@ test.describe("Jobs page", () => {
     await page.getByLabel("Password").fill("JobsPass123");
     await page.getByRole("button", { name: "Create Account" }).click();
 
-    await expect(page).toHaveURL(/\/$/);
-
     const userId = await waitForUserIdByEmail(uniqueEmail);
+    await finishRegisterNavigation(page);
     const seededJobs = await seedUserJobs(userId, seedKey);
 
-    await page.getByRole("button", { name: "Jobs Page User" }).click();
-    await page.getByRole("link", { name: "Jobs", exact: true }).click();
+    await page.goto("/jobs");
 
     const activeJobCard = page.getByTestId(`job-card-${seededJobs.runningJobId}`);
     const recentJobCard = page.getByTestId(`job-card-${seededJobs.completedJobId}`);

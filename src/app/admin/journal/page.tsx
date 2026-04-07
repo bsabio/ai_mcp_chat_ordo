@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AdminSection } from "@/components/admin/AdminSection";
+import { AdminStatusCounts } from "@/components/admin/AdminStatusCounts";
 import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
@@ -17,6 +18,33 @@ export const metadata: Metadata = {
   },
 };
 
+function buildJournalListHref({
+  q,
+  status,
+  section,
+}: {
+  q?: string;
+  status?: string;
+  section?: string;
+}): string {
+  const params = new URLSearchParams();
+
+  if (q) {
+    params.set("q", q);
+  }
+
+  if (status && status !== "all") {
+    params.set("status", status);
+  }
+
+  if (section && section !== "all") {
+    params.set("section", section);
+  }
+
+  const query = params.toString();
+  return query ? `/admin/journal?${query}` : "/admin/journal";
+}
+
 export default async function AdminJournalPage({
   searchParams,
 }: {
@@ -28,27 +56,69 @@ export default async function AdminJournalPage({
   const listView = await loadAdminJournalList(raw);
 
   const total = listView.counts.all ?? 0;
+  const workflowCards = [
+    {
+      label: "All",
+      count: total,
+      filterHref: buildJournalListHref({
+        q: listView.filters.search || undefined,
+        section: listView.filters.section === "all" ? undefined : listView.filters.section,
+      }),
+      active: listView.filters.status === "all",
+    },
+    {
+      label: "Draft",
+      count: listView.counts.draft ?? 0,
+      filterHref: buildJournalListHref({
+        q: listView.filters.search || undefined,
+        status: "draft",
+        section: listView.filters.section === "all" ? undefined : listView.filters.section,
+      }),
+      active: listView.filters.status === "draft",
+    },
+    {
+      label: "In review",
+      count: listView.counts.review ?? 0,
+      filterHref: buildJournalListHref({
+        q: listView.filters.search || undefined,
+        status: "review",
+        section: listView.filters.section === "all" ? undefined : listView.filters.section,
+      }),
+      active: listView.filters.status === "review",
+    },
+    {
+      label: "Approved",
+      count: listView.counts.approved ?? 0,
+      filterHref: buildJournalListHref({
+        q: listView.filters.search || undefined,
+        status: "approved",
+        section: listView.filters.section === "all" ? undefined : listView.filters.section,
+      }),
+      active: listView.filters.status === "approved",
+    },
+    {
+      label: "Published",
+      count: listView.counts.published ?? 0,
+      filterHref: buildJournalListHref({
+        q: listView.filters.search || undefined,
+        status: "published",
+        section: listView.filters.section === "all" ? undefined : listView.filters.section,
+      }),
+      active: listView.filters.status === "published",
+    },
+  ];
 
   return (
     <AdminSection
       title="Journal workspace"
       description="Inspect journal inventory, review workflow state, and manage preview and detail surfaces."
     >
-      <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
+      <div className="admin-route-stack">
+        <AdminStatusCounts items={workflowCards} />
+
         <AdminBrowseFilters
           fields={[
             { name: "q", label: "Search", type: "search", placeholder: "Search title or slug" },
-            {
-              name: "status",
-              label: "Workflow",
-              type: "select",
-              options: [
-                { value: "draft", label: "Draft" },
-                { value: "review", label: "In review" },
-                { value: "approved", label: "Approved" },
-                { value: "published", label: "Published" },
-              ],
-            },
             {
               name: "section",
               label: "Section",
@@ -61,14 +131,9 @@ export default async function AdminJournalPage({
           ]}
           values={{
             q: listView.filters.search,
-            status: listView.filters.status === "all" ? "" : listView.filters.status,
             section: listView.filters.section === "all" ? "" : listView.filters.section,
           }}
         />
-
-        <p className="text-xs text-foreground/50">
-          <span>{listView.counts.all}</span> posts in workspace
-        </p>
 
         {listView.filters.invalid.length > 0 && (
           <div role="alert" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-(--space-inset-default) py-(--space-inset-compact) text-sm text-amber-100">
@@ -82,9 +147,9 @@ export default async function AdminJournalPage({
             description="No journal posts match the current filters."
           />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-foreground/8 bg-background">
+          <div className="admin-scroll-shell" data-admin-scroll-shell="journal-list">
             <table
-              className="min-w-full border-collapse text-left text-sm"
+              className="admin-scroll-table admin-scroll-table-wide min-w-full border-collapse text-left text-sm"
               aria-label="Journal posts"
             >
               <thead>

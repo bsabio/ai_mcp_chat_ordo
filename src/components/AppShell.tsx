@@ -44,7 +44,11 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
           <SiteNav user={user} searchAction={searchAction} />
         </div>
 
-        <main className={contentMainClasses} data-shell-main-surface={routeSurface}>
+        <main
+          className={contentMainClasses}
+          data-shell-main-surface={routeSurface}
+          data-shell-floating-chat-clearance={!isHomeRoute && !isAdminRoute ? "true" : undefined}
+        >
           {children}
         </main>
 
@@ -67,7 +71,11 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
           <SiteNav user={user} searchAction={searchAction} />
         </div>
 
-        <main className={contentMainClasses} data-shell-main-surface={routeSurface}>
+        <main
+          className={contentMainClasses}
+          data-shell-main-surface={routeSurface}
+          data-shell-floating-chat-clearance={!isHomeRoute && !isAdminRoute ? "true" : undefined}
+        >
           {children}
         </main>
 

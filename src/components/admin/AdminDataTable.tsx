@@ -86,8 +86,8 @@ export function AdminDataTable({
   return (
     <>
       {/* Desktop table */}
-      <div className="hidden sm:block overflow-x-auto" data-admin-data-table="desktop">
-        <table className="w-full text-sm" aria-label={ariaLabel}>
+      <div className="admin-scroll-shell hidden sm:block" data-admin-data-table="desktop" data-admin-scroll-shell="table">
+        <table className="admin-scroll-table w-full text-sm" aria-label={ariaLabel}>
           <thead>
             <tr className="border-b border-foreground/8">
               {selectable && (
@@ -179,6 +179,7 @@ export function AdminDataTable({
               className={`rounded-xl border px-(--space-3) py-(--space-3) transition ${
                 checked ? "border-foreground/20 bg-foreground/4" : "border-foreground/8"
               }`}
+              data-admin-record-card="true"
             >
               {selectable && (
                 <label className="mb-(--space-2) flex items-center gap-2 text-xs text-foreground/50">
@@ -193,9 +194,9 @@ export function AdminDataTable({
                 </label>
               )}
               {columns.map((col) => (
-                <div key={col.key} className="flex justify-between py-0.5">
+                <div key={col.key} className="grid gap-1 py-1.5 first:pt-0 last:pb-0">
                   <span className="text-xs text-foreground/50">{col.header}</span>
-                  <span className="text-sm text-foreground/80">{renderCell(col, row)}</span>
+                  <div className="min-w-0 wrap-break-word text-sm text-foreground/80">{renderCell(col, row)}</div>
                 </div>
               ))}
             </div>

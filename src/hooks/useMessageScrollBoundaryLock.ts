@@ -1,6 +1,8 @@
 import { useEffect, type RefObject } from "react";
 
-const BOUNDARY_EPSILON = 1;
+import { SCROLL_BOTTOM_THRESHOLD_PX } from "@/lib/ui/scrollConstants";
+
+const BOUNDARY_EPSILON = SCROLL_BOTTOM_THRESHOLD_PX;
 
 function isEditableElement(target: Element | null): boolean {
   if (!target) {

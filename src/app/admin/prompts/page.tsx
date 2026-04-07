@@ -43,19 +43,20 @@ export default async function AdminPromptsPage() {
       title="System Prompts"
       description="Versioned prompt management with activation control."
     >
-      <div className="px-(--space-inset-panel)">
+      <div className="admin-route-stack">
         {slots.length === 0 ? (
           <AdminEmptyState
             heading="No prompt versions"
             description="No system prompt versions have been created yet."
           />
         ) : (
-          <div className="grid gap-(--space-3) sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-(--space-3) sm:grid-cols-2 lg:grid-cols-3" data-admin-prompts-grid="true">
             {slots.map((slot) => (
               <a
                 key={`${slot.role}:${slot.promptType}`}
                 href={getAdminPromptDetailPath(slot.role, slot.promptType)}
-                className="group rounded-xl border border-foreground/8 p-(--space-inset-panel) transition hover:border-foreground/16 hover:shadow-sm"
+                className="admin-panel-surface group rounded-xl p-(--space-inset-default) transition hover:border-foreground/16 hover:shadow-sm sm:p-(--space-inset-panel)"
+                data-admin-prompt-card="true"
               >
                 <div className="flex items-center justify-between">
                   <RoleBadge role={slot.role} />

@@ -61,87 +61,98 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center p-(--container-padding)">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Sign In</h1>
-          <p className="text-sm opacity-50">
-            Return to your saved workspace, conversations, and referral activity.
+    <main className="public-entry-shell" data-public-entry-page="login">
+      <section className="profile-panel-surface public-entry-card public-entry-card-split" data-public-entry-card="true">
+        <div className="public-entry-aside">
+          <div className="public-entry-header">
+            <p className="public-entry-kicker">Return to your workspace</p>
+            <h1 className="public-entry-title" data-public-entry-title="true">Sign In</h1>
+            <p className="public-entry-description">
+              Saved conversations, workspace context, and referral activity pick up where you left off.
+            </p>
+          </div>
+          <p className="public-entry-support">
+            Use the account that already holds your route access and prior conversation history.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div role="alert" aria-live="assertive" className="alert-error" style={error ? undefined : { display: "none" }}>
-            {error}
-          </div>
+        <div className="grid gap-(--space-4) rounded-[1.4rem] border border-foreground/10 bg-background/72 p-(--space-inset-default) sm:rounded-[1.6rem] sm:p-(--space-inset-panel)">
+          <form onSubmit={handleSubmit} className="public-entry-form" data-public-entry-form="true">
+            <div role="alert" aria-live="assertive" className="alert-error" style={error ? undefined : { display: "none" }}>
+              {error}
+            </div>
 
-          <div aria-hidden="true" style={HONEYPOT_STYLE}>
-            <label htmlFor={PUBLIC_FORM_HONEYPOT_FIELD_NAME}>Website</label>
-            <input
-              id={PUBLIC_FORM_HONEYPOT_FIELD_NAME}
-              name={PUBLIC_FORM_HONEYPOT_FIELD_NAME}
-              type="text"
-              value={honeypotInput}
-              onChange={(e) => setHoneypotInput(e.target.value)}
-              autoComplete="off"
-              tabIndex={-1}
-            />
-            <input
-              type="hidden"
-              name={PUBLIC_FORM_STARTED_AT_FIELD_NAME}
-              value={startedAt}
-              readOnly
-            />
-          </div>
+            <div aria-hidden="true" style={HONEYPOT_STYLE}>
+              <label htmlFor={PUBLIC_FORM_HONEYPOT_FIELD_NAME}>Website</label>
+              <input
+                id={PUBLIC_FORM_HONEYPOT_FIELD_NAME}
+                name={PUBLIC_FORM_HONEYPOT_FIELD_NAME}
+                type="text"
+                value={honeypotInput}
+                onChange={(e) => setHoneypotInput(e.target.value)}
+                autoComplete="off"
+                tabIndex={-1}
+              />
+              <input
+                type="hidden"
+                name={PUBLIC_FORM_STARTED_AT_FIELD_NAME}
+                value={startedAt}
+                readOnly
+              />
+            </div>
 
-          <div className="space-y-1.5">
-            <label htmlFor="email" className="form-label">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input-field"
-              placeholder="you@example.com"
-              autoComplete="email"
-            />
-          </div>
+            <div className="public-entry-form-fields">
+              <div className="space-y-1.5">
+                <label htmlFor="email" className="form-label">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-field"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                />
+              </div>
 
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          </div>
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="form-label">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+              </div>
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary"
-          >
-            {loading ? "Signing in…" : "Sign In"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary focus-ring"
+              data-public-entry-primary-action="true"
+            >
+              {loading ? "Signing in…" : "Sign In"}
+            </button>
+          </form>
 
-        <p className="text-center text-xs opacity-50">
-          Need an account to save your workspace?{" "}
-          <Link href="/register" className="font-bold opacity-100 text-accent-interactive hover:underline">
-            Register
-          </Link>
-        </p>
-      </div>
-    </div>
+          <p className="public-entry-secondary-link text-center">
+            Need an account to save your workspace?{" "}
+            <Link href="/register" className="font-semibold text-accent-interactive transition-colors hover:text-foreground hover:underline">
+              Register
+            </Link>
+          </p>
+        </div>
+      </section>
+    </main>
   );
 }

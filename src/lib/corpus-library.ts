@@ -18,6 +18,7 @@ import { ConsoleLogger } from "../adapters/ConsoleLogger";
 import { ErrorHandler } from "../core/services/ErrorHandler";
 import { LoggingDecorator } from "../core/common/LoggingDecorator";
 import { resolveCorpusRole, type CorpusAccessOptions } from "./corpus-access";
+import { stripLeadingMarkdownTitle } from "./markdown/strip-leading-markdown-title";
 
 const logger = new ConsoleLogger();
 const errorHandler = new ErrorHandler(logger);
@@ -173,7 +174,7 @@ export const getSectionFull = withErrorFallback(
     if (!result) return null;
     return {
       title: result.title,
-      content: result.content,
+      content: stripLeadingMarkdownTitle(result.title, result.content),
       document: result.bookTitle,
       book: result.bookTitle,
     };

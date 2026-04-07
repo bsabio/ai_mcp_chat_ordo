@@ -36,6 +36,7 @@ For the full workflow around specs, sprints, QA, and LLM guardrails, read:
 | [Conversation Search Migration Integrity](conversation-search-migration-integrity/) | Planned | 3 | Preserve conversation-search index correctness across anonymous-to-authenticated migration |
 | [Summary Context Hardening](summary-context-hardening/) | Planned | 3 | Convert summary replay into server-owned context and add regression coverage |
 | [Visual Theme Runtime And Semantic Surface Architecture](visual-theme-runtime-and-semantic-surface-architecture/) | Planned | 4 | Unify runtime theme authority, extract semantic surface primitives, and make MCP-driven UI customization safer, drier, and more performant |
+| [Mobile Surface Density And Route Remediation](mobile-surface-density-and-route-remediation/) | In Progress | 6 | Rebuild phone-first density, overflow handling, and route-family ergonomics across chat, public, workspace, and admin surfaces |
 
 ## Why A Separate Refactor Area
 
@@ -53,6 +54,7 @@ providing implementation-grade sprint documents.
 5. Conversation Search Migration Integrity
 6. Summary Context Hardening
 7. Visual Theme Runtime And Semantic Surface Architecture
+8. Mobile Surface Density And Route Remediation
 
 The umbrella program defines rollout order, verification gates, and ownership
 across the issue-specific workstreams. The style-system workstream is a UI and
@@ -66,6 +68,11 @@ The visual-theme runtime workstream is the follow-on design-system control pass.
 It assumes CSS ownership has already been partitioned and focuses on unifying
 theme truth, removing repeated component-level visual composition, and making
 runtime theme control a governed API for both the app and MCP tooling.
+
+The mobile-surface remediation workstream is the route-delivery program that
+consumes the audit output in `docs/_qa/` and the shared design-system work in
+spacing, chat control, and theme semantics. It exists so mobile quality is
+fixed as one governed surface program rather than as one-off route patches.
 
 ## Teaching Value
 

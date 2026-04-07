@@ -34,8 +34,7 @@ describe("usePresentedChatMessages", () => {
 
     expect(screen.getByTestId("message-count")).toHaveTextContent("1");
     expect(screen.getByTestId("suggestion-count")).toHaveTextContent("2");
-    expect(screen.getByTestId("scroll-dependency")).toHaveTextContent(
-      "assistant-1:17:0::suggestions:Review risks|Define milestones",
-    );
+    // scrollDependency is now a monotonic counter — first render produces 1
+    expect(screen.getByTestId("scroll-dependency")).toHaveTextContent("1");
   });
 });

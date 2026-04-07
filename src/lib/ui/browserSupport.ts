@@ -162,8 +162,16 @@ export function scheduleAfterPaint(
     typeof cancelAnimationFrame === "function" ? cancelAnimationFrame : null,
 ): () => void {
   if (requestFrame && cancelFrame) {
-    const handle = requestFrame(() => callback());
-    return () => cancelFrame(handle);
+    let innerHandle: number | null = null;
+    const outerHandle = requestFrame(() => {
+      innerHandle = requestFrame(() => callback());
+    });
+    return () => {
+      cancelFrame(outerHandle);
+      if (innerHandle != null) {
+        cancelFrame(innerHandle);
+      }
+    };
   }
 
   const handle = window.setTimeout(callback, 0);

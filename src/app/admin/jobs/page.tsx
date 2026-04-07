@@ -11,6 +11,7 @@ import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminJobList } from "@/lib/admin/jobs/admin-jobs";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";
 import { bulkCancelJobsAction, bulkRetryJobsAction } from "@/lib/admin/jobs/admin-jobs-actions";
+import { getAdminJobsListPath } from "@/lib/admin/jobs/admin-jobs-routes";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,33 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_ORDER = ["queued", "running", "succeeded", "failed", "canceled"];
+
+function buildAdminJobsHref({
+  status,
+  family,
+  toolName,
+}: {
+  status?: string;
+  family?: string;
+  toolName?: string;
+}): string {
+  const params = new URLSearchParams();
+
+  if (status && status !== "all") {
+    params.set("status", status);
+  }
+
+  if (family && family !== "all") {
+    params.set("family", family);
+  }
+
+  if (toolName) {
+    params.set("toolName", toolName);
+  }
+
+  const query = params.toString();
+  return query ? `${getAdminJobsListPath()}?${query}` : getAdminJobsListPath();
+}
 
 async function handleBulkAction(formData: FormData) {
   "use server";
@@ -59,26 +87,38 @@ export default async function AdminJobsPage({
     label: `${option.label} (${option.count})`,
   }));
 
-  const statusCounts = STATUS_ORDER.map((s) => ({
-    label: STATUS_LABELS[s] ?? s,
-    count: listView.statusCounts[s] ?? 0,
-    active: listView.filters.status === s,
-  }));
+  const statusCounts = [
+    {
+      label: "All",
+      count: listView.total,
+      filterHref: buildAdminJobsHref({
+        family: listView.filters.family,
+        toolName: listView.filters.toolName,
+      }),
+      active: listView.filters.status === "all",
+    },
+    ...STATUS_ORDER.map((s) => ({
+      label: STATUS_LABELS[s] ?? s,
+      count: listView.statusCounts[s] ?? 0,
+      filterHref: buildAdminJobsHref({
+        status: s,
+        family: listView.filters.family,
+        toolName: listView.filters.toolName,
+      }),
+      active: listView.filters.status === s,
+    })),
+  ];
 
   return (
     <AdminSection
       title="Jobs"
       description="Background job queue. Browse, inspect, cancel, and retry deferred tool jobs."
     >
-      <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
+      <div className="admin-route-stack">
+        <AdminStatusCounts items={statusCounts} />
+
         <AdminBrowseFilters
           fields={[
-            {
-              name: "status",
-              label: "Status",
-              type: "select",
-              options: STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABELS[s] ?? s })),
-            },
             {
               name: "family",
               label: "Family",
@@ -93,13 +133,10 @@ export default async function AdminJobsPage({
             },
           ]}
           values={{
-            status: listView.filters.status === "all" ? "" : listView.filters.status,
             family: listView.filters.family === "all" ? "" : listView.filters.family,
             toolName: listView.filters.toolName,
           }}
         />
-
-        <AdminStatusCounts items={statusCounts} />
 
         {listView.jobs.length === 0 ? (
           <AdminEmptyState
@@ -116,7 +153,7 @@ export default async function AdminJobsPage({
           page={pagination.page}
           total={listView.total}
           pageSize={pagination.pageSize}
-          baseHref="/admin/jobs"
+          baseHref={getAdminJobsListPath()}
         />
       </div>
       <JobsRefreshTrigger />

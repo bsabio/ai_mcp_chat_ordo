@@ -3,6 +3,7 @@ import { useCallback, useRef, type Dispatch } from "react";
 import { MessageFactory } from "@/core/entities/MessageFactory";
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
+import { collectCurrentPageSnapshot } from "@/lib/chat/collect-current-page-snapshot";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
 import type { ChatAction } from "./chatState";
@@ -131,6 +132,7 @@ export function useChatSend({
       let preparedSend: PreparedChatSend | null = null;
 
       try {
+        const currentPageSnapshot = collectCurrentPageSnapshot(currentPathname);
         const attachmentParts = files.length
           ? await uploadChatAttachments(files, conversationId)
           : [];
@@ -147,6 +149,7 @@ export function useChatSend({
           preparedSend.assistantIndex,
           attachmentParts,
           taskOriginHandoff,
+          currentPageSnapshot,
         );
 
         if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId)) {
@@ -192,6 +195,7 @@ export function useChatSend({
     },
     [
       conversationId,
+      currentPathname,
       refreshConversation,
       dispatch,
       registerFailedSend,
@@ -224,6 +228,7 @@ export function useChatSend({
       let preparedRetry: PreparedChatSend | null = null;
 
       try {
+        const currentPageSnapshot = collectCurrentPageSnapshot(currentPathname);
         const attachmentParts = failedSend.files.length
           ? await uploadChatAttachments(failedSend.files, conversationId)
           : [];
@@ -249,6 +254,7 @@ export function useChatSend({
           preparedRetry.assistantIndex,
           attachmentParts,
           failedSend.taskOriginHandoff,
+          currentPageSnapshot,
         );
 
         if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId)) {
@@ -286,6 +292,7 @@ export function useChatSend({
     [
       clearFailedSend,
       conversationId,
+      currentPathname,
       dispatch,
       getFailedSend,
       messages,

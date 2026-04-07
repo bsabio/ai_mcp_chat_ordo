@@ -1,5 +1,6 @@
 import type { StreamEvent } from "../entities/chat-stream";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
+import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
 
 /**
  * Core Interface for AI Streaming
@@ -15,6 +16,7 @@ export interface ChatStream {
 export interface FetchChatStreamOptions {
   conversationId?: string;
   currentPathname?: string;
+  currentPageSnapshot?: CurrentPageSnapshot;
   attachments?: Array<{
     assetId: string;
     fileName: string;

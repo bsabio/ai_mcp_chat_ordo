@@ -48,6 +48,39 @@ function resolveWorkspaceView(
   return "inbox";
 }
 
+function buildConversationsHref({
+  view = "inbox",
+  status,
+  lane,
+  sessionSource,
+}: {
+  view?: ConversationsWorkspaceView;
+  status?: string;
+  lane?: string;
+  sessionSource?: string;
+}): string {
+  const params = new URLSearchParams();
+
+  if (view !== "inbox") {
+    params.set("view", view);
+  }
+
+  if (status && status !== "all") {
+    params.set("status", status);
+  }
+
+  if (lane) {
+    params.set("lane", lane);
+  }
+
+  if (sessionSource) {
+    params.set("sessionSource", sessionSource);
+  }
+
+  const query = params.toString();
+  return query ? `/admin/conversations?${query}` : "/admin/conversations";
+}
+
 function formatDateLabel(value: string | null): string | null {
   if (!value) {
     return null;
@@ -101,17 +134,49 @@ export default async function AdminConversationsPage({
   const opportunities = opportunitiesData?.data ?? null;
   const themes = themesData?.data ?? null;
 
-  const statusCards = Object.entries(data.statusCounts).map(([key, value]) => ({
-    label: key.charAt(0).toUpperCase() + key.slice(1),
-    count: value,
-    active: data.filters.status === key,
-  }));
+  const statusCards = [
+    {
+      label: "All",
+      count: data.total,
+      filterHref: buildConversationsHref({
+        lane: data.filters.lane || undefined,
+        sessionSource: data.filters.sessionSource || undefined,
+      }),
+      active: !data.filters.status || data.filters.status === "all",
+    },
+    ...Object.entries(data.statusCounts).map(([key, value]) => ({
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      count: value,
+      filterHref: buildConversationsHref({
+        status: key,
+        lane: data.filters.lane || undefined,
+        sessionSource: data.filters.sessionSource || undefined,
+      }),
+      active: data.filters.status === key,
+    })),
+  ];
 
-  const laneCards = Object.entries(data.laneCounts).map(([key, value]) => ({
-    label: key,
-    count: value,
-    active: data.filters.lane === key,
-  }));
+  const laneCards = [
+    {
+      label: "All lanes",
+      count: data.total,
+      filterHref: buildConversationsHref({
+        status: data.filters.status || undefined,
+        sessionSource: data.filters.sessionSource || undefined,
+      }),
+      active: !data.filters.lane || data.filters.lane === "all",
+    },
+    ...Object.entries(data.laneCounts).map(([key, value]) => ({
+      label: key,
+      count: value,
+      filterHref: buildConversationsHref({
+        status: data.filters.status || undefined,
+        lane: key,
+        sessionSource: data.filters.sessionSource || undefined,
+      }),
+      active: data.filters.lane === key,
+    })),
+  ];
 
   const description = activeView === "review"
     ? "Routing changes, uncertain lane assignments, and follow-up-ready conversations."
@@ -126,7 +191,7 @@ export default async function AdminConversationsPage({
       title="Conversations"
       description={description}
     >
-      <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
+      <div className="admin-route-stack">
         {activeView === "inbox" ? (
           <>
             <AdminStatusCounts items={statusCards} />
@@ -136,21 +201,6 @@ export default async function AdminConversationsPage({
             <AdminBrowseFilters
               fields={[
                 {
-                  name: "status",
-                  label: "Status",
-                  type: "select",
-                  options: [
-                    { value: "active", label: "Active" },
-                    { value: "archived", label: "Archived" },
-                  ],
-                },
-                {
-                  name: "lane",
-                  label: "Lane",
-                  type: "select",
-                  options: Object.keys(data.laneCounts).map((l) => ({ value: l, label: l })),
-                },
-                {
                   name: "sessionSource",
                   label: "Source",
                   type: "search",
@@ -158,8 +208,6 @@ export default async function AdminConversationsPage({
                 },
               ]}
               values={{
-                status: data.filters.status || "",
-                lane: data.filters.lane || "",
                 sessionSource: data.filters.sessionSource || "",
               }}
             />

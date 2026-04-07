@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { loadJournalAttribution } from "@/lib/admin/attribution/admin-attribution";
@@ -48,34 +49,14 @@ export default async function AttributionPage({
       title="Content Attribution"
       description="See how journal articles drive conversations, leads, and revenue through the AI concierge."
     >
-      <div className="grid gap-(--space-stack-default)">
-        {/* Date range filter */}
-        <form method="get" className="flex flex-wrap items-end gap-(--space-cluster-default)">
-          <label className="grid gap-(--space-1) text-sm text-foreground/66">
-            <span className="font-medium text-foreground/72">After</span>
-            <input
-              type="date"
-              name="after"
-              defaultValue={afterDate}
-              className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
-            />
-          </label>
-          <label className="grid gap-(--space-1) text-sm text-foreground/66">
-            <span className="font-medium text-foreground/72">Before</span>
-            <input
-              type="date"
-              name="before"
-              defaultValue={beforeDate ?? ""}
-              className="rounded-2xl border border-foreground/12 bg-foreground/[0.02] px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground"
-          >
-            Filter
-          </button>
-        </form>
+      <div className="admin-route-stack">
+        <AdminBrowseFilters
+          fields={[
+            { name: "after", label: "After", type: "date" },
+            { name: "before", label: "Before", type: "date" },
+          ]}
+          values={{ after: afterDate, before: beforeDate ?? "" }}
+        />
 
         {entries.length === 0 ? (
           <AdminEmptyState
@@ -83,8 +64,8 @@ export default async function AttributionPage({
             description="Publish articles and share them — attribution data appears as visitors convert through the AI concierge."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-admin-attribution-table="true">
+          <div className="admin-scroll-shell" data-admin-scroll-shell="journal-attribution">
+            <table className="admin-scroll-table admin-scroll-table-wide w-full text-sm" data-admin-attribution-table="true">
               <thead>
                 <tr className="border-b border-foreground/10 text-left text-xs font-semibold uppercase tracking-wider text-foreground/50">
                   <th scope="col" className="px-(--space-inset-compact) py-(--space-2)">Article</th>

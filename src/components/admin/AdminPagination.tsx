@@ -44,13 +44,14 @@ export function AdminPagination({
   return (
     <nav
       aria-label="Pagination"
-      className="flex items-center gap-1 text-sm"
+      className="admin-pagination text-sm"
+      data-admin-pagination="true"
     >
       <a
         href={pageUrl(Math.max(1, page - 1))}
         aria-label="Previous page"
         aria-disabled={isFirst ? "true" : undefined}
-        className={`rounded border px-2.5 py-1 text-xs transition ${
+        className={`admin-pagination-link text-xs transition ${
           isFirst
             ? "pointer-events-none border-foreground/5 text-foreground/30"
             : "border-foreground/12 text-foreground hover:bg-foreground/5"
@@ -68,7 +69,7 @@ export function AdminPagination({
           <span
             key={p}
             aria-current="page"
-            className="rounded border border-foreground/20 bg-foreground/8 px-2.5 py-1 text-xs font-medium"
+            className="admin-pagination-link admin-pagination-link-current text-xs font-medium"
           >
             {p}
           </span>
@@ -76,7 +77,7 @@ export function AdminPagination({
           <a
             key={p}
             href={pageUrl(p)}
-            className="rounded border border-foreground/12 px-2.5 py-1 text-xs hover:bg-foreground/5"
+            className="admin-pagination-link text-xs hover:bg-foreground/5"
           >
             {p}
           </a>
@@ -87,7 +88,7 @@ export function AdminPagination({
         href={pageUrl(Math.min(totalPages, page + 1))}
         aria-label="Next page"
         aria-disabled={isLast ? "true" : undefined}
-        className={`rounded border px-2.5 py-1 text-xs transition ${
+        className={`admin-pagination-link text-xs transition ${
           isLast
             ? "pointer-events-none border-foreground/5 text-foreground/30"
             : "border-foreground/12 text-foreground hover:bg-foreground/5"

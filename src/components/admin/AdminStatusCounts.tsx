@@ -17,17 +17,13 @@ interface AdminStatusCountsProps {
 
 export function AdminStatusCounts({ items }: AdminStatusCountsProps) {
   return (
-    <div className="flex flex-wrap gap-(--space-2)" data-admin-status-counts="true">
+    <div className="admin-status-counts" data-admin-status-counts="true">
       {items.map((item) => {
-        const baseClass = `min-h-[44px] flex flex-col items-center justify-center min-w-[5.5rem] rounded-xl border px-(--space-3) py-(--space-2) transition ${
-          item.active
-            ? "border-foreground/20 bg-foreground/6 text-foreground shadow-sm ring-2 ring-primary"
-            : "border-foreground/8 text-foreground/60"
-        }`;
+        const baseClass = `admin-status-count-card ${item.active ? "admin-status-count-card-active" : "admin-status-count-card-idle"}`;
         const inner = (
           <>
-            <span className="text-2xl font-bold tabular-nums">{item.count}</span>
-            <span className="text-xs font-(--font-label) tracking-wide">{item.label}</span>
+            <span className="admin-status-count-value tabular-nums">{item.count}</span>
+            <span className="admin-status-count-label">{item.label}</span>
           </>
         );
 
@@ -38,6 +34,8 @@ export function AdminStatusCounts({ items }: AdminStatusCountsProps) {
               href={item.filterHref}
               aria-current={item.active ? "page" : undefined}
               className={baseClass}
+              data-admin-status-count-card="true"
+              data-admin-status-count-active={item.active ? "true" : undefined}
             >
               {inner}
             </a>
@@ -45,7 +43,12 @@ export function AdminStatusCounts({ items }: AdminStatusCountsProps) {
         }
 
         return (
-          <div key={item.label} className={baseClass}>
+          <div
+            key={item.label}
+            className={baseClass}
+            data-admin-status-count-card="true"
+            data-admin-status-count-active={item.active ? "true" : undefined}
+          >
             {inner}
           </div>
         );

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import { ChatPresenter, type PresentedMessage } from "@/adapters/ChatPresenter";
 import { CommandParserService } from "@/adapters/CommandParserService";
@@ -8,7 +8,7 @@ import type { ChatMessage } from "@/core/entities/chat-message";
 interface PresentedChatMessagesResult {
   presentedMessages: PresentedMessage[];
   dynamicSuggestions: string[];
-  scrollDependency: string;
+  scrollDependency: number;
 }
 
 export function usePresentedChatMessages(
@@ -33,16 +33,12 @@ export function usePresentedChatMessages(
       : [];
   }, [presentedMessages]);
 
-  const scrollDependency = useMemo(
-    () => {
-      const messageSignature = presentedMessages
-        .map((message) => `${message.id}:${message.rawContent.length}:${message.attachments.length}`)
-        .join("|");
-
-      return `${messageSignature}::suggestions:${dynamicSuggestions.join("|")}`;
-    },
-    [dynamicSuggestions, presentedMessages],
-  );
+  const scrollEpochRef = useRef(0);
+  const scrollDependency = useMemo(() => {
+    scrollEpochRef.current += 1;
+    return scrollEpochRef.current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: counter increments when deps change
+  }, [presentedMessages, dynamicSuggestions]);
 
   return {
     presentedMessages,

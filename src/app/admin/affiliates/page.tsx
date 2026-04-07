@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminSection } from "@/components/admin/AdminSection";
@@ -69,18 +68,18 @@ export default async function AdminAffiliatesPage({
       title="Affiliate program"
       description="Global affiliate performance, unresolved attribution records, and manual-first credit review."
     >
-      <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
+      <div className="admin-route-stack">
         <AdminStatusCounts items={summaryCards} />
 
-        <nav className="flex flex-wrap gap-(--space-2) border-b border-foreground/8 pb-(--space-2)" aria-label="Affiliate views">
+        <nav className="admin-pill-nav border-b border-foreground/8 pb-(--space-2)" aria-label="Affiliate views">
           {VIEW_OPTIONS.map((view) => (
             <a
               key={view.id}
               href={buildAffiliatesHref(view.id, filters.kind)}
-              className={`rounded-full border px-(--space-3) py-(--space-2) text-sm font-medium transition ${
+              className={`admin-pill-nav-link rounded-full border px-(--space-3) py-(--space-2) text-sm font-medium transition ${
                 filters.view === view.id
-                  ? "border-foreground/20 bg-foreground/8 text-foreground"
-                  : "border-foreground/8 text-foreground/58 hover:border-foreground/16 hover:text-foreground/78"
+                  ? "admin-pill-nav-link-active"
+                  : "admin-pill-nav-link-idle"
               }`}
             >
               {view.label}
@@ -162,7 +161,7 @@ export default async function AdminAffiliatesPage({
             {leaderboard.items.length === 0 ? (
               <AdminEmptyState heading="No affiliate activity yet" description="Once referral activity lands, the leaderboard will rank affiliates by qualified outcomes and credited progress." />
             ) : (
-              <div className="overflow-x-auto">
+              <div className="admin-scroll-shell" data-admin-scroll-shell="affiliate-leaderboard">
                 <table className="w-full text-sm" aria-label="Affiliate leaderboard">
                   <thead>
                     <tr className="border-b border-foreground/8 text-left text-xs uppercase tracking-[0.14em] text-foreground/46">
@@ -232,24 +231,6 @@ export default async function AdminAffiliatesPage({
 
         {filters.view === "exceptions" ? (
           <div className="grid gap-(--space-section-default)">
-            <AdminBrowseFilters
-              fields={[
-                {
-                  name: "kind",
-                  label: "Exception type",
-                  type: "select",
-                  options: [
-                    { value: "invalid_referral_source", label: "Invalid referral source" },
-                    { value: "missing_referral_join", label: "Missing referral join" },
-                    { value: "disabled_referral_code", label: "Disabled referral code" },
-                    { value: "credit_review_backlog", label: "Credit review backlog" },
-                  ],
-                },
-              ]}
-              values={{ kind: filters.kind === "all" ? "" : filters.kind }}
-              hiddenFields={{ view: "exceptions" }}
-            />
-
             <AdminStatusCounts items={exceptionCards} />
 
             <AdminCard title="Exception queue" description="Disabled-code traffic, unresolved joins, and credit review backlog stay visible in one admin surface." status={exceptions.total > 0 ? "warning" : "ok"}>

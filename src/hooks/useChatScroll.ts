@@ -6,8 +6,7 @@ import {
   scheduleAfterPaint,
   scrollElementTo,
 } from "@/lib/ui/browserSupport";
-
-const BOTTOM_THRESHOLD_PX = 2;
+import { SCROLL_BOTTOM_THRESHOLD_PX } from "@/lib/ui/scrollConstants";
 
 function getPinnedScrollTop(element: HTMLDivElement): number {
   return Math.max(element.scrollHeight - element.clientHeight, 0);
@@ -19,7 +18,7 @@ function pinToBottom(
 ): boolean {
   scrollElementTo(element, getPinnedScrollTop(element), behavior);
   const { scrollTop, scrollHeight, clientHeight } = element;
-  return scrollHeight - scrollTop - clientHeight <= BOTTOM_THRESHOLD_PX;
+  return scrollHeight - scrollTop - clientHeight <= SCROLL_BOTTOM_THRESHOLD_PX;
 }
 
 export function useChatScroll<T>(dep: T): {
@@ -27,6 +26,13 @@ export function useChatScroll<T>(dep: T): {
   isAtBottom: boolean;
   scrollToBottom: (behavior?: ScrollBehavior) => void;
   handleScroll: () => void;
+  /**
+   * Re-pin to bottom on the next dep change, regardless of current
+   * pinnedToBottom state.  Call this when the message list is entirely
+   * replaced (conversation switch, initial load) so the viewport
+   * anchors to the latest content.
+   */
+  resetPin: () => void;
 } {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -35,7 +41,7 @@ export function useChatScroll<T>(dep: T): {
   const checkIfAtBottom = useCallback(() => {
     if (!scrollRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    return scrollHeight - scrollTop - clientHeight <= BOTTOM_THRESHOLD_PX;
+    return scrollHeight - scrollTop - clientHeight <= SCROLL_BOTTOM_THRESHOLD_PX;
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -52,6 +58,11 @@ export function useChatScroll<T>(dep: T): {
       pinnedToBottom.current = true;
       setIsAtBottom(true);
     }
+  }, []);
+
+  const resetPin = useCallback(() => {
+    pinnedToBottom.current = true;
+    setIsAtBottom(true);
   }, []);
 
   useEffect(() => {
@@ -94,5 +105,5 @@ export function useChatScroll<T>(dep: T): {
     return cleanup;
   }, [checkIfAtBottom, dep]);
 
-  return { scrollRef, isAtBottom, scrollToBottom, handleScroll };
+  return { scrollRef, isAtBottom, scrollToBottom, handleScroll, resetPin };
 }

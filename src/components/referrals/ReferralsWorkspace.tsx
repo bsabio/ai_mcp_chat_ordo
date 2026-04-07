@@ -44,8 +44,8 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
 
   if (!profile.affiliateEnabled || !profile.referralCode || !profile.referralUrl || !profile.qrCodeUrl) {
     return (
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)">
-        <header className="flex flex-col gap-(--space-3)">
+      <main className="referrals-page-shell mx-auto flex w-full max-w-5xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)" data-referrals-workspace="true">
+        <header className="referrals-route-header flex flex-col gap-(--space-3)" data-referrals-header="true">
           <p className="theme-label tier-micro uppercase text-foreground/42">Referrals</p>
           <h1 className="theme-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Referral + QR workspace
@@ -55,7 +55,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
           </p>
         </header>
 
-        <section className="profile-panel-surface p-(--space-inset-panel)">
+        <section className="profile-panel-surface p-(--space-inset-default) sm:p-(--space-inset-panel)" data-referrals-primary-surface="availability">
           <p className="theme-label tier-micro uppercase text-foreground/42">Affiliate access</p>
           <h2 className="mt-(--space-2) theme-display text-2xl font-semibold tracking-tight text-foreground">
             Referral and QR access are not enabled yet
@@ -104,8 +104,8 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)">
-      <header className="flex flex-col gap-(--space-3)">
+    <main className="referrals-page-shell mx-auto flex w-full max-w-6xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)" data-referrals-workspace="true">
+      <header className="referrals-route-header flex flex-col gap-(--space-3)" data-referrals-header="true">
         <p className="theme-label tier-micro uppercase text-foreground/42">Referrals</p>
         <h1 className="theme-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Referral + QR workspace
@@ -121,9 +121,9 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
         </div>
       ) : null}
 
-      <section className="grid gap-(--space-3) md:grid-cols-5">
+      <section className="referrals-summary-strip grid gap-(--space-3) md:grid-cols-5" data-referrals-summary-strip="true">
         {metricCards.map((card) => (
-          <article key={card.label} className="profile-panel-surface min-h-32 p-(--space-inset-panel)">
+          <article key={card.label} className="profile-panel-surface referrals-summary-card min-h-28 p-(--space-inset-default) sm:min-h-32 sm:p-(--space-inset-panel)" data-referrals-summary-card="true">
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/38">{card.label}</p>
             <p className="mt-(--space-3) text-2xl font-semibold tracking-tight text-foreground">
               {formatMetricValue(card.value)}
@@ -132,8 +132,8 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
         ))}
       </section>
 
-      <section className="grid gap-(--space-6) xl:grid-cols-[1.2fr_0.8fr]">
-        <article className="profile-panel-surface p-(--space-inset-panel)">
+      <section className="referrals-primary-grid grid gap-(--space-6) xl:grid-cols-[1.2fr_0.8fr]" data-referrals-primary-grid="true">
+        <article className="profile-panel-surface referrals-share-surface p-(--space-inset-default) sm:p-(--space-inset-panel)" data-referrals-primary-surface="share-tools">
           <div className="flex flex-col gap-(--space-2)">
             <p className="theme-label tier-micro uppercase text-foreground/42">Share assets</p>
             <h2 className="theme-display text-2xl font-semibold tracking-tight text-foreground">
@@ -144,7 +144,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
             </p>
           </div>
 
-          <div className="mt-(--space-6) grid gap-(--space-4) lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="referrals-share-grid mt-(--space-5) grid gap-(--space-4) lg:mt-(--space-6) lg:grid-cols-[0.85fr_1.15fr]">
             <div className="profile-qr-frame overflow-hidden p-(--space-inset-default)" data-referrals-surface="qr-frame">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -174,7 +174,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
               <div>
                 <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/38">Referral link</p>
                 <div className="mt-(--space-1) flex flex-col gap-(--space-2) sm:flex-row">
-                  <input readOnly value={referralUrl} className="input-field flex-1" />
+                  <input readOnly value={referralUrl} className="input-field referrals-link-field flex-1" />
                   <button
                     type="button"
                     className="profile-inline-action focus-ring rounded-full px-(--space-inset-default) py-(--space-inset-tight) text-xs font-semibold transition-colors"
@@ -187,7 +187,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
 
               <div>
                 <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/38">Short CTA copy</p>
-                <textarea readOnly value={ctaCopy} className="input-field mt-(--space-1) min-h-28 w-full resize-none" />
+                <textarea readOnly value={ctaCopy} className="input-field referrals-cta-field mt-(--space-1) min-h-24 w-full resize-none sm:min-h-28" />
                 <button
                   type="button"
                   className="profile-inline-action focus-ring mt-(--space-2) rounded-full px-(--space-inset-default) py-(--space-inset-tight) text-xs font-semibold transition-colors"
@@ -197,7 +197,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-(--space-2)">
+              <div className="referrals-action-row flex flex-wrap gap-(--space-2)">
                 <button type="button" className="btn-primary" onClick={handleDownloadQr}>
                   Download QR
                 </button>
@@ -222,7 +222,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
           </div>
         </article>
 
-        <article className="profile-panel-surface p-(--space-inset-panel)">
+        <article className="profile-panel-surface referrals-summary-surface p-(--space-inset-default) sm:p-(--space-inset-panel)" data-referrals-primary-surface="summary">
           <p className="theme-label tier-micro uppercase text-foreground/42">Summary</p>
           <h2 className="mt-(--space-2) theme-display text-2xl font-semibold tracking-tight text-foreground">
             What is moving now
@@ -247,8 +247,8 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
         </article>
       </section>
 
-      <section className="grid gap-(--space-6) xl:grid-cols-3">
-        <article className="profile-panel-surface p-(--space-inset-panel)">
+      <section className="referrals-analytics-grid grid gap-(--space-6) xl:grid-cols-3" data-referrals-analytics-grid="true">
+        <article className="profile-panel-surface p-(--space-inset-default) sm:p-(--space-inset-panel)">
           <p className="theme-label tier-micro uppercase text-foreground/42">Introductions over time</p>
           <div className="mt-(--space-5) grid gap-(--space-3)">
             {timeseries.length === 0 ? (
@@ -274,7 +274,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
           </div>
         </article>
 
-        <article className="profile-panel-surface p-(--space-inset-panel)">
+        <article className="profile-panel-surface p-(--space-inset-default) sm:p-(--space-inset-panel)">
           <p className="theme-label tier-micro uppercase text-foreground/42">Referred funnel conversion</p>
           <div className="mt-(--space-5) grid gap-(--space-4)">
             {(pipeline?.stages ?? []).map((stage) => (
@@ -299,7 +299,7 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
           </div>
         </article>
 
-        <article className="profile-panel-surface p-(--space-inset-panel)">
+        <article className="profile-panel-surface p-(--space-inset-default) sm:p-(--space-inset-panel)">
           <p className="theme-label tier-micro uppercase text-foreground/42">Recent milestone outcomes</p>
           <div className="mt-(--space-5) grid gap-(--space-4)">
             {(pipeline?.outcomes ?? []).map((outcome) => (
@@ -325,20 +325,20 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
         </article>
       </section>
 
-      <section className="profile-panel-surface p-(--space-inset-panel)">
+      <section className="profile-panel-surface referrals-activity-surface p-(--space-inset-default) sm:p-(--space-inset-panel)" data-referrals-primary-surface="activity">
         <div className="flex flex-col gap-(--space-2)">
           <p className="theme-label tier-micro uppercase text-foreground/42">Recent activity</p>
           <h2 className="theme-display text-2xl font-semibold tracking-tight text-foreground">
             Latest referral milestones
           </h2>
         </div>
-        <div className="mt-(--space-6)">
+        <div className="mt-(--space-5) sm:mt-(--space-6)">
           {recentActivity.length === 0 ? (
             <div className="profile-empty-state p-(--space-inset-default) text-sm leading-6 text-foreground/52">
               No attributed referral milestones yet. Share your link or QR code and this feed will fill in automatically.
             </div>
           ) : (
-            <ul className="grid gap-(--space-3)">
+            <ul className="referrals-activity-list grid gap-(--space-3)">
               {recentActivity.map((item) => (
                 <li key={item.id} className="rounded-3xl border border-foreground/10 bg-background/70 p-(--space-inset-default)">
                   <div className="flex flex-wrap items-center justify-between gap-(--space-3)">

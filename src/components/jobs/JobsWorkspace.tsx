@@ -227,30 +227,32 @@ export function JobsWorkspace({
   }
 
   return (
-    <section className="jobs-page-shell" data-testid="jobs-workspace-shell">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-(--space-section-default) px-(--space-frame-mobile) py-(--space-frame-mobile) sm:px-(--space-frame-default)">
-        <header className="jobs-hero-surface px-(--space-inset-panel) py-(--space-inset-panel)">
-          <div className="flex flex-col gap-(--space-stack-tight) lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl space-y-(--space-2)">
+    <section className="jobs-page-shell" data-testid="jobs-workspace-shell" data-jobs-workspace="true">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-(--space-4) px-(--space-frame-mobile) py-(--space-section-tight) sm:gap-(--space-section-default) sm:px-(--space-frame-default) sm:py-(--space-frame-mobile)">
+        <header className="jobs-hero-surface px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)" data-jobs-hero="true">
+          <div className="jobs-hero-grid">
+            <div className="max-w-3xl space-y-(--space-2)" data-jobs-hero-copy="true">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-foreground/45">Workspace</p>
               <h1 className="theme-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Your Jobs</h1>
               <p className="max-w-2xl text-sm leading-6 text-foreground/68 sm:text-base">
-                Track queued, running, and recent background work tied to this account. Editorial and operator-only jobs still stay scoped to the admin workspace unless they belong to you.
+                Track queued, running, and recent background work tied to this account. Admin-only editorial queues still stay in the admin workspace unless they belong to you.
               </p>
-              <p className="text-sm text-foreground/50">Signed in as {userName}.</p>
-              <p className="text-sm text-foreground/50" data-testid="jobs-sync-state">{getSyncLabel(syncState)}</p>
+              <div className="jobs-hero-meta">
+                <p className="text-sm text-foreground/50">Signed in as {userName}.</p>
+                <p className="text-sm text-foreground/50" data-testid="jobs-sync-state">{getSyncLabel(syncState)}</p>
+              </div>
             </div>
 
-            <div className="grid gap-(--space-2) sm:grid-cols-3">
-              <div className="jobs-panel-surface min-w-32 px-(--space-3) py-(--space-3)">
+            <div className="jobs-summary-strip" data-jobs-summary-strip="true">
+              <div className="jobs-panel-surface jobs-summary-card min-w-32 px-(--space-3) py-(--space-3)" data-jobs-summary-card="active">
                 <p className="text-xs uppercase tracking-[0.18em] text-foreground/45">Active</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{activeCount}</p>
               </div>
-              <div className="jobs-panel-surface min-w-32 px-(--space-3) py-(--space-3)">
+              <div className="jobs-panel-surface jobs-summary-card min-w-32 px-(--space-3) py-(--space-3)" data-jobs-summary-card="attention">
                 <p className="text-xs uppercase tracking-[0.18em] text-foreground/45">Needs Attention</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{attentionCount}</p>
               </div>
-              <div className="jobs-panel-surface min-w-32 px-(--space-3) py-(--space-3)">
+              <div className="jobs-panel-surface jobs-summary-card min-w-32 px-(--space-3) py-(--space-3)" data-jobs-summary-card="completed">
                 <p className="text-xs uppercase tracking-[0.18em] text-foreground/45">Completed</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{completedCount}</p>
               </div>
@@ -259,21 +261,21 @@ export function JobsWorkspace({
         </header>
 
         {errorMessage && (
-          <div role="alert" className="jobs-detail-surface px-(--space-4) py-(--space-3) text-sm text-foreground/78">
+          <div role="alert" className="jobs-detail-surface px-(--space-4) py-(--space-3) text-sm text-foreground/78" data-jobs-alert="true">
             {errorMessage}
           </div>
         )}
 
         {workspace.jobs.length === 0 ? (
-          <div className="jobs-empty-state px-(--space-inset-panel) py-(--space-16) text-center">
+          <div className="jobs-empty-state px-(--space-inset-default) py-(--space-10) text-center sm:px-(--space-inset-panel) sm:py-(--space-16)" data-jobs-empty-state="true">
             <h2 className="text-xl font-semibold text-foreground/72">No jobs yet</h2>
             <p className="mx-auto mt-(--space-3) max-w-xl text-sm leading-6 text-foreground/55">
               Background jobs you own will appear here as they queue and complete. If you only use the current admin-only editorial tools, their global queue remains under the admin workspace.
             </p>
           </div>
         ) : (
-          <div className="grid gap-(--space-4) xl:grid-cols-2">
-            <div className="grid gap-(--space-3)">
+          <div className="jobs-workspace-grid grid gap-(--space-3) xl:grid-cols-2 sm:gap-(--space-4)" data-jobs-workspace-grid="true">
+            <div className="jobs-job-list grid gap-(--space-2) sm:gap-(--space-3)" data-jobs-list="true">
               {workspace.jobs.map((snapshot) => {
                 const title = snapshot.part.title ?? snapshot.part.label;
                 const isSelected = snapshot.part.jobId === workspace.selectedJobId;
@@ -282,10 +284,11 @@ export function JobsWorkspace({
                   <button
                     key={snapshot.part.jobId}
                     type="button"
-                    className={`jobs-detail-surface w-full px-(--space-inset-panel) py-(--space-inset-panel) text-left transition ${isSelected ? "jobs-card-selected" : "jobs-card-idle"}`}
+                    className={`jobs-detail-surface w-full px-(--space-inset-default) py-(--space-inset-default) text-left transition sm:px-(--space-inset-panel) sm:py-(--space-inset-panel) ${isSelected ? "jobs-card-selected" : "jobs-card-idle"}`}
                     onClick={() => handleSelectJob(snapshot.part.jobId)}
                     aria-pressed={isSelected}
                     data-testid={`job-card-${snapshot.part.jobId}`}
+                    data-jobs-card="true"
                   >
                     <div className="flex flex-wrap items-center gap-(--space-2)">
                       <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(snapshot.part.status)}`}>

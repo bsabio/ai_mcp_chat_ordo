@@ -102,7 +102,7 @@ export default async function AdminDashboardPage() {
       title="Admin dashboard"
       description="Cross-workspace overview for platform health, attention queues, content operations, and deferred-job pressure."
     >
-      <div className="grid gap-(--space-section-default) lg:grid-cols-3 px-(--space-inset-panel)" data-admin-dashboard="true">
+      <div className="admin-route-stack lg:grid-cols-3" data-admin-dashboard="true">
         {systemHealth ? (
           <AdminCard
             title="System health"

@@ -234,6 +234,15 @@
   --safe-area-padding-right: max(var(--space-8), var(--safe-area-inset-right));
   --safe-area-padding-bottom: max(var(--space-4), var(--safe-area-inset-bottom));
   --safe-area-padding-left: max(var(--space-8), var(--safe-area-inset-left));
+  --fab-offset-inline: max(1.5rem, var(--safe-area-inset-right));
+  --fab-offset-inline-start: max(1.5rem, var(--safe-area-inset-left));
+  --fab-offset-block: max(1.5rem, calc(var(--safe-area-inset-bottom) + var(--space-2)));
+  --fab-launcher-size: 4.5rem;
+  --fab-launcher-icon-shell-size: 2.25rem;
+  --fab-default-shell-inline-size: min(30rem, calc(100vw - var(--fab-offset-inline-start) - var(--fab-offset-inline)));
+  --fab-default-shell-block-size: min(820px, calc(var(--viewport-block-size) - max(1.5rem, var(--safe-area-inset-top)) - var(--fab-offset-block) - 1.5rem));
+  --fab-default-shell-radius: var(--fva-shell-radius-frame);
+  --shell-floating-chat-clearance-block: calc(var(--fab-launcher-size) + var(--fab-offset-block) + var(--space-section-tight));
 
   --page-shell-accent-position: top;
   --page-shell-accent-strength: 8%;
@@ -284,7 +293,7 @@
   --chat-composer-field-padding-inline: var(--space-2);
   --chat-composer-field-padding-block: var(--space-3);
   --chat-bubble-padding-block-prominent: calc(var(--space-inset-compact) + var(--space-2));
-  --chat-followup-chip-height: var(--space-9);
+  --chat-followup-chip-height: calc(var(--space-8) + var(--space-1));
   --chat-followup-chip-padding-inline: var(--space-3);
   --chat-followup-chip-padding-block: var(--space-1);
   --tier-micro-size: 0.64rem;
@@ -494,6 +503,29 @@
 [data-color-blind="tritanopia"] {
   --status-success: oklch(0.68 0.22 25);
   --status-error: oklch(0.58 0.22 355);
+}
+
+@media (max-width: 640px) {
+  :root {
+    --space-section-tight: var(--space-4);
+    --space-section-default: var(--space-6);
+    --container-padding: var(--space-frame-compact);
+    --chat-suggestion-stack-clearance: var(--space-section-tight);
+    --chat-followup-frame-padding-inline: var(--space-2);
+    --chat-followup-frame-padding-block: var(--space-2);
+    --chat-followup-chip-height: calc(var(--space-6) + var(--space-2));
+    --chat-followup-chip-padding-inline: var(--space-2);
+    --chat-followup-chip-padding-block: var(--space-1);
+    --fab-offset-inline: max(0.875rem, var(--safe-area-inset-right));
+    --fab-offset-inline-start: max(0.875rem, var(--safe-area-inset-left));
+    --fab-offset-block: max(0.875rem, calc(var(--safe-area-inset-bottom) + var(--space-1)));
+    --fab-launcher-size: 3.75rem;
+    --fab-launcher-icon-shell-size: 2.125rem;
+    --fab-default-shell-inline-size: min(32rem, calc(100vw - var(--fab-offset-inline-start) - var(--fab-offset-inline)));
+    --fab-default-shell-block-size: min(42rem, calc(var(--viewport-block-size) - max(0.875rem, var(--safe-area-inset-top)) - var(--fab-offset-block) - 0.875rem));
+    --fab-default-shell-radius: 1.4rem;
+    --shell-floating-chat-clearance-block: calc(var(--fab-launcher-size) + var(--fab-offset-block) + var(--space-4));
+  }
 }
 
 .dark {

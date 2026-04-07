@@ -14,16 +14,19 @@ export function AdminSection({
   breadcrumbs?: BreadcrumbItem[];
 }) {
   return (
-    <section className="grid gap-(--space-section-default)">
+    <section className="grid gap-(--space-section-default)" data-admin-section="true">
       {breadcrumbs && breadcrumbs.length > 0 && (
         <AdminBreadcrumb items={breadcrumbs} />
       )}
-      <header className="admin-hero-surface overflow-hidden px-(--space-inset-panel) py-(--space-inset-panel)">
-        <div className="grid gap-(--space-3)">
+      <header
+        className="admin-hero-surface admin-section-header overflow-hidden px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)"
+        data-admin-section-header="true"
+      >
+        <div className="admin-section-heading">
           <p className="shell-section-heading text-foreground/46">Admin platform</p>
-          <h2 className="text-[clamp(1.9rem,3vw,2.6rem)] font-semibold tracking-[-0.04em] text-foreground">{title}</h2>
+          <h2 className="text-[clamp(1.9rem,3vw,2.6rem)] font-semibold tracking-[-0.04em] text-foreground" data-admin-section-title="true">{title}</h2>
           {description ? (
-            <p className="max-w-3xl text-sm leading-6 text-foreground/62 sm:text-base">
+            <p className="max-w-3xl text-sm leading-6 text-foreground/62 sm:text-base" data-admin-section-description="true">
               {description}
             </p>
           ) : null}

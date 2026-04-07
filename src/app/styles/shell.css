@@ -356,4 +356,11 @@
   .theme-swiss.dark [data-shell-nav-region="brand"] {
     color: var(--wordmark-luminance, var(--foreground));
   }
+
+  @media (max-width: 640px) {
+    [data-shell-main-surface][data-shell-floating-chat-clearance="true"] {
+      padding-block-end: var(--shell-floating-chat-clearance-block);
+      scroll-padding-block-end: calc(var(--shell-floating-chat-clearance-block) + var(--space-4));
+    }
+  }
 }

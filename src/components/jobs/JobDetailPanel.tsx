@@ -43,7 +43,7 @@ export function JobDetailPanel({
 }: JobDetailPanelProps) {
   if (!job) {
     return (
-      <aside className="jobs-panel-surface px-(--space-inset-panel) py-(--space-inset-panel)">
+      <aside className="jobs-panel-surface px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)" data-jobs-detail-panel="true">
         <h2 className="text-xl font-semibold text-foreground/75">Select a job</h2>
         <p className="mt-(--space-3) text-sm leading-6 text-foreground/55">
           Pick a job from the list to inspect its current status and durable event history.
@@ -57,7 +57,7 @@ export function JobDetailPanel({
   const artifactHref = getArtifactHref(job);
 
   return (
-    <aside className="jobs-panel-surface px-(--space-inset-panel) py-(--space-inset-panel)" data-testid="job-detail-panel">
+    <aside className="jobs-panel-surface px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)" data-testid="job-detail-panel" data-jobs-detail-panel="true">
       <div className="flex flex-wrap items-center gap-(--space-2)">
         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(job.part.status)}`}>
           {STATUS_LABELS[job.part.status]}

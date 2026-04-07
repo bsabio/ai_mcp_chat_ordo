@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { backdateRegisterFormStart } from "./helpers/public-form";
+
 test.describe("Push notifications", () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
@@ -100,6 +102,7 @@ test.describe("Push notifications", () => {
       await route.continue();
     });
 
+    await backdateRegisterFormStart(page);
     await page.goto("/register");
 
     const uniqueEmail = `push-audit-${Date.now()}@example.com`;

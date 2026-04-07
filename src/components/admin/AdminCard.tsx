@@ -18,8 +18,8 @@ export function AdminCard({
       : "admin-status-neutral";
 
   return (
-    <article className="admin-panel-surface p-(--space-inset-panel)">
-      <div className="flex items-start justify-between gap-(--space-cluster-default)">
+    <article className="admin-panel-surface admin-card p-(--space-inset-default) sm:p-(--space-inset-panel)" data-admin-card="true">
+      <div className="admin-card-heading">
         <div className="grid gap-(--space-2)">
           <div className="flex items-center gap-(--space-cluster-tight)">
             <span className={`inline-flex items-center rounded-full border px-(--space-2) py-[0.18rem] text-[0.68rem] font-semibold uppercase tracking-[0.16em] ${statusTone}`}>
@@ -32,7 +32,7 @@ export function AdminCard({
           ) : null}
         </div>
       </div>
-      <div className="mt-(--space-stack-default)">{children}</div>
+      <div className="admin-card-body">{children}</div>
     </article>
   );
 }

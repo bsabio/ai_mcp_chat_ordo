@@ -26,7 +26,7 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
   return (
     <form
       method="get"
-      className="flex flex-wrap items-end gap-(--space-3)"
+      className="admin-filter-bar"
       data-admin-browse-filters="true"
     >
       {hiddenFields && Object.entries(hiddenFields).map(([k, v]) => (
@@ -35,23 +35,23 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
       {fields.map((field) => {
         const fieldKey = field.id ?? field.name ?? "";
         const fieldName = field.name ?? field.id ?? "";
+        const inputId = `admin-filter-${fieldKey}`;
 
         if (field.type === "search") {
           return (
-            <div key={fieldKey} className="flex flex-col gap-(--space-1)">
-              <label className="text-xs font-(--font-label) tracking-wide text-foreground/60">
-                {field.label}
-                <input
-                  type="search"
-                  name={fieldName}
-                  defaultValue={values[fieldKey] ?? ""}
-                  placeholder={field.placeholder ?? `Search ${field.label.toLowerCase()}…`}
-                  aria-label={field.label}
-                  className="mt-1 h-9 rounded-lg border border-foreground/12 bg-surface px-3 text-sm text-foreground outline-none transition focus:border-foreground/25 focus:ring-1 focus:ring-foreground/10"
-                />
-              </label>
+            <div key={fieldKey} className="admin-filter-field" data-admin-filter-field={fieldName}>
+              <label htmlFor={inputId} className="admin-filter-label">{field.label}</label>
+              <input
+                id={inputId}
+                type="search"
+                name={fieldName}
+                defaultValue={values[fieldKey] ?? ""}
+                placeholder={field.placeholder ?? `Search ${field.label.toLowerCase()}…`}
+                aria-label={field.label}
+                className="admin-filter-control"
+              />
               {field.description && (
-                <p className="text-xs text-foreground/45">{field.description}</p>
+                <p className="admin-filter-description">{field.description}</p>
               )}
             </div>
           );
@@ -59,23 +59,22 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
 
         if (field.type === "select") {
           return (
-            <div key={fieldKey} className="flex flex-col gap-(--space-1)">
-              <label className="text-xs font-(--font-label) tracking-wide text-foreground/60">
-                {field.label}
-                <select
-                  name={fieldName}
-                  defaultValue={values[fieldKey] ?? ""}
-                  aria-label={field.label}
-                  className="mt-1 h-9 rounded-lg border border-foreground/12 bg-surface px-3 text-sm text-foreground outline-none transition focus:border-foreground/25 focus:ring-1 focus:ring-foreground/10"
-                >
-                  <option value="">All</option>
-                  {(field.options ?? []).map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </label>
+            <div key={fieldKey} className="admin-filter-field" data-admin-filter-field={fieldName}>
+              <label htmlFor={inputId} className="admin-filter-label">{field.label}</label>
+              <select
+                id={inputId}
+                name={fieldName}
+                defaultValue={values[fieldKey] ?? ""}
+                aria-label={field.label}
+                className="admin-filter-control"
+              >
+                <option value="">All</option>
+                {(field.options ?? []).map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
               {field.description && (
-                <p className="text-xs text-foreground/45">{field.description}</p>
+                <p className="admin-filter-description">{field.description}</p>
               )}
             </div>
           );
@@ -83,7 +82,7 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
 
         if (field.type === "toggle" && !field.options) {
           return (
-            <div key={fieldKey} className="flex flex-col gap-(--space-1)">
+            <div key={fieldKey} className="admin-filter-field" data-admin-filter-field={fieldName}>
               <label className="flex items-center gap-2 text-xs font-(--font-label) tracking-wide text-foreground/60">
                 <input
                   type="checkbox"
@@ -100,7 +99,7 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
                 {field.label}
               </label>
               {field.description && (
-                <p className="text-xs text-foreground/45">{field.description}</p>
+                <p className="admin-filter-description">{field.description}</p>
               )}
             </div>
           );
@@ -108,17 +107,17 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
 
         if (field.type === "toggle" && field.options) {
           return (
-            <div key={fieldKey} className="flex flex-col gap-(--space-1)">
+            <div key={fieldKey} className="admin-filter-field" data-admin-filter-field={fieldName}>
               <fieldset className="flex flex-col gap-(--space-1)">
-                <legend className="text-xs font-(--font-label) tracking-wide text-foreground/60">{field.label}</legend>
-                <div className="flex gap-(--space-1)">
+                <legend className="admin-filter-label">{field.label}</legend>
+                <div className="admin-pill-nav">
                   {field.options.map((opt) => (
                     <label
                       key={opt.value}
-                      className={`flex cursor-pointer items-center rounded-full border px-3 py-1 text-xs transition ${
+                      className={`admin-pill-nav-link flex cursor-pointer items-center rounded-full border px-3 py-1 text-xs transition ${
                         values[fieldKey] === opt.value
-                          ? "border-foreground/25 bg-foreground/8 text-foreground"
-                          : "border-foreground/8 text-foreground/50 hover:border-foreground/16"
+                          ? "admin-pill-nav-link-active"
+                          : "admin-pill-nav-link-idle"
                       }`}
                     >
                       <input
@@ -133,28 +132,27 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
                 ))}
               </div>
             </fieldset>
-            {field.description && (
-              <p className="text-xs text-foreground/45">{field.description}</p>
-            )}
-          </div>
+              {field.description && (
+                <p className="admin-filter-description">{field.description}</p>
+              )}
+            </div>
           );
         }
 
         if (field.type === "date") {
           return (
-            <div key={fieldKey} className="flex flex-col gap-(--space-1)">
-              <label className="text-xs font-(--font-label) tracking-wide text-foreground/60">
-                {field.label}
-                <input
-                  type="date"
-                  name={fieldName}
-                  defaultValue={values[fieldKey] ?? ""}
-                  aria-label={field.label}
-                  className="mt-1 h-9 rounded-lg border border-foreground/12 bg-surface px-3 text-sm text-foreground outline-none transition focus:border-foreground/25 focus:ring-1 focus:ring-foreground/10"
-                />
-              </label>
+            <div key={fieldKey} className="admin-filter-field" data-admin-filter-field={fieldName}>
+              <label htmlFor={inputId} className="admin-filter-label">{field.label}</label>
+              <input
+                id={inputId}
+                type="date"
+                name={fieldName}
+                defaultValue={values[fieldKey] ?? ""}
+                aria-label={field.label}
+                className="admin-filter-control"
+              />
               {field.description && (
-                <p className="text-xs text-foreground/45">{field.description}</p>
+                <p className="admin-filter-description">{field.description}</p>
               )}
             </div>
           );
@@ -162,12 +160,11 @@ export function AdminBrowseFilters({ fields, values = {}, hiddenFields }: AdminB
 
         return null;
       })}
-      <button
-        type="submit"
-        className="h-9 rounded-lg bg-foreground/8 px-4 text-sm font-medium text-foreground transition hover:bg-foreground/14 active:scale-95"
-      >
-        Filter
-      </button>
+      <div className="admin-filter-actions">
+        <button type="submit" className="admin-filter-submit">
+          Filter
+        </button>
+      </div>
     </form>
   );
 }

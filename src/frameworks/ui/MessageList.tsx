@@ -556,7 +556,10 @@ const SuggestionChips: React.FC<{
       data-chat-suggestion-group={centered ? "hero" : "followup"}
       data-chat-suggestion-priority={centered ? "balanced" : "promoted"}
     >
-      <div className={`flex flex-wrap ${centered ? "gap-x-(--hero-chip-cluster-gap) gap-y-(--hero-suggestion-row-gap) justify-center" : "gap-x-(--space-stack-tight) gap-y-(--space-stack-tight) justify-start"}`}>
+      <div
+        className={`flex flex-wrap ${centered ? "gap-x-(--hero-chip-cluster-gap) gap-y-(--hero-suggestion-row-gap) justify-center" : "gap-x-(--space-stack-tight) gap-y-(--space-stack-tight) justify-start"}`}
+        data-chat-suggestion-list={centered ? "hero" : "followup"}
+      >
       {suggestions.map((s, i) => (
         <button
           key={s}

@@ -66,6 +66,10 @@ This directory is the discovery entry point for the browser-focused regression s
   - signed-in admin shell smoke in desktop and mobile viewports
   - desktop sidebar coverage for the live admin route set
   - grouped mobile admin drawer coverage with route parity and route-change close behavior
+- `tests/browser-ui/mobile-workspace-admin-lists.spec.ts`
+  - Sprint 3 mobile coverage for signed-in workspace and admin list routes
+  - no-overflow checks plus above-the-fold assertions for `/jobs`, `/profile`, `/referrals`, `/admin`, `/admin/leads`, `/admin/jobs`, `/admin/system`, and `/admin/affiliates?view=leaderboard`
+  - compact summary-strip, filter-bar, and governed overflow-shell coverage for the new mobile-first admin/workspace patterns
 - `tests/browser-ui/home-shell-header.spec.ts`
   - homepage shell smoke in desktop and mobile viewports
   - unified right-side notification plus workspace trigger coverage, no split nav surfaces, and route-change close behavior from the shared workspace sheet

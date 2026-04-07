@@ -4,7 +4,10 @@ import type { MentionItem } from "@/core/entities/mentions";
 
 interface ChatInputProps {
   helperTextId: string;
+  helperMode?: "always" | "focus";
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+  maxTextareaHeight?: number;
+  placeholderText?: string;
   value: string;
   onChange: (val: string, selectionStart: number) => void;
   onSend: () => void;
@@ -27,7 +30,10 @@ interface ChatInputProps {
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   helperTextId,
+  helperMode = "always",
   inputRef,
+  maxTextareaHeight = 224,
+  placeholderText = "Ask Studio Ordo...",
   value,
   onChange,
   onSend,
@@ -43,8 +49,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onFileSelect,
   onFileRemove,
 }) => {
-  const placeholderText = "Bring the messy workflow, bold idea, or handoff...";
-  const helperText = "Enter to send. Shift+Enter for line break. Attach files if needed.";
+  const helperText = "Enter to send. Shift+Enter for line breaks.";
   const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = inputRef ?? internalTextareaRef;
@@ -62,10 +67,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     element.style.height = "0px";
-    const nextHeight = Math.min(element.scrollHeight, 224);
+    const nextHeight = Math.min(element.scrollHeight, maxTextareaHeight);
     element.style.height = `${Math.max(nextHeight, 44)}px`;
-    element.style.overflowY = element.scrollHeight > 224 ? "auto" : "hidden";
-  }, [textareaRef, value]);
+    element.style.overflowY = element.scrollHeight > maxTextareaHeight ? "auto" : "hidden";
+  }, [maxTextareaHeight, textareaRef, value]);
 
   const handleMentionsNavigation = (e: React.KeyboardEvent): boolean => {
     if (!activeTrigger || suggestions.length === 0) return false;
@@ -209,7 +214,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <span className="w-(--space-2) h-(--space-2) bg-current rounded-full animate-bounce" />
             </span>
           ) : (
-            "Send"
+            <>
+              <span data-chat-send-label="true">Send</span>
+              <span data-chat-send-icon="true" aria-hidden="true" className="hidden">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h13" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </span>
+            </>
           )}
         </button>
       </form>
@@ -218,6 +231,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         id={helperTextId}
         className="ui-chat-helper-copy mt-(--space-1) flex flex-wrap items-center justify-start gap-x-(--space-2) gap-y-(--space-1) px-(--space-1) text-(length:--chat-composer-helper-font-size) leading-(--chat-composer-helper-line-height)"
         data-chat-composer-helper="true"
+        data-chat-helper-mode={helperMode}
       >
         <span>{helperText}</span>
       </div>

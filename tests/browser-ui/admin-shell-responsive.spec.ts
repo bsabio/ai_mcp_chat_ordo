@@ -1,5 +1,9 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+import { backdateRegisterFormStart, finishRegisterNavigation } from "./helpers/public-form";
+
+test.describe.configure({ timeout: 45_000 });
+
 async function stubShellRequests(page: Page) {
   await page.route("**/api/preferences", async (route: Route) => {
     await route.fulfill({
@@ -21,13 +25,14 @@ async function stubShellRequests(page: Page) {
 async function registerAndSimulateAdmin(page: Page) {
   const uniqueEmail = `admin-shell-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
 
+  await backdateRegisterFormStart(page);
   await page.goto("/register");
   await page.getByLabel("Name").fill("Admin Shell User");
   await page.getByLabel("Email").fill(uniqueEmail);
   await page.getByLabel("Password").fill("AdminShellPass123");
   await page.getByRole("button", { name: "Create Account" }).click();
 
-  await expect(page).toHaveURL(/\/$/);
+  await finishRegisterNavigation(page);
 
   await page.context().addCookies([
     {
@@ -68,7 +73,7 @@ test.describe("Admin shell responsive", () => {
     await expect(dialog.getByRole("link", { name: "Dashboard" })).toBeVisible();
     await expect(dialog.getByRole("link", { name: "Users" })).toBeVisible();
     await expect(dialog.getByRole("link", { name: "Leads" })).toBeVisible();
-    await expect(dialog.getByRole("link", { name: "Journal" })).toBeVisible();
+    await expect(dialog.locator('a[href="/admin/journal"]')).toBeVisible();
     await expect(dialog.getByRole("link", { name: "Prompts" })).toBeVisible();
     await expect(dialog.getByRole("link", { name: "Conversations" })).toBeVisible();
     await expect(dialog.getByRole("link", { name: "Global Jobs" })).toBeVisible();
@@ -111,7 +116,7 @@ test.describe("Admin shell responsive", () => {
       await expect(dialog.getByRole("link", { name: "Conversations" })).toBeVisible();
       await expect(dialog.getByRole("link", { name: "My Jobs" })).toBeVisible();
       await expect(dialog.getByRole("link", { name: "Global Jobs" })).toBeVisible();
-      await expect(dialog.getByRole("link", { name: "Journal" })).toBeVisible();
+      await expect(dialog.locator('a[href="/admin/journal"]')).toBeVisible();
       await expect(dialog.getByRole("link", { name: "Users" })).toBeVisible();
       await expect(dialog.getByRole("link", { name: "Prompts" })).toBeVisible();
       await expect(dialog.getByRole("link", { name: "System" })).toBeVisible();

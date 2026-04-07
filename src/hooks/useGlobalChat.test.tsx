@@ -980,6 +980,9 @@ describe("ChatProvider active conversation restore", () => {
         expect.objectContaining({
           attachments: [],
           currentPathname: "/register",
+          currentPageSnapshot: expect.objectContaining({
+            pathname: "/register",
+          }),
         }),
       );
     });
@@ -1074,6 +1077,9 @@ describe("ChatProvider active conversation restore", () => {
         expect.objectContaining({
           attachments: [],
           currentPathname: "/register",
+          currentPageSnapshot: expect.objectContaining({
+            pathname: "/register",
+          }),
         }),
       );
     });
@@ -1147,6 +1153,9 @@ describe("ChatProvider active conversation restore", () => {
         expect.objectContaining({
           attachments: [],
           currentPathname: "/",
+          currentPageSnapshot: expect.objectContaining({
+            pathname: "/",
+          }),
           taskOriginHandoff: {
             sourceBlockId: "lead_queue",
             sourceContextId: "lead-queue:header",
@@ -1212,6 +1221,9 @@ describe("ChatProvider active conversation restore", () => {
         expect.objectContaining({
           conversationId: undefined,
           currentPathname: "/",
+          currentPageSnapshot: expect.objectContaining({
+            pathname: "/",
+          }),
           attachments: [
             {
               type: "attachment",

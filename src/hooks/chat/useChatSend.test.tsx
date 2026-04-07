@@ -9,10 +9,12 @@ const {
   runStreamMock,
   uploadChatAttachmentsMock,
   cleanupChatAttachmentsMock,
+  collectCurrentPageSnapshotMock,
 } = vi.hoisted(() => ({
   runStreamMock: vi.fn(),
   uploadChatAttachmentsMock: vi.fn(),
   cleanupChatAttachmentsMock: vi.fn(),
+  collectCurrentPageSnapshotMock: vi.fn(),
 }));
 
 vi.mock("@/hooks/chat/useChatStreamRuntime", () => ({
@@ -22,6 +24,10 @@ vi.mock("@/hooks/chat/useChatStreamRuntime", () => ({
 vi.mock("@/hooks/chat/chatAttachmentApi", () => ({
   uploadChatAttachments: uploadChatAttachmentsMock,
   cleanupChatAttachments: cleanupChatAttachmentsMock,
+}));
+
+vi.mock("@/lib/chat/collect-current-page-snapshot", () => ({
+  collectCurrentPageSnapshot: collectCurrentPageSnapshotMock,
 }));
 
 function Harness({
@@ -77,8 +83,17 @@ describe("useChatSend", () => {
     runStreamMock.mockReset();
     uploadChatAttachmentsMock.mockReset();
     cleanupChatAttachmentsMock.mockReset();
+    collectCurrentPageSnapshotMock.mockReset();
     uploadChatAttachmentsMock.mockResolvedValue([]);
     cleanupChatAttachmentsMock.mockResolvedValue(undefined);
+    collectCurrentPageSnapshotMock.mockReturnValue({
+      pathname: "/",
+      title: "Studio Ordo | Conversation-First AI Workspaces",
+      mainHeading: null,
+      sectionHeadings: [],
+      selectedText: null,
+      contentExcerpt: "Homepage content",
+    });
   });
 
   it("does not refresh when streaming completes on the current conversation", async () => {
@@ -193,6 +208,14 @@ describe("useChatSend", () => {
       2,
       [],
       undefined,
+      {
+        pathname: "/",
+        title: "Studio Ordo | Conversation-First AI Workspaces",
+        mainHeading: null,
+        sectionHeadings: [],
+        selectedText: null,
+        contentExcerpt: "Homepage content",
+      },
     );
     expect(refreshConversation).not.toHaveBeenCalled();
   });

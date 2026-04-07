@@ -25,9 +25,11 @@ export async function POST(request: NextRequest) {
       if (parseResultOrResponse instanceof Response) return parseResultOrResponse;
       const { parsed: { incomingMessages, incomingAttachments, taskOriginHandoff }, body } = parseResultOrResponse;
 
-      const builder = await createSystemPromptBuilder(role, {
-        currentPathname: body.currentPathname,
-      });
+      const systemPromptOptions = {
+        ...(body.currentPathname ? { currentPathname: body.currentPathname } : {}),
+        ...(body.currentPageSnapshot ? { currentPageSnapshot: body.currentPageSnapshot } : {}),
+      };
+      const builder = await createSystemPromptBuilder(role, systemPromptOptions);
       const { registry: toolRegistry, executor: baseToolExecutor } = getToolComposition();
 
       if (!user.roles.includes("ANONYMOUS")) {
@@ -52,7 +54,13 @@ export async function POST(request: NextRequest) {
 
       const { conversationId } = await pipeline.ensureConversation(userId, request, services);
       builder.withTrustedReferralContext(await getReferralLedgerService().getTrustedReferrerContext(conversationId));
-      const execContext: ToolExecutionContext = { role, userId, conversationId };
+      const execContext: ToolExecutionContext = {
+        role,
+        userId,
+        conversationId,
+        ...(body.currentPathname ? { currentPathname: body.currentPathname } : {}),
+        ...(body.currentPageSnapshot ? { currentPageSnapshot: body.currentPageSnapshot } : {}),
+      };
       const toolExecutor = await pipeline.createDeferredToolExecutor({
         conversationId, isAnonymous, registry: toolRegistry, baseExecutor: baseToolExecutor, context: execContext,
       });

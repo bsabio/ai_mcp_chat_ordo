@@ -11,6 +11,7 @@ vi.mock("@/hooks/useChatScroll", () => ({
     isAtBottom: false,
     scrollToBottom: scrollToBottomMock,
     handleScroll: vi.fn(),
+    resetPin: vi.fn(),
   }),
 }));
 
@@ -68,7 +69,7 @@ describe("browser FAB scroll recovery", () => {
         ]}
         onLinkClick={vi.fn()}
         onSuggestionClick={vi.fn()}
-        scrollDependency="fab-followup-scroll"
+        scrollDependency={1}
         searchQuery=""
       />,
     );

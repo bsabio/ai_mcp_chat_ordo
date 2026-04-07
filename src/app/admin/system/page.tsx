@@ -59,23 +59,23 @@ export default async function AdminSystemPage() {
       title="System"
       description="Health status, runtime configuration, model policy, registered tools, and active workers."
     >
-      <div className="grid gap-(--space-section-default) px-(--space-inset-panel)">
+      <div className="admin-route-stack">
         {/* Section 1 — Health Status */}
         <AdminCard
           title="Health status"
           description={warnings.length === 0 ? "All systems operational." : warnings[0]}
           status={healthSummary.overallStatus === "ok" ? "ok" : "warning"}
         >
-          <dl className="grid gap-(--space-2) text-sm text-foreground/62">
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+          <dl className="admin-system-list text-sm text-foreground/62">
+            <div className="admin-system-row">
               <dt>Readiness</dt>
               <dd>{healthSummary.readinessStatus}</dd>
             </div>
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+            <div className="admin-system-row">
               <dt>Liveness</dt>
               <dd>{healthSummary.livenessStatus}</dd>
             </div>
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+            <div className="admin-system-row">
               <dt>Environment</dt>
               <dd>{healthSummary.environmentStatus}</dd>
             </div>
@@ -91,11 +91,11 @@ export default async function AdminSystemPage() {
 
         {/* Section 2 — Runtime Configuration */}
         <AdminCard title="Runtime configuration" description="Key environment variables (sensitive values redacted).">
-          <dl className="grid gap-(--space-2) text-sm">
+          <dl className="admin-system-list text-sm">
             {envVars.map((v) => (
-              <div key={v.key} className="flex items-center justify-between gap-(--space-cluster-default)">
-                <dt className="text-foreground/50 font-mono text-xs">{v.key}</dt>
-                <dd className="truncate text-foreground/70 text-xs font-mono max-w-[16rem]">{v.value}</dd>
+              <div key={v.key} className="admin-system-row">
+                <dt className="admin-mono-label text-foreground/50 text-xs">{v.key}</dt>
+                <dd className="admin-mono-value text-foreground/70 text-xs">{v.value}</dd>
               </div>
             ))}
           </dl>
@@ -103,12 +103,12 @@ export default async function AdminSystemPage() {
 
         {/* Section 3 — Model Policy */}
         <AdminCard title="Model policy" description="Current model configuration and limits.">
-          <dl className="grid gap-(--space-2) text-sm text-foreground/62">
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+          <dl className="admin-system-list text-sm text-foreground/62">
+            <div className="admin-system-row">
               <dt>Model</dt>
-              <dd className="font-mono text-xs">{modelName}</dd>
+              <dd className="admin-mono-value text-xs">{modelName}</dd>
             </div>
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+            <div className="admin-system-row">
               <dt>Provider</dt>
               <dd>Anthropic</dd>
             </div>
@@ -120,8 +120,8 @@ export default async function AdminSystemPage() {
           description="Visibility into optional runtime features that can fail independently of core chat readiness."
           status={openAiDiagnostics.status === "ok" ? "ok" : "warning"}
         >
-          <dl className="grid gap-(--space-2) text-sm text-foreground/62">
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+          <dl className="admin-system-list text-sm text-foreground/62">
+            <div className="admin-system-row">
               <dt>OpenAI-backed audio</dt>
               <dd>{openAiDiagnostics.configured ? "configured" : "missing config"}</dd>
             </div>
@@ -134,24 +134,24 @@ export default async function AdminSystemPage() {
           description="Public origin configuration and anonymous 'who referred me?' verification live in the same release-readiness surface."
           status={referralDiagnostics.warnings.length === 0 ? "ok" : "warning"}
         >
-          <dl className="grid gap-(--space-2) text-sm text-foreground/62">
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+          <dl className="admin-system-list text-sm text-foreground/62">
+            <div className="admin-system-row">
               <dt>Public origin</dt>
-              <dd className="font-mono text-xs">{referralDiagnostics.publicOrigin}</dd>
+              <dd className="admin-mono-value text-xs">{referralDiagnostics.publicOrigin}</dd>
             </div>
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+            <div className="admin-system-row">
               <dt>Origin source</dt>
               <dd>{referralDiagnostics.originSource}</dd>
             </div>
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+            <div className="admin-system-row">
               <dt>Localhost fallback</dt>
               <dd>{referralDiagnostics.localhostFallback ? "active" : "inactive"}</dd>
             </div>
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+            <div className="admin-system-row">
               <dt>Known-referrer prompt check</dt>
               <dd>{referralDiagnostics.knownReferrerPromptVerified ? "verified" : "failed"}</dd>
             </div>
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+            <div className="admin-system-row">
               <dt>No-referrer prompt check</dt>
               <dd>{referralDiagnostics.missingReferrerPromptVerified ? "verified" : "failed"}</dd>
             </div>
@@ -169,11 +169,11 @@ export default async function AdminSystemPage() {
         <AdminCard title="Registered tools" description={`${toolNames.length} tools across ${Object.keys(toolsByCategory).length} categories.`}>
           <div className="grid gap-(--space-3)">
             {Object.entries(toolsByCategory).sort(([a], [b]) => a.localeCompare(b)).map(([category, names]) => (
-              <div key={category}>
+              <div key={category} className="admin-tool-category">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/50">{category} ({names.length})</h3>
-                <ul className="mt-(--space-1) grid gap-(--space-1) text-xs text-foreground/60">
+                <ul className="admin-tool-list text-xs text-foreground/60">
                   {names.sort().map((n) => (
-                    <li key={n} className="font-mono">{n}</li>
+                    <li key={n} className="admin-tool-token">{n}</li>
                   ))}
                 </ul>
               </div>
@@ -183,10 +183,10 @@ export default async function AdminSystemPage() {
 
         {/* Section 5 — Active Workers */}
         <AdminCard title="Active workers" description="Deferred job worker status.">
-          <dl className="grid gap-(--space-2) text-sm text-foreground/62">
-            <div className="flex items-center justify-between gap-(--space-cluster-default)">
+          <dl className="admin-system-list text-sm text-foreground/62">
+            <div className="admin-system-row">
               <dt>Worker ID</dt>
-              <dd className="font-mono text-xs">{workerId}</dd>
+              <dd className="admin-mono-value text-xs">{workerId}</dd>
             </div>
           </dl>
         </AdminCard>

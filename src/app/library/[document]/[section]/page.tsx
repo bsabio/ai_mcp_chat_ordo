@@ -7,6 +7,7 @@ import { BookSidebar } from "@/components/BookSidebar";
 import { MarkdownProse } from "@/components/MarkdownProse";
 import { getDocuments, getSectionFull, getCorpusSummaries } from "@/lib/corpus-library";
 import { getViewerRole, rethrowLibraryAccessDenied } from "@/lib/corpus-access";
+import { buildLibraryChapterDisplay } from "@/lib/library-chapter-display";
 import { buildChapterMetadata, buildChapterSeo } from "@/lib/seo/library-metadata";
 
 export async function generateMetadata({
@@ -31,13 +32,19 @@ export async function generateMetadata({
   try {
     const result = await getSectionFull(resolvedParams.document, resolvedParams.section, { role });
     if (!result) return {};
+    const chapterDisplay = buildLibraryChapterDisplay({
+      title: result.title,
+      sequenceIndex: currentIndex,
+      totalChapters: chapterSlugs.length,
+    });
+
     return buildChapterMetadata({
-      chapterTitle: result.title,
+      chapterTitle: chapterDisplay.fullTitle,
       bookTitle: book.title,
       bookSlug: book.slug,
       chapterSlug: resolvedParams.section,
       content: result.content,
-      chapterNumber: currentIndex + 1,
+      chapterNumber: chapterDisplay.chapterNumber,
       totalChapters: chapterSlugs.length,
     });
   } catch {
@@ -93,6 +100,7 @@ export default async function LibrarySectionPage({
 
   const chapterSlugs = summary.chapterSlugs ?? summary.sectionSlugs;
   const chapterTitles = summary.chapters ?? summary.sections;
+  const totalChapters = chapterSlugs.length;
   const currentIndex = chapterSlugs.findIndex((slug) => slug === resolvedParams.section);
 
   if (currentIndex === -1) {
@@ -100,9 +108,15 @@ export default async function LibrarySectionPage({
   }
 
   const chapters = chapterSlugs.map((slug, index) => ({
-    slug,
-    title: chapterTitles[index] ?? slug,
+    ...buildLibraryChapterDisplay({
+      slug,
+      title: index === currentIndex ? result.title : chapterTitles[index] ?? slug,
+      sequenceIndex: index,
+      totalChapters,
+    }),
   }));
+
+  const currentChapter = chapters[currentIndex];
 
   const previous = currentIndex > 0 ? chapters[currentIndex - 1] : null;
   const next = currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null;
@@ -110,60 +124,51 @@ export default async function LibrarySectionPage({
   return (
     <div className="shell-page library-page-shell">
       <div className="library-frame">
-        <BookSidebar
-          book={{ slug: book.slug, title: book.title, number: book.number }}
-          chapters={chapters}
-          currentChapterSlug={resolvedParams.section}
-        />
-
-        <main className="min-w-0">
+        <main className="library-reading-main" data-library-reading-page="true">
           <article className="library-reading-panel">
-            <header className="mb-(--space-8) flex flex-col gap-(--space-section-tight) pb-(--space-section-tight)" style={{ borderBottom: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)' }}>
-              <span className="library-kicker">Library chapter</span>
-              <div className="flex flex-col gap-(--space-3)">
-                <p className="tier-micro font-semibold uppercase tracking-[0.14em] text-foreground/42">
+            <header className="library-reading-header" data-library-reading-header="true">
+              <div className="library-reading-header-copy">
+                <p className="library-reading-bookline">
                   Book {book.number} · {book.title}
                 </p>
-                <h1 className="library-title max-w-4xl">{result.title}</h1>
-                <p className="library-dek">
-                  Chapter {currentIndex + 1} of {chapters.length} in the {book.title} book sequence.
-                </p>
-              </div>
-              <div className="library-meta-row">
-                <span className="library-meta-pill">{book.title}</span>
-                <span className="library-meta-pill">Chapter {currentIndex + 1}</span>
-                <span className="library-meta-pill">{chapters.length} total chapters</span>
+                <h1 className="library-title" data-library-reading-title="true">{currentChapter.displayTitle}</h1>
               </div>
             </header>
 
-            <MarkdownProse content={result.content} />
+            <div data-library-reading-body="true">
+              <MarkdownProse content={result.content} className="library-prose library-reading-prose" />
+            </div>
 
-            <footer className="mt-(--space-10) flex flex-col gap-(--space-3) pt-(--space-6) sm:flex-row sm:items-center sm:justify-between" style={{ borderTop: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)' }}>
-              <div className="flex flex-wrap gap-(--space-3)">
+            <footer className="library-reading-footer">
+              <div className="library-reading-nav" data-library-reading-nav="true">
                 {previous ? (
                   <Link
                     href={`/library/${book.slug}/${previous.slug}`}
-                    className="rounded-full bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_98%,var(--background))_0%,color-mix(in_oklab,var(--surface-muted)_72%,transparent)_100%)] px-(--space-4) py-(--space-2) text-sm font-medium text-foreground/72 shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-all hover:-translate-y-px hover:text-foreground hover:shadow-[0_12px_20px_-14px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
+                    className="library-reading-nav-link"
+                    data-library-reading-nav-link="previous"
                   >
-                    ← {previous.title}
+                    <span className="library-reading-nav-label">Previous chapter</span>
+                    <span className="library-reading-nav-title">{previous.displayTitle}</span>
                   </Link>
                 ) : null}
 
                 {next ? (
                   <Link
                     href={`/library/${book.slug}/${next.slug}`}
-                    className="rounded-full bg-[linear-gradient(180deg,color-mix(in_oklab,var(--surface)_98%,var(--background))_0%,color-mix(in_oklab,var(--surface-muted)_72%,transparent)_100%)] px-(--space-4) py-(--space-2) text-sm font-medium text-foreground/72 shadow-[0_8px_16px_-14px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)] transition-all hover:-translate-y-px hover:text-foreground hover:shadow-[0_12px_20px_-14px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)]"
+                    className="library-reading-nav-link"
+                    data-library-reading-nav-link="next"
                   >
-                    {next.title} →
+                    <span className="library-reading-nav-label">Next chapter</span>
+                    <span className="library-reading-nav-title">{next.displayTitle}</span>
                   </Link>
                 ) : null}
               </div>
 
               <Link
-                href={`/?topic=${encodeURIComponent(result.title)}`}
-                className="tier-micro font-medium text-accent-interactive transition-colors hover:text-foreground"
+                href={`/?topic=${encodeURIComponent(currentChapter.fullTitle)}`}
+                className="library-reading-ai-link tier-micro font-medium text-accent-interactive transition-colors hover:text-foreground"
               >
-                Have questions about this topic? Ask the AI.
+                Have questions about this chapter? Ask the AI.
               </Link>
             </footer>
 
@@ -172,12 +177,12 @@ export default async function LibrarySectionPage({
               dangerouslySetInnerHTML={{
                 __html: JSON.stringify(
                   buildChapterSeo({
-                    chapterTitle: result.title,
+                    chapterTitle: currentChapter.fullTitle,
                     bookTitle: book.title,
                     bookSlug: book.slug,
                     chapterSlug: resolvedParams.section,
                     content: result.content,
-                    chapterNumber: currentIndex + 1,
+                    chapterNumber: currentChapter.chapterNumber,
                     totalChapters: chapters.length,
                   }).jsonLd,
                 ),
@@ -185,6 +190,13 @@ export default async function LibrarySectionPage({
             />
           </article>
         </main>
+
+        <BookSidebar
+          book={{ slug: book.slug, title: book.title, number: book.number }}
+          chapters={chapters}
+          currentChapterSlug={resolvedParams.section}
+          className="library-sidebar-slot"
+        />
       </div>
     </div>
   );

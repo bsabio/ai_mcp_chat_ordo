@@ -93,4 +93,54 @@ describe("useChatStreamRuntime", () => {
     });
     expect(resolvedConversationId).toBe("conv_new");
   });
+
+  it("forwards a provided current page snapshot to the stream adapter", async () => {
+    fetchStreamMock.mockResolvedValue({
+      async *events() {
+        yield { type: "done" };
+      },
+    });
+
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const { result } = renderHook(() => useChatStreamRuntime({
+      conversationId: "conv_2",
+      currentPathname: "/library",
+      dispatch,
+      setConversationId,
+    }));
+
+    await result.current(
+      [{ role: "user", content: "What page am I on?" }],
+      1,
+      [],
+      undefined,
+      {
+        pathname: "/library",
+        title: "Library — 10 Books, 104 Chapters | Studio Ordo",
+        mainHeading: "Books, chapters, and reusable reference material.",
+        sectionHeadings: [],
+        selectedText: null,
+        contentExcerpt: "The library is organized as books.",
+      },
+    );
+
+    expect(fetchStreamMock).toHaveBeenCalledWith(
+      [{ role: "user", content: "What page am I on?" }],
+      {
+        conversationId: "conv_2",
+        currentPathname: "/library",
+        currentPageSnapshot: {
+          pathname: "/library",
+          title: "Library — 10 Books, 104 Chapters | Studio Ordo",
+          mainHeading: "Books, chapters, and reusable reference material.",
+          sectionHeadings: [],
+          selectedText: null,
+          contentExcerpt: "The library is organized as books.",
+        },
+        attachments: [],
+        taskOriginHandoff: undefined,
+      },
+    );
+  });
 });

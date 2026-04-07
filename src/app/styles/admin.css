@@ -10,6 +10,17 @@
     box-shadow: 0 24px 60px -44px color-mix(in srgb, var(--shadow-base) 16%, transparent);
   }
 
+  .admin-route-stack {
+    display: grid;
+    gap: var(--space-section-default);
+    padding-inline: var(--space-inset-default);
+  }
+
+  .admin-section-heading {
+    display: grid;
+    gap: var(--space-3);
+  }
+
   .admin-panel-surface {
     border: 1px solid color-mix(in oklab, var(--border-color) 78%, transparent);
     border-radius: 1.6rem;
@@ -17,6 +28,256 @@
       color-mix(in oklab, var(--surface) 97%, var(--background)) 0%,
       color-mix(in oklab, var(--surface) 91%, var(--background)) 100%);
     box-shadow: 0 24px 60px -46px color-mix(in srgb, var(--shadow-base) 14%, transparent);
+  }
+
+  .admin-card {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .admin-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-cluster-default);
+  }
+
+  .admin-card-body {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .admin-status-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .admin-status-count-card {
+    min-height: 4.35rem;
+    min-width: 8.75rem;
+    flex: 0 0 auto;
+    display: grid;
+    align-content: center;
+    justify-items: start;
+    gap: 0.2rem;
+    border-radius: 1.2rem;
+    border: 1px solid color-mix(in oklab, var(--border-color) 68%, transparent);
+    padding: 0.85rem 1rem;
+    text-align: left;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .admin-status-count-card-idle {
+    background: color-mix(in oklab, var(--background) 74%, transparent);
+    color: color-mix(in oklab, var(--foreground) 72%, transparent);
+  }
+
+  .admin-status-count-card-idle:hover {
+    border-color: color-mix(in oklab, var(--border-color) 88%, transparent);
+    background: color-mix(in oklab, var(--background) 92%, transparent);
+    color: var(--foreground);
+  }
+
+  .admin-status-count-card-active {
+    border-color: color-mix(in oklab, var(--accent-interactive) 26%, transparent);
+    background: color-mix(in oklab, var(--accent-interactive) 9%, var(--surface));
+    color: var(--foreground);
+    box-shadow: 0 18px 28px -24px color-mix(in srgb, var(--shadow-base) 18%, transparent);
+  }
+
+  .admin-status-count-value {
+    font-size: clamp(1.35rem, 2vw, 1.85rem);
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--foreground);
+  }
+
+  .admin-status-count-label {
+    font-family: var(--font-label);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--foreground) 54%, transparent);
+  }
+
+  .admin-filter-bar {
+    display: grid;
+    gap: var(--space-3);
+    align-items: end;
+  }
+
+  .admin-filter-field {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .admin-filter-label {
+    font-family: var(--font-label);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--foreground) 58%, transparent);
+  }
+
+  .admin-filter-control {
+    min-height: 2.75rem;
+    width: 100%;
+    border: 1px solid color-mix(in oklab, var(--border-color) 68%, transparent);
+    border-radius: 1rem;
+    background: color-mix(in oklab, var(--surface) 90%, var(--background));
+    padding-inline: 0.9rem;
+    font-size: 0.95rem;
+    color: var(--foreground);
+    outline: none;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  }
+
+  .admin-filter-control:focus {
+    border-color: color-mix(in oklab, var(--foreground) 22%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--foreground) 8%, transparent);
+  }
+
+  .admin-filter-description {
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: color-mix(in oklab, var(--foreground) 46%, transparent);
+  }
+
+  .admin-filter-actions {
+    display: flex;
+    align-items: end;
+  }
+
+  .admin-filter-submit {
+    min-height: 2.75rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklab, var(--border-color) 70%, transparent);
+    background: color-mix(in oklab, var(--foreground) 8%, transparent);
+    padding-inline: 1rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--foreground);
+    transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  }
+
+  .admin-filter-submit:hover {
+    background: color-mix(in oklab, var(--foreground) 12%, transparent);
+  }
+
+  .admin-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .admin-pagination-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.2rem;
+    min-height: 2rem;
+    border-radius: 0.8rem;
+    border: 1px solid color-mix(in oklab, var(--border-color) 62%, transparent);
+    padding-inline: 0.65rem;
+    padding-block: 0.35rem;
+  }
+
+  .admin-pagination-link-current {
+    border-color: color-mix(in oklab, var(--accent-interactive) 24%, transparent);
+    background: color-mix(in oklab, var(--accent-interactive) 8%, var(--surface));
+  }
+
+  .admin-pill-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .admin-pill-nav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .admin-scroll-shell {
+    overflow-x: auto;
+    border: 1px solid color-mix(in oklab, var(--border-color) 66%, transparent);
+    border-radius: 1.2rem;
+    background: color-mix(in oklab, var(--background) 74%, var(--surface));
+  }
+
+  .admin-scroll-shell::-webkit-scrollbar {
+    height: 0.45rem;
+  }
+
+  .admin-scroll-shell::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--foreground) 18%, transparent);
+  }
+
+  .admin-scroll-table {
+    min-width: 100%;
+  }
+
+  .admin-scroll-table-wide {
+    min-width: 46rem;
+  }
+
+  .admin-system-list {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .admin-system-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-cluster-default);
+  }
+
+  .admin-mono-label,
+  .admin-mono-value,
+  .admin-tool-token {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+
+  .admin-mono-value {
+    max-width: 18rem;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+  .admin-tool-category {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .admin-tool-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .admin-tool-token {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid color-mix(in oklab, var(--border-color) 62%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--background) 84%, transparent);
+    padding-inline: 0.7rem;
+    padding-block: 0.35rem;
+    font-size: 0.75rem;
+    color: color-mix(in oklab, var(--foreground) 70%, transparent);
   }
 
   .admin-shell-main {
@@ -181,5 +442,95 @@
     border-color: color-mix(in oklab, var(--status-error) 24%, transparent);
     background: color-mix(in oklab, var(--status-error) 10%, transparent);
     color: color-mix(in oklab, var(--status-error) 72%, var(--foreground));
+  }
+
+  @media (min-width: 768px) {
+    .admin-filter-bar {
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    }
+
+    .admin-filter-actions {
+      justify-self: end;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .admin-route-stack {
+      gap: var(--space-4);
+      padding-inline: var(--space-0);
+    }
+
+    .admin-hero-surface,
+    .admin-panel-surface,
+    .admin-shell-main,
+    .admin-mobile-toolbar {
+      border-radius: 1.4rem;
+    }
+
+    .admin-section-heading,
+    .admin-card {
+      gap: var(--space-3);
+    }
+
+    .admin-card-heading {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-3);
+    }
+
+    .admin-status-counts,
+    .admin-pill-nav {
+      flex-wrap: nowrap;
+      margin-inline: calc(var(--space-2) * -1);
+      overflow-x: auto;
+      padding-inline: var(--space-2);
+      padding-bottom: var(--space-1);
+      scroll-snap-type: x proximity;
+    }
+
+    .admin-status-count-card,
+    .admin-pill-nav-link {
+      scroll-snap-align: start;
+    }
+
+    .admin-status-count-card {
+      min-width: min(9.75rem, calc(100vw - 3rem));
+      min-height: 4rem;
+      padding: 0.75rem 0.9rem;
+    }
+
+    .admin-status-count-value {
+      font-size: 1.25rem;
+    }
+
+    .admin-filter-actions,
+    .admin-filter-submit {
+      width: 100%;
+    }
+
+    .admin-scroll-shell {
+      margin-inline: calc(var(--space-1) * -1);
+    }
+
+    .admin-pagination {
+      overflow-x: auto;
+      padding-bottom: var(--space-1);
+    }
+
+    .admin-system-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-1);
+    }
+
+    .admin-mono-value {
+      max-width: none;
+      text-align: left;
+    }
+
+    .admin-tool-list {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
   }
 }

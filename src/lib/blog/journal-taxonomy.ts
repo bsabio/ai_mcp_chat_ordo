@@ -178,6 +178,36 @@ export function splitJournalStandfirst(markdown: string, explicitStandfirst?: st
   };
 }
 
+export function splitJournalLeadBody(markdown: string) {
+  const trimmed = markdown.trim();
+
+  if (!trimmed) {
+    return {
+      lead: null,
+      remainder: null,
+    };
+  }
+
+  const blocks = trimmed.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
+  const firstBlock = blocks[0] ?? "";
+
+  if (!firstBlock || /^!\[[^\]]*\]\([^)]+\)$/.test(firstBlock) || /^<img[\s>]/i.test(firstBlock)) {
+    return {
+      lead: null,
+      remainder: trimmed,
+    };
+  }
+
+  const leadBlockCount = firstBlock.startsWith("#") && blocks.length > 1 ? 2 : 1;
+  const lead = blocks.slice(0, leadBlockCount).join("\n\n").trim() || null;
+  const remainder = blocks.slice(leadBlockCount).join("\n\n").trim() || null;
+
+  return {
+    lead,
+    remainder,
+  };
+}
+
 export function buildJournalPublicationStructure(posts: BlogPost[]): JournalPublicationStructure {
   const classified = posts.map(classifyPost);
   const [leadStory, ...remainder] = classified;

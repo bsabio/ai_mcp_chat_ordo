@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import type { PresentedMessage } from "@/adapters/ChatPresenter";
 import type { ActionLinkType } from "@/core/entities/rich-content";
 import { useChatScroll } from "@/hooks/useChatScroll";
@@ -17,7 +19,7 @@ interface ChatMessageViewportProps {
   onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
   onRetryClick?: (retryKey: string) => void;
   onSuggestionClick: (text: string) => void;
-  scrollDependency: string;
+  scrollDependency: number;
   searchQuery: string;
 }
 
@@ -36,9 +38,22 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
   scrollDependency,
   searchQuery,
 }) => {
-  const { scrollRef, isAtBottom, scrollToBottom, handleScroll } =
+  const { scrollRef, isAtBottom, scrollToBottom, handleScroll, resetPin } =
     useChatScroll(scrollDependency);
   useMessageScrollBoundaryLock(scrollRef, isEmbedded);
+
+  // Fix 5: When the message count changes (conversation switch via
+  // REPLACE_ALL, or new message arrival), force re-pin to bottom.
+  // This does NOT trigger on content-length changes within an existing
+  // message (streaming tokens), so the user can still scroll up during
+  // streaming without being yanked back.
+  const messageCountRef = useRef(messages.length);
+  useEffect(() => {
+    if (messages.length !== messageCountRef.current) {
+      messageCountRef.current = messages.length;
+      resetPin();
+    }
+  }, [messages.length, resetPin]);
 
   return (
     <div

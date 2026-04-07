@@ -39,6 +39,7 @@ vi.mock("@/hooks/useChatScroll", () => ({
     isAtBottom: true,
     scrollToBottom: vi.fn(),
     handleScroll: vi.fn(),
+    resetPin: vi.fn(),
   }),
 }));
 
@@ -66,7 +67,7 @@ vi.mock("@/hooks/usePresentedChatMessages", () => ({
   usePresentedChatMessages: () => ({
     presentedMessages: [],
     dynamicSuggestions: [],
-    scrollDependency: "",
+    scrollDependency: 0,
   }),
 }));
 

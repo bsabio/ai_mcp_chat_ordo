@@ -549,6 +549,39 @@ describe("POST /api/chat/stream", () => {
     expect(call.tools).toEqual([{ name: "admin_prioritize_leads", description: "", input_schema: {} }]);
   });
 
+  it("forwards current page snapshot into the system prompt builder", async () => {
+    looksLikeMathMock.mockReturnValue(false);
+
+    const response = await POST(
+      createStreamRouteRequest({
+        messages: [{ role: "user", content: "What page am I on?" }],
+        currentPathname: "/register",
+        currentPageSnapshot: {
+          pathname: "/register",
+          title: "Register | Studio Ordo",
+          mainHeading: "Create Account",
+          sectionHeadings: ["Password"],
+          selectedText: null,
+          contentExcerpt: "Save conversations and unlock richer tools.",
+        },
+      }) as never,
+    );
+
+    await response.text();
+
+    expect(createSystemPromptBuilderMock).toHaveBeenCalledWith("ANONYMOUS", {
+      currentPathname: "/register",
+      currentPageSnapshot: {
+        pathname: "/register",
+        title: "Register | Studio Ordo",
+        mainHeading: "Create Account",
+        sectionHeadings: ["Password"],
+        selectedText: null,
+        contentExcerpt: "Save conversations and unlock richer tools.",
+      },
+    });
+  });
+
   it("emits conversation_id before later stream events", async () => {
     looksLikeMathMock.mockReturnValue(false);
     runClaudeAgentLoopStreamMock.mockImplementationOnce(

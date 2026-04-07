@@ -33,7 +33,7 @@ interface ChatContentSurfaceProps {
   onSuggestionClick: (text: string) => void;
   onSuggestionSelect: (item: MentionItem) => void;
   pendingFiles: File[];
-  scrollDependency: string;
+  scrollDependency: number;
   searchQuery: string;
   suggestions: MentionItem[];
 }
@@ -101,7 +101,9 @@ export function ChatContentSurface({
         <div className={isFullScreen ? "mx-auto w-full max-w-4xl" : "w-full"} data-chat-composer-shell="true">
           <ChatInput
             helperTextId={helperTextId}
+            helperMode={!isEmbedded && !isFullScreen ? "focus" : "always"}
             inputRef={inputRef}
+            maxTextareaHeight={isEmbedded ? 192 : isFullScreen ? 224 : 144}
             value={input}
             onChange={onInputChange}
             onSend={onSend}

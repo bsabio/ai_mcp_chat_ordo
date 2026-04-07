@@ -171,15 +171,38 @@ describe("admin-list-helpers", () => {
 describe("get-current-page tool", () => {
   it("returns route info for a known pathname", async () => {
     const { getCurrentPageTool } = await import("@/core/use-cases/tools/get-current-page.tool");
-    const result = await getCurrentPageTool.command.execute({ pathname: "/admin" });
-    expect(result).not.toHaveProperty("routeId");
+    const result = await getCurrentPageTool.command.execute({}, {
+      role: "ADMIN",
+      userId: "u1",
+      currentPathname: "/admin",
+    });
     expect(result.label).toBe("Admin");
+  });
+
+  it("returns page snapshot details when trusted page context is provided", async () => {
+    const { getCurrentPageTool } = await import("@/core/use-cases/tools/get-current-page.tool");
+    const result = await getCurrentPageTool.command.execute({}, {
+      role: "ANONYMOUS",
+      userId: "anon",
+      currentPathname: "/register",
+      currentPageSnapshot: {
+        pathname: "/register",
+        title: "Register | Studio Ordo",
+        mainHeading: "Create Account",
+        sectionHeadings: ["Password"],
+        selectedText: null,
+        contentExcerpt: "Save conversations and unlock richer tools.",
+      },
+    });
+
+    expect(result.label).toBe("Register");
+    expect(result.mainHeading).toBe("Create Account");
+    expect(result.contentExcerpt).toContain("Save conversations");
   });
 
   it("returns nulls for an unknown pathname", async () => {
     const { getCurrentPageTool } = await import("@/core/use-cases/tools/get-current-page.tool");
     const result = await getCurrentPageTool.command.execute({ pathname: "/unknown" });
-    expect(result).not.toHaveProperty("routeId");
     expect(result.label).toBeNull();
     expect(result.description).toBeNull();
   });
@@ -249,16 +272,27 @@ describe("page context injection", () => {
 
   it("includes page context for known pathname", async () => {
     const { buildSystemPrompt } = await import("@/lib/chat/policy");
-    const prompt = await buildSystemPrompt("ADMIN", { currentPathname: "/admin/users" });
-    expect(prompt).toContain("[Current page: /admin/users");
+    const prompt = await buildSystemPrompt("ADMIN", {
+      currentPathname: "/admin/users",
+      currentPageSnapshot: {
+        pathname: "/admin/users",
+        title: "Users | Studio Ordo",
+        mainHeading: "Users",
+        sectionHeadings: ["Account context"],
+        selectedText: null,
+        contentExcerpt: "Review people, roles, and account context.",
+      },
+    });
+    expect(prompt).toContain("[Authoritative current page snapshot]");
+    expect(prompt).toContain("pathname=/admin/users");
+    expect(prompt).toContain("visible_content_excerpt");
   });
 
   it("includes safe fallback for unknown pathname", async () => {
     const { buildSystemPrompt } = await import("@/lib/chat/policy");
     const prompt = await buildSystemPrompt("ADMIN", { currentPathname: "/some/unknown/path" });
-    expect(prompt).toContain("[Current page: /some/unknown/path]");
-    // Should NOT contain a description (no prompt injection)
-    expect(prompt).not.toContain("\u2014");
+    expect(prompt).toContain("pathname=/some/unknown/path");
+    expect(prompt).not.toContain("route_description=");
   });
 
   it("sanitizes malicious pathname characters", async () => {
