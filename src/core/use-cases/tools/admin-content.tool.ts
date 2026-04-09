@@ -164,7 +164,8 @@ export function createDraftContentTool(
 // ── publish_content tool ───────────────────────────────────────────────
 
 interface PublishContentInput {
-  post_id: string;
+  post_id?: string;
+  slug?: string;
 }
 
 export interface PublishContentOutput {
@@ -181,12 +182,20 @@ export async function executePublishContent(
   context?: ToolExecutionContext,
   assetRepo?: BlogAssetRepository,
 ): Promise<PublishContentOutput> {
-  if (!input.post_id || input.post_id.trim().length === 0) {
-    throw new Error("Post ID is required.");
+  let postId = input.post_id?.trim();
+
+  if (!postId && input.slug?.trim()) {
+    const found = await blogRepo.findBySlug(input.slug.trim());
+    if (!found) throw new Error(`No journal post found with slug "${input.slug.trim()}".`);
+    postId = found.id;
+  }
+
+  if (!postId) {
+    throw new Error("Either post_id or slug is required.");
   }
 
   const post = await blogRepo.publishById(
-    input.post_id,
+    postId,
     context?.userId ?? "unknown",
   );
 
@@ -204,11 +213,14 @@ export async function executePublishContent(
 }
 
 export function parsePublishContentInput(value: Record<string, unknown>): PublishContentInput {
-  if (typeof value.post_id !== "string") {
-    throw new Error("Publish content job payload is invalid.");
+  const post_id = typeof value.post_id === "string" && value.post_id.trim() ? value.post_id.trim() : undefined;
+  const slug = typeof value.slug === "string" && value.slug.trim() ? value.slug.trim() : undefined;
+
+  if (!post_id && !slug) {
+    throw new Error("Either post_id or slug is required.");
   }
 
-  return { post_id: value.post_id };
+  return { ...(post_id ? { post_id } : {}), ...(slug ? { slug } : {}) };
 }
 
 class PublishContentCommand implements ToolCommand<PublishContentInput, PublishContentOutput> {
@@ -233,7 +245,7 @@ export function createPublishContentTool(
     name: "publish_content",
     schema: {
       description:
-        "Publish a draft journal article, making it publicly visible in the journal. Requires the post ID returned by draft_content.",
+        "Publish a draft journal article, making it publicly visible in the journal. Accepts either the post ID or the article slug.",
       input_schema: {
         type: "object",
         properties: {
@@ -241,8 +253,11 @@ export function createPublishContentTool(
             type: "string",
             description: "The ID of the draft journal article to publish",
           },
+          slug: {
+            type: "string",
+            description: "The slug of the draft journal article to publish (alternative to post_id)",
+          },
         },
-        required: ["post_id"],
       },
     },
     command: new PublishContentCommand(blogRepo, assetRepo),

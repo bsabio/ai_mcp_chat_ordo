@@ -3,6 +3,7 @@ import type { ConsultationRequestRepository } from "./ConsultationRequestReposit
 import type { ConversationRepository } from "./ConversationRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
 import type { ReferralLifecycleRecorder } from "./ReferralLifecycleRecorder";
+import { ValidationError, ConflictError } from "../common/errors";
 
 export class RequestConsultationInteractor {
   constructor(
@@ -53,16 +54,7 @@ export class RequestConsultationInteractor {
   }
 }
 
-export class ConsultationRequestError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ConsultationRequestError";
-  }
-}
+export class ConsultationRequestError extends ValidationError {}
 
-export class DuplicateConsultationRequestError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DuplicateConsultationRequestError";
-  }
-}
+export class DuplicateConsultationRequestError extends ConflictError {}
+

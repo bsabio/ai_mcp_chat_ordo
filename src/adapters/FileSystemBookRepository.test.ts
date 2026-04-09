@@ -13,7 +13,7 @@ describe("FileSystemCorpusRepository", () => {
     const repo = new FileSystemCorpusRepository();
     const documents = await repo.getAllDocuments();
     expect(documents.length).toBe(10);
-    expect(documents[0].title).toBe("Software Engineering");
+    expect(documents[0].title).toBe("The Second Renaissance");
   });
 
   it("should throw ResourceNotFoundError when getting sections for non-existent document", async () => {

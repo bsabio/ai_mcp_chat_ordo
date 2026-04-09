@@ -74,6 +74,7 @@ import { POST as registerRoute } from "@/app/api/auth/register/route";
 import { POST as loginRoute } from "@/app/api/auth/login/route";
 import { GET as meRoute } from "@/app/api/auth/me/route";
 import { POST as logoutRoute } from "@/app/api/auth/logout/route";
+import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { getSessionUser } from "@/lib/auth";
 import {
   createPublicFormMetadata,
@@ -170,6 +171,25 @@ describe("Auth API routes — full lifecycle", () => {
     getTestDb()
       .prepare(`UPDATE conversations SET referral_id = ?, referral_source = ? WHERE id = ?`)
       .run("ref_anon", "mentor-42", conversationId);
+  }
+
+  async function seedAnonymousJob(anonUserId: string, conversationId = "conv_anon") {
+    const repo = new JobQueueDataMapper(getTestDb());
+    const job = await repo.createJob({
+      conversationId,
+      userId: anonUserId,
+      toolName: "draft_content",
+      initiatorType: "anonymous_session",
+      requestPayload: { title: "Migrated anonymous job" },
+    });
+
+    await repo.appendEvent({
+      jobId: job.id,
+      conversationId,
+      eventType: "queued",
+    });
+
+    return { repo, job };
   }
 
   it("register → login → me → logout → me(401)", async () => {
@@ -412,6 +432,36 @@ describe("Auth API routes — full lifecycle", () => {
       anonUserId,
     );
     expect(authTestState.cookieJar.has("lms_anon_session")).toBe(false);
+
+    authTestState.testDb?.close();
+  });
+
+  it("migrates anonymous jobs during registration and records ownership transfer audit events", async () => {
+    const anonSessionId = "anon_jobs_seed";
+    const anonUserId = seedAnonymousConversation(anonSessionId);
+    const { repo, job } = await seedAnonymousJob(anonUserId);
+    authTestState.cookieJar.set("lms_anon_session", anonSessionId);
+
+    const res = await registerRoute(
+      jsonRequest({ email: "migrate-jobs@test.com", password: "password123", name: "Migrated Jobs User" }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.migratedConversations).toBe(1);
+
+    const migratedJob = await repo.findJobById(job.id);
+    const events = await repo.listEventsForJob(job.id);
+
+    expect(migratedJob?.userId).toBe(body.user.id);
+    expect(events.at(-1)).toMatchObject({
+      eventType: "ownership_transferred",
+      payload: expect.objectContaining({
+        previousUserId: anonUserId,
+        nextUserId: body.user.id,
+        source: "registration",
+      }),
+    });
 
     authTestState.testDb?.close();
   });

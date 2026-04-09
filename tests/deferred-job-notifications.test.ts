@@ -75,6 +75,12 @@ function buildJob(overrides: Partial<JobRequest> = {}): JobRequest {
     attemptCount: 1,
     leaseExpiresAt: null,
     claimedBy: null,
+    failureClass: null,
+    nextRetryAt: null,
+    recoveryMode: null,
+    lastCheckpointId: null,
+    replayedFromJobId: null,
+    supersededByJobId: null,
     createdAt: "2026-03-25T03:00:00.000Z",
     startedAt: "2026-03-25T03:00:01.000Z",
     completedAt: "2026-03-25T03:00:02.000Z",
@@ -124,7 +130,12 @@ describe("createDeferredJobNotificationDispatcher", () => {
 
     const delivered = await dispatcher.notify(buildJob(), "result");
 
-    expect(delivered).toBe(true);
+    expect(delivered).toEqual({
+      status: "sent",
+      attemptedCount: 1,
+      deliveredCount: 1,
+      failedCount: 0,
+    });
     expect(setVapidDetailsMock).toHaveBeenCalledWith(
       "mailto:ops@example.com",
       "public-key",
@@ -145,7 +156,10 @@ describe("createDeferredJobNotificationDispatcher", () => {
 
     const delivered = await dispatcher.notify(buildJob({ status: "canceled" }), "canceled");
 
-    expect(delivered).toBe(false);
+    expect(delivered).toEqual({
+      status: "suppressed",
+      reason: "policy_disabled",
+    });
     expect(listByUserMock).not.toHaveBeenCalled();
     expect(sendNotificationMock).not.toHaveBeenCalled();
   });
@@ -160,7 +174,10 @@ describe("createDeferredJobNotificationDispatcher", () => {
 
     const delivered = await dispatcher.notify(buildJob(), "result");
 
-    expect(delivered).toBe(false);
+    expect(delivered).toEqual({
+      status: "suppressed",
+      reason: "preference_disabled",
+    });
     expect(listByUserMock).not.toHaveBeenCalled();
     expect(sendNotificationMock).not.toHaveBeenCalled();
   });
@@ -171,7 +188,14 @@ describe("createDeferredJobNotificationDispatcher", () => {
 
     const delivered = await dispatcher.notify(buildJob(), "failed");
 
-    expect(delivered).toBe(false);
+    expect(delivered).toEqual({
+      status: "failed",
+      reason: "delivery_error",
+      attemptedCount: 1,
+      failedCount: 1,
+      lastErrorMessage: "[object Object]",
+      lastErrorStatusCode: 410,
+    });
     expect(deleteByEndpointMock).toHaveBeenCalledWith("https://push.example/sub_1");
   });
 
@@ -187,7 +211,12 @@ describe("createDeferredJobNotificationDispatcher", () => {
       "canceled",
     );
 
-    expect(delivered).toBe(true);
+    expect(delivered).toEqual({
+      status: "sent",
+      attemptedCount: 1,
+      deliveredCount: 1,
+      failedCount: 0,
+    });
     expect(sendNotificationMock).toHaveBeenCalledOnce();
   });
 });

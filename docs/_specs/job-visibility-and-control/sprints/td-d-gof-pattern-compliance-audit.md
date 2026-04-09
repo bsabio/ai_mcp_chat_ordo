@@ -19,7 +19,7 @@
 - applied corrections or accepted deviations
 - targeted verification tests
 
-Verify: add the audit coverage under `tests/` using the repo's top-level audit-test pattern, then run `npx vitest run tests/td-d-job-visibility-gof-audit.test.ts`
+Verify: add the audit coverage under `tests/` using the repo's top-level audit-test pattern, then run `npx vitest run tests/job-visibility-patterns.test.ts`
 
 ## Completion Checklist
 

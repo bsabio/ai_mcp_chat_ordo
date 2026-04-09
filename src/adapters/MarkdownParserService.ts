@@ -208,9 +208,16 @@ export class MarkdownParserService {
     return null;
   }
 
-  private parseInlines(text: string): InlineNode[] {
+  private parseInlines(text: string, allowBold = true): InlineNode[] {
     const nodes: InlineNode[] = [];
-    const combined = /(\*\*[^*]+\*\*|`[^`]+`|\[\[[^\]]+\]\]|\[[^\]]+\]\(\?[^)]+\))/g;
+    const inlinePatterns = [
+      allowBold ? "\\*\\*[^*]+\\*\\*" : null,
+      "`[^`]+`",
+      "\\[\\[[^\\]]+\\]\\]",
+      "\\[[^\\]]+\\]\\(\\?[^)]+\\)",
+      "\\[[^\\]]+\\]\\((?!\\?)[^)]+\\)",
+    ].filter((pattern): pattern is string => pattern !== null);
+    const combined = new RegExp(`(${inlinePatterns.join("|")})`, "g");
     let last = 0;
     let m: RegExpExecArray | null;
 
@@ -221,13 +228,16 @@ export class MarkdownParserService {
 
       const match = m[0];
       if (match.startsWith("**")) {
-        nodes.push({ type: INLINE_TYPES.BOLD, text: match.slice(2, -2) });
+        nodes.push({
+          type: INLINE_TYPES.BOLD,
+          content: this.parseInlines(match.slice(2, -2), false),
+        });
       } else if (match.startsWith("`")) {
         nodes.push({ type: INLINE_TYPES.CODE, text: match.slice(1, -1) });
       } else if (match.startsWith("[[")) {
         nodes.push({ type: INLINE_TYPES.LINK, slug: match.slice(2, -2) });
       } else if (match.startsWith("[")) {
-        const parsed = this.parseActionLink(match);
+        const parsed = this.parseActionLink(match) ?? this.parseMarkdownLink(match);
         if (parsed) {
           nodes.push(parsed);
         } else {
@@ -282,6 +292,38 @@ export class MarkdownParserService {
       value,
       ...(Object.keys(params).length > 0 ? { params } : {}),
     };
+  }
+
+  private parseMarkdownLink(match: string): InlineNode | null {
+    const labelEnd = match.indexOf("]");
+    if (labelEnd < 0) return null;
+
+    const label = match.slice(1, labelEnd);
+    const hrefStart = match.indexOf("(", labelEnd);
+    if (hrefStart < 0) return null;
+
+    const href = match.slice(hrefStart + 1, -1).trim();
+    if (!href) return null;
+
+    if (href.startsWith("/") && !href.startsWith("//")) {
+      return {
+        type: INLINE_TYPES.ACTION_LINK,
+        label,
+        actionType: "route",
+        value: href,
+      };
+    }
+
+    if (href.startsWith("http://") || href.startsWith("https://")) {
+      return {
+        type: INLINE_TYPES.ACTION_LINK,
+        label,
+        actionType: "external",
+        value: href,
+      };
+    }
+
+    return null;
   }
 
   private parseTableRow(line: string): string[] {

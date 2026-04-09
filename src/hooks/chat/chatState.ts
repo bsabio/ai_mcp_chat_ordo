@@ -1,9 +1,17 @@
 import { MessageFactory } from "@/core/entities/MessageFactory";
-import type { ChatMessage } from "@/core/entities/chat-message";
-import type { JobStatusMessagePart } from "@/core/entities/message-parts";
+import type { ChatMessage, FailedSendMetadata } from "@/core/entities/chat-message";
+import type { GenerationStatusMessagePart, JobStatusMessagePart } from "@/core/entities/message-parts";
 import type { RoleName } from "@/core/entities/user";
 import { DEFAULT_PROMPTS, type InstancePrompts } from "@/lib/config/defaults";
 import { interpolateGreeting, type GreetingContext } from "@/lib/chat/greeting-interpolator";
+
+export interface GenerationStatusUpdate {
+  status: GenerationStatusMessagePart["status"];
+  actor: GenerationStatusMessagePart["actor"];
+  reason: string;
+  partialContentRetained?: boolean;
+  recordedAt?: string;
+}
 
 export type ChatAction =
   | { type: "REPLACE_ALL"; messages: ChatMessage[] }
@@ -24,6 +32,16 @@ export type ChatAction =
       type: "UPSERT_JOB_STATUS";
       part: JobStatusMessagePart;
       messageId?: string;
+    }
+  | {
+      type: "UPSERT_GENERATION_STATUS";
+      index: number;
+      generation: GenerationStatusUpdate;
+    }
+  | {
+      type: "SET_FAILED_SEND";
+      index: number;
+      failedSend: FailedSendMetadata;
     }
   | { type: "SET_ERROR"; index: number; error: string };
 
@@ -131,6 +149,20 @@ function isJobStatusMessagePart(part: NonNullable<ChatMessage["parts"]>[number])
   return part.type === "job_status";
 }
 
+function isGenerationStatusMessagePart(
+  part: NonNullable<ChatMessage["parts"]>[number],
+): part is GenerationStatusMessagePart {
+  return part.type === "generation_status";
+}
+
+function hasRetainedAssistantOutput(message: ChatMessage): boolean {
+  if ((message.content || "").trim().length > 0) {
+    return true;
+  }
+
+  return (message.parts ?? []).some((part) => part.type !== "generation_status");
+}
+
 function upsertJobStatusMessage(
   state: ChatMessage[],
   part: JobStatusMessagePart,
@@ -166,6 +198,41 @@ function upsertJobStatusMessage(
       parts: [part],
     },
   ];
+}
+
+function upsertGenerationStatusMessage(
+  state: ChatMessage[],
+  index: number,
+  generation: GenerationStatusUpdate,
+): ChatMessage[] {
+  return updateMessageAtIndex(state, index, (message) => ({
+    ...message,
+    parts: [
+      ...(message.parts ?? []).filter((candidate) => !isGenerationStatusMessagePart(candidate)),
+      {
+        type: "generation_status",
+        status: generation.status,
+        actor: generation.actor,
+        reason: generation.reason,
+        partialContentRetained: generation.partialContentRetained ?? hasRetainedAssistantOutput(message),
+        recordedAt: generation.recordedAt,
+      },
+    ],
+  }));
+}
+
+function setFailedSendMetadata(
+  state: ChatMessage[],
+  index: number,
+  failedSend: FailedSendMetadata,
+): ChatMessage[] {
+  return updateMessageAtIndex(state, index, (message) => ({
+    ...message,
+    metadata: {
+      ...message.metadata,
+      failedSend,
+    },
+  }));
 }
 
 export function createInitialChatMessages(
@@ -224,6 +291,10 @@ export function chatReducer(
       }));
     case "UPSERT_JOB_STATUS":
       return upsertJobStatusMessage(state, action.part, action.messageId);
+    case "UPSERT_GENERATION_STATUS":
+      return upsertGenerationStatusMessage(state, action.index, action.generation);
+    case "SET_FAILED_SEND":
+      return setFailedSendMetadata(state, action.index, action.failedSend);
     case "SET_ERROR":
       return [
         ...state.slice(0, action.index),

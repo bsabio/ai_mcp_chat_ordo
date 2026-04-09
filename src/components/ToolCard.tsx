@@ -56,6 +56,7 @@ export function ToolCard({
                   {actions}
                   {onDownload && (
                     <button
+                      type="button"
                       onClick={onDownload}
                       title={downloadTooltip}
                       className="focus-ring min-h-11 min-w-11 rounded-lg p-(--space-2) opacity-70 transition-all hover:bg-surface-hover hover:opacity-100 active:scale-90"
@@ -79,6 +80,7 @@ export function ToolCard({
                   )}
                   <Dialog.Close asChild>
                     <button
+                      type="button"
                       className="focus-ring min-h-11 min-w-11 rounded-lg bg-surface-hover/50 p-(--space-2) text-text transition-all hover:bg-surface-hover active:scale-90"
                       aria-label="Close"
                     >
@@ -146,6 +148,7 @@ export function ToolCard({
                 {actions}
                 {onDownload && (
                   <button
+                    type="button"
                     onClick={onDownload}
                     title={downloadTooltip}
                     className="w-7 h-7 flex items-center justify-center rounded-md hover-surface text-foreground opacity-50 hover:opacity-100 transition-all active:scale-90 focus-ring"
@@ -169,6 +172,7 @@ export function ToolCard({
                 )}
                 {expandable && (
                   <button
+                    type="button"
                     onClick={toggleExpand}
                     title="Expand full screen"
                     className="focus-ring flex h-9 min-w-9 items-center justify-center rounded-md text-foreground opacity-50 transition-all hover:opacity-100 hover-surface active:scale-90 sm:h-8 sm:min-w-8"

@@ -60,3 +60,10 @@ export async function requestStatus(
 ): Promise<ChatRequestResult<null>> {
   return runChatRequest(input, init, async () => null);
 }
+
+export async function requestText(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<ChatRequestResult<string>> {
+  return runChatRequest(input, init, async (response) => response.text());
+}

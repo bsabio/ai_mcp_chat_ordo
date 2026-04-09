@@ -1,5 +1,5 @@
 import type { StreamEvent } from "@/core/entities/chat-stream";
-import type { JobStatusMessagePart } from "@/core/entities/message-parts";
+import type { GenerationStatusMessagePart, JobStatusMessagePart } from "@/core/entities/message-parts";
 
 function toJobStatusPart(event: Extract<
   StreamEvent,
@@ -86,6 +86,20 @@ function toJobStatusPart(event: Extract<
   }
 }
 
+function toGenerationStatusPart(event: Extract<
+  StreamEvent,
+  { type: "generation_stopped" | "generation_interrupted" }
+>): GenerationStatusMessagePart {
+  return {
+    type: "generation_status",
+    status: event.type === "generation_stopped" ? "stopped" : "interrupted",
+    actor: event.actor,
+    reason: event.reason,
+    partialContentRetained: event.partialContentRetained,
+    recordedAt: event.recordedAt,
+  };
+}
+
 export interface StreamProcessingContext {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dispatch: (action: any) => void;
@@ -146,7 +160,45 @@ export class ErrorStrategy implements StreamEventStrategy {
   }
   handle(event: StreamEvent, { dispatch, assistantIndex }: StreamProcessingContext) {
     if (event.type === "error") {
-      dispatch({ type: "SET_ERROR", index: assistantIndex, error: event.message });
+      dispatch({
+        type: "SET_STREAM_TERMINAL_STATE",
+        index: assistantIndex,
+        generation: {
+          status: "interrupted",
+          actor: "system",
+          reason: event.message,
+        },
+      });
+    }
+  }
+}
+
+export class GenerationStoppedStrategy implements StreamEventStrategy {
+  canHandle(event: StreamEvent) {
+    return event.type === "generation_stopped";
+  }
+  handle(event: StreamEvent, { dispatch, assistantIndex }: StreamProcessingContext) {
+    if (event.type === "generation_stopped") {
+      dispatch({
+        type: "SET_STREAM_TERMINAL_STATE",
+        index: assistantIndex,
+        generation: toGenerationStatusPart(event),
+      });
+    }
+  }
+}
+
+export class GenerationInterruptedStrategy implements StreamEventStrategy {
+  canHandle(event: StreamEvent) {
+    return event.type === "generation_interrupted";
+  }
+  handle(event: StreamEvent, { dispatch, assistantIndex }: StreamProcessingContext) {
+    if (event.type === "generation_interrupted") {
+      dispatch({
+        type: "SET_STREAM_TERMINAL_STATE",
+        index: assistantIndex,
+        generation: toGenerationStatusPart(event),
+      });
     }
   }
 }
@@ -158,6 +210,17 @@ export class ConversationIdStrategy implements StreamEventStrategy {
   handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
     if (event.type === "conversation_id") {
       dispatch({ type: "SET_CONVERSATION_ID", conversationId: event.id });
+    }
+  }
+}
+
+export class StreamIdStrategy implements StreamEventStrategy {
+  canHandle(event: StreamEvent) {
+    return event.type === "stream_id";
+  }
+  handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
+    if (event.type === "stream_id") {
+      dispatch({ type: "SET_STREAM_ID", streamId: event.id });
     }
   }
 }

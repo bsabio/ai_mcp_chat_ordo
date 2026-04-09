@@ -268,7 +268,9 @@ describe("ThemeProvider", () => {
       expect(screen.getByTestId("theme-state")).toHaveAttribute("data-theme", "swiss");
     });
 
-    expect(screen.getByTestId("theme-transition-overlay")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("theme-transition-overlay")).toBeInTheDocument();
+    });
     expect(document.documentElement.getAttribute("data-theme")).toBe("swiss");
   });
 

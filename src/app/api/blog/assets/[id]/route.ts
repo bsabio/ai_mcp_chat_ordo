@@ -18,7 +18,7 @@ export async function GET(
   const asset = await assetRepo.findById(id);
 
   if (!asset) {
-    return NextResponse.json({ error: "Blog asset not found." }, { status: 404 });
+    return NextResponse.json({ error: "Blog asset not found.", errorCode: "NOT_FOUND" }, { status: 404 });
   }
 
   const post = asset.postId ? await blogRepo.findById(asset.postId) : null;
@@ -34,14 +34,14 @@ export async function GET(
     const sessionUser = await getSessionUser();
 
     if (sessionUser.roles.includes("ANONYMOUS")) {
-      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ error: "Authentication required.", errorCode: "AUTH_ERROR" }, { status: 401 });
     }
 
     const isOwner = sessionUser.id === asset.createdByUserId;
     const isAdmin = sessionUser.roles.includes("ADMIN");
 
     if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden.", errorCode: "FORBIDDEN" }, { status: 403 });
     }
   }
 
@@ -50,7 +50,7 @@ export async function GET(
   try {
     filePath = resolveBlogAssetDiskPath(asset.storagePath);
   } catch {
-    return NextResponse.json({ error: "Blog asset not found." }, { status: 404 });
+    return NextResponse.json({ error: "Blog asset not found.", errorCode: "NOT_FOUND" }, { status: 404 });
   }
 
   try {
@@ -66,9 +66,9 @@ export async function GET(
     });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return NextResponse.json({ error: "Blog asset not found." }, { status: 404 });
+      return NextResponse.json({ error: "Blog asset not found.", errorCode: "NOT_FOUND" }, { status: 404 });
     }
 
-    return NextResponse.json({ error: "Unable to read blog asset." }, { status: 500 });
+    return NextResponse.json({ error: "Unable to read blog asset.", errorCode: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

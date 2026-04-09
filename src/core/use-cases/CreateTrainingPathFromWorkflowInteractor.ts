@@ -1,5 +1,6 @@
 import type { ConsultationRequest } from "../entities/consultation-request";
 import type { LeadRecord } from "../entities/lead-record";
+import { NotFoundError, ValidationError, ConflictError } from "../common/errors";
 import type {
   ApprenticeshipInterest,
   TrainingPathRecommendation,
@@ -277,23 +278,8 @@ export class CreateTrainingPathFromWorkflowInteractor {
   }
 }
 
-export class WorkflowSourceNotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "WorkflowSourceNotFoundError";
-  }
-}
+export class WorkflowSourceNotFoundError extends NotFoundError {}
 
-export class TrainingPathCreationEligibilityError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "TrainingPathCreationEligibilityError";
-  }
-}
+export class TrainingPathCreationEligibilityError extends ValidationError {}
 
-export class TrainingPathAlreadyExistsError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "TrainingPathAlreadyExistsError";
-  }
-}
+export class TrainingPathAlreadyExistsError extends ConflictError {}

@@ -16,6 +16,7 @@ export interface Logger {
   warn(message: string, context?: Record<string, unknown>): void;
   error(message: string, context?: Record<string, unknown>): void;
   debug(message: string, context?: Record<string, unknown>): void;
+  child(bindings: Record<string, unknown>): Logger;
 }
 
 export class ErrorHandler {

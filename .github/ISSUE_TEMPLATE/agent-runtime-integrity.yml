@@ -1,0 +1,87 @@
+name: Agent Runtime Integrity Regression
+description: Report prompt/runtime truth drift, retrieval or citation mistakes, or output/render contract failures.
+title: "[runtime-integrity]: "
+labels:
+  - qa
+  - runtime-integrity
+body:
+  - type: dropdown
+    id: issue_bucket
+    attributes:
+      label: Issue Bucket
+      description: Choose the integrity class this regression belongs to.
+      options:
+        - prompt_runtime_truth_drift
+        - retrieval_citation_link_correctness
+        - output_render_contract_failure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: coverage_target
+    attributes:
+      label: Coverage Target
+      description: Pick the regression surface this issue should map back into.
+      options:
+        - live-runtime-self-knowledge-honesty
+        - live-current-page-truthfulness
+        - live-duplicate-navigation-avoidance
+        - integrity-canonical-corpus-reference-deterministic
+        - integrity-audio-recovery-deterministic
+        - integrity-malformed-ui-tags-deterministic
+        - focused-regression-test-only
+    validations:
+      required: true
+
+  - type: input
+    id: route_or_surface
+    attributes:
+      label: Route Or Surface
+      description: Which page, API, or UI surface exposed the problem?
+      placeholder: /library/archetype-atlas/ch04-the-sage
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimum Reproduction
+      description: Include the exact user prompt, role, and any relevant current-page context.
+      placeholder: |
+        Role: AUTHENTICATED
+        Prompt: What page am I on right now?
+        Current page: /library/archetype-atlas/ch04-the-sage
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: Describe the truthful or contract-compliant outcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior
+      description: Describe the observed incorrect behavior. Screenshots or pasted payloads are useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting Evidence
+      description: Paste logs, screenshots, failing commands, or links to related tests or artifacts.
+
+  - type: checkboxes
+    id: follow_through
+    attributes:
+      label: Required Follow-Through
+      options:
+        - label: I identified the likely regression bucket and coverage target.
+          required: true
+        - label: I included enough detail to convert this into a deterministic test, live runner case, or focused QA suite.
+          required: true

@@ -68,6 +68,17 @@ export const EVAL_COHORTS: readonly EvalCohort[] = [
     intentDepth: "high",
     notes: ["Should trigger MCP tool usage", "Good fit for recovery and multi-tool scoring"],
   },
+  {
+    id: "runtime-integrity-auditor",
+    name: "Runtime integrity auditor",
+    entryMode: "authenticated",
+    primaryLane: "mixed",
+    urgency: "medium",
+    budgetSignal: "none",
+    technicalMaturity: "technical",
+    intentDepth: "high",
+    notes: ["Asks fourth-wall questions", "Good fit for truthfulness and output-contract coverage"],
+  },
 ] as const;
 
 export const EVAL_SCENARIOS: readonly EvalScenario[] = [
@@ -309,6 +320,68 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
       },
     ],
     scoreDimensions: ["tool_selection", "tool_correctness", "customer_clarity", "funnel_completion"],
+  },
+  {
+    id: "integrity-canonical-corpus-reference-deterministic",
+    name: "Integrity canonical corpus reference deterministic",
+    cohortId: "runtime-integrity-auditor",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["authenticated conversation", "corpus query", "canonical citation contract"],
+    expectedCheckpoints: [
+      { id: "canonical-path-returned", label: "search results return canonical corpus paths", required: true },
+      { id: "resolver-path-returned", label: "search results preserve resolver paths for alias-safe navigation", required: true },
+      { id: "grounding-followup-honest", label: "the search contract honestly reports whether a section read is still required", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["search_corpus"],
+        rationale: "Canonical citation integrity is enforced at the structured search_corpus contract.",
+      },
+    ],
+    scoreDimensions: ["tool_selection", "tool_correctness", "customer_clarity"],
+  },
+  {
+    id: "integrity-audio-recovery-deterministic",
+    name: "Integrity audio recovery deterministic",
+    cohortId: "runtime-integrity-auditor",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["audio request", "simulated stream failure", "fallback transcript guidance"],
+    expectedCheckpoints: [
+      { id: "audio-failure-detected", label: "the runtime records the audio failure instead of silently dropping it", required: true },
+      { id: "fallback-transcript-visible", label: "the transcript remains visible when audio streaming fails", required: true },
+      { id: "recovery-guidance-visible", label: "the assistant gives retry or fallback guidance after audio failure", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["generate_audio"],
+        rationale: "Audio recovery scenarios only make sense when the audio tool was attempted first.",
+      },
+      {
+        policy: "recover",
+        toolIds: ["generate_audio"],
+        rationale: "The assistant must recover coherently from audio delivery failure.",
+      },
+    ],
+    scoreDimensions: ["tool_selection", "recovery", "customer_clarity"],
+  },
+  {
+    id: "integrity-malformed-ui-tags-deterministic",
+    name: "Integrity malformed UI tags deterministic",
+    cohortId: "runtime-integrity-auditor",
+    layer: "deterministic",
+    targetEnvironment: "ci",
+    requiredFixtures: ["assistant message", "malformed suggestion tags", "alias-form action params"],
+    expectedCheckpoints: [
+      { id: "suggestions-repaired", label: "missing or malformed suggestions are repaired to sane defaults", required: true },
+      { id: "actions-repaired", label: "repairable actions survive malformed tag payloads", required: true },
+      { id: "canonical-action-params", label: "repaired actions emit canonical param keys instead of aliases", required: true },
+    ],
+    expectedToolBehaviors: [],
+    scoreDimensions: ["customer_clarity", "safety"],
   },
   {
     id: "member-job-status-summary-deterministic",
@@ -559,6 +632,74 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     ],
     scoreDimensions: ["continuity", "recovery", "customer_clarity", "safety"],
   },
+  {
+    id: "live-runtime-self-knowledge-honesty",
+    name: "Live runtime self-knowledge honesty",
+    cohortId: "runtime-integrity-auditor",
+    layer: "live_model",
+    targetEnvironment: "local",
+    requiredFixtures: ["authoritative page snapshot", "runtime inspection tool", "self-knowledge question"],
+    expectedCheckpoints: [
+      { id: "runtime-inspection-used", label: "the model uses runtime inspection instead of freehand self-description", required: true },
+      { id: "verified-tools-reported", label: "the answer reports only tool facts verified at runtime", required: true },
+      { id: "page-context-reported", label: "the answer reports the authoritative current page rather than stale memory", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["inspect_runtime_context"],
+        rationale: "Self-knowledge answers should be grounded in the runtime manifest tool instead of hidden prompt assumptions.",
+      },
+    ],
+    scoreDimensions: ["tool_selection", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "live-current-page-truthfulness",
+    name: "Live current page truthfulness",
+    cohortId: "runtime-integrity-auditor",
+    layer: "live_model",
+    targetEnvironment: "local",
+    requiredFixtures: ["stale prior assistant claim", "authoritative page snapshot", "page question"],
+    expectedCheckpoints: [
+      { id: "authoritative-page-read", label: "the model reads the authoritative page context before answering", required: true },
+      { id: "stale-memory-overridden", label: "the model overrides stale assistant memory with the authoritative page", required: true },
+      { id: "page-truthful-answer", label: "the answer states the current page truthfully and specifically", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["get_current_page", "inspect_runtime_context"],
+        rationale: "Current-page questions should be answered from authoritative page context, not from chat memory.",
+      },
+    ],
+    scoreDimensions: ["tool_selection", "tool_correctness", "customer_clarity", "safety"],
+  },
+  {
+    id: "live-duplicate-navigation-avoidance",
+    name: "Live duplicate navigation avoidance",
+    cohortId: "runtime-integrity-auditor",
+    layer: "live_model",
+    targetEnvironment: "local",
+    requiredFixtures: ["navigation request", "validated route surface", "legacy navigation absence"],
+    expectedCheckpoints: [
+      { id: "canonical-navigation-tool-used", label: "the model uses navigate_to_page for navigation", required: true },
+      { id: "legacy-navigation-tool-avoided", label: "the model avoids the legacy navigate tool", required: true },
+      { id: "validated-route-returned", label: "the validated route metadata matches the requested destination", required: true },
+    ],
+    expectedToolBehaviors: [
+      {
+        policy: "must_use",
+        toolIds: ["navigate_to_page"],
+        rationale: "Model-facing navigation should route through the validated navigate_to_page surface.",
+      },
+      {
+        policy: "avoid",
+        toolIds: ["navigate"],
+        rationale: "The legacy navigate tool should remain absent from model-visible navigation flows.",
+      },
+    ],
+    scoreDimensions: ["tool_selection", "tool_correctness", "customer_clarity", "safety"],
+  },
 ] as const;
 
 export function getEvalScenarioById(id: string): EvalScenario {
@@ -591,6 +732,9 @@ export function validateEvalCatalog(): string[] {
     "mcp-tool-avoidance",
     "mcp-calculator-must-use",
     "mcp-multi-tool-synthesis",
+    "integrity-canonical-corpus-reference-deterministic",
+    "integrity-audio-recovery-deterministic",
+    "integrity-malformed-ui-tags-deterministic",
     "member-job-status-summary-deterministic",
     "member-explicit-job-status-deterministic",
     "member-all-jobs-list-deterministic",
@@ -600,6 +744,9 @@ export function validateEvalCatalog(): string[] {
     "blog-job-dedupe-clarity-deterministic",
     "blog-produce-publish-handoff-deterministic",
     "blog-missed-sse-recovery-deterministic",
+    "live-runtime-self-knowledge-honesty",
+    "live-current-page-truthfulness",
+    "live-duplicate-navigation-avoidance",
     "live-blog-job-status-and-publish-handoff",
     "live-blog-job-reuse-instead-of-rerun",
     "live-blog-completion-recovery",

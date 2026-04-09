@@ -1,4 +1,5 @@
 import type { UseCase } from "../common/UseCase";
+import { ValidationError as BaseValidationError, ConflictError } from "../common/errors";
 import type { User } from "../entities/user";
 import type { PasswordHasher } from "./PasswordHasher";
 import type { SessionRepository } from "./SessionRepository";
@@ -36,27 +37,27 @@ export class RegisterUserInteractor
 
     // Validate email
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new ValidationError("Invalid email format");
+      throw new RegistrationValidationError("Invalid email format");
     }
 
     // Validate password
     if (!password || password.length < 8) {
-      throw new ValidationError(
+      throw new RegistrationValidationError(
         "Password must be at least 8 characters",
       );
     }
     if (password.length > 72) {
-      throw new ValidationError(
+      throw new RegistrationValidationError(
         "Password must be at most 72 characters",
       );
     }
 
     // Validate name
     if (!name) {
-      throw new ValidationError("Name is required");
+      throw new RegistrationValidationError("Name is required");
     }
     if (name.length > 100) {
-      throw new ValidationError(
+      throw new RegistrationValidationError(
         "Name must be at most 100 characters",
       );
     }
@@ -89,16 +90,13 @@ export class RegisterUserInteractor
   }
 }
 
-export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ValidationError";
-  }
-}
+export class RegistrationValidationError extends BaseValidationError {}
 
-export class DuplicateEmailError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DuplicateEmailError";
-  }
-}
+/** @deprecated Use RegistrationValidationError — kept for backward compatibility. Remove after 2025-10-01. */
+export { RegistrationValidationError as RegisterValidationError };
+
+// Re-export under the old name so existing consumers keep working.
+export { RegistrationValidationError as ValidationError };
+
+export class DuplicateEmailError extends ConflictError {}
+

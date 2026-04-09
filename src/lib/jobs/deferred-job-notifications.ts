@@ -17,8 +17,36 @@ import {
 
 type TerminalEventType = "result" | "failed" | "canceled";
 
+type DeferredJobNotificationSuppressionReason =
+  | "missing_user"
+  | "anonymous_user"
+  | "policy_disabled"
+  | "web_push_unconfigured"
+  | "preference_disabled"
+  | "no_subscriptions";
+
+export type DeferredJobNotificationResult =
+  | {
+      status: "suppressed";
+      reason: DeferredJobNotificationSuppressionReason;
+    }
+  | {
+      status: "sent";
+      attemptedCount: number;
+      deliveredCount: number;
+      failedCount: number;
+    }
+  | {
+      status: "failed";
+      reason: "delivery_error";
+      attemptedCount: number;
+      failedCount: number;
+      lastErrorMessage: string | null;
+      lastErrorStatusCode: number | null;
+    };
+
 export interface DeferredJobNotificationDispatcher {
-  notify(job: JobRequest, eventType: TerminalEventType): Promise<boolean>;
+  notify(job: JobRequest, eventType: TerminalEventType): Promise<DeferredJobNotificationResult>;
 }
 
 let configured = false;
@@ -103,8 +131,20 @@ export function createDeferredJobNotificationDispatcher(): DeferredJobNotificati
 
   return {
     async notify(job, eventType) {
-      if (!job.userId || job.userId.startsWith("anon_") || !shouldNotify(job, eventType) || !ensureWebPushConfigured()) {
-        return false;
+      if (!job.userId) {
+        return { status: "suppressed", reason: "missing_user" };
+      }
+
+      if (job.userId.startsWith("anon_")) {
+        return { status: "suppressed", reason: "anonymous_user" };
+      }
+
+      if (!shouldNotify(job, eventType)) {
+        return { status: "suppressed", reason: "policy_disabled" };
+      }
+
+      if (!ensureWebPushConfigured()) {
+        return { status: "suppressed", reason: "web_push_unconfigured" };
       }
 
       const preference = await preferencesRepository.get(
@@ -112,17 +152,20 @@ export function createDeferredJobNotificationDispatcher(): DeferredJobNotificati
         PUSH_NOTIFICATIONS_PREFERENCE_KEY,
       );
       if (!isPushNotificationsEnabledValue(preference?.value)) {
-        return false;
+        return { status: "suppressed", reason: "preference_disabled" };
       }
 
       const subscriptions = await repository.listByUser(job.userId);
       if (subscriptions.length === 0) {
-        return false;
+        return { status: "suppressed", reason: "no_subscriptions" };
       }
 
       const payload = JSON.stringify(buildNotificationPayload(job, eventType));
       const notifiedAt = new Date().toISOString();
-      let delivered = false;
+      let deliveredCount = 0;
+      let failedCount = 0;
+      let lastErrorMessage: string | null = null;
+      let lastErrorStatusCode: number | null = null;
 
       for (const subscription of subscriptions) {
         try {
@@ -131,18 +174,37 @@ export function createDeferredJobNotificationDispatcher(): DeferredJobNotificati
             payload,
           );
           await repository.markNotified(subscription.endpoint, notifiedAt);
-          delivered = true;
+          deliveredCount += 1;
         } catch (error) {
+          failedCount += 1;
+          lastErrorMessage = error instanceof Error ? error.message : String(error);
           const statusCode = typeof error === "object" && error !== null && "statusCode" in error
             ? Number((error as { statusCode?: unknown }).statusCode)
             : null;
+          lastErrorStatusCode = statusCode;
           if (statusCode === 404 || statusCode === 410) {
             await repository.deleteByEndpoint(subscription.endpoint);
           }
         }
       }
 
-      return delivered;
+      if (deliveredCount > 0) {
+        return {
+          status: "sent",
+          attemptedCount: subscriptions.length,
+          deliveredCount,
+          failedCount,
+        };
+      }
+
+      return {
+        status: "failed",
+        reason: "delivery_error",
+        attemptedCount: subscriptions.length,
+        failedCount,
+        lastErrorMessage,
+        lastErrorStatusCode,
+      };
     },
   };
 }

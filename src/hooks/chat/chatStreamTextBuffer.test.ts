@@ -63,4 +63,49 @@ describe("chatStreamTextBuffer", () => {
     });
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
+
+  it("holds an incomplete action link tail until more text arrives", async () => {
+    vi.useFakeTimers();
+
+    const dispatch = vi.fn();
+    const buffer = createChatStreamTextBuffer({ assistantIndex: 4, dispatch });
+
+    buffer.append("Your primary archetype: [The Magi");
+
+    await vi.runAllTimersAsync();
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "APPEND_TEXT",
+      index: 4,
+      delta: "Your primary archetype: ",
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+
+    buffer.append("cian](?corpus=ch06-the-magician)");
+
+    await vi.runAllTimersAsync();
+
+    expect(dispatch).toHaveBeenNthCalledWith(2, {
+      type: "APPEND_TEXT",
+      index: 4,
+      delta: "[The Magician](?corpus=ch06-the-magician)",
+    });
+    expect(dispatch).toHaveBeenCalledTimes(2);
+  });
+
+  it("flushes incomplete markdown tails on dispose so text is not lost", () => {
+    vi.useFakeTimers();
+
+    const dispatch = vi.fn();
+    const buffer = createChatStreamTextBuffer({ assistantIndex: 2, dispatch });
+
+    buffer.append("Draft [The Magi");
+    buffer.dispose();
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "APPEND_TEXT",
+      index: 2,
+      delta: "Draft [The Magi",
+    });
+  });
 });

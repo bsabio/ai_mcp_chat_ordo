@@ -61,8 +61,8 @@ describe("Spec 14: Composition Root Decomposition", () => {
       const reg = freshRegistry();
       registerCalculatorTools(reg);
       const names = reg.getToolNames();
-      expect(names).toEqual(expect.arrayContaining(["calculator", "navigate", "generate_chart", "generate_graph", "generate_audio"]));
-      expect(names).toHaveLength(5);
+      expect(names).toEqual(expect.arrayContaining(["calculator", "generate_chart", "generate_graph", "generate_audio"]));
+      expect(names).toHaveLength(4);
     });
 
     it("registerThemeTools adds expected tool names", () => {

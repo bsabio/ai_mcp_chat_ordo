@@ -1,16 +1,39 @@
 import type { RoleName } from "@/core/entities/user";
 import {
-  type DeferredJobHandlerName,
-} from "@/lib/jobs/deferred-job-handlers";
+  type JobArtifactPolicyMode,
+  type JobExecutionPrincipal,
+  type JobRetryBackoffStrategy,
+  type JobRecoveryMode,
+  type JobResultRetentionMode,
+  type JobRetryMode,
+} from "@/core/entities/job";
+import { type DeferredJobHandlerName } from "@/lib/jobs/deferred-job-handler-names";
 
 export type JobSurface = "self" | "global";
 export type JobFamily = "editorial" | "content" | "workflow" | "training" | "system" | "other";
+
+export interface JobRetryPolicy {
+  mode: JobRetryMode;
+  maxAttempts?: number;
+  backoffStrategy?: JobRetryBackoffStrategy;
+  baseDelayMs?: number;
+}
+
+export interface JobArtifactPolicy {
+  mode: JobArtifactPolicyMode;
+}
 
 export interface JobCapabilityDefinition {
   toolName: DeferredJobHandlerName;
   family: JobFamily;
   label: string;
   description: string;
+  executionPrincipal: JobExecutionPrincipal;
+  executionAllowedRoles: readonly RoleName[];
+  retryPolicy: JobRetryPolicy;
+  recoveryMode: JobRecoveryMode;
+  resultRetention: JobResultRetentionMode;
+  artifactPolicy: JobArtifactPolicy;
   initiatorRoles: readonly RoleName[];
   ownerViewerRoles: readonly RoleName[];
   ownerActionRoles: readonly RoleName[];
@@ -37,6 +60,12 @@ export const CURRENT_GLOBAL_JOB_OPERATOR_ROLES = ["ADMIN"] as const satisfies re
 
 const ADMIN_ONLY_EDITORIAL_POLICY = {
   family: "editorial",
+  executionPrincipal: "system_worker",
+  executionAllowedRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
+  retryPolicy: { mode: "manual_only" },
+  recoveryMode: "rerun",
+  resultRetention: "retain",
+  artifactPolicy: { mode: "retain" },
   initiatorRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
   ownerViewerRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
   ownerActionRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
@@ -45,16 +74,25 @@ const ADMIN_ONLY_EDITORIAL_POLICY = {
   defaultSurface: "global",
 } satisfies Omit<JobCapabilityDefinition, "toolName" | "label" | "description">;
 
+const AUTOMATIC_EDITORIAL_RETRY_POLICY = {
+  mode: "automatic",
+  maxAttempts: 3,
+  backoffStrategy: "fixed",
+  baseDelayMs: 3_000,
+} satisfies JobRetryPolicy;
+
 function defineEditorialCapability(
   toolName: DeferredJobHandlerName,
   label: string,
   description: string,
+  overrides: Partial<Omit<JobCapabilityDefinition, "toolName" | "label" | "description">> = {},
 ): JobCapabilityDefinition {
   return {
     toolName,
     label,
     description,
     ...ADMIN_ONLY_EDITORIAL_POLICY,
+    ...overrides,
   };
 }
 
@@ -63,26 +101,43 @@ export const JOB_CAPABILITY_REGISTRY = Object.freeze({
     "draft_content",
     "Draft Content",
     "Draft a structured journal article and persist the draft for editorial review.",
+    {
+      retryPolicy: AUTOMATIC_EDITORIAL_RETRY_POLICY,
+      artifactPolicy: { mode: "open_artifact" },
+    },
   ),
   publish_content: defineEditorialCapability(
     "publish_content",
     "Publish Content",
     "Publish an editorial draft and align any linked hero assets for public visibility.",
+    {
+      retryPolicy: AUTOMATIC_EDITORIAL_RETRY_POLICY,
+      artifactPolicy: { mode: "open_artifact" },
+    },
   ),
   prepare_journal_post_for_publish: defineEditorialCapability(
     "prepare_journal_post_for_publish",
     "Journal Publish Readiness",
     "Check whether a journal post is ready to publish and summarize blockers, active work, and QA findings.",
+    {
+      retryPolicy: AUTOMATIC_EDITORIAL_RETRY_POLICY,
+    },
   ),
   generate_blog_image: defineEditorialCapability(
     "generate_blog_image",
     "Generate Blog Image",
     "Generate the editorial hero image asset for a prepared article.",
+    {
+      retryPolicy: AUTOMATIC_EDITORIAL_RETRY_POLICY,
+    },
   ),
   compose_blog_article: defineEditorialCapability(
     "compose_blog_article",
     "Compose Blog Article",
     "Compose the first editorial article draft from a brief.",
+    {
+      retryPolicy: AUTOMATIC_EDITORIAL_RETRY_POLICY,
+    },
   ),
   qa_blog_article: defineEditorialCapability(
     "qa_blog_article",
@@ -93,6 +148,9 @@ export const JOB_CAPABILITY_REGISTRY = Object.freeze({
     "resolve_blog_article_qa",
     "Resolve Blog Article QA",
     "Apply editorial fixes from a normalized QA report to the current article draft.",
+    {
+      artifactPolicy: { mode: "open_artifact" },
+    },
   ),
   generate_blog_image_prompt: defineEditorialCapability(
     "generate_blog_image_prompt",
@@ -103,6 +161,9 @@ export const JOB_CAPABILITY_REGISTRY = Object.freeze({
     "produce_blog_article",
     "Produce Blog Article",
     "Run the full editorial production pipeline from composition through draft persistence.",
+    {
+      artifactPolicy: { mode: "open_artifact" },
+    },
   ),
 }) satisfies Readonly<Record<DeferredJobHandlerName, JobCapabilityDefinition>>;
 

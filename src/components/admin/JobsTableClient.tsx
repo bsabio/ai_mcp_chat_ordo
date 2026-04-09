@@ -9,6 +9,7 @@ interface JobRow {
   toolFamily: string;
   toolFamilyLabel: string;
   defaultSurface: string;
+  executionPrincipal: string;
   status: string;
   progressPercent: number | null;
   progressLabel: string | null;
@@ -18,6 +19,7 @@ interface JobRow {
   duration: string | null;
   detailHref: string;
   canManage: boolean;
+  canRequeue: boolean;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -26,6 +28,12 @@ const STATUS_LABELS: Record<string, string> = {
   succeeded: "Succeeded",
   failed: "Failed",
   canceled: "Canceled",
+};
+
+const EXECUTION_PRINCIPAL_LABELS: Record<string, string> = {
+  system_worker: "System worker",
+  admin_delegate: "Admin delegate",
+  owner_delegate: "Owner delegate",
 };
 
 const columns: ColumnDef[] = [
@@ -62,6 +70,23 @@ const columns: ColumnDef[] = [
         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${tone}`}>
           {STATUS_LABELS[status] ?? status}
         </span>
+      );
+    },
+  },
+  {
+    key: "executionPrincipal",
+    header: "Governance",
+    render: (value: unknown, row: Record<string, unknown>) => {
+      const entry = row as unknown as JobRow;
+      const principal = String(value);
+
+      return (
+        <div className="min-w-0 text-xs text-foreground/60">
+          <div>{EXECUTION_PRINCIPAL_LABELS[principal] ?? principal}</div>
+          <div className="mt-1 text-foreground/45">
+            {entry.canManage ? "Global manage" : "View only"}
+          </div>
+        </div>
       );
     },
   },
@@ -108,7 +133,15 @@ export function JobsTableClient({
   action: (formData: FormData) => void | Promise<void>;
   rows: Record<string, unknown>[];
 }) {
-  const hasManageableRows = rows.some((row) => Boolean(row["canManage"]));
+  const hasCancelableRows = rows.some((row) => Boolean(row["canManage"]) && String(row["status"]) !== "failed" && String(row["status"]) !== "canceled");
+  const hasRequeueableRows = rows.some((row) => Boolean(row["canRequeue"]));
+  const hasRetryableRows = rows.some((row) => Boolean(row["canManage"]) && (String(row["status"]) === "failed" || String(row["status"]) === "canceled"));
+
+  const bulkActions = [
+    ...(hasCancelableRows ? [{ label: "Cancel selected", action: "cancel", variant: "destructive" as const }] : []),
+    ...(hasRequeueableRows ? [{ label: "Requeue selected", action: "requeue" }] : []),
+    ...(hasRetryableRows ? [{ label: "Retry selected", action: "retry" }] : []),
+  ];
 
   return (
     <AdminBulkTableWrapper
@@ -116,12 +149,7 @@ export function JobsTableClient({
       columns={columns}
       rows={rows}
       emptyMessage="No jobs in the queue."
-      bulkActions={hasManageableRows
-        ? [
-            { label: "Cancel selected", action: "cancel", variant: "destructive" },
-            { label: "Retry selected", action: "retry" },
-          ]
-        : []}
+      bulkActions={bulkActions}
     />
   );
 }

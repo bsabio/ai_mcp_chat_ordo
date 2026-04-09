@@ -7,10 +7,12 @@ const { pushMock, openMock, chatState, setComposerTextMock, setConversationIdMoc
   pushMock: vi.fn(),
   openMock: vi.fn(),
   chatState: {
+    activeStreamId: null as string | null,
     messages: [],
     isSending: false,
     retryFailedMessage: vi.fn(),
     sendMessage: vi.fn(),
+    stopStream: vi.fn(),
     conversationId: null as string | null,
     isLoadingMessages: false,
     setConversationId: vi.fn(),
@@ -96,6 +98,7 @@ describe("handleActionClick", () => {
     setComposerTextMock.mockReset();
     setConversationIdMock.mockReset();
     refreshConversationMock.mockReset();
+    chatState.activeStreamId = null;
     chatState.conversationId = null;
     vi.stubGlobal("open", openMock);
   });
@@ -239,6 +242,16 @@ describe("handleActionClick", () => {
       body: JSON.stringify({ action: "retry" }),
     });
     expect(refreshConversationMock).toHaveBeenCalledWith("conv_jobs");
+  });
+
+  it("surfaces stop controls while a stream is active", () => {
+    chatState.activeStreamId = "stream_live_1";
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    expect(result.current.canStopStream).toBe(true);
+    expect(result.current.contentProps.canStopStream).toBe(true);
+    expect(result.current.contentProps.onStopStream).toBe(chatState.stopStream);
   });
 
   describe("action dispatch security", () => {

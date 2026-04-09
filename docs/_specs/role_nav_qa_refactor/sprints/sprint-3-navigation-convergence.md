@@ -146,7 +146,7 @@ npx vitest run tests/admin-shell-and-concierge.test.tsx tests/site-shell-composi
 | **Modify** | `src/components/admin/AdminSidebar.tsx` |
 | **Modify** | `src/components/admin/AdminDrawer.tsx` |
 | **Modify** | `tests/browser-ui/admin-shell-responsive.spec.ts` |
-| **Modify if needed** | `tests/sprint-10-ux-layout-and-navigation.test.tsx` |
+| **Modify if needed** | `tests/ux-layout-navigation.test.tsx` |
 | **Spec** | §2, §3.4, §3.7, `RNQ-020`, `RNQ-024`, `RNQ-025`, `RNQ-050` through `RNQ-055`, `RNQ-080`, `RNQ-081`, `RNQ-095` |
 
 ### Task 3.2 outcomes
@@ -181,7 +181,7 @@ npx playwright test tests/browser-ui/admin-shell-responsive.spec.ts
 | **Modify** | `src/components/admin/AdminCard.tsx` |
 | **Modify** | `src/components/admin/AdminSidebar.tsx` |
 | **Modify** | owned admin or operational CSS partition under `src/app/styles/` |
-| **Modify if needed** | `tests/sprint-4-theme-governance-qa.test.ts`, relevant component tests |
+| **Modify if needed** | `tests/theme-governance-qa.test.ts`, relevant component tests |
 | **Spec** | §2, §3.4, §5, `RNQ-024`, `RNQ-025`, `RNQ-095` |
 
 ### Task 3.3 outcomes
@@ -201,7 +201,7 @@ npx playwright test tests/browser-ui/admin-shell-responsive.spec.ts
 ### Verify Task 3.3
 
 ```bash
-npx vitest run src/components/ThemeProvider.test.tsx tests/sprint-4-theme-governance-qa.test.ts
+npx vitest run src/components/ThemeProvider.test.tsx tests/theme-governance-qa.test.ts
 ```
 
 ---
@@ -236,7 +236,7 @@ npx vitest run src/components/ThemeProvider.test.tsx tests/sprint-4-theme-govern
 ### Verify Task 3.4
 
 ```bash
-npx vitest run tests/admin-shell-and-concierge.test.tsx tests/sprint-10-ux-layout-and-navigation.test.tsx tests/sprint-5-jobs-system-dashboard.test.ts
+npx vitest run tests/admin-shell-and-concierge.test.tsx tests/ux-layout-navigation.test.tsx tests/jobs-system-dashboard.test.ts
 npx playwright test tests/browser-ui/admin-shell-responsive.spec.ts tests/browser-ui/admin-jobs.spec.ts
 ```
 
@@ -258,7 +258,7 @@ Run this bundle before marking Sprint 3 complete:
 
 ```bash
 npm run typecheck
-npx vitest run tests/admin-shell-and-concierge.test.tsx tests/site-shell-composition.test.tsx tests/shell-navigation-model.test.ts src/lib/shell/shell-navigation.test.ts tests/sprint-10-ux-layout-and-navigation.test.tsx tests/sprint-5-jobs-system-dashboard.test.ts tests/sprint-4-theme-governance-qa.test.ts
+npx vitest run tests/admin-shell-and-concierge.test.tsx tests/site-shell-composition.test.tsx tests/shell-navigation-model.test.ts src/lib/shell/shell-navigation.test.ts tests/ux-layout-navigation.test.tsx tests/jobs-system-dashboard.test.ts tests/theme-governance-qa.test.ts
 npx playwright test tests/browser-ui/admin-shell-responsive.spec.ts tests/browser-ui/admin-jobs.spec.ts
 npm run build
 ```

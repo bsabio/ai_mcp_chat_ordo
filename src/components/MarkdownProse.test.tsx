@@ -12,6 +12,19 @@ vi.mock("next/image", () => ({
 
 import { MarkdownProse } from "@/components/MarkdownProse";
 
+describe("MarkdownProse default variant", () => {
+  it("renders standalone images outside paragraph tags", () => {
+    const { container } = render(
+      <MarkdownProse content={'![The Sage Archetype](/figure.jpg "The Sage Archetype")'} />,
+    );
+
+    expect(screen.getByAltText("The Sage Archetype")).toBeInTheDocument();
+    expect(screen.getByText("The Sage Archetype")).toBeInTheDocument();
+    expect(container.querySelector("figure")).not.toBeNull();
+    expect(container.querySelector("p figure")).toBeNull();
+  });
+});
+
 describe("MarkdownProse journal variant", () => {
   it("renders pull quotes, side notes, and figure variants for journal articles", () => {
     const { container } = render(

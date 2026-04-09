@@ -7,6 +7,7 @@ import { resolveUserId } from "@/lib/chat/resolve-user";
 import { reapStaleChatUploads } from "@/lib/chat/upload-reaper";
 import { getDb } from "@/lib/db";
 import { UserFileSystem } from "@/lib/user-files";
+import { logDegradation, logFailure } from "@/lib/observability/logger";
 
 function getExtension(fileName: string, mimeType: string): string {
   const extension = path.extname(fileName).replace(/^\./, "").trim().toLowerCase();
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     const { userId } = await resolveUserId();
 
     await reapStaleChatUploads({ userId }).catch((error) => {
-      console.warn("Chat upload reaper warning:", error);
+      logDegradation("UPLOAD_REAPER_WARN", "Chat upload reaper warning", undefined, error);
     });
 
     if (conversationId) {
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ attachments });
   } catch (error) {
-    console.error("Chat upload route error:", error);
+    logFailure("UPLOAD_ROUTE_ERROR", "Chat upload route error", undefined, error);
     return NextResponse.json(
       { error: "Unable to upload chat attachments." },
       { status: 500 },
@@ -115,7 +116,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ deletedIds: attachmentIds });
   } catch (error) {
-    console.error("Chat upload cleanup error:", error);
+    logFailure("UPLOAD_CLEANUP_ERROR", "Chat upload cleanup error", undefined, error);
     return NextResponse.json(
       { error: "Unable to clean up chat attachments." },
       { status: 500 },

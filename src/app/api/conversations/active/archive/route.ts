@@ -7,6 +7,7 @@ import {
 import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";
 import { embedConversation } from "@/lib/chat/embed-conversation";
+import { logDegradation } from "@/lib/observability/logger";
 
 export async function POST(request: NextRequest) {
   return runRouteTemplate({
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
       // Embed conversation for search (authenticated users only, async)
       if (!isAnonymous) {
         embedConversation(archived.id, userId).catch((err) =>
-          console.error("[archive] embedding error", err),
+          logDegradation("ARCHIVE_EMBEDDING_ERROR", "Embedding error during archive", { conversationId: archived.id }, err),
         );
       }
 

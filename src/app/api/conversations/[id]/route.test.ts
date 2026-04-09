@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NotFoundError } from "@/core/use-cases/ConversationInteractor";
+import { ConversationValidationError, NotFoundError } from "@/core/use-cases/ConversationInteractor";
 import {
   createConversationRouteParams,
   createConversationRouteRequest,
@@ -8,9 +8,19 @@ import {
   TEST_SESSION_TOKEN,
 } from "../../../../../tests/helpers/conversation-route-fixture";
 
-const { getConversation, deleteConversation, validateSession } = vi.hoisted(() => ({
+const {
+  getConversation,
+  deleteConversation,
+  renameConversation,
+  archiveConversation,
+  restoreConversation,
+  validateSession,
+} = vi.hoisted(() => ({
   getConversation: vi.fn(),
   deleteConversation: vi.fn(),
+  renameConversation: vi.fn(),
+  archiveConversation: vi.fn(),
+  restoreConversation: vi.fn(),
   validateSession: vi.fn(),
 }));
 
@@ -23,10 +33,13 @@ vi.mock("@/lib/chat/conversation-root", () => ({
     createConversationRouteServicesMock({
       get: getConversation,
       delete: deleteConversation,
+      rename: renameConversation,
+      archive: archiveConversation,
+      restore: restoreConversation,
     }),
 }));
 
-import { DELETE, GET } from "./route";
+import { DELETE, GET, PATCH } from "./route";
 
 describe("conversation detail routes", () => {
   beforeEach(() => {
@@ -108,5 +121,78 @@ describe("conversation detail routes", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("renames a conversation for the authenticated user", async () => {
+    renameConversation.mockResolvedValue(undefined);
+
+    const response = await PATCH(
+      createConversationRouteRequest(
+        "/api/conversations/conv_1",
+        "PATCH",
+        true,
+        { action: "rename", title: "Renamed chat" },
+      ),
+      createConversationRouteParams("conv_1"),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(renameConversation).toHaveBeenCalledWith("conv_1", "usr_123", "Renamed chat");
+    expect(payload.renamed).toBe(true);
+  });
+
+  it("archives a conversation for the authenticated user", async () => {
+    archiveConversation.mockResolvedValue(undefined);
+
+    const response = await PATCH(
+      createConversationRouteRequest(
+        "/api/conversations/conv_1",
+        "PATCH",
+        true,
+        { action: "archive" },
+      ),
+      createConversationRouteParams("conv_1"),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(archiveConversation).toHaveBeenCalledWith("conv_1", "usr_123");
+    expect(payload.archived).toBe(true);
+  });
+
+  it("moves a conversation to trash for the authenticated user", async () => {
+    deleteConversation.mockResolvedValue(undefined);
+
+    const response = await PATCH(
+      createConversationRouteRequest(
+        "/api/conversations/conv_1",
+        "PATCH",
+        true,
+        { action: "move_to_trash" },
+      ),
+      createConversationRouteParams("conv_1"),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(deleteConversation).toHaveBeenCalledWith("conv_1", "usr_123");
+    expect(payload.deleted).toBe(true);
+  });
+
+  it("returns 400 for invalid rename input", async () => {
+    renameConversation.mockRejectedValue(new ConversationValidationError("Conversation title cannot be empty"));
+
+    const response = await PATCH(
+      createConversationRouteRequest(
+        "/api/conversations/conv_1",
+        "PATCH",
+        true,
+        { action: "rename", title: "   " },
+      ),
+      createConversationRouteParams("conv_1"),
+    );
+
+    expect(response.status).toBe(400);
   });
 });

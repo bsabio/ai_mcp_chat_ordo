@@ -9,3 +9,7 @@ export function getAdminJobsListPath(): string {
 export function getAdminJobsDetailPath(id: string): string {
   return jobRoutes.detail(id);
 }
+
+export function getAdminJobsExportPath(id: string): string {
+  return `/api/admin/jobs/${encodeURIComponent(id)}/export`;
+}

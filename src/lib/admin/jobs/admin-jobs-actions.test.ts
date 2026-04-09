@@ -13,6 +13,11 @@ const {
   cancelJobMock,
   findJobByIdMock,
   createJobMock,
+  appendEventMock,
+  findActiveJobByDedupeKeyMock,
+  updateJobStatusMock,
+  getDescriptorMock,
+  projectMock,
 } = vi.hoisted(() => ({
   runAdminActionMock: vi.fn(async (formData: FormData, handler: (user: typeof ADMIN_USER, formData: FormData) => Promise<unknown>) =>
     handler(ADMIN_USER, formData)),
@@ -20,6 +25,11 @@ const {
   cancelJobMock: vi.fn(),
   findJobByIdMock: vi.fn(),
   createJobMock: vi.fn(),
+  appendEventMock: vi.fn(),
+  findActiveJobByDedupeKeyMock: vi.fn(),
+  updateJobStatusMock: vi.fn(),
+  getDescriptorMock: vi.fn(),
+  projectMock: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -35,13 +45,31 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     cancelJob: cancelJobMock,
     findJobById: findJobByIdMock,
     createJob: createJobMock,
+    appendEvent: appendEventMock,
+    findActiveJobByDedupeKey: findActiveJobByDedupeKeyMock,
+    updateJobStatus: updateJobStatusMock,
+  }),
+}));
+
+vi.mock("@/lib/chat/tool-composition-root", () => ({
+  getToolComposition: () => ({
+    registry: { getDescriptor: getDescriptorMock },
+    executor: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/jobs/deferred-job-projector-root", () => ({
+  createDeferredJobConversationProjector: () => ({
+    project: projectMock,
   }),
 }));
 
 import {
   bulkCancelJobsAction,
+  bulkRequeueJobsAction,
   bulkRetryJobsAction,
   cancelJobAction,
+  requeueJobAction,
   retryJobAction,
 } from "@/lib/admin/jobs/admin-jobs-actions";
 
@@ -56,6 +84,11 @@ function makeFormData(entries: Record<string, string>): FormData {
 describe("admin job actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    appendEventMock.mockResolvedValue({ sequence: 9 });
+    findActiveJobByDedupeKeyMock.mockResolvedValue(null);
+    updateJobStatusMock.mockResolvedValue({ id: "job_failed" });
+    getDescriptorMock.mockReturnValue(undefined);
+    projectMock.mockResolvedValue(undefined);
   });
 
   it("cancels a single job and revalidates the admin jobs page", async () => {
@@ -113,9 +146,20 @@ describe("admin job actions", () => {
       priority: 100,
       dedupeKey: "brief_1",
       initiatorType: "user",
+      recoveryMode: "rerun",
+      replayedFromJobId: "job_failed",
       requestPayload: { brief: "Roadmap" },
     });
+    expect(updateJobStatusMock).toHaveBeenCalledWith("job_failed", {
+      status: "failed",
+      supersededByJobId: "job_retry",
+    });
+    expect(appendEventMock).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: "queued",
+      payload: expect.objectContaining({ replayedFromJobId: "job_failed" }),
+    }));
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/jobs");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/jobs/job_retry");
   });
 
   it("rejects retry attempts from non-retriable statuses", async () => {
@@ -135,6 +179,48 @@ describe("admin job actions", () => {
       "Job job_running cannot be retried from status: running",
     );
     expect(createJobMock).not.toHaveBeenCalled();
+  });
+
+  it("requeues a running job and records an audited intervention", async () => {
+    findJobByIdMock.mockResolvedValue({
+      id: "job_running",
+      conversationId: "conv_2",
+      userId: "usr_2",
+      toolName: "publish_content",
+      status: "running",
+      priority: 80,
+      dedupeKey: null,
+      initiatorType: "user",
+      requestPayload: { post_id: "post_1" },
+      claimedBy: "worker_1",
+    });
+    updateJobStatusMock.mockResolvedValue({ id: "job_running", conversationId: "conv_2" });
+
+    await requeueJobAction(makeFormData({ id: "job_running" }));
+
+    expect(updateJobStatusMock).toHaveBeenCalledWith("job_running", {
+      status: "queued",
+      resultPayload: null,
+      errorMessage: null,
+      progressPercent: null,
+      progressLabel: null,
+      startedAt: null,
+      completedAt: null,
+      leaseExpiresAt: null,
+      claimedBy: null,
+      failureClass: null,
+      nextRetryAt: null,
+    });
+    expect(appendEventMock).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: "requeued",
+      payload: expect.objectContaining({
+        previousStatus: "running",
+        previousClaimedBy: "worker_1",
+        requestedByUserId: "admin_1",
+      }),
+    }));
+    expect(projectMock).toHaveBeenCalled();
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/jobs/job_running");
   });
 
   it("bulk-cancels only queued and running jobs", async () => {
@@ -195,8 +281,10 @@ describe("admin job actions", () => {
       userId: "usr_4",
       toolName: "produce_blog_article",
       priority: 50,
-      dedupeKey: undefined,
+      dedupeKey: null,
       initiatorType: "user",
+      recoveryMode: "rerun",
+      replayedFromJobId: "job_4",
       requestPayload: { brief: "One" },
     });
     expect(createJobMock).toHaveBeenNthCalledWith(2, {
@@ -204,10 +292,44 @@ describe("admin job actions", () => {
       userId: "usr_5",
       toolName: "publish_content",
       priority: 40,
-      dedupeKey: undefined,
+      dedupeKey: null,
       initiatorType: "user",
+      recoveryMode: "rerun",
+      replayedFromJobId: "job_5",
       requestPayload: { post_id: "post_5" },
     });
+  });
+
+  it("bulk-requeues only queued and running jobs", async () => {
+    findJobByIdMock
+      .mockResolvedValueOnce({
+        id: "job_1",
+        conversationId: "conv_1",
+        toolName: "publish_content",
+        status: "queued",
+        claimedBy: null,
+      })
+      .mockResolvedValueOnce({
+        id: "job_2",
+        conversationId: "conv_2",
+        toolName: "publish_content",
+        status: "running",
+        claimedBy: "worker_2",
+      })
+      .mockResolvedValueOnce({
+        id: "job_3",
+        conversationId: "conv_3",
+        toolName: "publish_content",
+        status: "failed",
+        claimedBy: null,
+      });
+    updateJobStatusMock.mockResolvedValue({ id: "job_requeued" });
+
+    await bulkRequeueJobsAction(makeFormData({ ids: "job_1,job_2,job_3" }));
+
+    expect(updateJobStatusMock).toHaveBeenCalledTimes(2);
+    expect(appendEventMock).toHaveBeenCalledTimes(2);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/jobs");
   });
 
   it("rejects bulk actions when a selected job is not globally manageable", async () => {

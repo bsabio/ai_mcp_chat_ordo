@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getCorpusIndex } from "@/lib/corpus-library";
 import { getViewerRole, handleLibraryAccessDenied } from "@/lib/corpus-access";
+import { findCorpusBookMatch, findCorpusChapterMatch } from "@/lib/corpus-route-aliases";
 
 export default async function LibrarySectionResolverPage({
   params,
@@ -14,18 +15,18 @@ export default async function LibrarySectionResolverPage({
     getCorpusIndex({ role }),
     getCorpusIndex(),
   ]);
-  const match = index.find((entry) => entry.chapterSlug === resolvedParams.slug);
+  const match = findCorpusChapterMatch(index, resolvedParams.slug);
 
   if (!match) {
-    const bookMatch = index.find((entry) => entry.bookSlug === resolvedParams.slug);
+    const bookMatch = findCorpusBookMatch(index, resolvedParams.slug);
     if (bookMatch) {
       redirect(`/library/${bookMatch.bookSlug}`);
     }
   }
 
   if (!match) {
-    const rawMatch = rawIndex.find((entry) => entry.chapterSlug === resolvedParams.slug);
-    const rawBookMatch = rawIndex.find((entry) => entry.bookSlug === resolvedParams.slug);
+    const rawMatch = findCorpusChapterMatch(rawIndex, resolvedParams.slug);
+    const rawBookMatch = findCorpusBookMatch(rawIndex, resolvedParams.slug);
     if (rawMatch || rawBookMatch) {
       handleLibraryAccessDenied(role);
     }

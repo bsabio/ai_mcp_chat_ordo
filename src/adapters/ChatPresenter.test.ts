@@ -81,6 +81,24 @@ describe("ChatPresenter", () => {
     expect(presented.actions[0].action).toBe("corpus");
   });
 
+  it("repairs malformed action params and fallback suggestions", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-4b",
+      role: "assistant",
+      content:
+        'Content __suggestions__:[] __actions__:[{"label":"Open library","action":"route","params":{"href":"/library"}},{"label":"Draft reply","type":"send","params":{"prompt":"Draft the reply"}}]',
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.suggestions.length).toBeGreaterThan(0);
+    expect(presented.actions).toEqual([
+      { label: "Open library", action: "route", params: { path: "/library" } },
+      { label: "Draft reply", action: "send", params: { text: "Draft the reply" } },
+    ]);
+  });
+
   it("should produce empty actions array for malformed JSON", () => {
     const markdownParser = {
       parse: vi.fn().mockReturnValue({ blocks: [] }),
@@ -577,6 +595,49 @@ describe("ChatPresenter", () => {
     expect(presented.commands).toEqual([
       { type: "navigate", path: "/library" },
     ]);
+  });
+
+  it("renders audio blocks from structured generate_audio result payloads", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-audio-1",
+      role: "assistant",
+      content: "Here is the audio version.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "generate_audio",
+          args: { title: "Founder memo", text: "Weekly review audio" },
+        },
+        {
+          type: "tool_result",
+          name: "generate_audio",
+          result: {
+            action: "generate_audio",
+            title: "Founder memo",
+            text: "Weekly review audio",
+            assetId: "uf_audio_1",
+            provider: "user-file-cache",
+            generationStatus: "cached_asset",
+            estimatedDurationSeconds: 12,
+            estimatedGenerationSeconds: 3,
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.content.blocks).toContainEqual({
+      type: "audio",
+      title: "Founder memo",
+      text: "Weekly review audio",
+      assetId: "uf_audio_1",
+      provider: "user-file-cache",
+      generationStatus: "cached_asset",
+      estimatedDurationSeconds: 12,
+      estimatedGenerationSeconds: 3,
+    });
   });
 
   it("drops unsupported theme values from structured UI tool calls", () => {

@@ -1,9 +1,8 @@
 import type { NextRequest } from "next/server";
 import { getJobQueueRepository, getJobStatusQuery } from "@/adapters/RepositoryFactory";
-import { getToolComposition } from "@/lib/chat/tool-composition-root";
-import { buildDeferredJobDedupeKey } from "@/lib/jobs/job-dedupe";
 import { errorJson, runRouteTemplate, successJson } from "@/lib/chat/http-facade";
 import { createDeferredJobConversationProjector } from "@/lib/jobs/deferred-job-projector-root";
+import { canManualReplayJob, isJobCancelable, performManualJobReplay } from "@/lib/jobs/manual-replay";
 import { ensureUserOwnsConversationJob, requireAuthenticatedUser } from "../_lib";
 
 type RouteParams = {
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       const now = new Date().toISOString();
 
       if (action === "cancel") {
-        if (job.status !== "queued" && job.status !== "running") {
+        if (!isJobCancelable(job.status)) {
           return errorJson(context, "Job cannot be canceled in its current state", 409);
         }
 
@@ -106,54 +105,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         });
       }
 
-      if (job.status !== "failed" && job.status !== "canceled") {
+      if (!canManualReplayJob(job)) {
         return errorJson(context, "Job cannot be retried in its current state", 409);
       }
 
-      const descriptor = getToolComposition().registry.getDescriptor(job.toolName);
-      const dedupeKey = descriptor?.deferred?.dedupeStrategy === "per-conversation-payload"
-        ? buildDeferredJobDedupeKey(job.conversationId, job.toolName, job.requestPayload)
-        : null;
-      const existing = dedupeKey
-        ? await repository.findActiveJobByDedupeKey(job.conversationId, dedupeKey)
-        : null;
-
-      if (existing) {
-        return successJson(context, {
-          ok: true,
-          action,
-          deduped: true,
-          job: existing,
-        });
-      }
-
-      const retriedJob = await repository.createJob({
-        conversationId: job.conversationId,
-        userId: job.userId,
-        toolName: job.toolName,
-        priority: job.priority,
-        dedupeKey,
-        initiatorType: job.initiatorType,
-        requestPayload: job.requestPayload,
+      const replay = await performManualJobReplay(repository, job, {
+        ownerUserId: user.id,
+        projector,
+        requestedByUserId: user.id,
       });
-
-      const queuedEvent = await repository.appendEvent({
-        jobId: retriedJob.id,
-        conversationId: retriedJob.conversationId,
-        eventType: "queued",
-        payload: {
-          toolName: retriedJob.toolName,
-          retriedFromJobId: job.id,
-        },
-      });
-
-      await projector.project(retriedJob, queuedEvent);
 
       return successJson(context, {
         ok: true,
         action,
-        job: retriedJob,
-        eventSequence: queuedEvent.sequence,
+        deduped: replay.outcome === "deduped",
+        replay: {
+          outcome: replay.outcome,
+          sourceJobId: replay.sourceJobId,
+          targetJobId: replay.job.id,
+          dedupeKey: replay.dedupeKey,
+        },
+        job: replay.job,
+        ...(replay.eventSequence ? { eventSequence: replay.eventSequence } : {}),
       });
     },
   });

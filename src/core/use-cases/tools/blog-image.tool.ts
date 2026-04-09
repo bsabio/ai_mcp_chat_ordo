@@ -68,6 +68,9 @@ function validateEnum<T extends string>(
   return value as T;
 }
 
+const DETAIL_KEYWORDS = /\b(detailed|intricate|complex|fine|precise|sharp|portrait|headshot|face|person|people|professional|commercial)\b/i;
+const SIMPLE_KEYWORDS = /\b(simple|minimal|abstract|basic|plain|icon|logo)\b/i;
+
 export function resolveBlogImageStrategy(
   input: Pick<GenerateBlogImageInput, "prompt" | "preset" | "size" | "quality">,
 ): ResolvedBlogImageStrategy {
@@ -101,9 +104,15 @@ export function resolveBlogImageStrategy(
 
   let quality = input.quality;
   if (!quality) {
-    quality = input.preset === "artistic" || input.preset === "hd"
-      ? "high"
-      : "high";
+    if (input.preset === "artistic" || input.preset === "hd") {
+      quality = "high";
+    } else if (SIMPLE_KEYWORDS.test(prompt)) {
+      quality = "medium";
+    } else if (DETAIL_KEYWORDS.test(prompt)) {
+      quality = "high";
+    } else {
+      quality = "high";
+    }
   }
 
   return { size, quality };

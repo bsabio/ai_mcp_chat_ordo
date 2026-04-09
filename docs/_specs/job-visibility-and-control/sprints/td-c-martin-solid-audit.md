@@ -19,7 +19,7 @@
 - remediation list
 - targeted audit verification
 
-Verify: add the audit coverage under `tests/` using the repo's top-level audit-test pattern, then run `npx vitest run tests/td-c-job-visibility-solid-audit.test.ts`
+Verify: add the audit coverage under `tests/` using the repo's top-level audit-test pattern, then run `npx vitest run tests/job-visibility-solid.test.ts`
 
 ## Completion Checklist
 

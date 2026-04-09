@@ -40,7 +40,9 @@ describe("library section resolver route", () => {
     getCorpusIndexMock.mockResolvedValue([
       {
         bookSlug: "software-engineering",
+        bookTitle: "Software Engineering",
         chapterSlug: "audit-to-sprint",
+        chapterTitle: "Audit to Sprint",
       },
     ]);
 
@@ -56,7 +58,9 @@ describe("library section resolver route", () => {
     getCorpusIndexMock.mockResolvedValue([
       {
         bookSlug: "software-engineering",
+        bookTitle: "Software Engineering",
         chapterSlug: "audit-to-sprint",
+        chapterTitle: "Audit to Sprint",
       },
     ]);
 
@@ -74,5 +78,21 @@ describe("library section resolver route", () => {
     await expect(
       LibrarySectionResolverPage({ params: Promise.resolve({ slug: "missing-section" }) }),
     ).rejects.toThrow("notFound");
+  });
+
+  it("redirects shorthand chapter aliases to the canonical library chapter route", async () => {
+    getViewerRoleMock.mockResolvedValue("AUTHENTICATED");
+    getCorpusIndexMock.mockResolvedValue([
+      {
+        bookSlug: "archetype-atlas",
+        bookTitle: "The Archetype Atlas",
+        chapterSlug: "ch06-the-magician",
+        chapterTitle: "The Magician: Transformation, Vision, Systems",
+      },
+    ]);
+
+    await expect(
+      LibrarySectionResolverPage({ params: Promise.resolve({ slug: "the-magician" }) }),
+    ).rejects.toThrow("redirect:/library/archetype-atlas/ch06-the-magician");
   });
 });

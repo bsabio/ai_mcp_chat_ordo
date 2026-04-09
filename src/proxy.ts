@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { checkOrigin } from "@/lib/security/origin-check";
 import { buildReferralPath } from "@/lib/referrals/referral-links";
 import { LEGACY_REFERRAL_COOKIE_NAME } from "@/lib/referrals/referral-visit";
+import { createRequestId } from "@/lib/observability/logger";
 
 const SESSION_COOKIE = "lms_session_token";
 const BASE_SECURITY_HEADERS = {
@@ -77,33 +78,39 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const requestId = createRequestId(request.headers);
+
+  function applyHeaders(response: NextResponse): NextResponse {
+    response.headers.set("x-request-id", requestId);
+    return applySecurityHeaders(response);
+  }
 
   // CSRF: Origin check on state-mutating API requests
   if (pathname.startsWith("/api/")) {
     const originResult = checkOrigin(request);
-    if (originResult) return applySecurityHeaders(originResult);
+    if (originResult) return applyHeaders(originResult);
   }
 
   if (!pathname.startsWith("/api/")) {
     const legacyReferralRedirect = captureReferral(request);
     if (legacyReferralRedirect) {
-      return legacyReferralRedirect;
+      return applyHeaders(legacyReferralRedirect);
     }
 
-    return applySecurityHeaders(NextResponse.next());
+    return applyHeaders(NextResponse.next());
   }
 
   if (isProtectedRoute(pathname)) {
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     if (!token) {
-      return applySecurityHeaders(NextResponse.json(
+      return applyHeaders(NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
       ));
     }
   }
 
-  return applySecurityHeaders(NextResponse.next());
+  return applyHeaders(NextResponse.next());
 }
 
 export const config = {

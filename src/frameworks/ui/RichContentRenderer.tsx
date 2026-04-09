@@ -253,6 +253,10 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
         text={block.text}
         title={block.title}
         assetId={block.assetId}
+        provider={block.provider}
+        generationStatus={block.generationStatus}
+        estimatedDurationSeconds={block.estimatedDurationSeconds}
+        estimatedGenerationSeconds={block.estimatedGenerationSeconds}
       />
     </div>
   ),
@@ -279,7 +283,11 @@ type InlineProps<T extends InlineNode> = { node: T; onLinkClick?: (slug: string)
 
 const inlineRegistry: { [K in InlineNode["type"]]: React.FC<InlineProps<Extract<InlineNode, { type: K }>>> } = {
   text: ({ node }) => <>{node.text}</>,
-  bold: ({ node }) => <strong>{node.text}</strong>,
+  bold: ({ node, onLinkClick, onActionClick }) => (
+    <strong>
+      <InlineRenderer nodes={node.content} onLinkClick={onLinkClick} onActionClick={onActionClick} />
+    </strong>
+  ),
   "code-inline": ({ node }) => (
     <code className="bg-surface-muted/72 text-foreground px-(--space-2) py-(--space-inset-tight) rounded-md text-[0.85em] font-mono">
       {node.text}

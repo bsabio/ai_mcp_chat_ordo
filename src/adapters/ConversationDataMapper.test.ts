@@ -69,6 +69,23 @@ describe("ConversationDataMapper", () => {
     expect(found.referralSource).toBe("mentor-42");
   });
 
+  it("persists imported-conversation metadata", async () => {
+    await mapper.create({
+      id: "conv_imported",
+      userId: "usr_test",
+      title: "Imported thread",
+      status: "archived",
+      importedAt: "2026-04-08T12:00:00.000Z",
+      importSourceConversationId: "conv_source",
+      importedFromExportedAt: "2026-04-08T11:00:00.000Z",
+    });
+
+    const found = requireValue(await mapper.findById("conv_imported"));
+    expect(found.importedAt).toBe("2026-04-08T12:00:00.000Z");
+    expect(found.importSourceConversationId).toBe("conv_source");
+    expect(found.importedFromExportedAt).toBe("2026-04-08T11:00:00.000Z");
+  });
+
   it("replaces stale debug referral_source values when canonical attribution is attached", async () => {
     await mapper.create({
       id: "conv_stale_ref",
@@ -107,6 +124,38 @@ describe("ConversationDataMapper", () => {
     expect(list[1].messageCount).toBe(0);
   });
 
+  it("listByUser excludes soft-deleted conversations by default", async () => {
+    await mapper.create({ id: "conv_visible", userId: "usr_test", title: "Visible" });
+    await mapper.create({ id: "conv_deleted", userId: "usr_test", title: "Deleted" });
+
+    await mapper.softDelete(
+      "conv_deleted",
+      { userId: "usr_test", role: "AUTHENTICATED", reason: "user_removed" },
+      { purgeAfter: "2026-05-01T00:00:00.000Z" },
+    );
+
+    const list = await mapper.listByUser("usr_test");
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe("conv_visible");
+  });
+
+  it("listByUser can return only deleted conversations", async () => {
+    await mapper.create({ id: "conv_visible", userId: "usr_test", title: "Visible" });
+    await mapper.create({ id: "conv_deleted", userId: "usr_test", title: "Deleted" });
+
+    await mapper.softDelete(
+      "conv_deleted",
+      { userId: "usr_test", role: "AUTHENTICATED", reason: "user_removed" },
+      { purgeAfter: "2026-05-01T00:00:00.000Z" },
+    );
+
+    const list = await mapper.listByUser("usr_test", { scope: "deleted" });
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe("conv_deleted");
+    expect(list[0].deletedAt).toBeTruthy();
+    expect(list[0].purgeAfter).toBe("2026-05-01T00:00:00.000Z");
+  });
+
   it("delete removes conversation", async () => {
     await mapper.create({ id: "conv_del", userId: "usr_test", title: "Delete me" });
     await mapper.delete("conv_del");
@@ -122,6 +171,102 @@ describe("ConversationDataMapper", () => {
 
     await mapper.delete("conv_cas");
     expect(await msgMapper.countByConversation("conv_cas")).toBe(0);
+  });
+
+  it("softDelete marks the conversation as deleted without cascading messages", async () => {
+    await mapper.create({ id: "conv_soft", userId: "usr_test", title: "Soft delete" });
+    const msgMapper = new MessageDataMapper(db);
+    await msgMapper.create({ conversationId: "conv_soft", role: "user", content: "test", parts: [] });
+
+    await mapper.softDelete(
+      "conv_soft",
+      { userId: "usr_test", role: "AUTHENTICATED", reason: "user_removed" },
+      { purgeAfter: "2026-05-01T00:00:00.000Z" },
+    );
+
+    const found = requireValue(await mapper.findById("conv_soft"));
+    expect(found.deletedAt).toBeTruthy();
+    expect(found.deleteReason).toBe("user_removed");
+    expect(found.purgeAfter).toBe("2026-05-01T00:00:00.000Z");
+    expect(found.status).toBe("archived");
+    expect(await msgMapper.countByConversation("conv_soft")).toBe(1);
+  });
+
+  it("restoreDeleted clears tombstone metadata and keeps the conversation archived", async () => {
+    await mapper.create({ id: "conv_restore", userId: "usr_test", title: "Restore me" });
+    await mapper.softDelete(
+      "conv_restore",
+      { userId: "usr_test", role: "AUTHENTICATED", reason: "user_removed" },
+      { purgeAfter: "2026-05-01T00:00:00.000Z" },
+    );
+
+    await mapper.restoreDeleted("conv_restore", "usr_test");
+
+    const found = requireValue(await mapper.findById("conv_restore"));
+    expect(found.deletedAt).toBeUndefined();
+    expect(found.deleteReason).toBeUndefined();
+    expect(found.purgeAfter).toBeUndefined();
+    expect(found.status).toBe("archived");
+    expect(found.restoredAt).toBeTruthy();
+  });
+
+  it("purge removes the conversation and preserves a minimal audit record", async () => {
+    await mapper.create({ id: "conv_purge", userId: "usr_test", title: "Purge me", status: "archived" });
+    const msgMapper = new MessageDataMapper(db);
+    await msgMapper.create({ conversationId: "conv_purge", role: "user", content: "test", parts: [] });
+    await mapper.softDelete(
+      "conv_purge",
+      { userId: "usr_test", role: "AUTHENTICATED", reason: "user_removed" },
+      { purgeAfter: "2026-05-01T00:00:00.000Z" },
+    );
+
+    await mapper.purge("conv_purge", { userId: "admin_1", role: "SYSTEM", reason: "retention_policy" });
+
+    expect(await mapper.findById("conv_purge")).toBeNull();
+    expect(await msgMapper.countByConversation("conv_purge")).toBe(0);
+
+    const auditRow = db
+      .prepare(`SELECT purge_reason, metadata_json FROM conversation_purge_audits WHERE conversation_id = ?`)
+      .get("conv_purge") as { purge_reason: string; metadata_json: string };
+
+    expect(auditRow.purge_reason).toBe("retention_policy");
+    expect(JSON.parse(auditRow.metadata_json)).toEqual(
+      expect.objectContaining({
+        title: "Purge me",
+        userId: "usr_test",
+        deleteReason: "user_removed",
+      }),
+    );
+  });
+
+  it("lists purge-eligible conversations by purge_after", async () => {
+    await mapper.create({ id: "conv_keep", userId: "usr_test", title: "Keep" });
+    await mapper.create({ id: "conv_due", userId: "usr_test", title: "Due" });
+
+    await mapper.softDelete(
+      "conv_due",
+      { userId: "usr_test", role: "AUTHENTICATED", reason: "user_removed" },
+      { purgeAfter: "2026-04-01T00:00:00.000Z" },
+    );
+
+    const eligible = await mapper.listPurgeEligible("2026-04-08T00:00:00.000Z");
+    expect(eligible.map((conversation) => conversation.id)).toEqual(["conv_due"]);
+  });
+
+  it("lists anonymous conversations ordered by recent activity within each owner", async () => {
+    db.prepare(
+      `INSERT OR IGNORE INTO users (id, email, name) VALUES ('anon_alpha', 'anon_alpha@anonymous.local', 'Anonymous')`,
+    ).run();
+    db.prepare(
+      `INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES ('anon_alpha', 'role_anonymous')`,
+    ).run();
+    await mapper.create({ id: "conv_old", userId: "anon_alpha", title: "Old" });
+    await mapper.create({ id: "conv_new", userId: "anon_alpha", title: "New" });
+    db.prepare(`UPDATE conversations SET updated_at = '2026-04-01T00:00:00.000Z' WHERE id = 'conv_old'`).run();
+    db.prepare(`UPDATE conversations SET updated_at = '2026-04-08T00:00:00.000Z' WHERE id = 'conv_new'`).run();
+
+    const conversations = await mapper.listAnonymousConversations();
+    expect(conversations.map((conversation) => conversation.id).slice(0, 2)).toEqual(["conv_new", "conv_old"]);
   });
 
   it("updateTitle changes title", async () => {

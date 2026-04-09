@@ -1,6 +1,11 @@
 import type { MessagePart } from "@/core/entities/message-parts";
 
 export type AttachmentPart = Extract<MessagePart, { type: "attachment" }>;
+export type ImportedAttachmentPart = Extract<MessagePart, { type: "imported_attachment" }>;
+
+export type PresentedAttachment =
+  | ({ kind: "linked" } & AttachmentPart)
+  | ({ kind: "imported" } & ImportedAttachmentPart);
 
 export function getAttachmentParts(parts?: MessagePart[]): AttachmentPart[] {
   if (!parts) {
@@ -10,6 +15,27 @@ export function getAttachmentParts(parts?: MessagePart[]): AttachmentPart[] {
   return parts.filter(
     (part): part is AttachmentPart => part.type === "attachment",
   );
+}
+
+export function getPresentedAttachments(parts?: MessagePart[]): PresentedAttachment[] {
+  if (!parts) {
+    return [];
+  }
+
+  const attachments: PresentedAttachment[] = [];
+
+  for (const part of parts) {
+    if (part.type === "attachment") {
+      attachments.push({ kind: "linked", ...part });
+      continue;
+    }
+
+    if (part.type === "imported_attachment") {
+      attachments.push({ kind: "imported", ...part });
+    }
+  }
+
+  return attachments;
 }
 
 export function buildAttachmentContextText(

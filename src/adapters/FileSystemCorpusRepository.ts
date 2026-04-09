@@ -8,6 +8,7 @@ import { Section } from "../core/entities/corpus";
 import { ResourceNotFoundError } from "../core/entities/errors";
 import { ExtractPractitioners } from "../core/use-cases/ExtractPractitioners";
 import { AnalyzeChapterChecklist } from "../core/use-cases/AnalyzeChapterChecklist";
+import { logDegradation } from "@/lib/observability/logger";
 
 export const DEFAULT_DOCS_DIR = "docs";
 const CORPUS_DIR = "_corpus";
@@ -78,9 +79,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 				if (manifest.domain.some((domain: string) => !VALID_DOMAINS.has(domain))) continue;
 				if (manifest.audience !== undefined && !isContentAudience(manifest.audience)) continue;
 				if (entry.name !== manifest.slug) {
-					console.warn(
-						`Slug mismatch: dir "${entry.name}" vs slug "${manifest.slug}" — skipping`,
-					);
+					logDegradation("CORPUS_SLUG_MISMATCH", `Slug mismatch: dir "${entry.name}" vs slug "${manifest.slug}" — skipping`, { dir: entry.name, slug: manifest.slug });
 					continue;
 				}
 				documentsWithOrder.push({

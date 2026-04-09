@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNav } from "@/components/SiteNav";
+import { MigrationToast } from "@/components/MigrationToast";
 import type { User as SessionUser } from "@/core/entities/user";
 import type { GlobalSearchAction } from "@/lib/search/global-search";
 
@@ -40,6 +41,7 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
         data-shell-route-mode="document-flow"
         data-shell-route-surface={routeSurface}
       >
+        <MigrationToast />
         <div className="flex-none">
           <SiteNav user={user} searchAction={searchAction} />
         </div>
@@ -67,6 +69,7 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
         data-shell-route-mode="document-flow"
         data-shell-route-surface={routeSurface}
       >
+        <MigrationToast />
         <div className="flex-none">
           <SiteNav user={user} searchAction={searchAction} />
         </div>
@@ -93,6 +96,7 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
       data-shell-route-mode="viewport-stage"
       data-shell-route-surface={routeSurface}
     >
+      <MigrationToast />
       <div
         className="relative flex h-(--viewport-block-size) min-h-(--viewport-block-size) flex-none flex-col"
         data-shell-viewport-stage="true"

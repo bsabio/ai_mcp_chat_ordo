@@ -9,6 +9,12 @@ const { pushMock, replaceMock } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
 }));
 
+const { writeTextMock, createObjectUrlMock, revokeObjectUrlMock } = vi.hoisted(() => ({
+  writeTextMock: vi.fn(),
+  createObjectUrlMock: vi.fn(),
+  revokeObjectUrlMock: vi.fn(),
+}));
+
 class MockEventSource {
   static instances: MockEventSource[] = [];
 
@@ -85,6 +91,20 @@ describe("JobsWorkspace", () => {
     vi.stubGlobal("fetch", vi.fn());
     vi.stubGlobal("EventSource", MockEventSource as unknown as typeof EventSource);
     MockEventSource.instances = [];
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: writeTextMock },
+    });
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectUrlMock,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectUrlMock,
+    });
+    writeTextMock.mockResolvedValue(undefined);
+    createObjectUrlMock.mockReturnValue("blob:jobs-log");
   });
 
   it("renders a truthful empty state when the account has no jobs", () => {
@@ -259,7 +279,7 @@ describe("JobsWorkspace", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Retry Retry me" }));
+    fireEvent.click(screen.getByRole("button", { name: "Replay Retry me" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Job cannot be retried in its current state");
@@ -340,12 +360,152 @@ describe("JobsWorkspace", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Retry Retry me" }));
+    fireEvent.click(screen.getByRole("button", { name: "Replay Retry me" }));
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/jobs?jobId=job_retry_2");
       expect(screen.getByTestId("job-detail-panel")).toHaveTextContent("Queued");
       expect(screen.getByTestId("job-history-timeline")).toHaveTextContent("Sequence 12");
+      expect(screen.getByRole("status")).toHaveTextContent("Replay queued as a new job.");
+    });
+  });
+
+  it("copies the selected job summary to the clipboard", async () => {
+    render(
+      <JobsWorkspace
+        jobs={[makeSnapshot()]}
+        selectedJob={makeSnapshot()}
+        selectedJobHistory={[makeHistoryEntry()]}
+        selectedJobId="job_1"
+        userName="Morgan"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy summary for Launch Plan" }));
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith(expect.stringContaining("Summary: Drafting the article."));
+      expect(screen.getByRole("status")).toHaveTextContent("Job summary copied.");
+    });
+  });
+
+  it("exports the selected job log as a JSON download", async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(
+      <JobsWorkspace
+        jobs={[makeSnapshot()]}
+        selectedJob={makeSnapshot()}
+        selectedJobHistory={[makeHistoryEntry()]}
+        selectedJobId="job_1"
+        userName="Morgan"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Export log for Launch Plan" }));
+
+    await waitFor(() => {
+      expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
+      expect(clickMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("status")).toHaveTextContent("Job log exported.");
+    });
+
+    clickMock.mockRestore();
+  });
+
+  it("explains deduped replay outcomes and switches to the active job", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          action: "retry",
+          deduped: true,
+          replay: {
+            outcome: "deduped",
+            sourceJobId: "job_retry",
+            targetJobId: "job_active",
+            dedupeKey: "publish_content:post_1",
+          },
+          job: {
+            id: "job_active",
+            conversationId: "conv_jobs",
+            userId: "usr_member",
+            toolName: "produce_blog_article",
+            status: "running",
+            priority: 100,
+            dedupeKey: null,
+            initiatorType: "user",
+            requestPayload: { brief: "Retry me" },
+            resultPayload: null,
+            errorMessage: null,
+            progressPercent: 65,
+            progressLabel: "Reviewing article",
+            attemptCount: 1,
+            leaseExpiresAt: null,
+            claimedBy: null,
+            failureClass: null,
+            nextRetryAt: null,
+            recoveryMode: "rerun",
+            lastCheckpointId: null,
+            replayedFromJobId: "job_retry",
+            supersededByJobId: null,
+            createdAt: "2026-03-30T09:10:00.000Z",
+            startedAt: "2026-03-30T09:10:01.000Z",
+            completedAt: null,
+            updatedAt: "2026-03-30T09:10:02.000Z",
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          job: makeSnapshot({
+            jobId: "job_active",
+            title: "Retry me",
+            status: "running",
+            progressPercent: 65,
+            progressLabel: "Reviewing article",
+            replayedFromJobId: "job_retry",
+          }),
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          events: [
+            makeHistoryEntry({
+              jobId: "job_active",
+              sequence: 15,
+              part: {
+                type: "job_status",
+                jobId: "job_active",
+                toolName: "produce_blog_article",
+                label: "Produce Blog Article",
+                status: "running",
+                summary: "Reviewing article",
+              },
+            }),
+          ],
+        }),
+      } as Response);
+
+    render(
+      <JobsWorkspace
+        jobs={[makeSnapshot({ jobId: "job_retry", status: "failed", title: "Retry me", progressPercent: null, progressLabel: null })]}
+        selectedJob={makeSnapshot({ jobId: "job_retry", status: "failed", title: "Retry me", progressPercent: null, progressLabel: null })}
+        selectedJobHistory={[makeHistoryEntry({ jobId: "job_retry" })]}
+        selectedJobId="job_retry"
+        userName="Morgan"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Replay Retry me" }));
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/jobs?jobId=job_active");
+      expect(screen.getByRole("status")).toHaveTextContent("Equivalent work is already running. Switched to the active job.");
+      expect(screen.getByTestId("job-detail-panel")).toHaveTextContent("Replayed from job_retry");
     });
   });
 });

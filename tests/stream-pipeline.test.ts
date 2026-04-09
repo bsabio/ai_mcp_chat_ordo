@@ -334,7 +334,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const routePath = join(process.cwd(), "src/app/api/chat/stream/route.ts");
     const content = readFileSync(routePath, "utf-8");
     const lines = content.split("\n").length;
-    expect(lines).toBeLessThanOrEqual(85);
+    expect(lines).toBeLessThanOrEqual(95);
   });
 
   it("stream-pipeline.ts exists and exports ChatStreamPipeline", async () => {

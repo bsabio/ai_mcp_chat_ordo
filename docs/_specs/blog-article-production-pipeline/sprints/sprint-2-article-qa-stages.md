@@ -222,7 +222,7 @@ Implementation requirements:
 
 Verify:
 
-- run `npm exec vitest run tests/tool-registry.integration.test.ts tests/sprint-7-blog-pipeline.test.ts`
+- run `npm exec vitest run tests/tool-registry.integration.test.ts tests/blog-pipeline-integration.test.ts`
 
 ---
 

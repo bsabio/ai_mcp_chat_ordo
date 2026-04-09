@@ -202,6 +202,128 @@ describe("eval live runtime and runner", () => {
     expect(executeRuntime.mock.calls[0]?.[0]?.systemPrompt).toContain("recommended_next_step=\"Prepare a founder-reviewed estimate-ready next step.\"");
   });
 
+  it("uses runtime inspection for live self-knowledge answers", async () => {
+    const execution = await runLiveEvalScenario("live-runtime-self-knowledge-honesty", {
+      executeRuntime: vi.fn().mockImplementation(async (request) => {
+        const toolExecutor = request.toolExecutor;
+
+        if (!toolExecutor) {
+          throw new Error("Expected a runtime inspection tool executor.");
+        }
+
+        const inspected = await toolExecutor("inspect_runtime_context", { includeTools: true }) as {
+          toolCount: number;
+          currentPathname: string | null;
+        };
+
+        return {
+          model: "claude-sonnet-4-6",
+          assistantText: `Runtime inspection shows ${inspected.toolCount} available capabilities, and the current page is ${inspected.currentPathname}.`,
+          stopReason: "end_turn",
+          toolRoundCount: 1,
+          toolCalls: [
+            { name: "inspect_runtime_context", args: { includeTools: true } },
+          ],
+          toolResults: [
+            { name: "inspect_runtime_context", result: inspected, isError: false },
+          ],
+          systemPrompt: request.systemPrompt ?? "system",
+          toolCount: request.tools?.length ?? 0,
+        };
+      }),
+    });
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "runtime-inspection-used", passed: true }),
+        expect.objectContaining({ id: "verified-tools-reported", passed: true }),
+        expect.objectContaining({ id: "page-context-reported", passed: true }),
+      ]),
+    );
+  });
+
+  it("injects authoritative page context for live current-page truthfulness", async () => {
+    const executeRuntime = vi.fn().mockImplementation(async (request) => {
+      const toolExecutor = request.toolExecutor;
+
+      if (!toolExecutor) {
+        throw new Error("Expected a current-page tool executor.");
+      }
+
+      const currentPage = await toolExecutor("get_current_page", {}) as {
+        pathname: string;
+        mainHeading: string | null;
+      };
+
+      return {
+        model: "claude-sonnet-4-6",
+        assistantText: `No. You are on ${currentPage.pathname}, and the current page is ${currentPage.mainHeading}.`,
+        stopReason: "end_turn",
+        toolRoundCount: 1,
+        toolCalls: [
+          { name: "get_current_page", args: {} },
+        ],
+        toolResults: [
+          { name: "get_current_page", result: currentPage, isError: false },
+        ],
+        systemPrompt: request.systemPrompt ?? "system",
+        toolCount: request.tools?.length ?? 0,
+      };
+    });
+
+    const execution = await runLiveEvalScenario("live-current-page-truthfulness", {
+      executeRuntime,
+    });
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "authoritative-page-read", passed: true }),
+        expect.objectContaining({ id: "stale-memory-overridden", passed: true }),
+        expect.objectContaining({ id: "page-truthful-answer", passed: true }),
+      ]),
+    );
+    expect(executeRuntime.mock.calls[0]?.[0]?.systemPrompt).toContain("[Authoritative current page snapshot]");
+  });
+
+  it("uses navigate_to_page and avoids legacy navigate in live navigation flows", async () => {
+    const execution = await runLiveEvalScenario("live-duplicate-navigation-avoidance", {
+      executeRuntime: vi.fn().mockImplementation(async (request) => {
+        const toolExecutor = request.toolExecutor;
+
+        if (!toolExecutor) {
+          throw new Error("Expected a navigation tool executor.");
+        }
+
+        const navigationResult = await toolExecutor("navigate_to_page", { path: "/profile" }) as {
+          path: string;
+        };
+
+        return {
+          model: "claude-sonnet-4-6",
+          assistantText: `Navigating to ${navigationResult.path}.`,
+          stopReason: "end_turn",
+          toolRoundCount: 1,
+          toolCalls: [
+            { name: "navigate_to_page", args: { path: "/profile" } },
+          ],
+          toolResults: [
+            { name: "navigate_to_page", result: navigationResult, isError: false },
+          ],
+          systemPrompt: request.systemPrompt ?? "system",
+          toolCount: request.tools?.length ?? 0,
+        };
+      }),
+    });
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "canonical-navigation-tool-used", passed: true }),
+        expect.objectContaining({ id: "legacy-navigation-tool-avoided", passed: true }),
+        expect.objectContaining({ id: "validated-route-returned", passed: true }),
+      ]),
+    );
+  });
+
   it("inspects a completed blog job and publishes the produced draft in the live runner", async () => {
     const execution = await runLiveEvalScenario("live-blog-job-status-and-publish-handoff", {
       executeRuntime: vi.fn().mockImplementation(async (request) => {

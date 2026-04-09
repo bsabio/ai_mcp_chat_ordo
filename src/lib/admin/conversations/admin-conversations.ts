@@ -9,6 +9,7 @@ import { getConversationDataMapper, getMessageDataMapper, getUserDataMapper } fr
 import type { Message } from "@/core/entities/conversation";
 import { getAdminConversationDetailPath } from "./admin-conversations-routes";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
+import { getConversationPurgeEligibility } from "@/lib/chat/conversation-portability";
 
 // ── View-model types ───────────────────────────────────────────────────
 
@@ -27,6 +28,11 @@ export interface AdminConversationListEntry {
   createdAt: string;
   updatedAt: string;
   detailHref: string;
+  deletedAt: string | null;
+  deletedByUserId: string | null;
+  deleteReason: string | null;
+  purgeAfter: string | null;
+  restoredAt: string | null;
 }
 
 export interface AdminConversationDetailViewModel {
@@ -39,6 +45,11 @@ export interface AdminConversationDetailViewModel {
     trustedReferrerName: string | null;
     trustedReferrerCredential: string | null;
     convertedFrom: string | null;
+    importedAt: string | null;
+    importSourceConversationId: string | null;
+    importedFromExportedAt: string | null;
+    purgeEligible: boolean;
+    purgeBlockedReason: string | null;
   };
   messages: Array<{
     id: string;
@@ -99,7 +110,7 @@ export async function loadAdminConversations(
     userId: r.userId,
     userName: userNames.get(r.userId) ?? r.userId,
     title: r.title,
-    status: r.status,
+    status: r.deletedAt ? "deleted" : r.status,
     lane: r.routingSnapshot.lane,
     laneConfidence: r.routingSnapshot.confidence,
     messageCount: r.messageCount,
@@ -109,6 +120,11 @@ export async function loadAdminConversations(
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     detailHref: getAdminConversationDetailPath(r.id),
+    deletedAt: r.deletedAt ?? null,
+    deletedByUserId: r.deletedByUserId ?? null,
+    deleteReason: r.deleteReason ?? null,
+    purgeAfter: r.purgeAfter ?? null,
+    restoredAt: r.restoredAt ?? null,
   }));
 
   return { entries, total, statusCounts, laneCounts, filters };
@@ -129,6 +145,7 @@ export async function loadAdminConversationDetail(
   const user = await userMapper.findById(conv.userId);
   const userName = user?.name ?? user?.email ?? conv.userId;
   const trustedReferral = await getReferralLedgerService().getTrustedReferrerContext(id);
+  const { eligible: purgeEligible, blockedReason: purgeBlockedReason } = getConversationPurgeEligibility(conv);
 
   const messages = await msgMapper.listByConversation(id);
   const totalTokens = messages.reduce((sum: number, m: Message) => sum + m.tokenEstimate, 0);
@@ -156,6 +173,16 @@ export async function loadAdminConversationDetail(
     trustedReferrerName: trustedReferral?.referrerName ?? null,
     trustedReferrerCredential: trustedReferral?.referrerCredential ?? null,
     convertedFrom: conv.convertedFrom,
+    deletedAt: conv.deletedAt ?? null,
+    deletedByUserId: conv.deletedByUserId ?? null,
+    deleteReason: conv.deleteReason ?? null,
+    purgeAfter: conv.purgeAfter ?? null,
+    restoredAt: conv.restoredAt ?? null,
+    importedAt: conv.importedAt ?? null,
+    importSourceConversationId: conv.importSourceConversationId ?? null,
+    importedFromExportedAt: conv.importedFromExportedAt ?? null,
+    purgeEligible,
+    purgeBlockedReason,
   };
 
   return {

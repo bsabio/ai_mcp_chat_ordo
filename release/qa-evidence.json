@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generatedAt": "2026-03-25T18:39:07.231Z",
-  "status": "approved",
+  "generatedAt": "2026-04-08T23:18:24.474Z",
+  "status": "conditional",
   "manifest": {
     "present": true,
     "manifest": {
@@ -15,7 +15,7 @@
   },
   "health": {
     "status": "ok",
-    "generatedAt": "2026-03-25T18:39:07.230Z",
+    "generatedAt": "2026-04-08T23:18:24.473Z",
     "liveness": {
       "status": "ok",
       "checks": {
@@ -29,6 +29,1096 @@
         "config": "ok",
         "model": "ok"
       }
+    }
+  },
+  "referralDiagnostics": {
+    "status": "ok",
+    "publicOrigin": "http://localhost:3000",
+    "originSource": "development-localhost",
+    "localhostFallback": true,
+    "knownReferrerPromptVerified": true,
+    "missingReferrerPromptVerified": true,
+    "warnings": []
+  },
+  "runtimeIntegrity": {
+    "present": true,
+    "artifactPath": "release/runtime-integrity-evidence.json",
+    "evidence": {
+      "version": 1,
+      "generatedAt": "2026-04-08T15:02:24.750Z",
+      "bundleId": "agent-runtime-truthfulness-and-retrieval-integrity",
+      "status": "passed",
+      "inventory": {
+        "generatedAt": "2026-04-08T15:02:24.750Z",
+        "corpus": {
+          "name": "Second Renaissance Knowledge System",
+          "documentCount": 10,
+          "sectionCount": 87,
+          "routeBase": "/library"
+        },
+        "tools": {
+          "countsByRole": {
+            "ANONYMOUS": 10,
+            "AUTHENTICATED": 25,
+            "APPRENTICE": 25,
+            "STAFF": 25,
+            "ADMIN": 54
+          },
+          "manifestsByRole": {
+            "ANONYMOUS": [
+              {
+                "name": "adjust_ui",
+                "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Use when users say things like 'make text bigger', 'I'm old', 'too bright', 'I'm color blind', 'compact mode', or 'hard to read'. You can apply a named preset OR set individual properties. Presets: 'elderly' (large text, relaxed spacing), 'compact' (dense info), 'high-contrast' (dark + large), 'color-blind-deuteranopia', 'color-blind-protanopia', 'color-blind-tritanopia', 'default' (reset all).",
+                "category": "ui"
+              },
+              {
+                "name": "calculator",
+                "description": "Performs arithmetic. Mandatory for every math calculation.",
+                "category": "math"
+              },
+              {
+                "name": "get_corpus_summary",
+                "description": "Get an overview of all 10 books and their chapters.",
+                "category": "content"
+              },
+              {
+                "name": "get_current_page",
+                "description": "Return authoritative information about the page the user is currently viewing, including visible page content when available.",
+                "category": "ui"
+              },
+              {
+                "name": "inspect_runtime_context",
+                "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+                "category": "system"
+              },
+              {
+                "name": "inspect_theme",
+                "description": "Inspect the supported theme profiles and bounded UI control axes. This is read-only and does not mutate theme or accessibility state.",
+                "category": "ui"
+              },
+              {
+                "name": "list_available_pages",
+                "description": "List all pages the current user can access based on their role.",
+                "category": "ui"
+              },
+              {
+                "name": "navigate_to_page",
+                "description": "Navigate the user to a validated page. Dispatches the destination to the client UI and returns route metadata.",
+                "category": "ui"
+              },
+              {
+                "name": "search_corpus",
+                "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+                "category": "content"
+              },
+              {
+                "name": "set_theme",
+                "description": "Change site aesthetic era.",
+                "category": "ui"
+              }
+            ],
+            "AUTHENTICATED": [
+              {
+                "name": "adjust_ui",
+                "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Use when users say things like 'make text bigger', 'I'm old', 'too bright', 'I'm color blind', 'compact mode', or 'hard to read'. You can apply a named preset OR set individual properties. Presets: 'elderly' (large text, relaxed spacing), 'compact' (dense info), 'high-contrast' (dark + large), 'color-blind-deuteranopia', 'color-blind-protanopia', 'color-blind-tritanopia', 'default' (reset all).",
+                "category": "ui"
+              },
+              {
+                "name": "calculator",
+                "description": "Performs arithmetic. Mandatory for every math calculation.",
+                "category": "math"
+              },
+              {
+                "name": "generate_audio",
+                "description": "Generate in-chat audio player.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_chart",
+                "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps. Use raw Mermaid code only for advanced layouts. Do not send prose or summaries in the code field.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_graph",
+                "description": "Generate a quantitative graph or data table for time-series questions, comparisons across segments or categories, distributions, outlier analysis, and explicit requests for a graph, trend, plot, values over time, or custom visualization. Prefer the structured spec with graphType plus x/y/color/size encodings and validated transforms. Use data.source only for approved server-owned datasets such as analytics_funnel, lead_queue, routing_review, conversation_activity, affiliate_my_* referral datasets, and the admin_affiliate_* referral datasets.",
+                "category": "ui"
+              },
+              {
+                "name": "get_checklist",
+                "description": "Get chapter checklists.",
+                "category": "content"
+              },
+              {
+                "name": "get_corpus_summary",
+                "description": "Get an overview of all 10 books and their chapters.",
+                "category": "content"
+              },
+              {
+                "name": "get_current_page",
+                "description": "Return authoritative information about the page the user is currently viewing, including visible page content when available.",
+                "category": "ui"
+              },
+              {
+                "name": "get_my_affiliate_summary",
+                "description": "Return the current signed-in affiliate account's referral summary metrics, credit status, and concise guidance. Use when the user asks how their referral link is performing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_job_status",
+                "description": "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_profile",
+                "description": "Get the current user's profile details, including name, email, credential, and referral settings. Use when the user asks to see their account info or referral details.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_referral_qr",
+                "description": "Get the current user's referral code, referral landing URL, and QR code image URL when affiliate access is enabled.",
+                "category": "system"
+              },
+              {
+                "name": "get_section",
+                "description": "Retrieve full content of a specific section.",
+                "category": "content"
+              },
+              {
+                "name": "inspect_runtime_context",
+                "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+                "category": "system"
+              },
+              {
+                "name": "inspect_theme",
+                "description": "Inspect the supported theme profiles and bounded UI control axes. This is read-only and does not mutate theme or accessibility state.",
+                "category": "ui"
+              },
+              {
+                "name": "list_available_pages",
+                "description": "List all pages the current user can access based on their role.",
+                "category": "ui"
+              },
+              {
+                "name": "list_my_jobs",
+                "description": "List jobs for the signed-in user's account. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.",
+                "category": "system"
+              },
+              {
+                "name": "list_my_referral_activity",
+                "description": "Return recent referral milestones for the current signed-in affiliate account, including introductions, registrations, qualified opportunities, and credit-state changes.",
+                "category": "system"
+              },
+              {
+                "name": "list_practitioners",
+                "description": "List key practitioners referenced in the series.",
+                "category": "content"
+              },
+              {
+                "name": "navigate_to_page",
+                "description": "Navigate the user to a validated page. Dispatches the destination to the client UI and returns route metadata.",
+                "category": "ui"
+              },
+              {
+                "name": "search_corpus",
+                "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+                "category": "content"
+              },
+              {
+                "name": "search_my_conversations",
+                "description": "Search your own conversation history to recall past discussions.",
+                "category": "content"
+              },
+              {
+                "name": "set_preference",
+                "description": "Set a user preference that persists across sessions and devices. Use for non-UI preferences like tone, response style, business context, or preferred name. When a user says 'remember that I prefer concise answers' or 'call me Keith', use this tool.",
+                "category": "system"
+              },
+              {
+                "name": "set_theme",
+                "description": "Change site aesthetic era.",
+                "category": "ui"
+              },
+              {
+                "name": "update_my_profile",
+                "description": "Update the current user's profile fields. Use for name, email, or credential changes requested by the user. This writes to the same profile backend used by the profile page.",
+                "category": "system"
+              }
+            ],
+            "APPRENTICE": [
+              {
+                "name": "adjust_ui",
+                "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Use when users say things like 'make text bigger', 'I'm old', 'too bright', 'I'm color blind', 'compact mode', or 'hard to read'. You can apply a named preset OR set individual properties. Presets: 'elderly' (large text, relaxed spacing), 'compact' (dense info), 'high-contrast' (dark + large), 'color-blind-deuteranopia', 'color-blind-protanopia', 'color-blind-tritanopia', 'default' (reset all).",
+                "category": "ui"
+              },
+              {
+                "name": "calculator",
+                "description": "Performs arithmetic. Mandatory for every math calculation.",
+                "category": "math"
+              },
+              {
+                "name": "generate_audio",
+                "description": "Generate in-chat audio player.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_chart",
+                "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps. Use raw Mermaid code only for advanced layouts. Do not send prose or summaries in the code field.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_graph",
+                "description": "Generate a quantitative graph or data table for time-series questions, comparisons across segments or categories, distributions, outlier analysis, and explicit requests for a graph, trend, plot, values over time, or custom visualization. Prefer the structured spec with graphType plus x/y/color/size encodings and validated transforms. Use data.source only for approved server-owned datasets such as analytics_funnel, lead_queue, routing_review, conversation_activity, affiliate_my_* referral datasets, and the admin_affiliate_* referral datasets.",
+                "category": "ui"
+              },
+              {
+                "name": "get_checklist",
+                "description": "Get chapter checklists.",
+                "category": "content"
+              },
+              {
+                "name": "get_corpus_summary",
+                "description": "Get an overview of all 10 books and their chapters.",
+                "category": "content"
+              },
+              {
+                "name": "get_current_page",
+                "description": "Return authoritative information about the page the user is currently viewing, including visible page content when available.",
+                "category": "ui"
+              },
+              {
+                "name": "get_my_affiliate_summary",
+                "description": "Return the current signed-in affiliate account's referral summary metrics, credit status, and concise guidance. Use when the user asks how their referral link is performing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_job_status",
+                "description": "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_profile",
+                "description": "Get the current user's profile details, including name, email, credential, and referral settings. Use when the user asks to see their account info or referral details.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_referral_qr",
+                "description": "Get the current user's referral code, referral landing URL, and QR code image URL when affiliate access is enabled.",
+                "category": "system"
+              },
+              {
+                "name": "get_section",
+                "description": "Retrieve full content of a specific section.",
+                "category": "content"
+              },
+              {
+                "name": "inspect_runtime_context",
+                "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+                "category": "system"
+              },
+              {
+                "name": "inspect_theme",
+                "description": "Inspect the supported theme profiles and bounded UI control axes. This is read-only and does not mutate theme or accessibility state.",
+                "category": "ui"
+              },
+              {
+                "name": "list_available_pages",
+                "description": "List all pages the current user can access based on their role.",
+                "category": "ui"
+              },
+              {
+                "name": "list_my_jobs",
+                "description": "List jobs for the signed-in user's account. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.",
+                "category": "system"
+              },
+              {
+                "name": "list_my_referral_activity",
+                "description": "Return recent referral milestones for the current signed-in affiliate account, including introductions, registrations, qualified opportunities, and credit-state changes.",
+                "category": "system"
+              },
+              {
+                "name": "list_practitioners",
+                "description": "List key practitioners referenced in the series.",
+                "category": "content"
+              },
+              {
+                "name": "navigate_to_page",
+                "description": "Navigate the user to a validated page. Dispatches the destination to the client UI and returns route metadata.",
+                "category": "ui"
+              },
+              {
+                "name": "search_corpus",
+                "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+                "category": "content"
+              },
+              {
+                "name": "search_my_conversations",
+                "description": "Search your own conversation history to recall past discussions.",
+                "category": "content"
+              },
+              {
+                "name": "set_preference",
+                "description": "Set a user preference that persists across sessions and devices. Use for non-UI preferences like tone, response style, business context, or preferred name. When a user says 'remember that I prefer concise answers' or 'call me Keith', use this tool.",
+                "category": "system"
+              },
+              {
+                "name": "set_theme",
+                "description": "Change site aesthetic era.",
+                "category": "ui"
+              },
+              {
+                "name": "update_my_profile",
+                "description": "Update the current user's profile fields. Use for name, email, or credential changes requested by the user. This writes to the same profile backend used by the profile page.",
+                "category": "system"
+              }
+            ],
+            "STAFF": [
+              {
+                "name": "adjust_ui",
+                "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Use when users say things like 'make text bigger', 'I'm old', 'too bright', 'I'm color blind', 'compact mode', or 'hard to read'. You can apply a named preset OR set individual properties. Presets: 'elderly' (large text, relaxed spacing), 'compact' (dense info), 'high-contrast' (dark + large), 'color-blind-deuteranopia', 'color-blind-protanopia', 'color-blind-tritanopia', 'default' (reset all).",
+                "category": "ui"
+              },
+              {
+                "name": "calculator",
+                "description": "Performs arithmetic. Mandatory for every math calculation.",
+                "category": "math"
+              },
+              {
+                "name": "generate_audio",
+                "description": "Generate in-chat audio player.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_chart",
+                "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps. Use raw Mermaid code only for advanced layouts. Do not send prose or summaries in the code field.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_graph",
+                "description": "Generate a quantitative graph or data table for time-series questions, comparisons across segments or categories, distributions, outlier analysis, and explicit requests for a graph, trend, plot, values over time, or custom visualization. Prefer the structured spec with graphType plus x/y/color/size encodings and validated transforms. Use data.source only for approved server-owned datasets such as analytics_funnel, lead_queue, routing_review, conversation_activity, affiliate_my_* referral datasets, and the admin_affiliate_* referral datasets.",
+                "category": "ui"
+              },
+              {
+                "name": "get_checklist",
+                "description": "Get chapter checklists.",
+                "category": "content"
+              },
+              {
+                "name": "get_corpus_summary",
+                "description": "Get an overview of all 10 books and their chapters.",
+                "category": "content"
+              },
+              {
+                "name": "get_current_page",
+                "description": "Return authoritative information about the page the user is currently viewing, including visible page content when available.",
+                "category": "ui"
+              },
+              {
+                "name": "get_my_affiliate_summary",
+                "description": "Return the current signed-in affiliate account's referral summary metrics, credit status, and concise guidance. Use when the user asks how their referral link is performing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_job_status",
+                "description": "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_profile",
+                "description": "Get the current user's profile details, including name, email, credential, and referral settings. Use when the user asks to see their account info or referral details.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_referral_qr",
+                "description": "Get the current user's referral code, referral landing URL, and QR code image URL when affiliate access is enabled.",
+                "category": "system"
+              },
+              {
+                "name": "get_section",
+                "description": "Retrieve full content of a specific section.",
+                "category": "content"
+              },
+              {
+                "name": "inspect_runtime_context",
+                "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+                "category": "system"
+              },
+              {
+                "name": "inspect_theme",
+                "description": "Inspect the supported theme profiles and bounded UI control axes. This is read-only and does not mutate theme or accessibility state.",
+                "category": "ui"
+              },
+              {
+                "name": "list_available_pages",
+                "description": "List all pages the current user can access based on their role.",
+                "category": "ui"
+              },
+              {
+                "name": "list_my_jobs",
+                "description": "List jobs for the signed-in user's account. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.",
+                "category": "system"
+              },
+              {
+                "name": "list_my_referral_activity",
+                "description": "Return recent referral milestones for the current signed-in affiliate account, including introductions, registrations, qualified opportunities, and credit-state changes.",
+                "category": "system"
+              },
+              {
+                "name": "list_practitioners",
+                "description": "List key practitioners referenced in the series.",
+                "category": "content"
+              },
+              {
+                "name": "navigate_to_page",
+                "description": "Navigate the user to a validated page. Dispatches the destination to the client UI and returns route metadata.",
+                "category": "ui"
+              },
+              {
+                "name": "search_corpus",
+                "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+                "category": "content"
+              },
+              {
+                "name": "search_my_conversations",
+                "description": "Search your own conversation history to recall past discussions.",
+                "category": "content"
+              },
+              {
+                "name": "set_preference",
+                "description": "Set a user preference that persists across sessions and devices. Use for non-UI preferences like tone, response style, business context, or preferred name. When a user says 'remember that I prefer concise answers' or 'call me Keith', use this tool.",
+                "category": "system"
+              },
+              {
+                "name": "set_theme",
+                "description": "Change site aesthetic era.",
+                "category": "ui"
+              },
+              {
+                "name": "update_my_profile",
+                "description": "Update the current user's profile fields. Use for name, email, or credential changes requested by the user. This writes to the same profile backend used by the profile page.",
+                "category": "system"
+              }
+            ],
+            "ADMIN": [
+              {
+                "name": "adjust_ui",
+                "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Use when users say things like 'make text bigger', 'I'm old', 'too bright', 'I'm color blind', 'compact mode', or 'hard to read'. You can apply a named preset OR set individual properties. Presets: 'elderly' (large text, relaxed spacing), 'compact' (dense info), 'high-contrast' (dark + large), 'color-blind-deuteranopia', 'color-blind-protanopia', 'color-blind-tritanopia', 'default' (reset all).",
+                "category": "ui"
+              },
+              {
+                "name": "admin_prioritize_leads",
+                "description": "Rank submitted leads that need founder attention and return the next revenue action. Admin only.",
+                "category": "system"
+              },
+              {
+                "name": "admin_prioritize_offer",
+                "description": "Choose the single offer or message that should be pushed first based on current funnel, anonymous-demand, and lead-queue signals. Admin only.",
+                "category": "system"
+              },
+              {
+                "name": "admin_search",
+                "description": "Search across all admin entities (users, leads, consultations, deals, training, conversations, jobs, prompts, journal posts). Returns matching results with links to detail pages. Admin only.",
+                "category": "system"
+              },
+              {
+                "name": "admin_triage_routing_risk",
+                "description": "Identify the conversations most likely to hurt customer outcome because of routing uncertainty or overdue follow-up. Admin only.",
+                "category": "system"
+              },
+              {
+                "name": "admin_web_search",
+                "description": "Search the live web using OpenAI and return a sourced answer with citations. Use allowed_domains to target specific sites (e.g. en.wikipedia.org for Wikipedia searches). Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "approve_journal_post",
+                "description": "Approve a journal post for publication, or return a published post to approved status through the workflow policy boundary.",
+                "category": "content"
+              },
+              {
+                "name": "calculator",
+                "description": "Performs arithmetic. Mandatory for every math calculation.",
+                "category": "math"
+              },
+              {
+                "name": "compose_blog_article",
+                "description": "Compose a structured markdown blog article from a brief, audience, and objective. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "draft_content",
+                "description": "Draft a journal article as structured markdown. Use markdown headings, lists, links, quotes, tables, or fenced code blocks as appropriate. Do not repeat the title inside the content body. The article is saved as a draft that must be explicitly published by an admin.",
+                "category": "content"
+              },
+              {
+                "name": "generate_audio",
+                "description": "Generate in-chat audio player.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_blog_image",
+                "description": "Generate a blog hero image, persist it as a blog asset, and optionally attach it to a post as the canonical hero image. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "generate_blog_image_prompt",
+                "description": "Design a blog hero-image prompt, alt text, size, and quality from a final article. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "generate_chart",
+                "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps. Use raw Mermaid code only for advanced layouts. Do not send prose or summaries in the code field.",
+                "category": "ui"
+              },
+              {
+                "name": "generate_graph",
+                "description": "Generate a quantitative graph or data table for time-series questions, comparisons across segments or categories, distributions, outlier analysis, and explicit requests for a graph, trend, plot, values over time, or custom visualization. Prefer the structured spec with graphType plus x/y/color/size encodings and validated transforms. Use data.source only for approved server-owned datasets such as analytics_funnel, lead_queue, routing_review, conversation_activity, affiliate_my_* referral datasets, and the admin_affiliate_* referral datasets.",
+                "category": "ui"
+              },
+              {
+                "name": "get_admin_affiliate_summary",
+                "description": "Return the global affiliate program totals, leaderboard highlights, exception pressure, and funnel health. Use when an admin asks which affiliates are driving results or how much review backlog exists.",
+                "category": "system"
+              },
+              {
+                "name": "get_checklist",
+                "description": "Get chapter checklists.",
+                "category": "content"
+              },
+              {
+                "name": "get_corpus_summary",
+                "description": "Get an overview of all 10 books and their chapters.",
+                "category": "content"
+              },
+              {
+                "name": "get_current_page",
+                "description": "Return authoritative information about the page the user is currently viewing, including visible page content when available.",
+                "category": "ui"
+              },
+              {
+                "name": "get_deferred_job_status",
+                "description": "Look up the current status of a deferred job by job ID. Summarize the result in plain language after reading it. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "get_journal_post",
+                "description": "Load one journal post with editorial metadata, workflow status, and admin support routes. Accepts either the post ID or the article slug.",
+                "category": "content"
+              },
+              {
+                "name": "get_journal_workflow_summary",
+                "description": "Summarize blocked drafts, in-review items, publish-ready articles, and active journal jobs for the current admin.",
+                "category": "content"
+              },
+              {
+                "name": "get_my_affiliate_summary",
+                "description": "Return the current signed-in affiliate account's referral summary metrics, credit status, and concise guidance. Use when the user asks how their referral link is performing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_job_status",
+                "description": "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_profile",
+                "description": "Get the current user's profile details, including name, email, credential, and referral settings. Use when the user asks to see their account info or referral details.",
+                "category": "system"
+              },
+              {
+                "name": "get_my_referral_qr",
+                "description": "Get the current user's referral code, referral landing URL, and QR code image URL when affiliate access is enabled.",
+                "category": "system"
+              },
+              {
+                "name": "get_section",
+                "description": "Retrieve full content of a specific section.",
+                "category": "content"
+              },
+              {
+                "name": "inspect_runtime_context",
+                "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+                "category": "system"
+              },
+              {
+                "name": "inspect_theme",
+                "description": "Inspect the supported theme profiles and bounded UI control axes. This is read-only and does not mutate theme or accessibility state.",
+                "category": "ui"
+              },
+              {
+                "name": "list_admin_referral_exceptions",
+                "description": "Return unresolved referral attribution records and credit-review backlog items for admins only. Use when the user asks what needs manual review or which referral records are still broken.",
+                "category": "system"
+              },
+              {
+                "name": "list_available_pages",
+                "description": "List all pages the current user can access based on their role.",
+                "category": "ui"
+              },
+              {
+                "name": "list_deferred_jobs",
+                "description": "List deferred jobs for the current conversation. Return active jobs by default; include terminal jobs only when the admin explicitly asks for a list or all jobs. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "list_journal_posts",
+                "description": "List journal posts for the admin workspace, with support for search, workflow status, and section filters.",
+                "category": "content"
+              },
+              {
+                "name": "list_journal_revisions",
+                "description": "List saved editorial revisions for a journal post.",
+                "category": "content"
+              },
+              {
+                "name": "list_my_jobs",
+                "description": "List jobs for the signed-in user's account. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.",
+                "category": "system"
+              },
+              {
+                "name": "list_my_referral_activity",
+                "description": "Return recent referral milestones for the current signed-in affiliate account, including introductions, registrations, qualified opportunities, and credit-state changes.",
+                "category": "system"
+              },
+              {
+                "name": "list_practitioners",
+                "description": "List key practitioners referenced in the series.",
+                "category": "content"
+              },
+              {
+                "name": "navigate_to_page",
+                "description": "Navigate the user to a validated page. Dispatches the destination to the client UI and returns route metadata.",
+                "category": "ui"
+              },
+              {
+                "name": "prepare_journal_post_for_publish",
+                "description": "Check whether a journal post is ready to publish, optionally run editorial QA, and summarize blockers or readiness.",
+                "category": "content"
+              },
+              {
+                "name": "produce_blog_article",
+                "description": "Compose, QA, resolve, design the hero image prompt, generate the hero image, and persist a linked blog draft with artifacts. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "publish_content",
+                "description": "Publish a draft journal article, making it publicly visible in the journal. Accepts either the post ID or the article slug.",
+                "category": "content"
+              },
+              {
+                "name": "publish_journal_post",
+                "description": "Publish an approved journal post, preserving revision history and aligning the selected hero image visibility. Accepts either the post ID or the article slug.",
+                "category": "content"
+              },
+              {
+                "name": "qa_blog_article",
+                "description": "Run editorial QA against a structured markdown blog article and return normalized findings. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "resolve_blog_article_qa",
+                "description": "Revise a structured markdown blog article to resolve a normalized QA report. Admin only.",
+                "category": "content"
+              },
+              {
+                "name": "restore_journal_revision",
+                "description": "Restore a prior journal revision through the canonical revision-safe editorial mutation boundary.",
+                "category": "content"
+              },
+              {
+                "name": "search_corpus",
+                "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+                "category": "content"
+              },
+              {
+                "name": "search_my_conversations",
+                "description": "Search your own conversation history to recall past discussions.",
+                "category": "content"
+              },
+              {
+                "name": "select_journal_hero_image",
+                "description": "Select the canonical hero image for a journal post by delegating to the existing hero-image service.",
+                "category": "content"
+              },
+              {
+                "name": "set_preference",
+                "description": "Set a user preference that persists across sessions and devices. Use for non-UI preferences like tone, response style, business context, or preferred name. When a user says 'remember that I prefer concise answers' or 'call me Keith', use this tool.",
+                "category": "system"
+              },
+              {
+                "name": "set_theme",
+                "description": "Change site aesthetic era.",
+                "category": "ui"
+              },
+              {
+                "name": "submit_journal_review",
+                "description": "Move a journal post into editorial review.",
+                "category": "content"
+              },
+              {
+                "name": "update_journal_draft",
+                "description": "Update the draft body for a journal post through the canonical editorial mutation boundary.",
+                "category": "content"
+              },
+              {
+                "name": "update_journal_metadata",
+                "description": "Update journal title, slug, description, standfirst, or section through the canonical editorial mutation boundary.",
+                "category": "content"
+              },
+              {
+                "name": "update_my_profile",
+                "description": "Update the current user's profile fields. Use for name, email, or credential changes requested by the user. This writes to the same profile backend used by the profile page.",
+                "category": "system"
+              }
+            ]
+          }
+        },
+        "navigation": {
+          "countsByRole": {
+            "ANONYMOUS": 7,
+            "AUTHENTICATED": 9,
+            "APPRENTICE": 9,
+            "STAFF": 10,
+            "ADMIN": 18
+          },
+          "routesByRole": {
+            "ANONYMOUS": [
+              {
+                "label": "Home",
+                "href": "/",
+                "description": "Return to the main homepage and chat entry point."
+              },
+              {
+                "label": "Legacy Book Chapter Redirect",
+                "href": "/book/[chapter]",
+                "description": null
+              },
+              {
+                "label": "Legacy Books Index",
+                "href": "/books",
+                "description": null
+              },
+              {
+                "label": "Journal",
+                "href": "/journal",
+                "description": "Read published journal content."
+              },
+              {
+                "label": "Library",
+                "href": "/library",
+                "description": "Browse the library and structured reference material."
+              },
+              {
+                "label": "Login",
+                "href": "/login",
+                "description": null
+              },
+              {
+                "label": "Register",
+                "href": "/register",
+                "description": null
+              }
+            ],
+            "AUTHENTICATED": [
+              {
+                "label": "Home",
+                "href": "/",
+                "description": "Return to the main homepage and chat entry point."
+              },
+              {
+                "label": "Legacy Book Chapter Redirect",
+                "href": "/book/[chapter]",
+                "description": null
+              },
+              {
+                "label": "Legacy Books Index",
+                "href": "/books",
+                "description": null
+              },
+              {
+                "label": "Jobs",
+                "href": "/jobs",
+                "description": "Review current and recent deferred jobs."
+              },
+              {
+                "label": "Journal",
+                "href": "/journal",
+                "description": "Read published journal content."
+              },
+              {
+                "label": "Library",
+                "href": "/library",
+                "description": "Browse the library and structured reference material."
+              },
+              {
+                "label": "Login",
+                "href": "/login",
+                "description": null
+              },
+              {
+                "label": "Profile",
+                "href": "/profile",
+                "description": "View profile, referral, and personal settings."
+              },
+              {
+                "label": "Register",
+                "href": "/register",
+                "description": null
+              }
+            ],
+            "APPRENTICE": [
+              {
+                "label": "Home",
+                "href": "/",
+                "description": "Return to the main homepage and chat entry point."
+              },
+              {
+                "label": "Legacy Book Chapter Redirect",
+                "href": "/book/[chapter]",
+                "description": null
+              },
+              {
+                "label": "Legacy Books Index",
+                "href": "/books",
+                "description": null
+              },
+              {
+                "label": "Jobs",
+                "href": "/jobs",
+                "description": "Review current and recent deferred jobs."
+              },
+              {
+                "label": "Journal",
+                "href": "/journal",
+                "description": "Read published journal content."
+              },
+              {
+                "label": "Library",
+                "href": "/library",
+                "description": "Browse the library and structured reference material."
+              },
+              {
+                "label": "Login",
+                "href": "/login",
+                "description": null
+              },
+              {
+                "label": "Profile",
+                "href": "/profile",
+                "description": "View profile, referral, and personal settings."
+              },
+              {
+                "label": "Register",
+                "href": "/register",
+                "description": null
+              }
+            ],
+            "STAFF": [
+              {
+                "label": "Home",
+                "href": "/",
+                "description": "Return to the main homepage and chat entry point."
+              },
+              {
+                "label": "Journal",
+                "href": "/admin/journal",
+                "description": "Manage journal inventory, workflow, and preview states."
+              },
+              {
+                "label": "Legacy Book Chapter Redirect",
+                "href": "/book/[chapter]",
+                "description": null
+              },
+              {
+                "label": "Legacy Books Index",
+                "href": "/books",
+                "description": null
+              },
+              {
+                "label": "Jobs",
+                "href": "/jobs",
+                "description": "Review current and recent deferred jobs."
+              },
+              {
+                "label": "Journal",
+                "href": "/journal",
+                "description": "Read published journal content."
+              },
+              {
+                "label": "Library",
+                "href": "/library",
+                "description": "Browse the library and structured reference material."
+              },
+              {
+                "label": "Login",
+                "href": "/login",
+                "description": null
+              },
+              {
+                "label": "Profile",
+                "href": "/profile",
+                "description": "View profile, referral, and personal settings."
+              },
+              {
+                "label": "Register",
+                "href": "/register",
+                "description": null
+              }
+            ],
+            "ADMIN": [
+              {
+                "label": "Home",
+                "href": "/",
+                "description": "Return to the main homepage and chat entry point."
+              },
+              {
+                "label": "Admin",
+                "href": "/admin",
+                "description": "Open the admin dashboard overview."
+              },
+              {
+                "label": "Affiliates",
+                "href": "/admin/affiliates",
+                "description": "Review affiliate performance, exception backlog, and credit-ready referrals."
+              },
+              {
+                "label": "Conversations",
+                "href": "/admin/conversations",
+                "description": "Browse and inspect conversation transcripts."
+              },
+              {
+                "label": "Jobs",
+                "href": "/admin/jobs",
+                "description": "Monitor deferred jobs, queue health, and execution logs."
+              },
+              {
+                "label": "Journal",
+                "href": "/admin/journal",
+                "description": "Manage journal inventory, workflow, and preview states."
+              },
+              {
+                "label": "Leads",
+                "href": "/admin/leads",
+                "description": "Review operator lead queue and next actions."
+              },
+              {
+                "label": "Prompts",
+                "href": "/admin/prompts",
+                "description": "Configure system prompts and prompt templates."
+              },
+              {
+                "label": "System",
+                "href": "/admin/system",
+                "description": "Inspect feature flags, model policy, and runtime status."
+              },
+              {
+                "label": "Users",
+                "href": "/admin/users",
+                "description": "Review people, roles, and account context."
+              },
+              {
+                "label": "Legacy Book Chapter Redirect",
+                "href": "/book/[chapter]",
+                "description": null
+              },
+              {
+                "label": "Legacy Books Index",
+                "href": "/books",
+                "description": null
+              },
+              {
+                "label": "Jobs",
+                "href": "/jobs",
+                "description": "Review current and recent deferred jobs."
+              },
+              {
+                "label": "Journal",
+                "href": "/journal",
+                "description": "Read published journal content."
+              },
+              {
+                "label": "Library",
+                "href": "/library",
+                "description": "Browse the library and structured reference material."
+              },
+              {
+                "label": "Login",
+                "href": "/login",
+                "description": null
+              },
+              {
+                "label": "Profile",
+                "href": "/profile",
+                "description": "View profile, referral, and personal settings."
+              },
+              {
+                "label": "Register",
+                "href": "/register",
+                "description": null
+              }
+            ]
+          }
+        }
+      },
+      "coverage": {
+        "deterministicScenarioIds": [
+          "integrity-canonical-corpus-reference-deterministic",
+          "integrity-audio-recovery-deterministic",
+          "integrity-malformed-ui-tags-deterministic"
+        ],
+        "liveScenarioIds": [
+          "live-runtime-self-knowledge-honesty",
+          "live-current-page-truthfulness",
+          "live-duplicate-navigation-avoidance"
+        ],
+        "focusedTestSuites": [
+          "tests/evals/runtime-integrity-checks.test.ts",
+          "tests/evals/eval-scenarios.test.ts",
+          "tests/evals/eval-runner.test.ts",
+          "tests/evals/eval-live-runner.test.ts",
+          "tests/evals/eval-release-evidence.test.ts",
+          "tests/evals/runtime-integrity-evidence.test.ts",
+          "src/lib/corpus-vocabulary.test.ts",
+          "src/lib/readme-drift.test.ts",
+          "src/core/use-cases/tools/search-corpus.tool.test.ts",
+          "src/core/tool-registry/ToolResultFormatter.test.ts",
+          "src/core/use-cases/tools/inspect-runtime-context.tool.test.ts",
+          "src/lib/chat/tool-composition-root.test.ts",
+          "src/lib/chat/current-page-context.test.ts",
+          "src/adapters/ChatPresenter.test.ts",
+          "src/frameworks/ui/RichContentRenderer.test.tsx",
+          "src/components/AudioPlayer.test.tsx"
+        ],
+        "issueBuckets": [
+          "prompt_runtime_truth_drift",
+          "retrieval_citation_link_correctness",
+          "output_render_contract_failure"
+        ],
+        "notes": [
+          "Current-page truthfulness is exercised through live-runner fixtures with authoritative page snapshots.",
+          "Duplicate navigation avoidance is gated by role-manifest tests and live runner coverage that rejects legacy navigate usage.",
+          "Manual QA intake must map back to either a deterministic integrity scenario, a live runner scenario, or a focused regression suite before closeout."
+        ]
+      },
+      "intake": {
+        "issueTemplatePath": ".github/ISSUE_TEMPLATE/agent-runtime-integrity.yml",
+        "mappingDocumentPath": "docs/_refactor/agent-runtime-truthfulness-and-retrieval-integrity/spec.md"
+      },
+      "review": {
+        "blockingReasons": [],
+        "warnings": []
+      },
+      "steps": [
+        {
+          "label": "integrity eval suites",
+          "command": "npm exec vitest run tests/evals/runtime-integrity-checks.test.ts tests/evals/eval-scenarios.test.ts tests/evals/eval-runner.test.ts tests/evals/eval-live-runner.test.ts tests/evals/eval-release-evidence.test.ts tests/evals/runtime-integrity-evidence.test.ts src/lib/corpus-vocabulary.test.ts src/lib/readme-drift.test.ts src/core/use-cases/tools/search-corpus.tool.test.ts src/core/tool-registry/ToolResultFormatter.test.ts src/core/use-cases/tools/inspect-runtime-context.tool.test.ts src/lib/chat/tool-composition-root.test.ts src/lib/chat/current-page-context.test.ts src/adapters/ChatPresenter.test.ts src/frameworks/ui/RichContentRenderer.test.tsx src/components/AudioPlayer.test.tsx",
+          "status": "passed"
+        },
+        {
+          "label": "production build",
+          "command": "npm run build",
+          "status": "passed"
+        }
+      ]
     }
   },
   "canary": {
@@ -645,6 +1735,8 @@
   "review": {
     "blockingReasons": [],
     "warnings": [],
-    "manualChecks": []
+    "manualChecks": [
+      "Sprint 2 conversation retention browser proof reviewed."
+    ]
   }
 }

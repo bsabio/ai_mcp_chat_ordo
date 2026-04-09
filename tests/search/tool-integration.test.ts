@@ -38,10 +38,20 @@ function makeMockCorpusRepo(): CorpusRepository {
     getAllDocuments: vi.fn().mockResolvedValue([]),
     getAllSections: vi.fn().mockResolvedValue([]),
     getSectionsByDocument: vi.fn().mockResolvedValue([]),
-    getSection: vi.fn().mockResolvedValue(null),
+    getSection: vi.fn().mockImplementation(async () => {
+      throw new Error("section not found");
+    }),
     getDocument: vi.fn().mockResolvedValue(null),
   };
 }
+
+type SearchCorpusToolPayload = {
+  query: string;
+  groundingState: "no_results" | "search_only" | "prefetched_section";
+  followUp: string;
+  prefetchedSection: Record<string, unknown> | null;
+  results: Record<string, unknown>[];
+};
 
 describe("Sprint 4 — Tool Integration", () => {
   const mockRepo = makeMockCorpusRepo();
@@ -54,48 +64,54 @@ describe("Sprint 4 — Tool Integration", () => {
 
     // VSEARCH-38 — backward compatible existing fields
     it("returns existing fields (book, chapter, etc.) — backward compatible", async () => {
-      const result = await command.execute({ query: "bauhaus" }, authCtx) as Record<string, unknown>[];
-      expect(result).toHaveLength(1);
-      expect(result[0]).toHaveProperty("book", "1. Software Engineering");
-      expect(result[0]).toHaveProperty("bookNumber", "1");
-      expect(result[0]).toHaveProperty("chapter", "Bauhaus History");
-      expect(result[0]).toHaveProperty("chapterSlug", "bauhaus-history");
-      expect(result[0]).toHaveProperty("bookSlug", "software-engineering");
-      expect(result[0]).toHaveProperty("matchContext");
-      expect(result[0]).toHaveProperty("relevance", "high");
+      const result = await command.execute({ query: "bauhaus" }, authCtx) as SearchCorpusToolPayload;
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0]).toHaveProperty("book", "1. Software Engineering");
+      expect(result.results[0]).toHaveProperty("bookNumber", "1");
+      expect(result.results[0]).toHaveProperty("chapter", "Bauhaus History");
+      expect(result.results[0]).toHaveProperty("chapterSlug", "bauhaus-history");
+      expect(result.results[0]).toHaveProperty("bookSlug", "software-engineering");
+      expect(result.results[0]).toHaveProperty("matchContext");
+      expect(result.results[0]).toHaveProperty("relevance", "high");
     });
 
     it("returns matchPassage in output", async () => {
-      const result = await command.execute({ query: "bauhaus" }, authCtx) as Record<string, unknown>[];
-      expect(result[0]).toHaveProperty("matchPassage", sampleHybridResults[0].matchPassage);
+      const result = await command.execute({ query: "bauhaus" }, authCtx) as SearchCorpusToolPayload;
+      expect(result.results[0]).toHaveProperty("matchPassage", sampleHybridResults[0].matchPassage);
     });
 
     it("returns matchHighlight with **bold** terms", async () => {
-      const result = await command.execute({ query: "bauhaus" }, authCtx) as Record<string, unknown>[];
-      expect(result[0]).toHaveProperty("matchHighlight");
-      expect(result[0].matchHighlight as string).toContain("**Bauhaus**");
+      const result = await command.execute({ query: "bauhaus" }, authCtx) as SearchCorpusToolPayload;
+      expect(result.results[0]).toHaveProperty("matchHighlight");
+      expect(result.results[0].matchHighlight as string).toContain("**Bauhaus**");
     });
 
     it("returns matchSection heading", async () => {
-      const result = await command.execute({ query: "bauhaus" }, authCtx) as Record<string, unknown>[];
-      expect(result[0]).toHaveProperty("matchSection", "Origins");
+      const result = await command.execute({ query: "bauhaus" }, authCtx) as SearchCorpusToolPayload;
+      expect(result.results[0]).toHaveProperty("matchSection", "Origins");
     });
 
     it("returns rrfScore, vectorRank, bm25Rank, passageOffset", async () => {
-      const result = await command.execute({ query: "bauhaus" }, authCtx) as Record<string, unknown>[];
-      expect(result[0]).toHaveProperty("rrfScore", 0.85);
-      expect(result[0]).toHaveProperty("vectorRank", 1);
-      expect(result[0]).toHaveProperty("bm25Rank", 3);
-      expect(result[0]).toHaveProperty("passageOffset", { start: 0, end: 120 });
+      const result = await command.execute({ query: "bauhaus" }, authCtx) as SearchCorpusToolPayload;
+      expect(result.results[0]).toHaveProperty("rrfScore", 0.85);
+      expect(result.results[0]).toHaveProperty("vectorRank", 1);
+      expect(result.results[0]).toHaveProperty("bm25Rank", 3);
+      expect(result.results[0]).toHaveProperty("passageOffset", { start: 0, end: 120 });
     });
   });
 
   describe("SearchCorpusCommand without handler (legacy fallback)", () => {
     it("falls back to legacy keyword scoring", async () => {
       const legacyCommand = new SearchCorpusCommand(mockRepo);
-      const result = await legacyCommand.execute({ query: "bauhaus" }, authCtx);
-      // With empty mock repo, no results
-      expect(result).toBe('No results found for "bauhaus".');
+      const result = await legacyCommand.execute({ query: "bauhaus" }, authCtx) as SearchCorpusToolPayload;
+      // With empty mock repo, the legacy path now returns the structured no-results payload
+      expect(result).toEqual({
+        query: "bauhaus",
+        groundingState: "no_results",
+        followUp: "refine_query",
+        results: [],
+        prefetchedSection: null,
+      });
     });
   });
 
@@ -106,32 +122,33 @@ describe("Sprint 4 — Tool Integration", () => {
 
     it("strips hybrid fields for ANONYMOUS", async () => {
       const rawResult = await command.execute({ query: "bauhaus" }, authCtx);
-      const formatted = formatter.format("search_corpus", rawResult, anonCtx) as Record<string, unknown>[];
-      expect(formatted).toHaveLength(1);
-      expect(formatted[0]).toHaveProperty("book");
-      expect(formatted[0]).toHaveProperty("matchSection", "Origins");
-      expect(formatted[0]).not.toHaveProperty("matchPassage");
-      expect(formatted[0]).not.toHaveProperty("matchHighlight");
-      expect(formatted[0]).not.toHaveProperty("rrfScore");
-      expect(formatted[0]).not.toHaveProperty("vectorRank");
-      expect(formatted[0]).not.toHaveProperty("bm25Rank");
-      expect(formatted[0]).not.toHaveProperty("passageOffset");
-      expect(formatted[0]).not.toHaveProperty("matchContext");
-      expect(formatted[0]).not.toHaveProperty("bookSlug");
-      expect(formatted[0]).not.toHaveProperty("chapterSlug");
+      const formatted = formatter.format("search_corpus", rawResult, anonCtx) as SearchCorpusToolPayload;
+      expect(formatted.results).toHaveLength(1);
+      expect(formatted.prefetchedSection).toBeNull();
+      expect(formatted.results[0]).toHaveProperty("book");
+      expect(formatted.results[0]).toHaveProperty("matchSection", "Origins");
+      expect(formatted.results[0]).not.toHaveProperty("matchPassage");
+      expect(formatted.results[0]).not.toHaveProperty("matchHighlight");
+      expect(formatted.results[0]).not.toHaveProperty("rrfScore");
+      expect(formatted.results[0]).not.toHaveProperty("vectorRank");
+      expect(formatted.results[0]).not.toHaveProperty("bm25Rank");
+      expect(formatted.results[0]).not.toHaveProperty("passageOffset");
+      expect(formatted.results[0]).not.toHaveProperty("matchContext");
+      expect(formatted.results[0]).not.toHaveProperty("bookSlug");
+      expect(formatted.results[0]).not.toHaveProperty("chapterSlug");
     });
 
     it("preserves hybrid fields for AUTHENTICATED", async () => {
       const rawResult = await command.execute({ query: "bauhaus" }, authCtx);
-      const formatted = formatter.format("search_corpus", rawResult, authCtx) as Record<string, unknown>[];
-      expect(formatted).toHaveLength(1);
-      expect(formatted[0]).toHaveProperty("matchPassage");
-      expect(formatted[0]).toHaveProperty("matchHighlight");
-      expect(formatted[0]).toHaveProperty("matchSection");
-      expect(formatted[0]).toHaveProperty("rrfScore");
-      expect(formatted[0]).toHaveProperty("vectorRank");
-      expect(formatted[0]).toHaveProperty("bm25Rank");
-      expect(formatted[0]).toHaveProperty("passageOffset");
+      const formatted = formatter.format("search_corpus", rawResult, authCtx) as SearchCorpusToolPayload;
+      expect(formatted.results).toHaveLength(1);
+      expect(formatted.results[0]).toHaveProperty("matchPassage");
+      expect(formatted.results[0]).toHaveProperty("matchHighlight");
+      expect(formatted.results[0]).toHaveProperty("matchSection");
+      expect(formatted.results[0]).toHaveProperty("rrfScore");
+      expect(formatted.results[0]).toHaveProperty("vectorRank");
+      expect(formatted.results[0]).toHaveProperty("bm25Rank");
+      expect(formatted.results[0]).toHaveProperty("passageOffset");
     });
   });
 });

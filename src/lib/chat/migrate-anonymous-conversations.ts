@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
-import { getConversationDataMapper } from "@/adapters/RepositoryFactory";
+import { getConversationDataMapper, getJobQueueRepository } from "@/adapters/RepositoryFactory";
 import { getConversationInteractor } from "@/lib/chat/conversation-root";
 import { repairConversationOwnershipIndex } from "@/lib/chat/embed-conversation";
 import { clearAnonSession } from "@/lib/chat/resolve-user";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 
-async function resolveReferralMigrationConversationIds(
+async function resolveMigrationConversationIds(
   userId: string,
   anonUserId: string,
   migratedConversationIds: string[],
@@ -47,14 +47,20 @@ export async function migrateAnonymousConversationsToUser(
     ),
   );
 
-  const referralConversationIds = await resolveReferralMigrationConversationIds(
+  const resolvedConversationIds = await resolveMigrationConversationIds(
     userId,
     anonUserId,
     migratedConversationIds,
   );
+  await getJobQueueRepository().transferJobsToUser({
+    conversationIds: resolvedConversationIds,
+    userId,
+    previousUserId: anonUserId,
+    source,
+  });
   const referralLedger = getReferralLedgerService();
   const referralResults = await Promise.allSettled(
-    referralConversationIds.map((conversationId) =>
+    resolvedConversationIds.map((conversationId) =>
       referralLedger.linkConversationToAuthenticatedUser({
         conversationId,
         userId,
@@ -76,5 +82,5 @@ export async function migrateAnonymousConversationsToUser(
 
   await clearAnonSession();
 
-  return { migratedConversationIds };
+  return { migratedConversationIds: resolvedConversationIds };
 }

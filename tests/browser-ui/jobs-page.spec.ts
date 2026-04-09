@@ -6,6 +6,8 @@ import { backdateRegisterFormStart, finishRegisterNavigation } from "./helpers/p
 
 test.describe.configure({ timeout: 60_000 });
 
+const PLAYWRIGHT_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:34123";
+
 function resolveBrowserDbPath(): string {
   const configuredPath = process.env.STUDIO_ORDO_DB_PATH?.trim();
   if (configuredPath) {
@@ -55,6 +57,17 @@ function seedConversation(db: Database.Database, conversationId: string, userId:
     `INSERT INTO conversations (id, user_id, title, status, session_source)
      VALUES (?, ?, ?, 'active', 'authenticated')`,
   ).run(conversationId, userId, title);
+}
+
+function seedAnonymousConversation(db: Database.Database, conversationId: string, anonUserId: string, title: string) {
+  db.prepare(`INSERT OR IGNORE INTO users (id, email, name) VALUES (?, ?, ?)`)
+    .run(anonUserId, `${anonUserId}@anonymous.local`, "Anonymous");
+  db.prepare(`INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, 'role_anonymous')`)
+    .run(anonUserId);
+  db.prepare(
+    `INSERT INTO conversations (id, user_id, title, status, session_source)
+     VALUES (?, ?, ?, 'active', 'anonymous_cookie')`,
+  ).run(conversationId, anonUserId, title);
 }
 
 type SeededJobs = {
@@ -145,6 +158,59 @@ async function seedUserJobs(userId: string, seedKey: string): Promise<SeededJobs
       runningJobId: runningJob.id,
       completedConversationId,
       completedJobId: completedJob.id,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+async function seedAnonymousMigratingJob(sessionId: string, seedKey: string): Promise<{
+  conversationId: string;
+  jobId: string;
+}> {
+  const db = openBrowserDb();
+  const repo = new JobQueueDataMapper(db);
+  const anonUserId = `anon_${sessionId}`;
+  const conversationId = `conv_jobs_migrate_${seedKey}`;
+
+  try {
+    seedAnonymousConversation(db, conversationId, anonUserId, "Anonymous jobs");
+
+    const runningJob = await repo.createJob({
+      conversationId,
+      userId: anonUserId,
+      toolName: "produce_blog_article",
+      initiatorType: "anonymous_session",
+      requestPayload: {
+        brief: "Inherited migration brief",
+        audience: "Queue recovery operators",
+      },
+    });
+
+    await repo.appendEvent({
+      jobId: runningJob.id,
+      conversationId,
+      eventType: "queued",
+    });
+    await repo.updateJobStatus(runningJob.id, {
+      status: "running",
+      startedAt: new Date().toISOString(),
+      progressLabel: "Awaiting sign-in recovery",
+      progressPercent: 12,
+    });
+    await repo.appendEvent({
+      jobId: runningJob.id,
+      conversationId,
+      eventType: "progress",
+      payload: {
+        progressLabel: "Awaiting sign-in recovery",
+        progressPercent: 12,
+      },
+    });
+
+    return {
+      conversationId,
+      jobId: runningJob.id,
     };
   } finally {
     db.close();
@@ -281,6 +347,8 @@ test.describe("Jobs page", () => {
       "href",
       "/journal/deferred-queue-post",
     );
+    await expect(page.getByRole("button", { name: "Copy summary for Publish journal draft post_1" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Export log for Publish journal draft post_1" })).toBeVisible();
 
     await page.reload();
 
@@ -292,5 +360,95 @@ test.describe("Jobs page", () => {
       "href",
       `/?conversationId=${seededJobs.completedConversationId}`,
     );
+  });
+
+  test("shows anonymous-session jobs in /jobs after registration migrates ownership", async ({ page }) => {
+    await page.addInitScript(() => {
+      class MockEventSource {
+        static instances: MockEventSource[] = [];
+
+        url: string;
+        onopen: (() => void) | null = null;
+        onmessage: ((event: { data: string }) => void) | null = null;
+        onerror: (() => void) | null = null;
+        readyState = 1;
+
+        constructor(url: string | URL) {
+          this.url = String(url);
+          MockEventSource.instances.push(this);
+          queueMicrotask(() => this.onopen?.());
+        }
+
+        close() {
+          this.readyState = 2;
+        }
+      }
+
+      Object.defineProperty(window, "EventSource", {
+        configurable: true,
+        writable: true,
+        value: MockEventSource,
+      });
+    });
+
+    await page.route("**/api/preferences", async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferences: [{ key: "push_notifications", value: "disabled" }],
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ preferences: [] }),
+      });
+    });
+
+    const seedKey = Date.now().toString(36);
+    const anonSessionId = `anon_jobs_${seedKey}`;
+    const migratedJob = await seedAnonymousMigratingJob(anonSessionId, seedKey);
+
+    await page.context().addCookies([{
+      name: "lms_anon_session",
+      value: anonSessionId,
+      url: PLAYWRIGHT_BASE_URL,
+    }]);
+
+    await backdateRegisterFormStart(page);
+    await page.goto("/register");
+
+    const uniqueEmail = `jobs-migrate-${Date.now()}@example.com`;
+    await page.getByLabel("Name").fill("Migrated Jobs User");
+    await page.getByLabel("Email").fill(uniqueEmail);
+    await page.getByLabel("Password").fill("JobsPass123");
+    await page.getByRole("button", { name: "Create Account" }).click();
+    await finishRegisterNavigation(page);
+
+    await page.goto("/jobs");
+
+    const migratedJobCard = page.getByTestId(`job-card-${migratedJob.jobId}`);
+
+    await expect(page).toHaveURL(/\/jobs$/);
+    await expect(page.getByRole("heading", { name: "Your Jobs", exact: true })).toBeVisible();
+    await expect(page.getByText("Live updates connected.")).toBeVisible();
+    await expect(migratedJobCard).toBeVisible();
+    await expect(migratedJobCard).toContainText("Inherited migration brief");
+    await expect(migratedJobCard).toContainText("Awaiting sign-in recovery");
+    await expect(migratedJobCard).toContainText("12%");
+    await expect(page.getByRole("link", { name: "Open conversation" })).toHaveAttribute(
+      "href",
+      `/?conversationId=${migratedJob.conversationId}`,
+    );
+
+    await page.reload();
+
+    await expect(migratedJobCard).toBeVisible();
+    await expect(migratedJobCard).toContainText("Inherited migration brief");
   });
 });

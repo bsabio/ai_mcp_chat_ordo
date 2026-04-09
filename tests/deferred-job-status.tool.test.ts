@@ -25,6 +25,7 @@ describe("deferred job status tools", () => {
     listUserEvents: vi.fn(),
     listEventsForUserJob: vi.fn(),
     claimNextQueuedJob: vi.fn(),
+    transferJobsToUser: vi.fn(),
     updateJobStatus: vi.fn(),
     cancelJob: vi.fn(),
   };

@@ -62,6 +62,11 @@ function isModelNotFoundError(error: unknown): boolean {
   return message.includes("not_found_error") || message.includes("model:");
 }
 
+function isTimeoutError(error: unknown): boolean {
+  const message = toErrorMessage(error).toLowerCase();
+  return message.includes("timed out") || message.includes("timeout");
+}
+
 function isTransientProviderError(error: unknown): boolean {
   const message = toErrorMessage(error).toLowerCase();
   return (
@@ -98,6 +103,12 @@ const transientRetryHandler: ErrorHandler = ({
   attempt,
   retryAttempts,
 }) => {
+  // Timeouts with the same payload are not transient — the request
+  // will always be slow.  Fail fast instead of amplifying the wait.
+  if (isTimeoutError(error)) {
+    return null;
+  }
+
   if (isTransientProviderError(error) && attempt < retryAttempts) {
     return { type: "retry" };
   }

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminDetailShell } from "@/components/admin/AdminDetailShell";
+import { AdminConversationRetentionActions } from "@/components/admin/AdminConversationRetentionActions";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminConversationDetail } from "@/lib/admin/conversations/admin-conversations";
 import {
+  restoreConversationAction,
   takeOverConversationAction,
   handBackConversationAction,
 } from "@/lib/admin/conversations/admin-conversations-actions";
@@ -58,7 +60,7 @@ function MessageBubble({ msg }: { msg: { id: string; role: string; content: stri
       <div
         className={`max-w-[80%] rounded-xl px-4 py-3 ${
           isSystem
-            ? "border border-foreground/8 bg-foreground/[0.02] text-foreground/50 italic"
+            ? "border border-foreground/8 bg-foreground/2 text-foreground/50 italic"
             : isUser
               ? "bg-foreground/8 text-foreground"
               : "border border-foreground/8 bg-surface text-foreground"
@@ -73,7 +75,7 @@ function MessageBubble({ msg }: { msg: { id: string; role: string; content: stri
             {formatDate(msg.createdAt)}
           </span>
         </div>
-        <div className="mt-1 text-sm whitespace-pre-wrap break-words">
+        <div className="mt-1 text-sm whitespace-pre-wrap wrap-break-word">
           {msg.content}
         </div>
         {toolParts.length > 0 && (
@@ -104,6 +106,7 @@ export default async function AdminConversationDetailPage({
   const { conversation: conv, messages, totalTokens } = detail;
 
   const isHumanMode = conv.conversationMode === "human";
+  const isDeleted = conv.deletedAt != null;
 
   return (
     <AdminSection
@@ -120,6 +123,28 @@ export default async function AdminConversationDetailPage({
         {isHumanMode && (
           <div className="mb-(--space-4) rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-600">
             You are actively managing this conversation.
+          </div>
+        )}
+
+        {isDeleted && (
+          <div className="mb-(--space-4) rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-medium">This conversation is currently deleted from self-service history.</p>
+                <p className="mt-1 text-xs text-amber-800/80">
+                  Deleted {formatDate(conv.deletedAt)}{conv.purgeAfter ? ` · purge eligible ${formatDate(conv.purgeAfter)}` : ""}
+                </p>
+              </div>
+              <form action={restoreConversationAction}>
+                <input type="hidden" name="id" value={conv.id} />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-700"
+                >
+                  Restore
+                </button>
+              </form>
+            </div>
           </div>
         )}
 
@@ -169,6 +194,17 @@ export default async function AdminConversationDetailPage({
                       <MessageBubble key={msg.id} msg={msg} />
                     ))
                   )}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
+                <h2 className="text-sm font-semibold text-foreground/60">Retention</h2>
+                <div className="mt-(--space-3)">
+                  <AdminConversationRetentionActions
+                    conversationId={conv.id}
+                    purgeEligible={conv.purgeEligible}
+                    purgeBlockedReason={conv.purgeBlockedReason}
+                  />
                 </div>
               </section>
             </div>
@@ -229,6 +265,30 @@ export default async function AdminConversationDetailPage({
                   <div className="flex justify-between text-foreground/60">
                     <dt>Status</dt>
                     <dd>{conv.status}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Deleted at</dt>
+                    <dd>{formatDate(conv.deletedAt)}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Deleted by</dt>
+                    <dd>{conv.deletedByUserId || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Delete reason</dt>
+                    <dd>{conv.deleteReason || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Purge after</dt>
+                    <dd>{formatDate(conv.purgeAfter)}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Imported at</dt>
+                    <dd>{formatDate(conv.importedAt)}</dd>
+                  </div>
+                  <div className="flex justify-between text-foreground/60">
+                    <dt>Imported from</dt>
+                    <dd>{conv.importSourceConversationId || "—"}</dd>
                   </div>
                 </dl>
               </section>

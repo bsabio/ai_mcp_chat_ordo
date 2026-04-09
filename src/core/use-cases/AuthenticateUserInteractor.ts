@@ -1,4 +1,5 @@
 import type { UseCase } from "../common/UseCase";
+import { AuthorizationError } from "../common/errors";
 import type { PasswordHasher } from "./PasswordHasher";
 import type { SessionRepository } from "./SessionRepository";
 import type { UserRepository } from "./UserRepository";
@@ -61,9 +62,5 @@ export class AuthenticateUserInteractor
   }
 }
 
-export class InvalidCredentialsError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "InvalidCredentialsError";
-  }
-}
+export class InvalidCredentialsError extends AuthorizationError {}
+

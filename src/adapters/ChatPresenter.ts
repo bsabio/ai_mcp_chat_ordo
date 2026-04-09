@@ -4,15 +4,20 @@ import type { UICommand } from "../core/entities/ui-command";
 import { UI_COMMAND_TYPE } from "../core/entities/ui-command";
 import { BLOCK_TYPES, VALID_ACTION_TYPES } from "../core/entities/rich-content";
 import type { ActionLinkType } from "../core/entities/rich-content";
-import { getAttachmentParts, type AttachmentPart } from "@/lib/chat/message-attachments";
+import { getPresentedAttachments, type PresentedAttachment } from "@/lib/chat/message-attachments";
 import type { MarkdownParserService } from "./MarkdownParserService";
 import type { CommandParserService } from "./CommandParserService";
 import { resolveGenerateChartPayload } from "@/core/use-cases/tools/chart-payload";
 import { resolveGenerateGraphPayload, type ResolvedGraphPayload } from "@/core/use-cases/tools/graph-payload";
-import type { JobStatusMessagePart, MessagePart } from "@/core/entities/message-parts";
+import type {
+  GenerationStatusMessagePart,
+  JobStatusMessagePart,
+  MessagePart,
+} from "@/core/entities/message-parts";
 import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
 import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
 import { getSupportedTheme, isSupportedTheme } from "@/lib/theme/theme-manifest";
+import { DEFAULT_PROMPTS } from "@/lib/config/defaults";
 
 const SUGGESTIONS_MARKER = "__suggestions__:";
 const ACTIONS_MARKER = "__actions__:";
@@ -141,10 +146,28 @@ type NavigateToPageResultPayload = {
   __actions__: Array<{ type: "navigate"; path: string }>;
 };
 
+type GenerateAudioResultPayload = {
+  action: "generate_audio";
+  title: string;
+  text: string;
+  assetId: string | null;
+  provider: string;
+  generationStatus: "client_fetch_pending" | "cached_asset";
+  estimatedDurationSeconds: number;
+  estimatedGenerationSeconds: number;
+};
+
 export interface MessageAction {
   label: string;
   action: ActionLinkType;
   params: Record<string, string>;
+}
+
+export interface PresentedGenerationStatus {
+  status: GenerationStatusMessagePart["status"];
+  actor: GenerationStatusMessagePart["actor"];
+  reason: string;
+  partialContentRetained: boolean;
 }
 
 export interface PresentedMessage {
@@ -155,8 +178,9 @@ export interface PresentedMessage {
   commands: UICommand[];
   suggestions: string[];
   actions: MessageAction[];
-  attachments: AttachmentPart[];
+  attachments: PresentedAttachment[];
   failedSend?: FailedSendMetadata;
+  generationStatus?: PresentedGenerationStatus;
   timestamp: string;
 }
 
@@ -250,6 +274,131 @@ function extractTaggedArray(text: string, marker: string): ExtractedTag {
     text: `${text.slice(0, markerIndex)}${text.slice(arrayEnd + 1)}`.trim(),
     payload,
   };
+}
+
+const DEFAULT_REPAIRED_SUGGESTIONS = DEFAULT_PROMPTS.defaultSuggestions ?? [
+  "Go deeper",
+  "Show sources",
+  "Give next step",
+];
+
+function normalizeSuggestions(payload: unknown[], textContent: string): string[] {
+  const normalized = Array.from(new Set(
+    payload
+      .filter((entry): entry is string => typeof entry === "string")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0 && entry.length <= 60),
+  )).slice(0, 4);
+
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  return textContent.trim().length > 0 ? DEFAULT_REPAIRED_SUGGESTIONS.slice(0, 4) : [];
+}
+
+function getNormalizedString(record: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function sanitizeStringParams(params: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(params)
+      .filter(([, value]) => typeof value === "string" && value.trim().length > 0)
+      .map(([key, value]) => [key, (value as string).trim()]),
+  );
+}
+
+function omitKeys(params: Record<string, string>, keys: string[]): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(params).filter(([key]) => !keys.includes(key)),
+  );
+}
+
+function normalizeActionParams(action: ActionLinkType, entry: Record<string, unknown>): Record<string, string> | null {
+  const rawParams = typeof entry.params === "object" && entry.params !== null
+    ? entry.params as Record<string, unknown>
+    : {};
+  const sanitizedParams = sanitizeStringParams(rawParams);
+
+  switch (action) {
+    case "route": {
+      const path = getNormalizedString(rawParams, ["path", "href", "pathname"]) ?? getNormalizedString(entry, ["value"]);
+      const baseParams = omitKeys(sanitizedParams, ["path", "href", "pathname"]);
+      return path ? { ...baseParams, path } : baseParams;
+    }
+    case "send": {
+      const text = getNormalizedString(rawParams, ["text", "prompt", "message"]) ?? getNormalizedString(entry, ["value"]);
+      const baseParams = omitKeys(sanitizedParams, ["text", "prompt", "message"]);
+      return text ? { ...baseParams, text } : baseParams;
+    }
+    case "corpus": {
+      const slug = getNormalizedString(rawParams, ["slug", "id"]) ?? getNormalizedString(entry, ["value"]);
+      const baseParams = omitKeys(sanitizedParams, ["slug", "id"]);
+      return slug ? { ...baseParams, slug } : baseParams;
+    }
+    case "conversation": {
+      const id = getNormalizedString(rawParams, ["id", "conversationId"]) ?? getNormalizedString(entry, ["value"]);
+      const baseParams = omitKeys(sanitizedParams, ["id", "conversationId"]);
+      return id ? { ...baseParams, id } : baseParams;
+    }
+    case "external": {
+      const url = getNormalizedString(rawParams, ["url", "href", "path"]) ?? getNormalizedString(entry, ["value"]);
+      const baseParams = omitKeys(sanitizedParams, ["url", "href", "path"]);
+      return url ? { ...baseParams, url } : baseParams;
+    }
+    case "job": {
+      const jobId = getNormalizedString(rawParams, ["jobId", "id"]) ?? getNormalizedString(entry, ["value"]);
+      const operation = getNormalizedString(rawParams, ["operation"]);
+      const baseParams = omitKeys(sanitizedParams, ["jobId", "id", "operation"]);
+      return jobId || operation
+        ? {
+          ...baseParams,
+          ...(jobId ? { jobId } : {}),
+          ...(operation ? { operation } : {}),
+        }
+        : baseParams;
+    }
+    default:
+      return null;
+  }
+}
+
+function normalizeMessageActions(payload: unknown[]): MessageAction[] {
+  return payload
+    .map((entry) => {
+      if (typeof entry !== "object" || entry === null) {
+        return null;
+      }
+
+      const record = entry as Record<string, unknown>;
+      const label = getNormalizedString(record, ["label"]);
+      const action = getNormalizedString(record, ["action", "type"]);
+
+      if (!label || !action || !VALID_ACTION_TYPES.has(action)) {
+        return null;
+      }
+
+      const params = normalizeActionParams(action as ActionLinkType, record);
+      if (!params) {
+        return null;
+      }
+
+      return {
+        label,
+        action: action as ActionLinkType,
+        params,
+      } satisfies MessageAction;
+    })
+    .filter((entry): entry is MessageAction => Boolean(entry))
+    .slice(0, 3);
 }
 
 function pairToolCallsWithResults(parts?: MessagePart[]): ToolCallWithResult[] {
@@ -359,8 +508,39 @@ function isNavigateToPageResultPayload(value: unknown): value is NavigateToPageR
     && Array.isArray((value as { __actions__?: unknown }).__actions__);
 }
 
+function isGenerateAudioResultPayload(value: unknown): value is GenerateAudioResultPayload {
+  return typeof value === "object"
+    && value !== null
+    && (value as { action?: unknown }).action === TOOL_NAMES.GENERATE_AUDIO
+    && typeof (value as { text?: unknown }).text === "string"
+    && typeof (value as { title?: unknown }).title === "string"
+    && typeof (value as { provider?: unknown }).provider === "string"
+    && typeof (value as { generationStatus?: unknown }).generationStatus === "string"
+    && typeof (value as { estimatedDurationSeconds?: unknown }).estimatedDurationSeconds === "number"
+    && typeof (value as { estimatedGenerationSeconds?: unknown }).estimatedGenerationSeconds === "number";
+}
+
 function isJobStatusMessagePart(part: MessagePart): part is JobStatusMessagePart {
   return part.type === "job_status";
+}
+
+function isGenerationStatusMessagePart(part: MessagePart): part is GenerationStatusMessagePart {
+  return part.type === "generation_status";
+}
+
+function getGenerationStatusPart(parts?: MessagePart[]): GenerationStatusMessagePart | null {
+  if (!parts || parts.length === 0) {
+    return null;
+  }
+
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index];
+    if (isGenerationStatusMessagePart(part)) {
+      return part;
+    }
+  }
+
+  return null;
 }
 
 function textNode(text: string) {
@@ -793,27 +973,17 @@ export class ChatPresenter {
     let actions: MessageAction[] = [];
 
     const extractedSuggestions = extractTaggedArray(textContent, SUGGESTIONS_MARKER);
-    if (extractedSuggestions.payload.length > 0) {
-      suggestions = extractedSuggestions.payload.filter(
-        (entry): entry is string => typeof entry === "string",
-      );
-    }
+    suggestions = normalizeSuggestions(extractedSuggestions.payload, extractedSuggestions.text);
     textContent = extractedSuggestions.text;
 
     const extractedActions = extractTaggedArray(textContent, ACTIONS_MARKER);
-    actions = extractedActions.payload.filter(
-      (entry): entry is MessageAction =>
-        typeof entry === "object" &&
-        entry !== null &&
-        "action" in entry &&
-        typeof (entry as MessageAction).action === "string" &&
-        VALID_ACTION_TYPES.has((entry as MessageAction).action),
-    );
+    actions = normalizeMessageActions(extractedActions.payload);
     textContent = extractedActions.text;
 
     const richContent = this.markdownParser.parse(textContent);
     const commands = [...this.commandParser.parse(textContent)];
-    const attachments = getAttachmentParts(message.parts);
+    const attachments = getPresentedAttachments(message.parts);
+    const generationStatus = getGenerationStatusPart(message.parts);
     const renderedJobIds = new Set<string>();
 
     for (const part of message.parts ?? []) {
@@ -911,10 +1081,25 @@ export class ChatPresenter {
           }
           break;
         case TOOL_NAMES.GENERATE_AUDIO:
+          if (isGenerateAudioResultPayload(call.result)) {
+            richContent.blocks.push({
+              type: BLOCK_TYPES.AUDIO,
+              text: call.result.text,
+              title: call.result.title,
+              assetId: call.result.assetId ?? undefined,
+              provider: call.result.provider,
+              generationStatus: call.result.generationStatus,
+              estimatedDurationSeconds: call.result.estimatedDurationSeconds,
+              estimatedGenerationSeconds: call.result.estimatedGenerationSeconds,
+            });
+            break;
+          }
+
           richContent.blocks.push({
             type: BLOCK_TYPES.AUDIO,
             text: typeof call.args.text === "string" ? call.args.text : "",
             title: typeof call.args.title === "string" ? call.args.title : "",
+            assetId: typeof call.args.assetId === "string" ? call.args.assetId : undefined,
           });
           break;
         case TOOL_NAMES.ADMIN_WEB_SEARCH:
@@ -986,6 +1171,14 @@ export class ChatPresenter {
       actions,
       attachments,
       failedSend: message.metadata?.failedSend,
+      generationStatus: generationStatus
+        ? {
+          status: generationStatus.status,
+          actor: generationStatus.actor,
+          reason: generationStatus.reason,
+          partialContentRetained: generationStatus.partialContentRetained,
+        }
+        : undefined,
       timestamp: (message.timestamp || new Date()).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",

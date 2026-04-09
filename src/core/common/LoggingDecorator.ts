@@ -1,4 +1,5 @@
 import type { UseCase } from "./UseCase";
+import { logEvent } from "@/lib/observability/logger";
 
 /**
  * Decorator: Logging
@@ -14,16 +15,16 @@ export class LoggingDecorator<TReq, TRes> implements UseCase<TReq, TRes> {
 
   async execute(request: TReq): Promise<TRes> {
     const start = Date.now();
-    console.log(`[UseCase:${this.useCaseName}] START`, request);
+    logEvent("info", "usecase.start", { useCase: this.useCaseName });
     
     try {
       const result = await this.decoratee.execute(request);
       const duration = Date.now() - start;
-      console.log(`[UseCase:${this.useCaseName}] SUCCESS (${duration}ms)`);
+      logEvent("info", "usecase.success", { useCase: this.useCaseName, durationMs: duration });
       return result;
     } catch (error) {
       const duration = Date.now() - start;
-      console.error(`[UseCase:${this.useCaseName}] ERROR (${duration}ms)`, error);
+      logEvent("error", "usecase.error", { useCase: this.useCaseName, durationMs: duration, error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }

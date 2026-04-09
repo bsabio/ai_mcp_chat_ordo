@@ -35,8 +35,15 @@ For the full workflow around specs, sprints, QA, and LLM guardrails, read:
 | [Anonymous Conversation Consistency](anonymous-conversation-consistency/) | Planned | 3 | Align middleware, routes, and client restore flow for anonymous conversation persistence |
 | [Conversation Search Migration Integrity](conversation-search-migration-integrity/) | Planned | 3 | Preserve conversation-search index correctness across anonymous-to-authenticated migration |
 | [Summary Context Hardening](summary-context-hardening/) | Planned | 3 | Convert summary replay into server-owned context and add regression coverage |
+| [Agent Runtime Truthfulness And Retrieval Integrity](agent-runtime-truthfulness-and-retrieval-integrity/) | Planned | 8 | Eliminate prompt and documentation drift, make corpus citations canonical, reduce tool ambiguity, and add truthfulness guardrails for self-descriptive runtime answers |
 | [Visual Theme Runtime And Semantic Surface Architecture](visual-theme-runtime-and-semantic-surface-architecture/) | Planned | 4 | Unify runtime theme authority, extract semantic surface primitives, and make MCP-driven UI customization safer, drier, and more performant |
 | [Mobile Surface Density And Route Remediation](mobile-surface-density-and-route-remediation/) | In Progress | 6 | Rebuild phone-first density, overflow handling, and route-family ergonomics across chat, public, workspace, and admin surfaces |
+| [API Rate Limiting](api-rate-limiting/) | Planned | 2 | Add sliding-window rate limiting to the proxy layer with tiered thresholds for auth, chat, and API endpoints |
+| [Structured Logging](structured-logging/) | Planned | 2 | Replace `console.*` with a Pino-based structured JSON logger, add correlation IDs and context propagation |
+| [Database Migrations](database-migrations/) | Planned | 2 | Replace ad-hoc `addColumnIfNotExists()` with numbered-file migration system and `schema_migrations` tracking |
+| [Error Standardization](error-standardization/) | Planned | 2 | Consolidate scattered error classes, create error-to-HTTP-status registry, unify API response envelope |
+| [Use-Case Reorganization](use-case-reorganization/) | Planned | 1 | Group 65 flat use-case files into 8 bounded-context subdirectories |
+| [Test Reorganization](test-reorganization/) | Planned | 1 | Rename 27 sprint-numbered and tech-debt-prefixed test files to feature-descriptive names |
 
 ## Why A Separate Refactor Area
 
@@ -53,8 +60,18 @@ providing implementation-grade sprint documents.
 4. Session Identity Boundary Hardening
 5. Conversation Search Migration Integrity
 6. Summary Context Hardening
-7. Visual Theme Runtime And Semantic Surface Architecture
-8. Mobile Surface Density And Route Remediation
+7. Agent Runtime Truthfulness And Retrieval Integrity
+8. Visual Theme Runtime And Semantic Surface Architecture
+9. Mobile Surface Density And Route Remediation
+
+### Quality Infrastructure (can run in parallel with above)
+
+1. API Rate Limiting
+2. Structured Logging *(depends on API Rate Limiting for rate-limit 429 instrumentation)*
+3. Error Standardization
+4. Database Migrations
+5. Use-Case Reorganization *(pure file moves — no behavioral changes)*
+6. Test Reorganization *(pure file renames — no behavioral changes)*
 
 The umbrella program defines rollout order, verification gates, and ownership
 across the issue-specific workstreams. The style-system workstream is a UI and
@@ -68,6 +85,13 @@ The visual-theme runtime workstream is the follow-on design-system control pass.
 It assumes CSS ownership has already been partitioned and focuses on unifying
 theme truth, removing repeated component-level visual composition, and making
 runtime theme control a governed API for both the app and MCP tooling.
+
+The agent-runtime truthfulness workstream should land after summary-context
+hardening stabilizes server-owned prompt context. It focuses on keeping
+prompt-visible claims, retrieval behavior, tool manifests, and public
+documentation synchronized with runtime truth while adding regression coverage
+for fourth-wall answers, canonical corpus references, and contract-heavy chat
+output.
 
 The mobile-surface remediation workstream is the route-delivery program that
 consumes the audit output in `docs/_qa/` and the shared design-system work in

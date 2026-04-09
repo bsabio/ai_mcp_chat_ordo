@@ -1,9 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ConversationInteractor, NotFoundError, MessageLimitError } from "./ConversationInteractor";
+import {
+  ConversationInteractor,
+  ConversationValidationError,
+  NotFoundError,
+  MessageLimitError,
+} from "./ConversationInteractor";
 import type { ConversationRepository } from "./ConversationRepository";
 import type { MessageRepository } from "./MessageRepository";
 import type { Conversation, ConversationSummary, Message, NewMessage } from "../entities/conversation";
 import { createConversationRoutingSnapshot } from "../entities/conversation-routing";
+import { CONVERSATION_EXPORT_VERSION } from "@/lib/chat/conversation-portability";
 
 function makeConversation(overrides: Partial<Conversation> = {}): Conversation {
   return {
@@ -45,6 +51,10 @@ function createMockRepos() {
     findById: vi.fn().mockResolvedValue(null),
     findActiveByUser: vi.fn().mockResolvedValue(null),
     archiveByUser: vi.fn().mockResolvedValue(undefined),
+    archiveById: vi.fn().mockResolvedValue(undefined),
+    softDelete: vi.fn().mockResolvedValue(undefined),
+    restoreDeleted: vi.fn().mockResolvedValue(undefined),
+    purge: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     updateTitle: vi.fn().mockResolvedValue(undefined),
     touch: vi.fn().mockResolvedValue(undefined),
@@ -112,6 +122,14 @@ describe("ConversationInteractor", () => {
       expect(result.messages.length).toBe(1);
     });
 
+    it("throws NotFoundError for deleted conversations", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", deletedAt: "2026-04-08T00:00:00.000Z" }),
+      );
+
+      await expect(interactor.get("conv_1", "usr_1")).rejects.toThrow(NotFoundError);
+    });
+
     it("throws NotFoundError for wrong user (not 403)", async () => {
       (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         makeConversation({ id: "conv_1", userId: "usr_1" }),
@@ -169,13 +187,18 @@ describe("ConversationInteractor", () => {
   });
 
   describe("delete — ownership enforcement", () => {
-    it("deletes owned conversation", async () => {
+    it("soft deletes an owned conversation", async () => {
       (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         makeConversation({ id: "conv_1", userId: "usr_1" }),
       );
 
       await interactor.delete("conv_1", "usr_1");
-      expect(convRepo.delete).toHaveBeenCalledWith("conv_1");
+      expect(convRepo.softDelete).toHaveBeenCalledWith(
+        "conv_1",
+        expect.objectContaining({ userId: "usr_1", reason: "user_removed" }),
+        expect.objectContaining({ purgeAfter: expect.any(String) }),
+      );
+      expect(convRepo.delete).not.toHaveBeenCalled();
     });
 
     it("throws NotFoundError for wrong user", async () => {
@@ -184,6 +207,66 @@ describe("ConversationInteractor", () => {
       );
 
       await expect(interactor.delete("conv_1", "usr_other")).rejects.toThrow(NotFoundError);
+    });
+
+    it("throws NotFoundError for already deleted conversations", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", deletedAt: "2026-04-08T00:00:00.000Z" }),
+      );
+
+      await expect(interactor.delete("conv_1", "usr_1")).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe("rename", () => {
+    it("renames an owned visible conversation", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeConversation());
+
+      await interactor.rename("conv_1", "usr_1", " Renamed chat ");
+
+      expect(convRepo.updateTitle).toHaveBeenCalledWith("conv_1", "Renamed chat");
+    });
+
+    it("rejects blank titles", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeConversation());
+
+      await expect(interactor.rename("conv_1", "usr_1", "   ")).rejects.toThrow(ConversationValidationError);
+    });
+  });
+
+  describe("archive", () => {
+    it("archives a visible active conversation", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeConversation({ status: "active" }));
+
+      await interactor.archive("conv_1", "usr_1");
+
+      expect(convRepo.archiveById).toHaveBeenCalledWith("conv_1");
+    });
+
+    it("is a no-op for already archived conversations", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeConversation({ status: "archived" }));
+
+      await interactor.archive("conv_1", "usr_1");
+
+      expect(convRepo.archiveById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("restore", () => {
+    it("restores a deleted conversation for the owner", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ deletedAt: "2026-04-08T00:00:00.000Z", status: "archived" }),
+      );
+
+      await interactor.restore("conv_1", "usr_1");
+
+      expect(convRepo.restoreDeleted).toHaveBeenCalledWith("conv_1", "usr_1");
+    });
+
+    it("throws NotFoundError when restoring a visible conversation", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeConversation());
+
+      await expect(interactor.restore("conv_1", "usr_1")).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -350,6 +433,192 @@ describe("ConversationInteractor", () => {
 
       await expect(interactor.appendMessage(newMsg, "usr_other")).rejects.toThrow(NotFoundError);
     });
+
+    it("throws NotFoundError when appending to a deleted conversation", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", deletedAt: "2026-04-08T00:00:00.000Z" }),
+      );
+
+      const newMsg: NewMessage = {
+        conversationId: "conv_1",
+        role: "user",
+        content: "Hello",
+        parts: [],
+      };
+
+      await expect(interactor.appendMessage(newMsg, "usr_1")).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe("exportConversation", () => {
+    it("builds a structured platform export for the owner", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", status: "archived", messageCount: 2 }),
+      );
+      (msgRepo.listByConversation as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeMessage({
+          id: "msg_1",
+          role: "user",
+          content: "Please export this thread",
+          parts: [{ type: "text", text: "Please export this thread" }],
+        }),
+        makeMessage({
+          id: "msg_2",
+          role: "assistant",
+          content: "Here is the export summary",
+          parts: [
+            { type: "text", text: "Here is the export summary" },
+            {
+              type: "attachment",
+              assetId: "asset_1",
+              fileName: "summary.txt",
+              mimeType: "text/plain",
+              fileSize: 64,
+            },
+          ],
+        }),
+      ]);
+
+      const result = await interactor.exportConversation("conv_1", "usr_1");
+
+      expect(result.version).toBe(CONVERSATION_EXPORT_VERSION);
+      expect(result.conversation.id).toBe("conv_1");
+      expect(result.messages).toHaveLength(2);
+      expect(result.attachmentManifest).toEqual([
+        expect.objectContaining({
+          messageId: "msg_2",
+          fileName: "summary.txt",
+          availability: "durable_asset",
+        }),
+      ]);
+    });
+  });
+
+  describe("importConversation", () => {
+    it("creates a new archived imported conversation without archiving the active thread", async () => {
+      (convRepo.create as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_source",
+        }),
+      );
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          messageCount: 1,
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_source",
+        }),
+      );
+      (msgRepo.create as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeMessage({
+          id: "msg_imported_1",
+          conversationId: "conv_imported",
+          createdAt: "2026-04-08T09:00:00.000Z",
+          role: "user",
+          content: "Imported note",
+        }),
+      );
+
+      const result = await interactor.importConversation("usr_1", {
+        payload: {
+          version: 1,
+          exportedAt: "2026-04-08T11:00:00.000Z",
+          conversation: {
+            id: "conv_source",
+            title: "Imported ops review",
+            status: "archived",
+            createdAt: "2026-04-08T08:00:00.000Z",
+            updatedAt: "2026-04-08T09:00:00.000Z",
+            messageCount: 1,
+            sessionSource: "authenticated",
+            promptVersion: null,
+            routingSnapshot: createConversationRoutingSnapshot(),
+            referralSource: null,
+          },
+          messages: [
+            {
+              id: "msg_source_1",
+              role: "user",
+              content: "Imported note",
+              parts: [{ type: "text", text: "Imported note" }],
+              createdAt: "2026-04-08T09:00:00.000Z",
+              tokenEstimate: 3,
+              attachmentManifestIds: [],
+            },
+          ],
+          attachmentManifest: [],
+          jobReferences: [],
+        },
+        importedMessages: [
+          {
+            role: "user",
+            content: "Imported note",
+            parts: [{ type: "text", text: "Imported note" }],
+          },
+        ],
+      });
+
+      expect(convRepo.archiveByUser).not.toHaveBeenCalled();
+      expect(convRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Imported ops review",
+          status: "archived",
+          importSourceConversationId: "conv_source",
+        }),
+      );
+      expect(msgRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationId: "conv_imported",
+          createdAt: "2026-04-08T09:00:00.000Z",
+        }),
+      );
+      expect(result.conversation.id).toBe("conv_imported");
+      expect(result.messages[0]?.id).toBe("msg_imported_1");
+    });
+  });
+
+  describe("purge", () => {
+    it("blocks ordinary admin purge before the restore window has elapsed", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({
+          id: "conv_deleted",
+          deletedAt: "2026-04-08T00:00:00.000Z",
+          purgeAfter: new Date(Date.now() + 60_000).toISOString(),
+        }),
+      );
+
+      await expect(
+        interactor.purge("conv_deleted", {
+          userId: "admin_1",
+          role: "ADMIN",
+          reason: "admin_removed",
+        }),
+      ).rejects.toThrow(ConversationValidationError);
+      expect(convRepo.purge).not.toHaveBeenCalled();
+    });
+
+    it("allows privacy-request purges to bypass the ordinary purge window", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_privacy", userId: "usr_1" }),
+      );
+
+      await interactor.purge("conv_privacy", {
+        userId: "admin_1",
+        role: "ADMIN",
+        reason: "privacy_request",
+      });
+
+      expect(convRepo.purge).toHaveBeenCalledWith(
+        "conv_privacy",
+        expect.objectContaining({ reason: "privacy_request" }),
+      );
+    });
   });
 
   describe("list", () => {
@@ -361,7 +630,12 @@ describe("ConversationInteractor", () => {
 
       const result = await interactor.list("usr_1");
       expect(result).toEqual(summaries);
-      expect(convRepo.listByUser).toHaveBeenCalledWith("usr_1");
+        expect(convRepo.listByUser).toHaveBeenCalledWith("usr_1", undefined);
+    });
+
+    it("passes scoped list options through to the repository", async () => {
+      await interactor.list("usr_1", { scope: "deleted", limit: 20 });
+      expect(convRepo.listByUser).toHaveBeenCalledWith("usr_1", { scope: "deleted", limit: 20 });
     });
   });
 
@@ -561,6 +835,44 @@ describe("ConversationInteractor", () => {
         "conv_a",
         "converted",
         { from: "anon_123", to: "usr_1" },
+      );
+    });
+
+    it("emits 'soft_deleted' for user removal", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeConversation());
+
+      await interactor.delete("conv_1", "usr_1");
+
+      expect(eventRecorder.record).toHaveBeenCalledWith(
+        "conv_1",
+        "soft_deleted",
+        expect.objectContaining({ deleted_by: "usr_1", reason: "user_removed", purge_after: expect.any(String) }),
+      );
+    });
+
+    it("emits 'restored' when a deleted conversation is restored", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ deletedAt: "2026-04-08T00:00:00.000Z", status: "archived" }),
+      );
+
+      await interactor.restore("conv_1", "usr_1");
+
+      expect(eventRecorder.record).toHaveBeenCalledWith(
+        "conv_1",
+        "restored",
+        { restored_by: "usr_1" },
+      );
+    });
+
+    it("emits 'renamed' when a conversation title changes", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(makeConversation());
+
+      await interactor.rename("conv_1", "usr_1", "Renamed");
+
+      expect(eventRecorder.record).toHaveBeenCalledWith(
+        "conv_1",
+        "renamed",
+        { renamed_by: "usr_1", title: "Renamed" },
       );
     });
 

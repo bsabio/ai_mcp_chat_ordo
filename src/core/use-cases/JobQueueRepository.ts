@@ -2,6 +2,8 @@ import type {
   JobClaimOptions,
   JobEvent,
   JobEventSeed,
+  JobLeaseRecovery,
+  JobOwnershipTransferRequest,
   JobRequest,
   JobRequestSeed,
   JobStatus,
@@ -22,7 +24,7 @@ export interface JobQueueRepository {
     options?: { statuses?: JobStatus[]; limit?: number },
   ): Promise<JobRequest[]>;
   appendEvent(seed: JobEventSeed): Promise<JobEvent>;
-  requeueExpiredRunningJobs(now: string): Promise<number>;
+  requeueExpiredRunningJobs(now: string): Promise<JobLeaseRecovery[]>;
   listConversationEvents(
     conversationId: string,
     options?: { afterSequence?: number; limit?: number },
@@ -37,6 +39,7 @@ export interface JobQueueRepository {
     options?: { limit?: number },
   ): Promise<JobEvent[]>;
   claimNextQueuedJob(options: JobClaimOptions): Promise<JobRequest | null>;
+  transferJobsToUser(request: JobOwnershipTransferRequest): Promise<JobRequest[]>;
   updateJobStatus(id: string, update: JobStatusUpdate): Promise<JobRequest>;
   cancelJob(id: string, now: string): Promise<JobRequest>;
 }

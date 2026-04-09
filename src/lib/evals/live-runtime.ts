@@ -5,12 +5,15 @@ import { buildSystemPrompt } from "@/lib/chat/policy";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { runClaudeAgentLoopStream, type ClaudeAgentLoopResult } from "@/lib/chat/anthropic-stream";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
+import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
 
 export interface LiveEvalRuntimeRequest {
   apiKey: string;
   role: RoleName;
   userId: string;
   messages: Anthropic.MessageParam[];
+  currentPathname?: string;
+  currentPageSnapshot?: CurrentPageSnapshot;
   maxToolRounds?: number;
   signal?: AbortSignal;
   systemPrompt?: string;
@@ -33,6 +36,8 @@ export async function executeLiveEvalRuntime(
   const execContext: ToolExecutionContext = {
     role: request.role,
     userId: request.userId,
+    currentPathname: request.currentPathname,
+    currentPageSnapshot: request.currentPageSnapshot,
   };
   const toolExecutor = request.toolExecutor
     ?? ((name: string, input: Record<string, unknown>) => executor(name, input, execContext));

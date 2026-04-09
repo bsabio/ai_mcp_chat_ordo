@@ -6,9 +6,11 @@ import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
 import { JobHistoryTimeline } from "@/components/jobs/JobHistoryTimeline";
 import {
   type JobAction,
+  formatJobFailureClass,
   formatJobSummary,
   formatJobTimestamp,
   getJobAction,
+  getJobArtifactLink,
   getStatusTone,
   STATUS_LABELS,
 } from "@/components/jobs/job-workspace-helpers";
@@ -19,19 +21,9 @@ interface JobDetailPanelProps {
   isHistoryLoading: boolean;
   isPending: boolean;
   onJobAction: (jobId: string, action: JobAction) => void;
-}
-
-function getArtifactHref(job: JobStatusSnapshot | null): string | null {
-  if (!job || typeof job.part.resultPayload !== "object" || job.part.resultPayload === null) {
-    return null;
-  }
-
-  const payload = job.part.resultPayload as Record<string, unknown>;
-  if (payload.status === "published" && typeof payload.slug === "string") {
-    return `/journal/${payload.slug}`;
-  }
-
-  return null;
+  onCopySummary: (job: JobStatusSnapshot) => void;
+  onCopyFailure: (job: JobStatusSnapshot) => void;
+  onExportLog: (job: JobStatusSnapshot, history: JobHistoryEntry[]) => void;
 }
 
 export function JobDetailPanel({
@@ -40,6 +32,9 @@ export function JobDetailPanel({
   isHistoryLoading,
   isPending,
   onJobAction,
+  onCopySummary,
+  onCopyFailure,
+  onExportLog,
 }: JobDetailPanelProps) {
   if (!job) {
     return (
@@ -54,7 +49,8 @@ export function JobDetailPanel({
 
   const action = getJobAction(job.part.status);
   const title = job.part.title ?? job.part.label;
-  const artifactHref = getArtifactHref(job);
+  const artifactLink = getJobArtifactLink(job);
+  const failureClass = formatJobFailureClass(job.part.failureClass);
 
   return (
     <aside className="jobs-panel-surface px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)" data-testid="job-detail-panel" data-jobs-detail-panel="true">
@@ -78,6 +74,10 @@ export function JobDetailPanel({
         <p>Job ID {job.part.jobId}</p>
         <p>Updated {formatJobTimestamp(job.part.updatedAt)}</p>
         {job.conversationId && <p>Conversation {job.conversationId}</p>}
+        {failureClass && <p>Failure class {failureClass}</p>}
+        {job.part.recoveryMode && <p>Recovery mode {job.part.recoveryMode === "rerun" ? "Replay from start" : job.part.recoveryMode}</p>}
+        {job.part.replayedFromJobId && <p>Replayed from {job.part.replayedFromJobId}</p>}
+        {job.part.supersededByJobId && <p>Superseded by {job.part.supersededByJobId}</p>}
       </div>
 
       <div className="mt-(--space-4) flex flex-wrap items-center gap-(--space-3) text-sm">
@@ -89,12 +89,12 @@ export function JobDetailPanel({
             Open conversation
           </Link>
         )}
-        {artifactHref && (
+        {artifactLink && (
           <Link
-            href={artifactHref}
+            href={artifactLink.href}
             className="underline decoration-foreground/24 underline-offset-4 transition hover:text-foreground"
           >
-            Open artifact
+            {artifactLink.label}
           </Link>
         )}
       </div>
@@ -116,8 +116,8 @@ export function JobDetailPanel({
         </div>
       )}
 
-      {action && (
-        <div className="mt-(--space-4)">
+      <div className="mt-(--space-4) flex flex-wrap items-center gap-(--space-2)">
+        {action && (
           <button
             type="button"
             className="jobs-action-primary rounded-full px-4 py-2 text-sm font-semibold"
@@ -127,8 +127,34 @@ export function JobDetailPanel({
           >
             {isPending ? `${action.label}ing…` : action.label}
           </button>
-        </div>
-      )}
+        )}
+        <button
+          type="button"
+          className="rounded-full border border-foreground/15 px-3 py-2 text-sm font-medium text-foreground/72 transition hover:border-foreground/30 hover:text-foreground"
+          onClick={() => onCopySummary(job)}
+          aria-label={`Copy summary for ${title}`}
+        >
+          Copy summary
+        </button>
+        {job.part.error && (
+          <button
+            type="button"
+            className="rounded-full border border-foreground/15 px-3 py-2 text-sm font-medium text-foreground/72 transition hover:border-foreground/30 hover:text-foreground"
+            onClick={() => onCopyFailure(job)}
+            aria-label={`Copy failure for ${title}`}
+          >
+            Copy failure
+          </button>
+        )}
+        <button
+          type="button"
+          className="rounded-full border border-foreground/15 px-3 py-2 text-sm font-medium text-foreground/72 transition hover:border-foreground/30 hover:text-foreground"
+          onClick={() => onExportLog(job, history)}
+          aria-label={`Export log for ${title}`}
+        >
+          Export log
+        </button>
+      </div>
 
       <div className="mt-(--space-6) space-y-(--space-3)">
         <div>

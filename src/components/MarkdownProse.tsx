@@ -14,6 +14,14 @@ interface MarkdownProseProps {
   variant?: "default" | "journal";
 }
 
+function isStandaloneBlockChild(children: ReactNode): boolean {
+  const childArray = Children.toArray(children);
+
+  return childArray.length === 1
+    && isValidElement(childArray[0])
+    && (typeof childArray[0].type !== "string" || childArray[0].type === "figure");
+}
+
 function flattenChildrenText(children: ReactNode): string {
   return Children.toArray(children)
     .map((child) => {
@@ -93,15 +101,12 @@ export function MarkdownProse({
           h2: ({ node: _node, ...props }) => <h2 {...props} />,
           h3: ({ node: _node, ...props }) => <h3 {...props} />,
           p: ({ node: _node, children, ...props }) => {
-            if (variant === "journal") {
-              const childArray = Children.toArray(children);
-              const isBlockChild = childArray.length === 1
-                && isValidElement(childArray[0])
-                && typeof childArray[0].type !== "string";
-
-              if (isBlockChild) {
+            if (isStandaloneBlockChild(children)) {
+              if (variant === "journal") {
                 return <div className="my-(--space-8)">{children}</div>;
               }
+
+              return <>{children}</>;
             }
 
             return <p {...props}>{children}</p>;

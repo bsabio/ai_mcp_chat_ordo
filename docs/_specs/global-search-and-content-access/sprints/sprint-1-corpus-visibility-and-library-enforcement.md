@@ -140,7 +140,7 @@ npm run build
 **Verify:**
 
 ```bash
-npx vitest run tests/sprint-7-blog-pipeline.test.ts
+npx vitest run tests/blog-pipeline-integration.test.ts
 npx tsc --noEmit
 npm run build
 ```
@@ -158,14 +158,14 @@ npm run build
 
 **Implementation details:**
 
-1. The existing `tests/sprint-5-public-content-routes.test.ts` assertion that library pages contain no auth imports or session checks is expected to become stale in Sprint 1 and should be replaced, not preserved.
+1. The existing `tests/public-content-routes.test.ts` assertion that library pages contain no auth imports or session checks is expected to become stale in Sprint 1 and should be replaced, not preserved.
 2. Prefer focused route and interactor tests over broad snapshot-style page assertions.
 3. Keep test fixtures synthetic and local to the tests rather than depending on live corpus data.
 
 **Verify:**
 
 ```bash
-npx vitest run tests/corpus/book-discovery.test.ts tests/cached-book-repository.test.ts tests/corpus/cached-repo-clear.test.ts src/core/use-cases/LibrarySearchInteractor.test.ts tests/sprint-7-blog-pipeline.test.ts
+npx vitest run tests/corpus/book-discovery.test.ts tests/cached-book-repository.test.ts tests/corpus/cached-repo-clear.test.ts src/core/use-cases/LibrarySearchInteractor.test.ts tests/blog-pipeline-integration.test.ts
 npx tsc --noEmit
 npm run build
 ```

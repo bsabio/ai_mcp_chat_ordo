@@ -34,10 +34,14 @@ describe("job capability registry", () => {
     }
   });
 
-  it("keeps the current editorial handler policy admin-only", () => {
+  it("keeps the current editorial handler audience and execution policy admin-only", () => {
     for (const toolName of Object.keys(createDeferredJobHandlers()) as Array<keyof typeof JOB_CAPABILITY_REGISTRY>) {
       expect(JOB_CAPABILITY_REGISTRY[toolName]).toMatchObject({
         family: "editorial",
+        executionPrincipal: "system_worker",
+        executionAllowedRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
+        recoveryMode: "rerun",
+        resultRetention: "retain",
         initiatorRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
         ownerViewerRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
         ownerActionRoles: CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
@@ -46,6 +50,51 @@ describe("job capability registry", () => {
         defaultSurface: "global",
       });
     }
+  });
+
+  it("enables automatic retry only for the safe editorial capabilities in Sprint 2", () => {
+    expect(JOB_CAPABILITY_REGISTRY.draft_content.retryPolicy).toEqual({
+      mode: "automatic",
+      maxAttempts: 3,
+      backoffStrategy: "fixed",
+      baseDelayMs: 3000,
+    });
+    expect(JOB_CAPABILITY_REGISTRY.publish_content.retryPolicy).toEqual({
+      mode: "automatic",
+      maxAttempts: 3,
+      backoffStrategy: "fixed",
+      baseDelayMs: 3000,
+    });
+    expect(JOB_CAPABILITY_REGISTRY.prepare_journal_post_for_publish.retryPolicy).toEqual({
+      mode: "automatic",
+      maxAttempts: 3,
+      backoffStrategy: "fixed",
+      baseDelayMs: 3000,
+    });
+    expect(JOB_CAPABILITY_REGISTRY.generate_blog_image.retryPolicy).toEqual({
+      mode: "automatic",
+      maxAttempts: 3,
+      backoffStrategy: "fixed",
+      baseDelayMs: 3000,
+    });
+    expect(JOB_CAPABILITY_REGISTRY.compose_blog_article.retryPolicy).toEqual({
+      mode: "automatic",
+      maxAttempts: 3,
+      backoffStrategy: "fixed",
+      baseDelayMs: 3000,
+    });
+    expect(JOB_CAPABILITY_REGISTRY.produce_blog_article.retryPolicy).toEqual({ mode: "manual_only" });
+    expect(JOB_CAPABILITY_REGISTRY.qa_blog_article.retryPolicy).toEqual({ mode: "manual_only" });
+    expect(JOB_CAPABILITY_REGISTRY.resolve_blog_article_qa.retryPolicy).toEqual({ mode: "manual_only" });
+    expect(JOB_CAPABILITY_REGISTRY.generate_blog_image_prompt.retryPolicy).toEqual({ mode: "manual_only" });
+  });
+
+  it("advertises artifact-open policy only for artifact-producing editorial capabilities", () => {
+    expect(JOB_CAPABILITY_REGISTRY.publish_content.artifactPolicy).toEqual({ mode: "open_artifact" });
+    expect(JOB_CAPABILITY_REGISTRY.draft_content.artifactPolicy).toEqual({ mode: "open_artifact" });
+    expect(JOB_CAPABILITY_REGISTRY.produce_blog_article.artifactPolicy).toEqual({ mode: "open_artifact" });
+    expect(JOB_CAPABILITY_REGISTRY.resolve_blog_article_qa.artifactPolicy).toEqual({ mode: "open_artifact" });
+    expect(JOB_CAPABILITY_REGISTRY.qa_blog_article.artifactPolicy).toEqual({ mode: "retain" });
   });
 
   it("preserves the current signed-in and global job audiences", () => {

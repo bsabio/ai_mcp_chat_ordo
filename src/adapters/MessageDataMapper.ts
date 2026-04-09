@@ -6,7 +6,7 @@ import type { MessagePart } from "@/core/entities/message-parts";
 export class MessageDataMapper implements MessageRepository {
   constructor(private db: Database.Database) {}
 
-  async create(msg: NewMessage & { tokenEstimate?: number }): Promise<Message> {
+  async create(msg: NewMessage & { tokenEstimate?: number; createdAt?: string }): Promise<Message> {
     const record = createMessageRecord(msg);
 
     this.db
@@ -48,7 +48,7 @@ export class MessageDataMapper implements MessageRepository {
   }
 
   async createWithinConversationLimit(
-    msg: NewMessage & { tokenEstimate?: number },
+    msg: NewMessage & { tokenEstimate?: number; createdAt?: string },
     maxMessages: number,
   ): Promise<Message | null> {
     const record = createMessageRecord(msg);
@@ -157,7 +157,7 @@ type MessageRow = {
   token_estimate: number;
 };
 
-function createMessageRecord(msg: NewMessage & { tokenEstimate?: number }): {
+function createMessageRecord(msg: NewMessage & { tokenEstimate?: number; createdAt?: string }): {
   id: string;
   createdAt: string;
   partsJson: string;
@@ -165,7 +165,7 @@ function createMessageRecord(msg: NewMessage & { tokenEstimate?: number }): {
 } {
   return {
     id: `msg_${crypto.randomUUID()}`,
-    createdAt: new Date().toISOString(),
+    createdAt: msg.createdAt ?? new Date().toISOString(),
     partsJson: JSON.stringify(msg.parts),
     tokenEstimate: msg.tokenEstimate ?? Math.ceil(msg.content.length / 4),
   };

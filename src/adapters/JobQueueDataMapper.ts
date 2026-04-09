@@ -4,6 +4,8 @@ import type {
   JobClaimOptions,
   JobEvent,
   JobEventSeed,
+  JobLeaseRecovery,
+  JobOwnershipTransferRequest,
   JobRequest,
   JobRequestSeed,
   JobStatus,
@@ -28,6 +30,12 @@ type JobRequestRow = {
   attempt_count: number;
   lease_expires_at: string | null;
   claimed_by: string | null;
+  failure_class: JobRequest["failureClass"];
+  next_retry_at: string | null;
+  recovery_mode: JobRequest["recoveryMode"];
+  last_checkpoint_id: string | null;
+  replayed_from_job_id: string | null;
+  superseded_by_job_id: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -66,10 +74,28 @@ function mapJobRequest(row: JobRequestRow): JobRequest {
     attemptCount: row.attempt_count,
     leaseExpiresAt: row.lease_expires_at,
     claimedBy: row.claimed_by,
+    failureClass: row.failure_class,
+    nextRetryAt: row.next_retry_at,
+    recoveryMode: row.recovery_mode,
+    lastCheckpointId: row.last_checkpoint_id,
+    replayedFromJobId: row.replayed_from_job_id,
+    supersededByJobId: row.superseded_by_job_id,
     createdAt: row.created_at,
     startedAt: row.started_at,
     completedAt: row.completed_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapJobLeaseRecovery(
+  row: JobRequestRow,
+  previousClaimedBy: string | null,
+  previousLeaseExpiresAt: string | null,
+): JobLeaseRecovery {
+  return {
+    job: mapJobRequest(row),
+    previousClaimedBy,
+    previousLeaseExpiresAt,
   };
 }
 
@@ -156,8 +182,9 @@ export class JobQueueDataMapper implements JobQueueRepository {
     this.db.prepare(
       `INSERT INTO job_requests (
         id, conversation_id, user_id, tool_name, status, priority, dedupe_key, initiator_type,
-        request_payload_json, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`,
+        request_payload_json, failure_class, next_retry_at, recovery_mode, last_checkpoint_id,
+        replayed_from_job_id, superseded_by_job_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       seed.conversationId,
@@ -167,6 +194,12 @@ export class JobQueueDataMapper implements JobQueueRepository {
       seed.dedupeKey ?? null,
       initiatorType,
       JSON.stringify(seed.requestPayload),
+      seed.failureClass ?? null,
+      seed.nextRetryAt ?? null,
+      seed.recoveryMode ?? null,
+      seed.lastCheckpointId ?? null,
+      seed.replayedFromJobId ?? null,
+      seed.supersededByJobId ?? null,
       now,
       now,
     );
@@ -250,11 +283,11 @@ export class JobQueueDataMapper implements JobQueueRepository {
       const rows = this.db.prepare(
         `SELECT jr.* FROM job_requests jr
          INNER JOIN conversations c ON c.id = jr.conversation_id
-         WHERE c.user_id = ?
+         WHERE (jr.user_id = ? OR c.user_id = ?)
            AND jr.status IN (${placeholders})
          ORDER BY jr.updated_at DESC, jr.created_at DESC
          LIMIT ?`,
-      ).all(userId, ...statuses, limit) as JobRequestRow[];
+      ).all(userId, userId, ...statuses, limit) as JobRequestRow[];
 
       return rows.map(mapJobRequest);
     }
@@ -262,10 +295,10 @@ export class JobQueueDataMapper implements JobQueueRepository {
     const rows = this.db.prepare(
       `SELECT jr.* FROM job_requests jr
        INNER JOIN conversations c ON c.id = jr.conversation_id
-       WHERE c.user_id = ?
+       WHERE (jr.user_id = ? OR c.user_id = ?)
        ORDER BY jr.updated_at DESC, jr.created_at DESC
        LIMIT ?`,
-    ).all(userId, limit) as JobRequestRow[];
+    ).all(userId, userId, limit) as JobRequestRow[];
 
     return rows.map(mapJobRequest);
   }
@@ -302,19 +335,38 @@ export class JobQueueDataMapper implements JobQueueRepository {
     return mapJobEvent(insertEvent(seed));
   }
 
-  async requeueExpiredRunningJobs(now: string): Promise<number> {
-    const result = this.db.prepare(
-      `UPDATE job_requests
-       SET status = 'queued',
-           lease_expires_at = NULL,
-           claimed_by = NULL,
-           updated_at = ?
-       WHERE status = 'running'
-         AND lease_expires_at IS NOT NULL
-         AND lease_expires_at <= ?`,
-    ).run(now, now);
+  async requeueExpiredRunningJobs(now: string): Promise<JobLeaseRecovery[]> {
+    const recover = this.db.transaction((requeueAt: string) => {
+      const expiredRows = this.db.prepare(
+        `SELECT * FROM job_requests
+         WHERE status = 'running'
+           AND lease_expires_at IS NOT NULL
+           AND lease_expires_at <= ?
+         ORDER BY lease_expires_at ASC, created_at ASC`,
+      ).all(requeueAt) as JobRequestRow[];
 
-    return result.changes;
+      for (const row of expiredRows) {
+        this.db.prepare(
+          `UPDATE job_requests
+           SET status = 'queued',
+               lease_expires_at = NULL,
+               claimed_by = NULL,
+               updated_at = ?
+           WHERE id = ?
+             AND status = 'running'`,
+        ).run(requeueAt, row.id);
+      }
+
+      return expiredRows.map((row) => {
+        const updatedRow = this.db
+          .prepare(`SELECT * FROM job_requests WHERE id = ?`)
+          .get(row.id) as JobRequestRow;
+
+        return mapJobLeaseRecovery(updatedRow, row.claimed_by, row.lease_expires_at);
+      });
+    });
+
+    return recover(now);
   }
 
   async listConversationEvents(
@@ -350,12 +402,13 @@ export class JobQueueDataMapper implements JobQueueRepository {
               je.created_at,
               je.rowid AS user_sequence
        FROM job_events je
+       INNER JOIN job_requests jr ON jr.id = je.job_id
        INNER JOIN conversations c ON c.id = je.conversation_id
-       WHERE c.user_id = ?
+       WHERE (jr.user_id = ? OR c.user_id = ?)
          AND je.rowid > ?
        ORDER BY je.rowid ASC
        LIMIT ?`,
-    ).all(userId, afterSequence, limit) as UserScopedJobEventRow[];
+    ).all(userId, userId, afterSequence, limit) as UserScopedJobEventRow[];
 
     return rows.map(mapUserScopedJobEvent);
   }
@@ -371,14 +424,15 @@ export class JobQueueDataMapper implements JobQueueRepository {
        FROM (
          SELECT je.*
          FROM job_events je
+         INNER JOIN job_requests jr ON jr.id = je.job_id
          INNER JOIN conversations c ON c.id = je.conversation_id
-         WHERE c.user_id = ?
+         WHERE (jr.user_id = ? OR c.user_id = ?)
            AND je.job_id = ?
          ORDER BY je.sequence DESC
          LIMIT ?
        ) recent_events
        ORDER BY sequence ASC`,
-    ).all(userId, jobId, limit) as JobEventRow[];
+    ).all(userId, userId, jobId, limit) as JobEventRow[];
 
     return rows.map(mapJobEvent);
   }
@@ -389,9 +443,10 @@ export class JobQueueDataMapper implements JobQueueRepository {
       const candidate = this.db.prepare(
         `SELECT * FROM job_requests
          WHERE status = 'queued'
-         ORDER BY priority ASC, created_at ASC
+           AND (next_retry_at IS NULL OR next_retry_at <= ?)
+         ORDER BY priority ASC, COALESCE(next_retry_at, created_at) ASC, created_at ASC
          LIMIT 1`,
-      ).get() as JobRequestRow | undefined;
+      ).get(now) as JobRequestRow | undefined;
 
       if (!candidate) {
         return null;
@@ -403,6 +458,12 @@ export class JobQueueDataMapper implements JobQueueRepository {
              claimed_by = ?,
              lease_expires_at = ?,
              started_at = COALESCE(started_at, ?),
+           completed_at = NULL,
+           error_message = NULL,
+           progress_percent = NULL,
+           progress_label = NULL,
+           failure_class = NULL,
+           next_retry_at = NULL,
              attempt_count = attempt_count + 1,
              updated_at = ?
          WHERE id = ? AND status = 'queued'`,
@@ -427,6 +488,82 @@ export class JobQueueDataMapper implements JobQueueRepository {
     return row ? mapJobRequest(row) : null;
   }
 
+  async transferJobsToUser(request: JobOwnershipTransferRequest): Promise<JobRequest[]> {
+    const conversationIds = Array.from(new Set(
+      request.conversationIds.map((conversationId) => conversationId.trim()).filter(Boolean),
+    ));
+
+    if (conversationIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = conversationIds.map(() => "?").join(", ");
+    const params: unknown[] = [...conversationIds];
+    let ownershipWhere = "user_id IS NULL";
+
+    if (request.previousUserId) {
+      ownershipWhere += " OR user_id = ?";
+      params.push(request.previousUserId);
+    }
+
+    const rows = this.db.prepare(
+      `SELECT * FROM job_requests
+       WHERE conversation_id IN (${placeholders})
+         AND (${ownershipWhere})
+       ORDER BY created_at ASC`,
+    ).all(...params) as JobRequestRow[];
+
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const transferredAt = request.transferredAt ?? new Date().toISOString();
+
+    const transferredRows = this.db.transaction((jobRows: JobRequestRow[]) => {
+      for (const row of jobRows) {
+        const previousUserId = row.user_id ?? request.previousUserId ?? null;
+        const summary = previousUserId?.startsWith("anon_")
+          ? "Job ownership transferred from the anonymous session to the signed-in account."
+          : "Job ownership transferred to the signed-in account.";
+
+        this.db.prepare(
+          `UPDATE job_requests
+           SET user_id = ?,
+               updated_at = ?
+           WHERE id = ?`,
+        ).run(request.userId, transferredAt, row.id);
+
+        const nextSequenceRow = this.db.prepare(
+          `SELECT COALESCE(MAX(sequence), 0) + 1 AS next_sequence
+           FROM job_events
+           WHERE conversation_id = ?`,
+        ).get(row.conversation_id) as { next_sequence: number };
+
+        this.db.prepare(
+          `INSERT INTO job_events (id, job_id, conversation_id, sequence, event_type, event_payload_json, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+          `jobevt_${randomUUID()}`,
+          row.id,
+          row.conversation_id,
+          nextSequenceRow.next_sequence,
+          "ownership_transferred",
+          JSON.stringify({
+            previousUserId,
+            nextUserId: request.userId,
+            source: request.source ?? "anonymous_migration",
+            summary,
+          }),
+          transferredAt,
+        );
+      }
+
+      return jobRows.map((row) => this.db.prepare(`SELECT * FROM job_requests WHERE id = ?`).get(row.id) as JobRequestRow);
+    });
+
+    return transferredRows(rows).map(mapJobRequest);
+  }
+
   async updateJobStatus(id: string, update: JobStatusUpdate): Promise<JobRequest> {
     const now = new Date().toISOString();
     const current = this.db
@@ -448,19 +585,31 @@ export class JobQueueDataMapper implements JobQueueRepository {
            completed_at = ?,
            lease_expires_at = ?,
            claimed_by = ?,
+           failure_class = ?,
+           next_retry_at = ?,
+           recovery_mode = ?,
+           last_checkpoint_id = ?,
+           replayed_from_job_id = ?,
+           superseded_by_job_id = ?,
            attempt_count = attempt_count + ?,
            updated_at = ?
        WHERE id = ?`,
     ).run(
       update.status,
-        update.resultPayload === undefined ? current.result_payload_json : JSON.stringify(update.resultPayload),
-        update.errorMessage === undefined ? current.error_message : update.errorMessage,
-        update.progressPercent === undefined ? current.progress_percent : update.progressPercent,
-        update.progressLabel === undefined ? current.progress_label : update.progressLabel,
-        update.startedAt === undefined ? current.started_at : update.startedAt,
-        update.completedAt === undefined ? current.completed_at : update.completedAt,
-        update.leaseExpiresAt === undefined ? current.lease_expires_at : update.leaseExpiresAt,
-        update.claimedBy === undefined ? current.claimed_by : update.claimedBy,
+      update.resultPayload === undefined ? current.result_payload_json : JSON.stringify(update.resultPayload),
+      update.errorMessage === undefined ? current.error_message : update.errorMessage,
+      update.progressPercent === undefined ? current.progress_percent : update.progressPercent,
+      update.progressLabel === undefined ? current.progress_label : update.progressLabel,
+      update.startedAt === undefined ? current.started_at : update.startedAt,
+      update.completedAt === undefined ? current.completed_at : update.completedAt,
+      update.leaseExpiresAt === undefined ? current.lease_expires_at : update.leaseExpiresAt,
+      update.claimedBy === undefined ? current.claimed_by : update.claimedBy,
+      update.failureClass === undefined ? current.failure_class : update.failureClass,
+      update.nextRetryAt === undefined ? current.next_retry_at : update.nextRetryAt,
+      update.recoveryMode === undefined ? current.recovery_mode : update.recoveryMode,
+      update.lastCheckpointId === undefined ? current.last_checkpoint_id : update.lastCheckpointId,
+      update.replayedFromJobId === undefined ? current.replayed_from_job_id : update.replayedFromJobId,
+      update.supersededByJobId === undefined ? current.superseded_by_job_id : update.supersededByJobId,
       update.incrementAttemptCount ? 1 : 0,
       now,
       id,

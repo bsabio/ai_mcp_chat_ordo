@@ -65,7 +65,7 @@ Keep the asset port separate from `BlogPostRepository`. Do not add generic JSON-
 Verify:
 
 - add focused contract tests such as `tests/blog-asset-contract.test.ts`
-- run `npm exec vitest run tests/blog-asset-contract.test.ts tests/sprint-7-blog-pipeline.test.ts`
+- run `npm exec vitest run tests/blog-asset-contract.test.ts tests/blog-pipeline-integration.test.ts`
 
 ### 2. Extend the database schema for asset and artifact persistence
 
@@ -109,7 +109,7 @@ Also extend `BlogPostDataMapper` and `BlogPostRepository` so a blog post can sto
 Verify:
 
 - add focused repository tests such as `tests/blog-asset-repository.test.ts`
-- run `npm exec vitest run tests/blog-asset-repository.test.ts tests/sprint-7-blog-pipeline.test.ts`
+- run `npm exec vitest run tests/blog-asset-repository.test.ts tests/blog-pipeline-integration.test.ts`
 
 ### 4. Add repository-factory wiring
 
@@ -170,7 +170,7 @@ Implementation note:
 Verify:
 
 - add focused component or page tests such as `tests/blog-hero-rendering.test.tsx`
-- run `npm exec vitest run tests/blog-hero-rendering.test.tsx tests/sprint-7-blog-pipeline.test.ts`
+- run `npm exec vitest run tests/blog-hero-rendering.test.tsx tests/blog-pipeline-integration.test.ts`
 
 ---
 

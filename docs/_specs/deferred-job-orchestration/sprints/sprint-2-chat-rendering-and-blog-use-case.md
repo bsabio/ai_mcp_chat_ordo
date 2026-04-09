@@ -47,7 +47,7 @@ The enqueue response should render as a job-status block immediately, and the fi
 - revise
 - publish
 
-Verify: `npx vitest run tests/sprint-7-blog-pipeline.test.ts tests/chat-route.test.ts tests/chat-stream-route.test.ts src/adapters/ChatPresenter.test.ts`
+Verify: `npx vitest run tests/blog-pipeline-integration.test.ts tests/chat-route.test.ts tests/chat-stream-route.test.ts src/adapters/ChatPresenter.test.ts`
 
 ### 3. Add end-to-end blog draft job tests
 
@@ -61,7 +61,7 @@ Test the full path:
 
 The end-to-end coverage should prove that the blog feature consumes the shared jobs program rather than introducing a blog-specific background runner.
 
-Verify: add focused tests such as `tests/deferred-blog-job-flow.test.ts` and run `npx vitest run tests/deferred-blog-job-flow.test.ts tests/sprint-7-blog-pipeline.test.ts`
+Verify: add focused tests such as `tests/deferred-blog-job-flow.test.ts` and run `npx vitest run tests/deferred-blog-job-flow.test.ts tests/blog-pipeline-integration.test.ts`
 
 ---
 

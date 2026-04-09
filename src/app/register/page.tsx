@@ -90,6 +90,13 @@ export default function RegisterPage() {
         return;
       }
 
+      const body = await res.json();
+      if (body.migratedConversations > 0) {
+        try {
+          sessionStorage.setItem("ordo:migrated-conversations", String(body.migratedConversations));
+        } catch { /* storage unavailable */ }
+      }
+
       router.push("/");
       router.refresh();
     } catch {

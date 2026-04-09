@@ -1,6 +1,7 @@
 import type { ConsultationRequestStatus } from "../entities/consultation-request";
 import type { ConsultationRequestRepository } from "./ConsultationRequestRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import { NotFoundError, ValidationError } from "../common/errors";
 
 const LEGAL_TRANSITIONS: Record<ConsultationRequestStatus, ConsultationRequestStatus[]> = {
   pending: ["reviewed", "declined"],
@@ -53,16 +54,6 @@ export class TriageConsultationRequestInteractor {
   }
 }
 
-export class ConsultationRequestNotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ConsultationRequestNotFoundError";
-  }
-}
+export class ConsultationRequestNotFoundError extends NotFoundError {}
 
-export class ConsultationRequestTransitionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ConsultationRequestTransitionError";
-  }
-}
+export class ConsultationRequestTransitionError extends ValidationError {}

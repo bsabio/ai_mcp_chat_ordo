@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { validateSession } from "@/lib/auth";
 import { InvalidSessionError } from "@/core/use-cases/ValidateSessionInteractor";
+import { logFailure } from "@/lib/observability/logger";
 
 export async function GET() {
   try {
@@ -24,7 +25,7 @@ export async function GET() {
         { status: 401 },
       );
     }
-    console.error("Session validation error:", error);
+    logFailure("SESSION_VALIDATION_ERROR", "Session validation error", undefined, error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

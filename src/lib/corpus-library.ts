@@ -18,6 +18,7 @@ import { ConsoleLogger } from "../adapters/ConsoleLogger";
 import { ErrorHandler } from "../core/services/ErrorHandler";
 import { LoggingDecorator } from "../core/common/LoggingDecorator";
 import { resolveCorpusRole, type CorpusAccessOptions } from "./corpus-access";
+import { buildCanonicalCorpusReference } from "./corpus-reference";
 import { stripLeadingMarkdownTitle } from "./markdown/strip-leading-markdown-title";
 
 const logger = new ConsoleLogger();
@@ -110,6 +111,8 @@ export interface SearchResult {
   chapter: string;
   chapterSlug: string;
   bookSlug: string;
+  canonicalPath: string;
+  resolverPath: string;
 }
 
 let cachedIndex: CorpusIndexEntry[] | null = null;
@@ -144,20 +147,28 @@ export const searchCorpus = withErrorFallback(
     const role = resolveCorpusRole(options);
     const results = await searchInteractor.execute({ query, maxResults, role });
 
-    return results.map((result) => ({
-      document: `${result.documentId ?? result.bookNumber ?? ""}. ${result.documentTitle ?? result.bookTitle ?? ""}`.trim(),
-      documentId: result.documentId ?? result.bookNumber ?? "",
-      section: result.sectionTitle ?? result.chapterTitle ?? "",
-      sectionSlug: result.sectionSlug ?? result.chapterSlug ?? "",
-      documentSlug: result.documentSlug ?? result.bookSlug ?? "",
-      matchContext: result.matchContext,
-      relevance: result.relevance,
-      book: `${result.bookNumber ?? result.documentId ?? ""}. ${result.bookTitle ?? result.documentTitle ?? ""}`.trim(),
-      bookNumber: result.bookNumber ?? result.documentId ?? "",
-      chapter: result.chapterTitle ?? result.sectionTitle ?? "",
-      chapterSlug: result.chapterSlug ?? result.sectionSlug ?? "",
-      bookSlug: result.bookSlug ?? result.documentSlug ?? "",
-    }));
+    return results.map((result) => {
+      const documentSlug = result.documentSlug ?? result.bookSlug ?? "";
+      const sectionSlug = result.sectionSlug ?? result.chapterSlug ?? "";
+      const reference = buildCanonicalCorpusReference(documentSlug, sectionSlug);
+
+      return {
+        document: `${result.documentId ?? result.bookNumber ?? ""}. ${result.documentTitle ?? result.bookTitle ?? ""}`.trim(),
+        documentId: result.documentId ?? result.bookNumber ?? "",
+        section: result.sectionTitle ?? result.chapterTitle ?? "",
+        sectionSlug,
+        documentSlug,
+        matchContext: result.matchContext,
+        relevance: result.relevance,
+        book: `${result.bookNumber ?? result.documentId ?? ""}. ${result.bookTitle ?? result.documentTitle ?? ""}`.trim(),
+        bookNumber: result.bookNumber ?? result.documentId ?? "",
+        chapter: result.chapterTitle ?? result.sectionTitle ?? "",
+        chapterSlug: sectionSlug,
+        bookSlug: documentSlug,
+        canonicalPath: reference.canonicalPath,
+        resolverPath: reference.resolverPath,
+      };
+    });
   },
   [] as SearchResult[],
   "searchCorpus",

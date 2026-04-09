@@ -14,10 +14,12 @@ describe("chatStreamRunner", () => {
     };
     const dispatch = vi.fn();
     const setConversationId = vi.fn();
+    const setStreamId = vi.fn();
     const streamDispatch = createChatStreamDispatcher({
       initialConversationId: "conv_1",
       dispatch,
       setConversationId,
+      setStreamId,
     });
 
     await runChatStream({
@@ -53,15 +55,18 @@ describe("chatStreamRunner", () => {
     };
     const dispatch = vi.fn();
     const setConversationId = vi.fn();
+    const setStreamId = vi.fn();
     const streamDispatch = createChatStreamDispatcher({
       initialConversationId: null,
       dispatch,
       setConversationId,
+      setStreamId,
     });
 
     const resolvedConversationId = await runChatStream({
       stream: {
         async *events() {
+          yield { type: "stream_id", id: "stream_live_1" };
           yield { type: "conversation_id", id: "conv_new" };
         },
       },
@@ -71,6 +76,7 @@ describe("chatStreamRunner", () => {
       assistantIndex: 0,
     });
 
+    expect(setStreamId).toHaveBeenCalledWith("stream_live_1");
     expect(setConversationId).toHaveBeenCalledWith("conv_new");
     expect(resolvedConversationId).toBe("conv_new");
     expect(textBuffer.dispose).toHaveBeenCalledTimes(1);

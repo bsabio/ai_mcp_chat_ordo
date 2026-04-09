@@ -48,6 +48,13 @@ export class ConversationIdParser implements EventParserStrategy {
   }
 }
 
+export class StreamIdParser implements EventParserStrategy {
+  canParse(data: RawSSEData) { return !!data.stream_id; }
+  parse(data: RawSSEData): StreamEvent {
+    return { type: "stream_id", id: data.stream_id as string };
+  }
+}
+
 export class ErrorParser implements EventParserStrategy {
   canParse(data: RawSSEData) { return typeof data.error === "string"; }
   parse(data: RawSSEData): StreamEvent {
@@ -64,6 +71,15 @@ class TypedEventParser implements EventParserStrategy {
 
   parse(data: RawSSEData): StreamEvent {
     switch (this.eventType) {
+      case "generation_stopped":
+      case "generation_interrupted":
+        return {
+          type: this.eventType,
+          actor: data.actor === "user" ? "user" : "system",
+          reason: typeof data.reason === "string" ? data.reason : "stream_interrupted",
+          partialContentRetained: Boolean(data.partialContentRetained),
+          recordedAt: typeof data.recordedAt === "string" ? data.recordedAt : undefined,
+        };
       case "job_queued":
       case "job_started":
         return {
@@ -134,6 +150,18 @@ class TypedEventParser implements EventParserStrategy {
 export class JobQueuedParser extends TypedEventParser {
   constructor() {
     super("job_queued");
+  }
+}
+
+export class GenerationStoppedParser extends TypedEventParser {
+  constructor() {
+    super("generation_stopped");
+  }
+}
+
+export class GenerationInterruptedParser extends TypedEventParser {
+  constructor() {
+    super("generation_interrupted");
   }
 }
 

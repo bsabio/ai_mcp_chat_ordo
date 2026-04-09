@@ -5,6 +5,7 @@ import {
   type WebSearchToolDeps,
 } from "../../../../mcp/web-search-tool";
 import OpenAI from "openai";
+import { logFailure } from "@/lib/observability/logger";
 
 function getDeps(): WebSearchToolDeps {
   return { openai: new OpenAI() };
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Web Search Route Error:", error);
+    logFailure("WEB_SEARCH_ERROR", "Web search route error", undefined, error);
     return NextResponse.json(
       { error: "Internal server error during web search." },
       { status: 500 },

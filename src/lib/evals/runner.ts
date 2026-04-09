@@ -5,13 +5,19 @@ import { ChatPresenter } from "@/adapters/ChatPresenter";
 import { CommandParserService } from "@/adapters/CommandParserService";
 import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { MarkdownParserService } from "@/adapters/MarkdownParserService";
+import { getCorpusRepository } from "@/adapters/RepositoryFactory";
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { InlineNode } from "@/core/entities/rich-content";
 import { isDealCustomerVisibleStatus } from "@/core/entities/deal-record";
 import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-path-record";
+import { SearchCorpusCommand } from "@/core/use-cases/tools/CorpusTools";
 import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
 import { createDeferredJobResultPayload, deferredJobResultToMessagePart } from "@/lib/jobs/deferred-job-result";
 import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
+import {
+  evaluateCanonicalCorpusSearchPayload,
+  type CanonicalCorpusSearchPayload,
+} from "./runtime-integrity-checks";
 import { getEvalScenarioById } from "./scenarios";
 import { inflateDeterministicSeedPack, resolveDeterministicSeedPack } from "./seeding";
 import { createEvalWorkspace } from "./workspace";
@@ -266,6 +272,172 @@ export async function runDeterministicEvalScenario(
             activeConversationId: activeConversation?.id ?? null,
           },
         });
+        break;
+      }
+      case "integrity-canonical-corpus-reference-deterministic": {
+        const searchCommand = new SearchCorpusCommand(getCorpusRepository());
+        const payload = await searchCommand.execute(
+          { query: "sage", max_results: 3 },
+          { role: "AUTHENTICATED", userId: inflated.refs.authenticatedUserId ?? conversation.userId },
+        ) as CanonicalCorpusSearchPayload;
+        const evaluation = evaluateCanonicalCorpusSearchPayload(payload);
+
+        toolCalls.push("search_corpus");
+        observations.push({
+          kind: "tool_call",
+          at: run.startedAt,
+          data: {
+            toolId: "search_corpus",
+            args: { query: "sage", max_results: 3 },
+            result: payload,
+            matchedExpected: evaluation.matchedExpected,
+          },
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "canonical-path-returned",
+            evaluation.canonicalPathsReturned,
+            payload.results[0]?.canonicalPath ?? "No canonical path returned.",
+          ),
+          createCheckpointResult(
+            scenario,
+            "resolver-path-returned",
+            evaluation.resolverPathsReturned,
+            payload.results[0]?.resolverPath ?? "No resolver path returned.",
+          ),
+          createCheckpointResult(
+            scenario,
+            "grounding-followup-honest",
+            evaluation.groundingFollowupHonest,
+            `${payload.groundingState}:${payload.followUp}`,
+          ),
+        );
+
+        finalRecommendation = payload.results[0]?.canonicalPath ?? finalRecommendation;
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation,
+            groundingState: payload.groundingState,
+          },
+        });
+        break;
+      }
+      case "integrity-audio-recovery-deterministic": {
+        const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
+          role: "assistant",
+          content: "Audio generation failed to stream in the browser, so the transcript remains available below. Retry audio generation if you still want spoken playback.",
+          createdAt: "2026-03-20T13:31:00.000Z",
+        };
+
+        await workspace.appendMessage({
+          conversationId: primaryConversationId,
+          role: finalAssistantMessage.role,
+          content: finalAssistantMessage.content,
+          createdAt: finalAssistantMessage.createdAt,
+        });
+        pushMessageObservations(observations, [finalAssistantMessage]);
+
+        toolCalls.push("generate_audio");
+        observations.push({
+          kind: "tool_call",
+          at: run.startedAt,
+          data: {
+            toolId: "generate_audio",
+            args: {
+              title: "Integrity Audio Retry",
+              text: "Transcript remains visible.",
+            },
+            error: "Failed to stream audio",
+            matchedExpected: false,
+          },
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "audio-failure-detected",
+            true,
+            "Failed to stream audio",
+          ),
+          createCheckpointResult(
+            scenario,
+            "fallback-transcript-visible",
+            finalAssistantMessage.content.includes("transcript remains available"),
+            finalAssistantMessage.content,
+          ),
+          createCheckpointResult(
+            scenario,
+            "recovery-guidance-visible",
+            finalAssistantMessage.content.includes("Retry audio generation"),
+            finalAssistantMessage.content,
+          ),
+        );
+
+        finalRecommendation = finalAssistantMessage.content;
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation,
+          },
+        });
+        break;
+      }
+      case "integrity-malformed-ui-tags-deterministic": {
+        const presenter = new ChatPresenter(new MarkdownParserService(), new CommandParserService());
+        const presented = presenter.present({
+          id: "msg_eval_integrity_ui_tags_assistant",
+          role: "assistant",
+          content: [
+            "Use the repaired route chip.",
+            "__suggestions__:[123,null,{\"bad\":true}]",
+            "__actions__:[{\"label\":\"Open library\",\"action\":\"route\",\"params\":{\"href\":\"/library\",\"tracking\":\"integrity\"}},{\"label\":\"Broken\",\"action\":\"unknown\",\"params\":{}}]",
+          ].join(" "),
+          timestamp: new Date(run.startedAt),
+          parts: [],
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "suggestions-repaired",
+            presented.suggestions.length > 0,
+            JSON.stringify(presented.suggestions),
+          ),
+          createCheckpointResult(
+            scenario,
+            "actions-repaired",
+            presented.actions.length === 1 && presented.actions[0]?.label === "Open library",
+            JSON.stringify(presented.actions),
+          ),
+          createCheckpointResult(
+            scenario,
+            "canonical-action-params",
+            presented.actions[0]?.params.path === "/library" && !("href" in (presented.actions[0]?.params ?? {})),
+            JSON.stringify(presented.actions[0]?.params ?? null),
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation: presented.actions[0]?.params.path ?? null,
+            suggestions: presented.suggestions,
+            actions: presented.actions,
+          },
+        });
+        finalRecommendation = presented.actions[0]?.params.path ?? finalRecommendation;
         break;
       }
       case "organization-buyer-deterministic": {

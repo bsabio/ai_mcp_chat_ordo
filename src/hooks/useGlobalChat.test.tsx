@@ -1270,7 +1270,7 @@ describe("ChatProvider active conversation restore", () => {
     expect(fetchStreamMock).not.toHaveBeenCalled();
   });
 
-  it("requests attachment cleanup when streaming fails after upload", async () => {
+  it("preserves uploaded attachments for retry when streaming fails after upload", async () => {
     fetchMock
       .mockResolvedValueOnce({
         status: 404,
@@ -1292,12 +1292,6 @@ describe("ChatProvider active conversation restore", () => {
           ],
         }),
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ deletedIds: ["uf_attachment"] }),
-      });
-
     fetchStreamMock.mockRejectedValue(new Error("stream down"));
 
     renderChatProvider();
@@ -1309,14 +1303,14 @@ describe("ChatProvider active conversation restore", () => {
     fireEvent.click(screen.getByRole("button", { name: "send-attachment" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenNthCalledWith(
-        4,
-        "/api/chat/uploads",
-        expect.objectContaining({
-          method: "DELETE",
-          body: JSON.stringify({ attachmentIds: ["uf_attachment"] }),
-        }),
-      );
+      expect(fetchStreamMock).toHaveBeenCalled();
     });
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/chat/uploads",
+      expect.objectContaining({
+        method: "DELETE",
+      }),
+    );
   });
 });

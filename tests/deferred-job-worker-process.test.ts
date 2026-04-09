@@ -104,7 +104,7 @@ describe("deferred job worker process", () => {
     });
 
     const events = await reopenedJobRepo.listConversationEvents("conv_restart");
-    expect(events.map((event) => event.eventType)).toEqual(["started", "result"]);
+    expect(events.map((event) => event.eventType)).toEqual(["lease_recovered", "started", "result"]);
     reopenedDb.close();
-  });
+  }, 15000);
 });

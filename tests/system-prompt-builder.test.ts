@@ -345,7 +345,7 @@ describe("Output parity — builder vs ChatPolicyInteractor", () => {
       .build();
 
     // The seeded DB prompt comes from ensureSchema, so it should be the corpus prompt
-    expect(output).toContain("strategic workflow, implementation, and training advisor");
+    expect(output).toContain(buildCorpusBasePrompt());
   });
 
   it("I4: streaming route builder output matches manual concatenation", () => {

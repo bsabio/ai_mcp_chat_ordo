@@ -1,4 +1,5 @@
 import type { UseCase } from "../common/UseCase";
+import { AuthorizationError } from "../common/errors";
 import type { User } from "../entities/user";
 import type { SessionRepository } from "./SessionRepository";
 import type { UserRepository } from "./UserRepository";
@@ -32,9 +33,5 @@ export class ValidateSessionInteractor
   }
 }
 
-export class InvalidSessionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "InvalidSessionError";
-  }
-}
+export class InvalidSessionError extends AuthorizationError {}
+

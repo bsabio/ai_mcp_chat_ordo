@@ -1,13 +1,48 @@
-# Studio Ordo
+# Studio Ordo: A Governed AI Operator Environment
 
-Studio Ordo is a production-style Next.js system for AI-assisted workflow guidance, corpus-grounded chat, role-aware tool orchestration, and MCP-backed operations. It is both a working product and a teaching repository for how to build agentic software without giving up contracts, RBAC, tests, or runtime discipline.
+Studio Ordo is a solo-built, open-source framework for governed AI operator environments. It is a working Next.js and TypeScript product, but it is also a proof story: agentic software can move fast without surrendering RBAC, runtime truth, retrieval discipline, or release evidence.
+
+The point of this repository is not unrestricted agent autonomy. The point is that the model operates inside explicit contracts that are visible in code, tests, runtime inventories, and release artifacts.
+
+## Proof Story
+
+- Solo agentic build: the repository shows how one builder can ship a serious AI system without hiding the engineering substrate.
+- Governed runtime: tool access, current-page truth, routing state, corpus grounding, and UI side effects all come from explicit server-owned or registry-owned sources.
+- Real QA loop: focused regression suites, live runner fixtures, release evidence, and structured issue intake all exist to catch integrity drift before it ships.
+- Open contribution surface: the repo exposes the actual contracts for prompts, tools, retrieval, output rendering, and release gates instead of burying them in proprietary glue.
 
 The repository centers on four ideas:
 
-- chat is the primary interface
-- tools are explicit, typed, and role-scoped
-- MCP is part of the system boundary, not the whole system
-- specs, sprints, QA, and runtime checks are first-class artifacts
+- Chat is the primary interface, but not the only interface.
+- Tools are explicit, typed, and strictly role-scoped.
+- MCP is part of the system boundary, not the whole system.
+- Specs, QA bundles, generated inventories, and release checks are first-class artifacts.
+
+## The Enterprise Value Proposition (Why This Exists)
+
+Building an AI Agent that can hit an API is easy. Building a scalable system where agents run 10-minute jobs, securely gate vector search results based on the human user's clearance level, and dynamically adjust UI accessibility—all while preventing streaming layout drift—is incredibly difficult. Ordo solves these "Day 2" integration problems out of the box.
+
+### 1. Enterprise-Grade RBAC by Default
+
+Your typical AI agent has zero concept of a human user. In Ordo, tool execution and database retrieval are fundamentally coupled to the requesting user's identity. If a junior employee and an admin ask the exact same question, the system dynamically trims the execution paths and vector context chunks strictly to what each role is cleared to access.
+
+### 2. Batteries-Included Hybrid RAG (with RRF)
+
+Instead of relying on expensive managed vector databases to get started, Ordo ships with a self-sufficient, local-first RAG engine. It utilizes an internal `SQLiteVectorStore` (for semantic similarity) and an `SQLiteBM25IndexStore` (for exact keyword/jargon matching). These pipelines are merged using Reciprocal Rank Fusion (RRF), delivering state-of-the-art retrieval completely within `better-sqlite3`.
+
+### 3. Distributed AI Job Orchestration
+
+Serverless environments have 30-to-60-second timeouts. Ordo transcends this by shipping a transactional, lease-locking Deferred Job Worker natively. When an agent kicks off a massive analysis task, it drops it into the SQLite queue. Background workers pick it up, process it safely, and emit real-time progress events back through a Projector to the Next.js user interface, solving the hardest UX challenge in asynchronous AI.
+
+### 4. AI-Controlled UI Physics & Accessibility
+
+Through tools like `adjust_ui`, the LLM is given physical control over the application's React context. If a user says "I am colorblind" or "this is hard to read", the agent safely maps the request to strict presets (e.g., `elderly`, `color-blind-protanopia`), immediately overriding CSS tokens and persisting the dual-write preference to the datastore.
+
+### 5. Pure Hexagonal Architecture (Portability)
+
+The core business logic (`src/core`) contains over 70 pure-TypeScript interactors. The AI domain (Interactors, ToolRegistry, Hybrid Search) is entirely decoupled from the Next.js delivery layer, allowing it to be ported effortlessly to different runtime environments (Node workers, AWS Lambdas, etc.).
+
+---
 
 ## What The System Does
 
@@ -16,7 +51,7 @@ Studio Ordo combines a user-facing chat application with a structured backend fo
 ### Core product capabilities
 
 - Embedded homepage chat with streaming AI responses
-- Corpus-grounded answers over a structured library of documents and sections
+- Corpus-grounded answers over a structured library of 10 books and 87 chapters
 - Role-aware tool access for anonymous, authenticated, apprentice, staff, and admin users
 - Conversation history and conversation search for signed-in roles
 - User preference persistence for tone, response style, business context, and preferred name
@@ -30,7 +65,7 @@ Studio Ordo combines a user-facing chat application with a structured backend fo
 
 - Registry-based tool orchestration with RBAC middleware
 - Prompt composition with base identity, role directives, user preferences, routing context, summaries, and a dynamic tool manifest
-- Standalone MCP servers for calculator and embeddings workflows, plus app-local `@mcp/*` modules for analytics, prompts, and related operator helpers
+- Standalone MCP servers for calculator and embeddings workflows, plus app-local `@mcp/*` modules
 - Deterministic QA via Vitest, Playwright, env validation, release verification, and secret scanning
 - Spec-driven delivery under `docs/_specs/`
 
@@ -109,29 +144,19 @@ Studio Ordo has two tool layers.
 ### 1. Application chat tools
 
 These are the tools exposed directly to the chat model through the internal `ToolRegistry`.
+The exact manifest is role-scoped and composed at runtime from `src/lib/chat/tool-composition-root.ts`, then filtered by RBAC before it reaches the model.
 
-- `calculator`
-- `search_corpus`
-- `get_corpus_summary`
-- `get_section`
-- `get_checklist`
-- `list_practitioners`
-- `set_theme`
-- `inspect_theme`
-- `adjust_ui`
-- `navigate`
-- `generate_chart`
-- `generate_audio`
-- `search_my_conversations`
-- `set_preference`
-- `admin_web_search`
-- `admin_prioritize_leads`
-- `admin_prioritize_offer`
-- `admin_triage_routing_risk`
-- `draft_content`
-- `publish_content`
+Treat the registry as the source of truth for exact tool availability.
+This README intentionally avoids a hand-maintained exhaustive tool list because it drifts faster than the runtime.
 
-These are composed in `src/lib/chat/tool-composition-root.ts` and enforced by RBAC middleware.
+Representative tool groups include:
+
+- math and calculation
+- corpus search, summaries, and section retrieval
+- navigation and current-page inspection
+- theme and UI adaptation
+- graph, chart, and audio generation
+- conversation, profile, referral, and admin operator workflows
 
 ### 2. MCP tools
 
@@ -264,10 +289,25 @@ npm run build:search-index:force
 ### Release and evidence
 
 ```bash
+npm run runtime:inventory
+npm run qa:runtime-integrity
 npm run release:prepare
 npm run release:verify
 npm run release:evidence
 ```
+
+`npm run runtime:inventory` writes generated corpus, tool-manifest, and navigation inventories to `release/runtime-inventory.json`.
+`npm run qa:runtime-integrity` runs the focused truthfulness and retrieval-integrity bundle and writes `release/runtime-integrity-evidence.json`.
+`npm run release:evidence` now blocks if that integrity artifact is missing or failed.
+
+## Runtime Truth Governance
+
+When you change prompt-visible facts, tool manifests, route semantics, or output contracts, keep the runtime and public story aligned:
+
+1. Update the authoritative source, not a duplicate README list.
+2. Run `npm run runtime:inventory` if corpus counts, role-visible tools, or navigation inventories changed.
+3. Run `npm run qa:runtime-integrity` before treating the change as complete.
+4. File regressions with the issue template at `.github/ISSUE_TEMPLATE/agent-runtime-integrity.yml` so manual QA maps back to a durable test or eval surface.
 
 ## Reading Path
 
@@ -297,5 +337,7 @@ If you are new to the repository, read these in order:
 - verify with deterministic commands before claiming completion
 - use runtime/browser checks when the UI is part of the behavior
 - keep docs current when the architecture, workflow, or tool surface changes
+
+For the runtime truthfulness workstream, see [docs/_refactor/agent-runtime-truthfulness-and-retrieval-integrity/spec.md](docs/_refactor/agent-runtime-truthfulness-and-retrieval-integrity/spec.md).
 
 The point of this repository is not to show maximum autonomous freedom. The point is to show how AI can move quickly inside strong engineering boundaries.

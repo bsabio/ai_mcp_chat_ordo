@@ -71,6 +71,50 @@ describe("eval deterministic runner", () => {
     );
   });
 
+  it("returns canonical corpus references and grounded prefetch payloads", async () => {
+    const execution = await runDeterministicEvalScenario("integrity-canonical-corpus-reference-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "canonical-path-returned", passed: true }),
+        expect.objectContaining({ id: "resolver-path-returned", passed: true }),
+        expect.objectContaining({ id: "grounding-followup-honest", passed: true }),
+      ]),
+    );
+    expect(execution.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "tool_call", data: expect.objectContaining({ toolId: "search_corpus" }) }),
+      ]),
+    );
+    expect(execution.finalState.recommendation).toContain("/library/");
+  });
+
+  it("records audio failure recovery without losing transcript guidance", async () => {
+    const execution = await runDeterministicEvalScenario("integrity-audio-recovery-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "audio-failure-detected", passed: true }),
+        expect.objectContaining({ id: "fallback-transcript-visible", passed: true }),
+        expect.objectContaining({ id: "recovery-guidance-visible", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.recommendation).toContain("Retry audio generation");
+  });
+
+  it("repairs malformed UI tags into sane suggestions and canonical action params", async () => {
+    const execution = await runDeterministicEvalScenario("integrity-malformed-ui-tags-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "suggestions-repaired", passed: true }),
+        expect.objectContaining({ id: "actions-repaired", passed: true }),
+        expect.objectContaining({ id: "canonical-action-params", passed: true }),
+      ]),
+    );
+    expect(execution.finalState.recommendation).toBe("/library");
+  });
+
   it("creates an estimate-ready deal for the deterministic organization buyer funnel", async () => {
     const execution = await runDeterministicEvalScenario("organization-buyer-deterministic");
 

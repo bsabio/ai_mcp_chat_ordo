@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -26,38 +26,10 @@ const GUEST_ACCESS_LINKS = [
 
 export function SiteNav({ user, searchAction }: SiteNavProps) {
   const pathname = usePathname();
-  const [showDesktopSearch, setShowDesktopSearch] = useState(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return true;
-    }
-
-    return window.matchMedia("(min-width: 56rem)").matches;
-  });
   const isJournalRoute = pathname === "/journal"
     || pathname.startsWith("/journal/");
   const navTone = isJournalRoute ? "quiet" : "default";
   const homeHref = resolveShellHomeHref();
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(min-width: 56rem)");
-    const syncSearchVisibility = () => setShowDesktopSearch(mediaQuery.matches);
-
-    syncSearchVisibility();
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", syncSearchVisibility);
-      return () => mediaQuery.removeEventListener("change", syncSearchVisibility);
-    }
-
-    mediaQuery.addListener(syncSearchVisibility);
-    return () => mediaQuery.removeListener(syncSearchVisibility);
-  }, []);
-
-  const showSearch = showDesktopSearch;
   const isAnonymous = user.roles.every((role) => role === "ANONYMOUS");
 
   return (
@@ -81,13 +53,11 @@ export function SiteNav({ user, searchAction }: SiteNavProps) {
             </div>
           </div>
 
-          {showSearch ? (
-            <div className="shell-nav-search-region" data-shell-nav-region="search">
-              <div className="shell-nav-search-frame">
-                <GlobalSearchBar user={user} searchAction={searchAction} />
-              </div>
+          <div className="shell-nav-search-region" data-shell-nav-region="search">
+            <div className="shell-nav-search-frame">
+              <GlobalSearchBar user={user} searchAction={searchAction} />
             </div>
-          ) : null}
+          </div>
 
           <div
             className="shell-nav-actions"
@@ -99,7 +69,7 @@ export function SiteNav({ user, searchAction }: SiteNavProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="shell-nav-icon-button shell-micro-text min-w-[5.25rem] justify-center rounded-full px-(--space-3)"
+                    className="shell-nav-icon-button shell-micro-text min-w-21 justify-center rounded-full px-(--space-3)"
                   >
                     {item.label}
                   </Link>

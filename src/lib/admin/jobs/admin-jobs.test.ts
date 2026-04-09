@@ -147,8 +147,10 @@ describe("admin jobs loader", () => {
       toolName: "produce_blog_article",
       toolLabel: "Produce Blog Article",
       toolFamily: "editorial",
+      executionPrincipal: "system_worker",
       canManage: true,
       canCancel: true,
+      canRequeue: true,
       canRetry: false,
       detailHref: "/admin/jobs/job_1",
     });
@@ -209,6 +211,9 @@ describe("admin jobs loader", () => {
       initiatorType: "user",
       claimedBy: "worker_1",
       leaseExpiresAt: null,
+      failureClass: "transient",
+      nextRetryAt: null,
+      recoveryMode: "rerun",
     });
     listEventsForJobMock.mockResolvedValue([
       {
@@ -229,12 +234,30 @@ describe("admin jobs loader", () => {
       toolLabel: "Publish Content",
       toolFamily: "editorial",
       errorMessage: "Publish target missing.",
+      failureClass: "transient",
+      nextRetryAt: null,
+      recoveryMode: "rerun",
       detailHref: "/admin/jobs/job_9",
     });
     expect(result.policy).toEqual({
       canManage: true,
       canCancel: false,
+      canRequeue: false,
       canRetry: true,
+      retryMode: "automatic",
+      maxAttempts: 3,
+      backoffStrategy: "fixed",
+      baseDelayMs: 3000,
+      retryExhausted: true,
+    });
+    expect(result.capabilityPolicy).toEqual({
+      description: "Publish an editorial draft and align any linked hero assets for public visibility.",
+      executionPrincipal: "system_worker",
+      executionAllowedRoles: ["ADMIN"],
+      globalViewerRoles: ["ADMIN"],
+      globalActionRoles: ["ADMIN"],
+      resultRetention: "retain",
+      artifactPolicy: "open_artifact",
     });
     expect(result.events).toEqual([
       {
@@ -274,6 +297,9 @@ describe("admin jobs loader", () => {
       initiatorType: "user",
       claimedBy: null,
       leaseExpiresAt: null,
+      failureClass: null,
+      nextRetryAt: null,
+      recoveryMode: null,
     });
 
     await expect(loadAdminJobDetail("job_hidden")).rejects.toThrow("notFound");

@@ -106,6 +106,7 @@ export function formatCurrentPagePromptContext(details: CurrentPageDetails): str
     "[Authoritative current page snapshot]",
     "Use this snapshot as the source of truth for questions about what page the user is viewing and what is visible on that page.",
     "If earlier assistant messages conflict with this snapshot, ignore the earlier assistant messages and trust this snapshot.",
+    "If no authoritative page snapshot is available elsewhere in the prompt, say the current page is unknown rather than inferring it from earlier assistant text.",
     `pathname=${details.pathname}`,
   ];
 

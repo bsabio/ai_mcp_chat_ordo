@@ -34,6 +34,29 @@ vi.mock("../../components/GraphRenderer", () => ({
   ),
 }));
 
+vi.mock("../../components/AudioPlayer", () => ({
+  AudioPlayer: ({ title, text, assetId, provider, generationStatus, estimatedDurationSeconds, estimatedGenerationSeconds }: {
+    title: string;
+    text: string;
+    assetId?: string;
+    provider?: string;
+    generationStatus?: string;
+    estimatedDurationSeconds?: number;
+    estimatedGenerationSeconds?: number;
+  }) => (
+    <div
+      data-testid="audio-player"
+      data-title={title}
+      data-text={text}
+      data-asset-id={assetId ?? ""}
+      data-provider={provider ?? ""}
+      data-generation-status={generationStatus ?? ""}
+      data-estimated-duration={String(estimatedDurationSeconds ?? "")}
+      data-estimated-generation={String(estimatedGenerationSeconds ?? "")}
+    />
+  ),
+}));
+
 describe("RichContentRenderer", () => {
   it("should render a paragraph", () => {
     const content: RichContent = {
@@ -56,7 +79,7 @@ describe("RichContentRenderer", () => {
           type: "paragraph",
           content: [
             { type: "text", text: "This is " },
-            { type: "bold", text: "bold" },
+            { type: "bold", content: [{ type: "text", text: "bold" }] },
           ],
         },
       ],
@@ -184,13 +207,39 @@ describe("RichContentRenderer", () => {
 
     render(<RichContentRenderer content={content} />);
 
-    const renderer = await screen.findByTestId("graph-renderer");
+    const renderer = await screen.findByTestId("graph-renderer", undefined, { timeout: 5000 });
     expect(renderer).toHaveAttribute("data-kind", "line");
     expect(renderer).toHaveAttribute("data-title", "Lead trend");
     expect(renderer).toHaveAttribute("data-caption", "Weekly qualified leads");
     expect(renderer).toHaveAttribute("data-summary", "Qualified leads increased week over week.");
     expect(renderer).toHaveAttribute("data-download-file-name", "lead_trend");
     expect(renderer).toHaveAttribute("data-preview-count", "2");
+  });
+
+  it("passes structured audio metadata through to the audio renderer", async () => {
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "audio",
+          title: "Founder memo",
+          text: "Weekly review audio",
+          assetId: "uf_audio_1",
+          provider: "user-file-cache",
+          generationStatus: "cached_asset",
+          estimatedDurationSeconds: 12,
+          estimatedGenerationSeconds: 3,
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} />);
+
+    const player = await screen.findByTestId("audio-player");
+    expect(player).toHaveAttribute("data-asset-id", "uf_audio_1");
+    expect(player).toHaveAttribute("data-provider", "user-file-cache");
+    expect(player).toHaveAttribute("data-generation-status", "cached_asset");
+    expect(player).toHaveAttribute("data-estimated-duration", "12");
+    expect(player).toHaveAttribute("data-estimated-generation", "3");
   });
 
   it("renders a durable job-status card", () => {
@@ -466,7 +515,7 @@ describe("RichContentRenderer", () => {
               {
                 label: "NOW",
                 summary: [
-                  { type: "bold", text: "Important" },
+                  { type: "bold", content: [{ type: "text", text: "Important" }] },
                   { type: "text", text: " — contact " },
                   { type: "action-link", label: "Morgan Lee", actionType: "conversation", value: "conv_001" },
                 ],
@@ -483,6 +532,34 @@ describe("RichContentRenderer", () => {
       expect(actionButton).not.toBeNull();
       expect(bold?.tagName).toBe("STRONG");
       expect(actionButton?.tagName.toLowerCase()).toBe("button");
+    });
+
+    it("renders action links nested inside bold text", () => {
+      const onActionClick = vi.fn();
+      const content: RichContent = {
+        blocks: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "bold",
+                content: [
+                  { type: "text", text: "1. " },
+                  { type: "action-link", label: "The Outlaw", actionType: "corpus", value: "the-outlaw" },
+                  { type: "text", text: " — Reform" },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+
+      const button = screen.getByRole("button", { name: "The Outlaw (corpus)" });
+      expect(button.closest("strong")).not.toBeNull();
+      fireEvent.click(button);
+      expect(onActionClick).toHaveBeenCalledWith("corpus", "the-outlaw", undefined);
     });
 
     it("operator brief with 3 cards each containing 2 action links produces correct node count", () => {

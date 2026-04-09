@@ -31,25 +31,34 @@ import {
   parsePrepareJournalPostForPublishInput,
   PrepareJournalPostForPublishInteractor,
 } from "@/core/use-cases/tools/journal-write.tool";
+import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { getBlogArticleProductionService, getBlogImageGenerationService } from "@/lib/blog/blog-production-root";
+import type { DeferredJobHandlerName } from "@/lib/jobs/deferred-job-handler-names";
+import { getJobCapability } from "@/lib/jobs/job-capability-registry";
 import type { DeferredJobHandler } from "@/lib/jobs/deferred-job-worker";
-
-export const DEFERRED_JOB_HANDLER_NAMES = [
-  "draft_content",
-  "publish_content",
-  "prepare_journal_post_for_publish",
-  "generate_blog_image",
-  "compose_blog_article",
-  "qa_blog_article",
-  "resolve_blog_article_qa",
-  "generate_blog_image_prompt",
-  "produce_blog_article",
-] as const;
-
-export type DeferredJobHandlerName = (typeof DEFERRED_JOB_HANDLER_NAMES)[number];
 
 export function getDeferredJobRepository() {
   return getJobQueueRepository();
+}
+
+function buildExecutionContext(job: {
+  conversationId: string;
+  toolName: string;
+  userId: string | null;
+}): ToolExecutionContext {
+  const capability = getJobCapability(job.toolName);
+
+  if (!capability) {
+    throw new Error(`No job capability registered for tool: ${job.toolName}`);
+  }
+
+  return {
+    userId: job.userId ?? "unknown",
+    role: capability.executionAllowedRoles[0] ?? "ADMIN",
+    executionPrincipal: capability.executionPrincipal,
+    executionAllowedRoles: capability.executionAllowedRoles,
+    conversationId: job.conversationId,
+  };
 }
 
 export function createDeferredJobHandlers(): Record<DeferredJobHandlerName, DeferredJobHandler> {
@@ -70,20 +79,12 @@ export function createDeferredJobHandlers(): Record<DeferredJobHandlerName, Defe
     draft_content: async (job) => executeDraftContent(
       blogRepo,
       parseDraftContentInput(job.requestPayload),
-      {
-        userId: job.userId ?? "unknown",
-        role: "ADMIN",
-        conversationId: job.conversationId,
-      },
+      buildExecutionContext(job),
     ),
     publish_content: async (job) => executePublishContent(
       blogRepo,
       parsePublishContentInput(job.requestPayload),
-      {
-        userId: job.userId ?? "unknown",
-        role: "ADMIN",
-        conversationId: job.conversationId,
-      },
+      buildExecutionContext(job),
       blogAssetRepo,
     ),
     prepare_journal_post_for_publish: async (job) => prepareJournalPostForPublishInteractor.execute(
@@ -93,11 +94,7 @@ export function createDeferredJobHandlers(): Record<DeferredJobHandlerName, Defe
     generate_blog_image: async (job) => executeGenerateBlogImage(
       blogImageService,
       parseGenerateBlogImageInput(job.requestPayload),
-      {
-        userId: job.userId ?? "unknown",
-        role: "ADMIN",
-        conversationId: job.conversationId,
-      },
+      buildExecutionContext(job),
     ),
     compose_blog_article: async (job) => executeComposeBlogArticle(
       blogArticleService,
@@ -106,20 +103,12 @@ export function createDeferredJobHandlers(): Record<DeferredJobHandlerName, Defe
     qa_blog_article: async (job) => executeQaBlogArticle(
       blogArticleService,
       parseQaBlogArticleInput(job.requestPayload),
-      {
-        userId: job.userId ?? "unknown",
-        role: "ADMIN",
-        conversationId: job.conversationId,
-      },
+      buildExecutionContext(job),
     ),
     resolve_blog_article_qa: async (job) => executeResolveBlogArticleQa(
       blogArticleService,
       parseResolveBlogArticleQaInput(job.requestPayload),
-      {
-        userId: job.userId ?? "unknown",
-        role: "ADMIN",
-        conversationId: job.conversationId,
-      },
+      buildExecutionContext(job),
     ),
     generate_blog_image_prompt: async (job) => executeGenerateBlogImagePrompt(
       blogArticleService,
@@ -128,11 +117,7 @@ export function createDeferredJobHandlers(): Record<DeferredJobHandlerName, Defe
     produce_blog_article: async (job, handlerContext) => executeProduceBlogArticle(
       blogArticleService,
       parseProduceBlogArticleInput(job.requestPayload),
-      {
-        userId: job.userId ?? "unknown",
-        role: "ADMIN",
-        conversationId: job.conversationId,
-      },
+      buildExecutionContext(job),
       (progressLabel, progressPercent) => handlerContext.reportProgress({
         progressLabel,
         progressPercent,

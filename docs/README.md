@@ -41,6 +41,7 @@ If you are new to the repository, read these first:
 
 - Browser UI hardening evidence: `_specs/browser-ui-hardening/artifacts/`
 - Homepage chat shell evidence: `_specs/homepage-chat-shell/artifacts/`
+- Runtime truthfulness and retrieval integrity workstream: `_refactor/agent-runtime-truthfulness-and-retrieval-integrity/`
 
 ## Archived During Cleanup
 

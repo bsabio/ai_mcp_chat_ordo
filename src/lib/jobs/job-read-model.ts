@@ -3,6 +3,11 @@ import type { JobStatusMessagePart } from "@/core/entities/message-parts";
 import { buildJobStatusPart, getJobMessageId } from "@/lib/jobs/job-status";
 
 const ACTIVE_JOB_STATUSES: JobStatus[] = ["queued", "running"];
+const SNAPSHOT_AUDIT_EVENT_TYPES: ReadonlySet<JobEvent["eventType"]> = new Set([
+  "notification_sent",
+  "notification_failed",
+  "ownership_transferred",
+]);
 
 function toEventType(status: JobStatus): JobEvent["eventType"] {
   switch (status) {
@@ -47,9 +52,13 @@ export function buildSyntheticJobEvent(job: JobRequest): JobEvent {
 }
 
 export function buildJobStatusSnapshot(job: JobRequest, event?: JobEvent | null): JobStatusSnapshot {
+  const snapshotEvent = !event || SNAPSHOT_AUDIT_EVENT_TYPES.has(event.eventType)
+    ? buildSyntheticJobEvent(job)
+    : event;
+
   return {
     messageId: getJobMessageId(job.id),
     conversationId: job.conversationId,
-    part: buildJobStatusPart(job, event ?? buildSyntheticJobEvent(job)),
+    part: buildJobStatusPart(job, snapshotEvent),
   };
 }

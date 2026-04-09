@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { logout } from "@/lib/auth";
+import { logFailure } from "@/lib/observability/logger";
 
 export async function POST() {
   try {
@@ -17,7 +18,7 @@ export async function POST() {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Logout error:", error);
+    logFailure("LOGOUT_ERROR", "Logout error", undefined, error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

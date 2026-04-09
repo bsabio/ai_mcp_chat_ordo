@@ -166,7 +166,7 @@ describe("DeferredJobWorker", () => {
     expect(persisted?.claimedBy).toBeNull();
 
     const events = await repo.listConversationEvents("conv_jobs");
-    expect(events.map((event) => event.eventType)).toEqual(["started", "result"]);
+    expect(events.map((event) => event.eventType)).toEqual(["lease_recovered", "started", "result"]);
 
     const messages = await messageRepo.listByConversation("conv_jobs");
     expect(messages).toHaveLength(1);
@@ -201,12 +201,12 @@ describe("DeferredJobWorker", () => {
     const job = await repo.createJob({
       conversationId: "conv_jobs",
       userId: "usr_test",
-      toolName: "draft_content",
+      toolName: "produce_blog_article",
       requestPayload: {},
     });
 
     const worker = new DeferredJobWorker(repo, {
-      draft_content: vi.fn(async () => {
+      produce_blog_article: vi.fn(async () => {
         throw new Error("provider offline");
       }),
     }, projector);
@@ -221,6 +221,121 @@ describe("DeferredJobWorker", () => {
 
     const events = await repo.listConversationEvents("conv_jobs");
     expect(events.at(-1)?.eventType).toBe("failed");
+  });
+
+  it("schedules an automatic retry for transient editorial failures", async () => {
+    const job = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "publish_content",
+      requestPayload: { post_id: "post_1" },
+    });
+
+    const worker = new DeferredJobWorker(repo, {
+      publish_content: vi.fn(async () => {
+        throw new Error("provider timeout");
+      }),
+    }, projector);
+
+    const result = await worker.runNext({
+      workerId: "worker_retry",
+      now: new Date("2026-03-25T03:00:00.000Z"),
+    });
+
+    expect(result.outcome).toBe("scheduled_retry");
+    expect(result.errorMessage).toBe("provider timeout");
+
+    const persisted = await repo.findJobById(job.id);
+    expect(persisted).toMatchObject({
+      id: job.id,
+      status: "queued",
+      failureClass: "transient",
+      nextRetryAt: "2026-03-25T03:00:03.000Z",
+      attemptCount: 1,
+      claimedBy: null,
+    });
+
+    const events = await repo.listConversationEvents("conv_jobs");
+    expect(events.map((event) => event.eventType)).toEqual(["started", "retry_scheduled"]);
+    expect(events[1]?.payload).toMatchObject({
+      failureClass: "transient",
+      nextRetryAt: "2026-03-25T03:00:03.000Z",
+      maxAttempts: 3,
+    });
+  });
+
+  it("fails with exhaustion metadata after automatic retries are spent", async () => {
+    const job = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "publish_content",
+      requestPayload: { post_id: "post_1" },
+    });
+    await repo.updateJobStatus(job.id, { status: "queued", incrementAttemptCount: true });
+    await repo.updateJobStatus(job.id, { status: "queued", incrementAttemptCount: true });
+
+    const worker = new DeferredJobWorker(repo, {
+      publish_content: vi.fn(async () => {
+        throw new Error("temporary upstream failure");
+      }),
+    }, projector);
+
+    const result = await worker.runNext({
+      workerId: "worker_exhausted",
+      now: new Date("2026-03-25T03:00:00.000Z"),
+    });
+
+    expect(result.outcome).toBe("failed");
+
+    const persisted = await repo.findJobById(job.id);
+    expect(persisted).toMatchObject({
+      id: job.id,
+      status: "failed",
+      failureClass: "transient",
+      nextRetryAt: null,
+      attemptCount: 3,
+    });
+
+    const events = await repo.listConversationEvents("conv_jobs");
+    expect(events.map((event) => event.eventType)).toEqual(["started", "failed", "retry_exhausted"]);
+    expect(events[2]?.payload).toMatchObject({
+      failureClass: "transient",
+      attemptCount: 3,
+      maxAttempts: 3,
+    });
+  });
+
+  it("waits until the scheduled retry time before claiming the queued job again", async () => {
+    const delayedJob = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "publish_content",
+      nextRetryAt: "2026-03-25T03:00:05.000Z",
+      requestPayload: { post_id: "post_delayed" },
+    });
+    const readyJob = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "generate_image",
+      requestPayload: { prompt: "Ready now" },
+    });
+
+    const worker = new DeferredJobWorker(repo, {
+      publish_content: async () => ({ ok: "delayed" }),
+      generate_image: async () => ({ ok: "ready" }),
+    }, projector);
+
+    const firstResult = await worker.runNext({
+      workerId: "worker_schedule",
+      now: new Date("2026-03-25T03:00:00.000Z"),
+    });
+    expect(firstResult.job?.id).toBe(readyJob.id);
+
+    const secondResult = await worker.runNext({
+      workerId: "worker_schedule",
+      now: new Date("2026-03-25T03:00:06.000Z"),
+    });
+    expect(secondResult.job?.id).toBe(delayedJob.id);
   });
 
   it("returns idle when no queued jobs are available", async () => {
@@ -270,7 +385,12 @@ describe("DeferredJobWorker", () => {
       },
       projector,
       {
-        notify: vi.fn(async () => true),
+        notify: vi.fn(async () => ({
+          status: "sent" as const,
+          attemptedCount: 1,
+          deliveredCount: 1,
+          failedCount: 0,
+        })),
       },
     );
 
@@ -280,5 +400,52 @@ describe("DeferredJobWorker", () => {
 
     const events = await repo.listConversationEvents("conv_jobs");
     expect(events.map((event) => event.eventType)).toEqual(["started", "result", "notification_sent"]);
+    expect(events.at(-1)?.payload).toMatchObject({
+      terminalEventType: "result",
+      deliveredCount: 1,
+      failedCount: 0,
+    });
+  });
+
+  it("appends notification_failed after a terminal notification delivery attempt fails", async () => {
+    await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "draft_content",
+      requestPayload: { title: "Worker" },
+    });
+
+    const worker = new DeferredJobWorker(
+      repo,
+      {
+        draft_content: async () => ({ postId: "blog_123" }),
+      },
+      projector,
+      {
+        notify: vi.fn(async () => ({
+          status: "failed" as const,
+          reason: "delivery_error" as const,
+          attemptedCount: 2,
+          failedCount: 2,
+          lastErrorMessage: "push endpoint unavailable",
+          lastErrorStatusCode: 503,
+        })),
+      },
+    );
+
+    const result = await worker.runNext({ workerId: "worker_1" });
+
+    expect(result.outcome).toBe("succeeded");
+
+    const events = await repo.listConversationEvents("conv_jobs");
+    expect(events.map((event) => event.eventType)).toEqual(["started", "result", "notification_failed"]);
+    expect(events.at(-1)?.payload).toMatchObject({
+      terminalEventType: "result",
+      attemptedCount: 2,
+      failedCount: 2,
+      reason: "delivery_error",
+      errorMessage: "push endpoint unavailable",
+      statusCode: 503,
+    });
   });
 });

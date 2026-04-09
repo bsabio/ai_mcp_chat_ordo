@@ -6,8 +6,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { JobDetailPanel } from "@/components/jobs/JobDetailPanel";
 import {
   type JobAction,
+  buildJobFailureClipboardText,
+  buildJobLogExport,
+  buildJobSummaryClipboardText,
   formatJobSummary,
   formatJobTimestamp,
+  getJobLogExportFileName,
   getStatusTone,
   STATUS_LABELS,
 } from "@/components/jobs/job-workspace-helpers";
@@ -47,6 +51,40 @@ interface JobHistoryResponse {
 interface JobActionResponse {
   job?: JobRequest;
   eventSequence?: number;
+  deduped?: boolean;
+  replay?: {
+    outcome: "queued" | "deduped";
+    sourceJobId: string;
+    targetJobId: string;
+    dedupeKey: string;
+  };
+}
+
+async function writeTextToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+function downloadJsonDocument(payload: unknown, filename: string): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  link.click();
+  queueMicrotask(() => URL.revokeObjectURL(objectUrl));
 }
 
 function getSyncLabel(syncState: ReturnType<typeof useJobsEventStream>): string {
@@ -72,6 +110,7 @@ export function JobsWorkspace({
   const [isPending, startTransition] = useTransition();
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [workspace, setWorkspace] = useState<JobsWorkspaceState>(() =>
     createJobsWorkspaceState({
@@ -162,6 +201,7 @@ export function JobsWorkspace({
     }
 
     setErrorMessage(null);
+    setStatusMessage(null);
     setWorkspace((current) => selectJobsWorkspaceJob(current, jobId));
 
     const params = new URLSearchParams();
@@ -172,6 +212,7 @@ export function JobsWorkspace({
 
   async function runJobAction(jobId: string, action: JobAction): Promise<void> {
     setErrorMessage(null);
+    setStatusMessage(null);
     setPendingJobId(jobId);
 
     try {
@@ -212,6 +253,14 @@ export function JobsWorkspace({
           router.replace(`/jobs?${params.toString()}`);
           void loadSelectedJob(nextSnapshot.part.jobId);
         }
+
+        if (action === "cancel") {
+          setStatusMessage("Job canceled.");
+        } else if (body.replay?.outcome === "deduped") {
+          setStatusMessage("Equivalent work is already running. Switched to the active job.");
+        } else {
+          setStatusMessage("Replay queued as a new job.");
+        }
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : `Unable to ${action} this job right now.`);
@@ -224,6 +273,48 @@ export function JobsWorkspace({
     startTransition(() => {
       void runJobAction(jobId, action);
     });
+  }
+
+  async function handleCopySummary(job: JobStatusSnapshot): Promise<void> {
+    setErrorMessage(null);
+    setStatusMessage(null);
+
+    try {
+      await writeTextToClipboard(buildJobSummaryClipboardText(job));
+      setStatusMessage("Job summary copied.");
+    } catch {
+      setErrorMessage("Unable to copy the job summary right now.");
+    }
+  }
+
+  async function handleCopyFailure(job: JobStatusSnapshot): Promise<void> {
+    setErrorMessage(null);
+    setStatusMessage(null);
+
+    const failureText = buildJobFailureClipboardText(job);
+    if (!failureText) {
+      setErrorMessage("No failure details are available for this job.");
+      return;
+    }
+
+    try {
+      await writeTextToClipboard(failureText);
+      setStatusMessage("Failure details copied.");
+    } catch {
+      setErrorMessage("Unable to copy the failure details right now.");
+    }
+  }
+
+  function handleExportLog(job: JobStatusSnapshot, history: JobHistoryEntry[]): void {
+    setErrorMessage(null);
+    setStatusMessage(null);
+
+    try {
+      downloadJsonDocument(buildJobLogExport(job, history), getJobLogExportFileName(job));
+      setStatusMessage("Job log exported.");
+    } catch {
+      setErrorMessage("Unable to export this job log right now.");
+    }
   }
 
   return (
@@ -263,6 +354,12 @@ export function JobsWorkspace({
         {errorMessage && (
           <div role="alert" className="jobs-detail-surface px-(--space-4) py-(--space-3) text-sm text-foreground/78" data-jobs-alert="true">
             {errorMessage}
+          </div>
+        )}
+
+        {statusMessage && (
+          <div role="status" className="jobs-detail-surface px-(--space-4) py-(--space-3) text-sm text-foreground/78" data-jobs-status="true">
+            {statusMessage}
           </div>
         )}
 
@@ -318,6 +415,13 @@ export function JobsWorkspace({
               isHistoryLoading={isHistoryLoading}
               isPending={pendingJobId === workspace.selectedJobId && isPending}
               onJobAction={handleJobAction}
+              onCopySummary={(job) => {
+                void handleCopySummary(job);
+              }}
+              onCopyFailure={(job) => {
+                void handleCopyFailure(job);
+              }}
+              onExportLog={handleExportLog}
             />
           </div>
         )}

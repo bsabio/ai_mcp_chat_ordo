@@ -1,5 +1,8 @@
 #!/usr/bin/env tsx
+import { loadLocalEnv } from "./load-local-env";
 import { writeReleaseEvidenceArtifacts } from "../src/lib/evals/release-evidence";
+
+loadLocalEnv();
 
 function readRepeatedFlags(name: string): string[] {
   const values: string[] = [];
@@ -35,12 +38,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { evidence, qaEvidencePath, canarySummaryPath } = writeReleaseEvidenceArtifacts({
+  const { evidence, qaEvidencePath, canarySummaryPath, runtimeIntegrityPath } = writeReleaseEvidenceArtifacts({
     warnings: readRepeatedFlags("--warning"),
     manualChecks: readRepeatedFlags("--manual-check"),
   });
 
   process.stdout.write(`Release evidence status: ${evidence.status}\n`);
+  process.stdout.write(`Runtime integrity evidence: ${runtimeIntegrityPath}\n`);
   process.stdout.write(`Canary summary: ${canarySummaryPath}\n`);
   process.stdout.write(`QA evidence: ${qaEvidencePath}\n`);
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);

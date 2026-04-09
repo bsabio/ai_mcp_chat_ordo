@@ -35,7 +35,7 @@ Sprint 2 should follow these four ideas directly.
 | `src/adapters/JobQueueDataMapper.ts` | Raw admin queue methods such as `listForAdmin`, `countForAdmin`, `countByStatus`, `countByToolName`, and `listEventsForJob` |
 | `src/lib/shell/shell-navigation.ts` | Current `admin-jobs` route metadata and ADMIN-only exposure |
 | `src/lib/admin/admin-navigation.ts` | Current canonical admin navigation list that includes `admin-jobs` |
-| `tests/sprint-5-jobs-system-dashboard.test.ts` | Updated source and loader coverage for the admin jobs browse/detail surfaces after removing stale `/jobs` redirect history |
+| `tests/jobs-system-dashboard.test.ts` | Updated source and loader coverage for the admin jobs browse/detail surfaces after removing stale `/jobs` redirect history |
 
 ---
 
@@ -70,7 +70,7 @@ Sprint 2 is complete and verified.
 2. Status counts and capability filters are scoped to globally viewable job types rather than every stored row in `job_requests`.
 3. The admin jobs detail page now explains capability label, family, default surface, and whether the current role is globally manageable or view-only.
 4. Unregistered or future job types now fail closed in browse, detail, and action paths.
-5. The legacy sprint-5 jobs source test file was updated during implementation, and Sprint 2 QA found one additional stale redirect audit in `tests/td-c-job-visibility-solid-audit.test.ts`, which now reflects the signed-in `/jobs` workspace instead of the removed admin redirect.
+5. The legacy sprint-5 jobs source test file was updated during implementation, and Sprint 2 QA found one additional stale redirect audit in `tests/job-visibility-solid.test.ts`, which now reflects the signed-in `/jobs` workspace instead of the removed admin redirect.
 6. Pagination alignment improved within scope by threading resolved `limit` and `offset` into the loader, while broader admin pagination cleanup remains intentionally out of scope.
 7. Live SSE for `/admin/jobs` remains out of scope, and `JobsRefreshTrigger` remains the browse sync mechanism for this sprint.
 
@@ -154,7 +154,7 @@ npx vitest run src/lib/jobs/job-capability-registry.test.ts
 ### Verify Task 2.2
 
 ```bash
-npx vitest run src/lib/admin/jobs/admin-jobs.test.ts tests/sprint-5-jobs-system-dashboard.test.ts
+npx vitest run src/lib/admin/jobs/admin-jobs.test.ts tests/jobs-system-dashboard.test.ts
 ```
 
 ---
@@ -211,7 +211,7 @@ npx vitest run src/lib/admin/jobs/admin-jobs-actions.test.ts src/app/admin/jobs/
 | **Modify or create** | `src/lib/admin/jobs/admin-jobs.test.ts` |
 | **Modify or create** | `src/app/admin/jobs/page.test.tsx` |
 | **Modify or create** | `src/app/admin/jobs/[id]/page.test.tsx` |
-| **Modify** | `tests/sprint-5-jobs-system-dashboard.test.ts` |
+| **Modify** | `tests/jobs-system-dashboard.test.ts` |
 | **Modify if needed** | `src/lib/shell/shell-navigation.test.ts` and `tests/shell-navigation-model.test.ts` |
 | **Spec** | §3.7, §4, §5, `RNQ-080` through `RNQ-095` |
 
@@ -239,7 +239,7 @@ npx vitest run src/lib/admin/jobs/admin-jobs-actions.test.ts src/app/admin/jobs/
 ### Verify Task 2.4
 
 ```bash
-npx vitest run src/lib/jobs/job-capability-registry.test.ts src/lib/admin/jobs/admin-jobs.test.ts src/app/admin/jobs/page.test.tsx src/app/admin/jobs/[id]/page.test.tsx tests/sprint-5-jobs-system-dashboard.test.ts src/lib/shell/shell-navigation.test.ts tests/shell-navigation-model.test.ts
+npx vitest run src/lib/jobs/job-capability-registry.test.ts src/lib/admin/jobs/admin-jobs.test.ts src/app/admin/jobs/page.test.tsx src/app/admin/jobs/[id]/page.test.tsx tests/jobs-system-dashboard.test.ts src/lib/shell/shell-navigation.test.ts tests/shell-navigation-model.test.ts
 ```
 
 ---
@@ -260,7 +260,7 @@ Run this bundle before marking Sprint 2 complete:
 
 ```bash
 npm run typecheck
-npx vitest run src/lib/jobs/job-capability-registry.test.ts src/lib/admin/jobs/admin-jobs.test.ts src/lib/admin/jobs/admin-jobs-actions.test.ts src/app/admin/jobs/page.test.tsx src/app/admin/jobs/[id]/page.test.tsx tests/sprint-5-jobs-system-dashboard.test.ts src/lib/shell/shell-navigation.test.ts tests/shell-navigation-model.test.ts
+npx vitest run src/lib/jobs/job-capability-registry.test.ts src/lib/admin/jobs/admin-jobs.test.ts src/lib/admin/jobs/admin-jobs-actions.test.ts src/app/admin/jobs/page.test.tsx src/app/admin/jobs/[id]/page.test.tsx tests/jobs-system-dashboard.test.ts src/lib/shell/shell-navigation.test.ts tests/shell-navigation-model.test.ts
 npm run build
 ```
 

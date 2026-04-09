@@ -39,6 +39,12 @@ export interface TransitionJournalWorkflowInput {
   change_note?: string;
 }
 
+export interface PublishJournalPostInput {
+  post_id?: string;
+  slug?: string;
+  change_note?: string;
+}
+
 export interface RestoreJournalRevisionInput {
   post_id: string;
   revision_id: string;
@@ -339,10 +345,22 @@ export class PublishJournalPostInteractor {
     private readonly assetRepo: BlogAssetRepository,
   ) {}
 
-  async execute(input: TransitionJournalWorkflowInput, actorUserId: string) {
-    const current = await this.blogRepo.findById(input.post_id);
+  async execute(input: PublishJournalPostInput, actorUserId: string) {
+    let postId = input.post_id?.trim();
+
+    if (!postId && input.slug?.trim()) {
+      const found = await this.blogRepo.findBySlug(input.slug.trim());
+      if (!found) throw new Error(`No journal post found with slug "${input.slug.trim()}".`);
+      postId = found.id;
+    }
+
+    if (!postId) {
+      throw new Error("Either post_id or slug is required.");
+    }
+
+    const current = await this.blogRepo.findById(postId);
     if (!current) {
-      throw new Error(`Post not found: ${input.post_id}`);
+      throw new Error(`Post not found: ${postId}`);
     }
 
     await this.revisionRepo.create({
@@ -517,10 +535,10 @@ class ApproveJournalPostCommand implements ToolCommand<TransitionJournalWorkflow
   }
 }
 
-class PublishJournalPostCommand implements ToolCommand<TransitionJournalWorkflowInput, Awaited<ReturnType<PublishJournalPostInteractor["execute"]>>> {
+class PublishJournalPostCommand implements ToolCommand<PublishJournalPostInput, Awaited<ReturnType<PublishJournalPostInteractor["execute"]>>> {
   constructor(private readonly interactor: PublishJournalPostInteractor) {}
 
-  async execute(input: TransitionJournalWorkflowInput, context?: ToolExecutionContext) {
+  async execute(input: PublishJournalPostInput, context?: ToolExecutionContext) {
     return this.interactor.execute(input, requireExecutionUserId(context));
   }
 }
@@ -658,17 +676,17 @@ export function createApproveJournalPostTool(
 
 export function createPublishJournalPostTool(
   interactor: PublishJournalPostInteractor,
-): ToolDescriptor<TransitionJournalWorkflowInput, Awaited<ReturnType<PublishJournalPostInteractor["execute"]>>> {
+): ToolDescriptor<PublishJournalPostInput, Awaited<ReturnType<PublishJournalPostInteractor["execute"]>>> {
   return adminTool(
     "publish_journal_post",
-    "Publish an approved journal post, preserving revision history and aligning the selected hero image visibility.",
+    "Publish an approved journal post, preserving revision history and aligning the selected hero image visibility. Accepts either the post ID or the article slug.",
     {
       type: "object",
       properties: {
         post_id: { type: "string", description: "The journal post identifier" },
+        slug: { type: "string", description: "The journal post slug (alternative to post_id)" },
         change_note: { type: "string", description: "Optional revision note recorded before publish" },
       },
-      required: ["post_id"],
     },
     new PublishJournalPostCommand(interactor),
   );

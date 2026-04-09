@@ -12,11 +12,11 @@ import {
 } from "@/lib/referrals/referral-visit";
 
 function invalidReferralCodeResponse() {
-  return NextResponse.json({ error: "Invalid referral code" }, { status: 400 });
+  return NextResponse.json({ error: "Invalid referral code", errorCode: "VALIDATION_ERROR" }, { status: 400 });
 }
 
 function referralCodeNotFoundResponse() {
-  return NextResponse.json({ error: "Referral code not found" }, { status: 404 });
+  return NextResponse.json({ error: "Referral code not found", errorCode: "NOT_FOUND" }, { status: 404 });
 }
 
 function toReferrerPayload(snapshot: ReturnType<typeof getActiveReferralSnapshot>) {

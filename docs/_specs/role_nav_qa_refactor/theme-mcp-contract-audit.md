@@ -123,7 +123,7 @@ Important coverage surfaces:
    Verifies `set_theme` and `adjust_ui` theme enums remain aligned to the manifest and `inspect_theme` stays schema-safe.
 3. `src/hooks/useUICommands.test.tsx`
    Verifies command application, remount continuity, and rejection of invalid theme IDs such as `postmodern`.
-4. `tests/sprint-4-theme-governance-qa.test.ts`
+4. `tests/theme-governance-qa.test.ts`
    Verifies supported theme authority stays out of component-local hotspots and that covered shell/chat/journal surfaces remain bound to dedicated CSS partitions.
 
 ### 3.2 Covered semantic surface ownership is selective, not universal
@@ -144,7 +144,7 @@ Verified current admin reality:
 3. `src/components/admin/AdminSidebar.tsx` and `src/components/admin/AdminDrawer.tsx` use `admin-panel-surface` and `admin-nav-*` classes sourced from canonical admin metadata
 4. `src/app/admin/layout.tsx` mounts `AdminDrawer` and the mobile toolbar wrappers that participate in the same admin surface family
 5. `src/components/AccountMenu.tsx` already integrates `useTheme()` controls correctly and now derives admin workspace links from the canonical admin-nav model
-6. `tests/sprint-4-theme-governance-qa.test.ts` now asserts admin surface ownership in `src/app/styles/admin.css`
+6. `tests/theme-governance-qa.test.ts` now asserts admin surface ownership in `src/app/styles/admin.css`
 
 Implication:
 

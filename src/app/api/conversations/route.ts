@@ -6,8 +6,19 @@ import {
   errorJson,
 } from "@/lib/chat/http-facade";
 import { createConversationRouteServices } from "@/lib/chat/conversation-root";
+import type { ConversationListScope } from "@/core/use-cases/ConversationRepository";
 
 const SESSION_COOKIE = "lms_session_token";
+
+function parseConversationScope(request: NextRequest): ConversationListScope | undefined {
+  const raw = request.nextUrl.searchParams.get("scope");
+
+  if (raw === "active" || raw === "archived" || raw === "deleted" || raw === "all") {
+    return raw;
+  }
+
+  return undefined;
+}
 
 export async function GET(request: NextRequest) {
   return runRouteTemplate({
@@ -21,8 +32,11 @@ export async function GET(request: NextRequest) {
       }
 
       const user = await validateSession(token);
-    const { interactor } = createConversationRouteServices();
-      const conversations = await interactor.list(user.id);
+      const { interactor } = createConversationRouteServices();
+      const scope = parseConversationScope(request);
+      const conversations = scope
+        ? await interactor.list(user.id, { scope })
+        : await interactor.list(user.id);
 
       return successJson(context, { conversations });
     },

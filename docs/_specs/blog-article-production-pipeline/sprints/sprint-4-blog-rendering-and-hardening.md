@@ -109,7 +109,7 @@ Current implementation note:
 
 Suggested verification:
 
-- `npm exec vitest run tests/blog-hero-rendering.test.tsx tests/sprint-7-blog-pipeline.test.ts`
+- `npm exec vitest run tests/blog-hero-rendering.test.tsx tests/blog-pipeline-integration.test.ts`
 
 ### 3. Harden public asset serving and path safety
 
@@ -217,7 +217,7 @@ Coverage note:
 Focused verification run for this QA pass:
 
 - `npm exec vitest run tests/blog-hero-rendering.test.tsx`
-- `npm exec vitest run tests/sprint-7-blog-pipeline.test.ts tests/blog-assets-route.test.ts tests/chat-job-actions-route.test.ts tests/deferred-blog-job-flow.test.ts tests/deferred-blog-publish-flow.test.ts`
+- `npm exec vitest run tests/blog-pipeline-integration.test.ts tests/blog-assets-route.test.ts tests/chat-job-actions-route.test.ts tests/deferred-blog-job-flow.test.ts tests/deferred-blog-publish-flow.test.ts`
 - `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3001 npx playwright test tests/browser-ui/deferred-blog-jobs.spec.ts`
 
 ---

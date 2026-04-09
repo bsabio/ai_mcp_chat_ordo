@@ -6,22 +6,28 @@ import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
 type JobStatusProjection = Pick<
   JobRequest,
   | "id"
+  | "status"
   | "toolName"
   | "requestPayload"
   | "progressPercent"
   | "progressLabel"
   | "resultPayload"
   | "errorMessage"
+  | "failureClass"
+  | "recoveryMode"
+  | "replayedFromJobId"
+  | "supersededByJobId"
 >;
 
 export function projectJobForEvent(
-  job: Pick<JobRequest, "id" | "toolName" | "requestPayload">,
+  job: Pick<JobRequest, "id" | "status" | "toolName" | "requestPayload" | "failureClass" | "recoveryMode" | "replayedFromJobId" | "supersededByJobId">,
   event: JobEvent,
 ): JobStatusProjection {
   const payload = event.payload;
 
   return {
     id: job.id,
+    status: job.status,
     toolName: job.toolName,
     requestPayload: job.requestPayload,
     progressPercent:
@@ -31,6 +37,10 @@ export function projectJobForEvent(
     resultPayload: payload.result ?? null,
     errorMessage:
       typeof payload.errorMessage === "string" ? payload.errorMessage : null,
+    failureClass: job.failureClass,
+    recoveryMode: job.recoveryMode,
+    replayedFromJobId: job.replayedFromJobId,
+    supersededByJobId: job.supersededByJobId,
   };
 }
 
@@ -173,11 +183,15 @@ export function buildJobStatusPartFromProjection(
       ? "queued"
       : event.eventType === "started" || event.eventType === "progress"
         ? "running"
+        : event.eventType === "requeued" || event.eventType === "retry_scheduled" || event.eventType === "lease_recovered"
+          ? "queued"
         : event.eventType === "result"
           ? "succeeded"
-          : event.eventType === "failed"
+          : event.eventType === "failed" || event.eventType === "retry_exhausted"
             ? "failed"
-            : "canceled";
+            : event.eventType === "canceled"
+              ? "canceled"
+              : job.status;
 
   const payload = event.payload;
   const identity = buildHumanReadableIdentity(job);
@@ -209,6 +223,10 @@ export function buildJobStatusPartFromProjection(
         : job.errorMessage ?? undefined,
     updatedAt: event.createdAt,
     resultPayload: payload.result ?? job.resultPayload ?? undefined,
+    failureClass: job.failureClass,
+    recoveryMode: job.recoveryMode,
+    replayedFromJobId: job.replayedFromJobId,
+    supersededByJobId: job.supersededByJobId,
   };
 }
 

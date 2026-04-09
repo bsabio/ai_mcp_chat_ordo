@@ -104,6 +104,9 @@ function createMockRepos() {
     findById: vi.fn().mockResolvedValue(null),
     findActiveByUser: vi.fn().mockResolvedValue(null),
     archiveByUser: vi.fn().mockResolvedValue(undefined),
+    archiveById: vi.fn().mockResolvedValue(undefined),
+    softDelete: vi.fn().mockResolvedValue(undefined),
+    restoreDeleted: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     updateTitle: vi.fn().mockResolvedValue(undefined),
     touch: vi.fn().mockResolvedValue(undefined),
@@ -236,9 +239,14 @@ describe("ConversationInteractor.ensureActive", () => {
 
     const result = await interactor.ensureActive("usr_1");
 
-    expect(eventRecorder.record).toHaveBeenCalledWith(result.id, "started", {
-      session_source: "authenticated",
-    });
+    expect(eventRecorder.record).toHaveBeenCalledWith(
+      result.id,
+      "started",
+      expect.objectContaining({
+        session_source: "authenticated",
+        status: "active",
+      }),
+    );
   });
 
   it("P13: message limit still enforced with single conversation", async () => {

@@ -24,7 +24,7 @@ describe("OpenAiBlogImageProvider", () => {
 
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({
       model: "gpt-image-1",
-      prompt: "Original prompt",
+      prompt: expect.stringContaining("Original prompt"),
       size: "1536x1024",
       quality: "high",
     }));

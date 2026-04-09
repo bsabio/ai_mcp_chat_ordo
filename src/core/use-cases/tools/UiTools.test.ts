@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { AdjustUICommand, GenerateChartCommand, GenerateGraphCommand, SetThemeCommand } from "./UiTools";
+import { AdjustUICommand, GenerateAudioCommand, GenerateChartCommand, GenerateGraphCommand, SetThemeCommand } from "./UiTools";
 import { resolveGenerateChartPayload } from "./chart-payload";
 import { resolveGenerateGraphPayload } from "./graph-payload";
 
@@ -223,5 +223,25 @@ describe("GenerateGraphCommand", () => {
         } as never,
       }),
     ).rejects.toThrow(/Admin operator loaders require|signed-in user|resolved tool result|not available to the current viewer/i);
+  });
+});
+
+describe("GenerateAudioCommand", () => {
+  it("returns a structured audio result payload", async () => {
+    const command = new GenerateAudioCommand();
+
+    await expect(
+      command.execute({
+        title: "Founder memo",
+        text: "This is the founder memo for the weekly review.",
+      }),
+    ).resolves.toMatchObject({
+      action: "generate_audio",
+      title: "Founder memo",
+      provider: "openai-speech",
+      generationStatus: "client_fetch_pending",
+      estimatedDurationSeconds: expect.any(Number),
+      estimatedGenerationSeconds: expect.any(Number),
+    });
   });
 });

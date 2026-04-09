@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   );
 
   if (!visit) {
-    const response = NextResponse.json({ error: "Referral visit not found." }, { status: 404 });
+    const response = NextResponse.json({ error: "Referral visit not found.", errorCode: "NOT_FOUND" }, { status: 404 });
     if (request.cookies.get(REFERRAL_VISIT_COOKIE_NAME)?.value) {
       response.cookies.delete(REFERRAL_VISIT_COOKIE_NAME);
     }

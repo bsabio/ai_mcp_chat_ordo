@@ -19,7 +19,7 @@ describe("MarkdownParserService", () => {
     const result = parser.parse("Hello **bold** and `code` with [[slug]]");
     const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
     expect(p.content).toHaveLength(6);
-    expect(p.content[1]).toEqual({ type: "bold", text: "bold" });
+    expect(p.content[1]).toEqual({ type: "bold", content: [{ type: "text", text: "bold" }] });
     expect(p.content[3]).toEqual({ type: "code-inline", text: "code" });
     expect(p.content[5]).toEqual({ type: "library-link", slug: "slug" });
   });
@@ -99,9 +99,22 @@ describe("MarkdownParserService", () => {
     it("should parse action links alongside bold and code", () => {
       const result = parser.parse("**bold** then [Go](?route=/home) then `code`");
       const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
-      expect(p.content[0]).toEqual({ type: "bold", text: "bold" });
+      expect(p.content[0]).toEqual({ type: "bold", content: [{ type: "text", text: "bold" }] });
       expect(p.content[2]).toMatchObject({ type: INLINE_TYPES.ACTION_LINK, label: "Go" });
       expect(p.content[4]).toEqual({ type: "code-inline", text: "code" });
+    });
+
+    it("should parse action links nested inside bold text", () => {
+      const result = parser.parse("**1. [The Outlaw](?corpus=the-outlaw) - Reform**");
+      const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
+      expect(p.content[0]).toEqual({
+        type: "bold",
+        content: [
+          { type: "text", text: "1. " },
+          { type: INLINE_TYPES.ACTION_LINK, label: "The Outlaw", actionType: "corpus", value: "the-outlaw" },
+          { type: "text", text: " - Reform" },
+        ],
+      });
     });
 
     it("should parse action link inside a list item", () => {
@@ -146,10 +159,31 @@ describe("MarkdownParserService", () => {
       expect(fullText).toContain("[label](?invalid=value)");
     });
 
-    it("should NOT parse standard markdown links as action links", () => {
+    it("should parse same-origin markdown links as route actions", () => {
+      const result = parser.parse("See [Library](/library) for more");
+      const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
+      expect(p.content[1]).toEqual({
+        type: INLINE_TYPES.ACTION_LINK,
+        label: "Library",
+        actionType: "route",
+        value: "/library",
+      });
+    });
+
+    it("should parse absolute markdown links as external actions", () => {
       const result = parser.parse("See [Google](https://google.com) for more");
       const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
-      // Standard markdown link doesn't match action link regex (?...), so emitted as text
+      expect(p.content[1]).toEqual({
+        type: INLINE_TYPES.ACTION_LINK,
+        label: "Google",
+        actionType: "external",
+        value: "https://google.com",
+      });
+    });
+
+    it("should leave unsupported markdown link schemes as plain text", () => {
+      const result = parser.parse("See [Email](mailto:hello@studioordo.com) for more");
+      const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
       const hasActionLink = p.content.some((n) => n.type === INLINE_TYPES.ACTION_LINK);
       expect(hasActionLink).toBe(false);
     });

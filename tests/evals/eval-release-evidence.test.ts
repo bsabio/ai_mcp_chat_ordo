@@ -9,6 +9,7 @@ import {
   validateReleaseEvidence,
   writeReleaseEvidenceArtifacts,
 } from "@/lib/evals/release-evidence";
+import { createRuntimeIntegrityQaEvidence } from "@/lib/evals/runtime-integrity-evidence";
 import type { StagingCanarySummary } from "@/lib/evals/staging-canary";
 import type { ProbeResult } from "@/lib/health/probes";
 
@@ -83,12 +84,21 @@ const REFERRAL_DIAGNOSTICS_OK = {
   warnings: [],
 };
 
+const RUNTIME_INTEGRITY_OK = createRuntimeIntegrityQaEvidence({
+  now: new Date("2026-03-20T12:45:00.000Z"),
+  steps: [
+    { label: "integrity eval suites", command: "npm exec vitest run", status: "passed" },
+    { label: "production build", command: "npm run build", status: "passed" },
+  ],
+});
+
 describe("release evidence", () => {
   it("approves a release when manifest, health, and canaries are all green", () => {
     const evidence = createReleaseEvidence({
       manifest: MANIFEST,
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
       canarySummary: createCanarySummary(),
       now: new Date("2026-03-20T13:00:00.000Z"),
     });
@@ -102,6 +112,7 @@ describe("release evidence", () => {
       manifest: MANIFEST,
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
       canarySummary: null,
     });
 
@@ -119,6 +130,7 @@ describe("release evidence", () => {
         readiness: createProbeResult("error"),
       },
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
       canarySummary: createCanarySummary(),
     });
 
@@ -131,6 +143,7 @@ describe("release evidence", () => {
       manifest: MANIFEST,
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
       canarySummary: createCanarySummary(),
       warnings: ["Known non-blocking copy issue."],
       manualChecks: ["Founder sign-off pending."],
@@ -145,16 +158,19 @@ describe("release evidence", () => {
     const releaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "release-evidence-"));
     const canarySummary = createCanarySummary();
 
-    const { canarySummaryPath, qaEvidencePath, evidence } = writeReleaseEvidenceArtifacts({
+    const { runtimeIntegrityPath, canarySummaryPath, qaEvidencePath, evidence } = writeReleaseEvidenceArtifacts({
       releaseDir,
       manifest: MANIFEST,
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
       canarySummary,
     });
 
+    expect(fs.existsSync(runtimeIntegrityPath)).toBe(true);
     expect(fs.existsSync(canarySummaryPath)).toBe(true);
     expect(fs.existsSync(qaEvidencePath)).toBe(true);
+    expect(JSON.parse(fs.readFileSync(runtimeIntegrityPath, "utf8"))).toEqual(RUNTIME_INTEGRITY_OK);
     expect(JSON.parse(fs.readFileSync(canarySummaryPath, "utf8"))).toEqual(canarySummary);
     expect(JSON.parse(fs.readFileSync(qaEvidencePath, "utf8"))).toEqual(evidence);
   });
@@ -169,11 +185,41 @@ describe("release evidence", () => {
         knownReferrerPromptVerified: false,
         warnings: ["Known-referrer prompt verification failed."],
       },
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
       canarySummary: createCanarySummary(),
     });
 
     expect(evidence.status).toBe("blocked");
     expect(evidence.review.blockingReasons).toContain("Referral identity verification checks failed.");
     expect(validateReleaseEvidence(evidence)).toContain("Referral identity verification evidence failed.");
+  });
+
+  it("blocks a release when runtime integrity evidence is missing or failed", () => {
+    const missingEvidence = createReleaseEvidence({
+      manifest: MANIFEST,
+      health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      canarySummary: createCanarySummary(),
+    });
+
+    expect(missingEvidence.status).toBe("blocked");
+    expect(missingEvidence.review.blockingReasons).toContain("Runtime integrity QA evidence is missing.");
+    expect(validateReleaseEvidence(missingEvidence)).toContain("Runtime integrity QA evidence is missing.");
+
+    const failedEvidence = createReleaseEvidence({
+      manifest: MANIFEST,
+      health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: createRuntimeIntegrityQaEvidence({
+        steps: [
+          { label: "integrity eval suites", command: "npm exec vitest run", status: "failed" },
+        ],
+      }),
+      canarySummary: createCanarySummary(),
+    });
+
+    expect(failedEvidence.status).toBe("blocked");
+    expect(failedEvidence.review.blockingReasons).toContain("Runtime integrity QA evidence contains blockers.");
+    expect(validateReleaseEvidence(failedEvidence)).toContain("Runtime integrity QA evidence contains blockers.");
   });
 });

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ChatInput } from "@/frameworks/ui/ChatInput";
 
-const CHAT_PLACEHOLDER = "Bring the messy workflow, bold idea, or handoff...";
-const CHAT_HELPER = "Enter to send. Shift+Enter for line break. Attach files if needed.";
+const CHAT_PLACEHOLDER = "Ask Studio Ordo...";
+const CHAT_HELPER = "Enter to send. Shift+Enter for line breaks.";
 
 describe("ChatInput", () => {
   it("submits on Enter without Shift", () => {
@@ -218,5 +218,37 @@ describe("ChatInput", () => {
       "chat-composer-helper-test",
     );
     expect(document.getElementById("chat-composer-helper-test")).not.toBeNull();
+  });
+
+  it("renders a stop control while a stream is active", () => {
+    const onStopStream = vi.fn();
+
+    render(
+      <ChatInput
+        helperTextId="chat-composer-helper-test"
+        value="Draft a response"
+        onChange={vi.fn()}
+        onSend={vi.fn()}
+        isSending={true}
+        canSend={false}
+        canStopStream={true}
+        onStopStream={onStopStream}
+        onArrowUp={vi.fn()}
+        activeTrigger={null}
+        suggestions={[]}
+        mentionIndex={0}
+        onMentionIndexChange={vi.fn()}
+        onSuggestionSelect={vi.fn()}
+        pendingFiles={[]}
+        onFileSelect={vi.fn()}
+        onFileRemove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Stop generation" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sending message" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop generation" }));
+    expect(onStopStream).toHaveBeenCalledTimes(1);
   });
 });

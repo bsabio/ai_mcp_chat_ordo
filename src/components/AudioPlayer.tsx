@@ -10,12 +10,20 @@ import {
   supportsIntersectionObserver,
   supportsReadableStreamReader,
 } from "@/lib/ui/browserSupport";
+import {
+  estimateAudioDurationSeconds,
+  estimateAudioGenerationSeconds,
+} from "@/lib/audio/audio-estimates";
 
 interface AudioPlayerProps {
   title: string;
   text: string;
   /** If set, audio is already cached — skip TTS generation and serve from cache */
   assetId?: string;
+  provider?: string;
+  generationStatus?: string;
+  estimatedDurationSeconds?: number;
+  estimatedGenerationSeconds?: number;
   /** When true (e.g. restored from conversation history), don't auto-play */
   autoPlay?: boolean;
 }
@@ -27,16 +35,6 @@ function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-}
-
-function estimateAudioDuration(text: string) {
-  const words = text.split(/\s+/).filter(Boolean).length;
-  return Math.max(2, Math.ceil(words / 2.5)); // ~2.5 words/sec for tts-1
-}
-
-function estimateGenTime(text: string) {
-  const words = text.split(/\s+/).filter(Boolean).length;
-  return Math.max(3, Math.ceil(words / 30));
 }
 
 /* ── loading-stage hook ──────────────────────────────────────────── */
@@ -116,7 +114,16 @@ function audioReducer(state: AudioState, action: AudioAction): AudioState {
 
 /* ── component ───────────────────────────────────────────────────── */
 
-export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlayerProps) {
+export function AudioPlayer({
+  title,
+  text,
+  assetId,
+  provider,
+  generationStatus,
+  estimatedDurationSeconds,
+  estimatedGenerationSeconds,
+  autoPlay = true,
+}: AudioPlayerProps) {
   const [state, dispatch] = useReducer(audioReducer, {
     isPlaying: false,
     isLoading: false,
@@ -135,8 +142,9 @@ export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlay
 
   const loadingStage = useLoadingStage(state.isLoading);
 
-  const estDuration = estimateAudioDuration(text);
-  const estGenTime = estimateGenTime(text);
+  const estDuration = estimatedDurationSeconds ?? estimateAudioDurationSeconds(text);
+  const estGenTime = estimatedGenerationSeconds ?? estimateAudioGenerationSeconds(text);
+  const providerLabel = provider ?? (assetId ? "Cached audio" : "OpenAI Speech");
 
   // Clean up object URL when unmounted
   useEffect(() => {
@@ -429,10 +437,12 @@ export function AudioPlayer({ title, text, assetId, autoPlay = true }: AudioPlay
     </span>
   ) : state.audioUrl ? (
     <span>
-      OpenAI Speech · {formatTime(state.duration)}
+      {providerLabel} · {formatTime(state.duration)}
     </span>
   ) : (
-    <span className="opacity-70">Click play to load · ~{estDuration}s audio</span>
+    <span className="opacity-70">
+      {generationStatus === "cached_asset" ? "Cached audio ready" : "Click play to load"} · ~{estDuration}s audio
+    </span>
   );
 
   /* ── render ────────────────────────────────────────────────────── */

@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 
 import type { RoleName } from "@/core/entities/user";
-import type { JobStatus } from "@/core/entities/job";
+import type {
+  JobArtifactPolicyMode,
+  JobExecutionPrincipal,
+  JobResultRetentionMode,
+  JobStatus,
+} from "@/core/entities/job";
 import { getJobQueueDataMapper } from "@/adapters/RepositoryFactory";
 import type { AdminPaginationParams } from "@/lib/admin/admin-pagination";
 import { getAdminJobsDetailPath } from "@/lib/admin/jobs/admin-jobs-routes";
@@ -9,6 +14,7 @@ import {
   CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
   canRolesManageGlobalJob,
   canRolesViewGlobalJob,
+  getJobCapability,
   getJobCapabilityPresentation,
   listGlobalJobCapabilitiesForRoles,
   type JobFamily,
@@ -20,6 +26,7 @@ import {
 const VALID_STATUSES: readonly string[] = ["queued", "running", "succeeded", "failed", "canceled"];
 const VALID_FAMILIES = ["editorial", "content", "workflow", "training", "system", "other"] as const satisfies readonly JobFamily[];
 const CANCELABLE_STATUSES = new Set<JobStatus>(["queued", "running"]);
+const REQUEUEABLE_STATUSES = new Set<JobStatus>(["queued", "running"]);
 const RETRIABLE_STATUSES = new Set<JobStatus>(["failed", "canceled"]);
 
 const JOB_FAMILY_LABELS: Record<JobFamily, string> = {
@@ -42,6 +49,10 @@ function isValidFamily(value: string): value is JobFamily {
 
 function getJobFamilyLabel(family: JobFamily): string {
   return JOB_FAMILY_LABELS[family];
+}
+
+function formatRoleList(roles: readonly RoleName[]): RoleName[] {
+  return [...roles];
 }
 
 function getVisibleGlobalCapabilities(roles: readonly RoleName[]) {
@@ -102,6 +113,7 @@ export interface AdminJobListEntry {
   toolFamily: JobFamily;
   toolFamilyLabel: string;
   defaultSurface: JobSurface;
+  executionPrincipal: JobExecutionPrincipal;
   status: string;
   priority: number;
   userName: string | null;
@@ -116,7 +128,18 @@ export interface AdminJobListEntry {
   duration: string | null;
   canManage: boolean;
   canCancel: boolean;
+  canRequeue: boolean;
   canRetry: boolean;
+}
+
+export interface AdminJobCapabilityPolicyViewModel {
+  description: string;
+  executionPrincipal: JobExecutionPrincipal;
+  executionAllowedRoles: RoleName[];
+  globalViewerRoles: RoleName[];
+  globalActionRoles: RoleName[];
+  resultRetention: JobResultRetentionMode;
+  artifactPolicy: JobArtifactPolicyMode;
 }
 
 export interface AdminJobListViewModel {
@@ -141,16 +164,28 @@ function formatDuration(startedAt: string | null, completedAt: string | null, st
 }
 
 function buildCapabilityMetadata(toolName: string, roles: readonly RoleName[]) {
-  const capability = getJobCapabilityPresentation(toolName);
-  if (!capability || !canRolesViewGlobalJob(toolName, roles)) {
+  const presentation = getJobCapabilityPresentation(toolName);
+  const capability = getJobCapability(toolName);
+
+  if (!presentation || !capability || !canRolesViewGlobalJob(toolName, roles)) {
     return null;
   }
 
   return {
-    toolLabel: capability.label,
-    toolFamily: capability.family,
-    toolFamilyLabel: getJobFamilyLabel(capability.family),
-    defaultSurface: capability.defaultSurface,
+    toolLabel: presentation.label,
+    toolFamily: presentation.family,
+    toolFamilyLabel: getJobFamilyLabel(presentation.family),
+    defaultSurface: presentation.defaultSurface,
+    executionPrincipal: capability.executionPrincipal,
+    capabilityPolicy: {
+      description: capability.description,
+      executionPrincipal: capability.executionPrincipal,
+      executionAllowedRoles: formatRoleList(capability.executionAllowedRoles),
+      globalViewerRoles: formatRoleList(capability.globalViewerRoles),
+      globalActionRoles: formatRoleList(capability.globalActionRoles),
+      resultRetention: capability.resultRetention,
+      artifactPolicy: capability.artifactPolicy.mode,
+    } satisfies AdminJobCapabilityPolicyViewModel,
     canManage: canRolesManageGlobalJob(toolName, roles),
   };
 }
@@ -232,6 +267,7 @@ function toListEntry(job: {
     toolFamily: capability.toolFamily,
     toolFamilyLabel: capability.toolFamilyLabel,
     defaultSurface: capability.defaultSurface,
+    executionPrincipal: capability.executionPrincipal,
     status: job.status,
     priority: job.priority,
     userName: job.userId,
@@ -246,6 +282,7 @@ function toListEntry(job: {
     duration: formatDuration(job.startedAt, job.completedAt, job.status),
     canManage: capability.canManage,
     canCancel: capability.canManage && CANCELABLE_STATUSES.has(job.status as JobStatus),
+    canRequeue: capability.canManage && REQUEUEABLE_STATUSES.has(job.status as JobStatus),
     canRetry: capability.canManage && RETRIABLE_STATUSES.has(job.status as JobStatus),
   };
 }
@@ -338,12 +375,22 @@ export interface AdminJobDetailViewModel {
     initiatorType: string;
     claimedBy: string | null;
     leaseExpiresAt: string | null;
+    failureClass: string | null;
+    nextRetryAt: string | null;
+    recoveryMode: string | null;
   };
   policy: {
     canManage: boolean;
     canCancel: boolean;
+    canRequeue: boolean;
     canRetry: boolean;
+    retryMode: "manual_only" | "automatic";
+    maxAttempts: number | null;
+    backoffStrategy: string | null;
+    baseDelayMs: number | null;
+    retryExhausted: boolean;
   };
+  capabilityPolicy: AdminJobCapabilityPolicyViewModel;
   events: Array<{
     id: string;
     eventType: string;
@@ -368,7 +415,19 @@ export async function loadAdminJobDetail(
     notFound();
   }
 
+  const capability = getJobCapability(job.toolName);
+  if (!capability) {
+    notFound();
+  }
+
   const events = await mapper.listEventsForJob(jobId);
+  const retryPolicy = capability.retryPolicy;
+  const retryExhausted = retryPolicy.mode === "automatic"
+    && typeof retryPolicy.maxAttempts === "number"
+    && job.status === "failed"
+    && job.failureClass === "transient"
+    && !job.nextRetryAt
+    && job.attemptCount >= retryPolicy.maxAttempts;
 
   return {
     job: {
@@ -380,11 +439,29 @@ export async function loadAdminJobDetail(
       initiatorType: job.initiatorType,
       claimedBy: job.claimedBy,
       leaseExpiresAt: job.leaseExpiresAt,
+      failureClass: job.failureClass,
+      nextRetryAt: job.nextRetryAt,
+      recoveryMode: job.recoveryMode ?? capability?.recoveryMode ?? null,
     },
     policy: {
       canManage: listEntry.canManage,
       canCancel: listEntry.canCancel,
+      canRequeue: listEntry.canRequeue,
       canRetry: listEntry.canRetry,
+      retryMode: retryPolicy.mode,
+      maxAttempts: retryPolicy.maxAttempts ?? null,
+      backoffStrategy: retryPolicy.backoffStrategy ?? null,
+      baseDelayMs: retryPolicy.baseDelayMs ?? null,
+      retryExhausted,
+    },
+    capabilityPolicy: {
+      description: capability.description,
+      executionPrincipal: capability.executionPrincipal,
+      executionAllowedRoles: formatRoleList(capability.executionAllowedRoles),
+      globalViewerRoles: formatRoleList(capability.globalViewerRoles),
+      globalActionRoles: formatRoleList(capability.globalActionRoles),
+      resultRetention: capability.resultRetention,
+      artifactPolicy: capability.artifactPolicy.mode,
     },
     events: events.map((e) => ({
       id: e.id,

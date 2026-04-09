@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useChatStreamRuntime } from "@/hooks/chat/useChatStreamRuntime";
@@ -17,6 +17,7 @@ describe("useChatStreamRuntime", () => {
   afterEach(() => {
     fetchStreamMock.mockReset();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("batches contiguous text deltas and flushes before a tool event", async () => {
@@ -38,7 +39,7 @@ describe("useChatStreamRuntime", () => {
       setConversationId,
     }));
 
-    await result.current([], 2, []);
+    await result.current.runStream([], 2, []);
 
     expect(fetchStreamMock).toHaveBeenCalledWith([], {
       conversationId: "conv_1",
@@ -60,6 +61,7 @@ describe("useChatStreamRuntime", () => {
     });
     expect(dispatch).toHaveBeenCalledTimes(2);
     expect(setConversationId).not.toHaveBeenCalled();
+    expect(result.current.activeStreamId).toBeNull();
   });
 
   it("flushes pending text at stream completion and preserves conversation id updates", async () => {
@@ -81,9 +83,9 @@ describe("useChatStreamRuntime", () => {
       setConversationId,
     }));
 
-    const runPromise = result.current([], 0, []);
+    const runPromise = result.current.runStream([], 0, []);
     await vi.runAllTimersAsync();
-    const resolvedConversationId = await runPromise;
+    const resolvedStream = await runPromise;
 
     expect(setConversationId).toHaveBeenCalledWith("conv_new");
     expect(dispatch).toHaveBeenCalledWith({
@@ -91,7 +93,43 @@ describe("useChatStreamRuntime", () => {
       index: 0,
       delta: "Hi",
     });
-    expect(resolvedConversationId).toBe("conv_new");
+    expect(resolvedStream.conversationId).toBe("conv_new");
+  });
+
+  it("does not dispatch half-finished action-link syntax during streaming", async () => {
+    vi.useFakeTimers();
+
+    fetchStreamMock.mockResolvedValue({
+      async *events() {
+        yield { type: "text", delta: "Primary: [The Magi" };
+        yield { type: "text", delta: "cian](?corpus=ch06-the-magician)" };
+      },
+    });
+
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const { result } = renderHook(() => useChatStreamRuntime({
+      conversationId: "conv_stream",
+      currentPathname: "/library",
+      dispatch,
+      setConversationId,
+    }));
+
+    const runPromise = result.current.runStream([], 1, []);
+    await vi.runAllTimersAsync();
+    await runPromise;
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "APPEND_TEXT",
+      index: 1,
+      delta: "Primary: [The Magician](?corpus=ch06-the-magician)",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: "APPEND_TEXT",
+      index: 1,
+      delta: "Primary: [The Magi",
+    });
   });
 
   it("forwards a provided current page snapshot to the stream adapter", async () => {
@@ -110,7 +148,7 @@ describe("useChatStreamRuntime", () => {
       setConversationId,
     }));
 
-    await result.current(
+    await result.current.runStream(
       [{ role: "user", content: "What page am I on?" }],
       1,
       [],
@@ -142,5 +180,134 @@ describe("useChatStreamRuntime", () => {
         taskOriginHandoff: undefined,
       },
     );
+  });
+
+  it("tracks the active stream id from the handshake and clears it when the stream settles", async () => {
+    let releaseStream: (() => void) | null = null;
+    fetchStreamMock.mockResolvedValue({
+      async *events() {
+        yield { type: "stream_id", id: "stream_live_42" };
+        await new Promise<void>((resolve) => {
+          releaseStream = resolve;
+        });
+        yield { type: "done" };
+      },
+    });
+
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const { result } = renderHook(() => useChatStreamRuntime({
+      conversationId: "conv_2",
+      currentPathname: "/library",
+      dispatch,
+      setConversationId,
+    }));
+
+    let runPromise: Promise<{ conversationId: string | null }>;
+    await act(async () => {
+      runPromise = result.current.runStream([], 0, []);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeStreamId).toBe("stream_live_42");
+    });
+
+    await act(async () => {
+      releaseStream?.();
+      await runPromise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeStreamId).toBeNull();
+    });
+  });
+
+  it("posts stop requests for the active stream id", async () => {
+    let releaseStream: (() => void) | null = null;
+    fetchStreamMock.mockResolvedValue({
+      async *events() {
+        yield { type: "stream_id", id: "stream_stop_7" };
+        await new Promise<void>((resolve) => {
+          releaseStream = resolve;
+        });
+        yield { type: "done" };
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const { result } = renderHook(() => useChatStreamRuntime({
+      conversationId: "conv_2",
+      currentPathname: "/library",
+      dispatch,
+      setConversationId,
+    }));
+
+    let runPromise: Promise<{ conversationId: string | null }>;
+    await act(async () => {
+      runPromise = result.current.runStream([], 0, []);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeStreamId).toBe("stream_stop_7");
+    });
+
+    await expect(result.current.stopStream()).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith("/api/chat/streams/stream_stop_7/stop", {
+      method: "POST",
+    });
+
+    await act(async () => {
+      releaseStream?.();
+      await runPromise;
+    });
+  });
+
+  it("returns a structured error when the stop request fails", async () => {
+    let releaseStream: (() => void) | null = null;
+    fetchStreamMock.mockResolvedValue({
+      async *events() {
+        yield { type: "stream_id", id: "stream_stop_8" };
+        await new Promise<void>((resolve) => {
+          releaseStream = resolve;
+        });
+        yield { type: "done" };
+      },
+    });
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network down"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const { result } = renderHook(() => useChatStreamRuntime({
+      conversationId: "conv_2",
+      currentPathname: "/library",
+      dispatch,
+      setConversationId,
+    }));
+
+    let runPromise: Promise<{ conversationId: string | null }>;
+    await act(async () => {
+      runPromise = result.current.runStream([], 0, []);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeStreamId).toBe("stream_stop_8");
+    });
+
+    await expect(result.current.stopStream()).resolves.toEqual({
+      ok: false,
+      error: "network down",
+    });
+
+    await act(async () => {
+      releaseStream?.();
+      await runPromise;
+    });
   });
 });

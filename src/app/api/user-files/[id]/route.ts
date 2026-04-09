@@ -4,6 +4,7 @@ import { resolveUserId } from "@/lib/chat/resolve-user";
 import { getDb } from "@/lib/db";
 import { UserFileDataMapper } from "@/adapters/UserFileDataMapper";
 import { UserFileSystem } from "@/lib/user-files";
+import { logFailure } from "@/lib/observability/logger";
 
 export async function GET(
   _req: Request,
@@ -18,12 +19,12 @@ export async function GET(
     const result = await ufs.getById(id);
 
     if (!result) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return NextResponse.json({ error: "File not found", errorCode: "NOT_FOUND" }, { status: 404 });
     }
 
     // Ensure the requesting user owns this file
     if (result.file.userId !== userId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden", errorCode: "FORBIDDEN" }, { status: 403 });
     }
 
     const data = fs.readFileSync(result.diskPath);
@@ -36,7 +37,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("User file serve error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    logFailure("USER_FILE_SERVE_ERROR", "User file serve error", undefined, error);
+    return NextResponse.json({ error: "Internal server error", errorCode: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

@@ -51,6 +51,17 @@ describe("conversation collection routes", () => {
     expect(payload.conversations).toEqual([{ id: "conv_1" }, { id: "conv_2" }]);
   });
 
+  it("passes a valid scope through when listing conversations", async () => {
+    list.mockResolvedValue([{ id: "conv_deleted" }]);
+
+    const response = await GET(createConversationRouteRequest("/api/conversations?scope=deleted", "GET"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(list).toHaveBeenCalledWith("usr_123", { scope: "deleted" });
+    expect(payload.conversations).toEqual([{ id: "conv_deleted" }]);
+  });
+
   it("rejects unauthenticated conversation creation", async () => {
     const response = await POST(
       createConversationRouteRequest("/api/conversations", "POST", false),

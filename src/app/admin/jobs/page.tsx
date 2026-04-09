@@ -10,7 +10,11 @@ import { JobsRefreshTrigger } from "@/components/admin/JobsRefreshTrigger";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminJobList } from "@/lib/admin/jobs/admin-jobs";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";
-import { bulkCancelJobsAction, bulkRetryJobsAction } from "@/lib/admin/jobs/admin-jobs-actions";
+import {
+  bulkCancelJobsAction,
+  bulkRequeueJobsAction,
+  bulkRetryJobsAction,
+} from "@/lib/admin/jobs/admin-jobs-actions";
 import { getAdminJobsListPath } from "@/lib/admin/jobs/admin-jobs-routes";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +66,8 @@ async function handleBulkAction(formData: FormData) {
   const action = formData.get("bulkAction");
   if (action === "cancel") {
     await bulkCancelJobsAction(formData);
+  } else if (action === "requeue") {
+    await bulkRequeueJobsAction(formData);
   } else if (action === "retry") {
     await bulkRetryJobsAction(formData);
   }

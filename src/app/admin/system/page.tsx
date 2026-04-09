@@ -6,6 +6,7 @@ import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { getDiagnosticsReport } from "@/lib/admin/processes";
 import { loadSystemHealthBlock } from "@/lib/operator/loaders/admin-loaders";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
+import { getRuntimeToolCountsByRole } from "@/lib/chat/runtime-manifest";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function AdminSystemPage() {
 
   const { registry } = getToolComposition();
   const toolNames = registry.getToolNames();
+  const roleToolCounts = getRuntimeToolCountsByRole(registry);
   const toolsByCategory: Record<string, string[]> = {};
   for (const name of toolNames) {
     const descriptor = registry.getDescriptor(name);
@@ -167,6 +169,14 @@ export default async function AdminSystemPage() {
 
         {/* Section 4 — Registered Tools */}
         <AdminCard title="Registered tools" description={`${toolNames.length} tools across ${Object.keys(toolsByCategory).length} categories.`}>
+          <dl className="admin-system-list mb-(--space-3) text-sm text-foreground/62">
+            {Object.entries(roleToolCounts).map(([roleName, count]) => (
+              <div key={roleName} className="admin-system-row">
+                <dt>{roleName}</dt>
+                <dd>{count} tools</dd>
+              </div>
+            ))}
+          </dl>
           <div className="grid gap-(--space-3)">
             {Object.entries(toolsByCategory).sort(([a], [b]) => a.localeCompare(b)).map(([category, names]) => (
               <div key={category} className="admin-tool-category">

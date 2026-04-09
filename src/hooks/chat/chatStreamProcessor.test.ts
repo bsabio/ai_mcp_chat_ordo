@@ -34,4 +34,53 @@ describe("chatStreamProcessor", () => {
       conversationId: "conv_new",
     });
   });
+
+  it("processes generation-stopped events through the configured strategy stack", () => {
+    const dispatch = vi.fn();
+    const processor = createChatStreamProcessor();
+
+    processor.process(
+      {
+        type: "generation_stopped",
+        actor: "user",
+        reason: "stopped_by_owner",
+        partialContentRetained: true,
+        recordedAt: "2026-03-25T10:00:00.000Z",
+      },
+      { dispatch, assistantIndex: 2 },
+    );
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "SET_STREAM_TERMINAL_STATE",
+      index: 2,
+      generation: {
+        type: "generation_status",
+        status: "stopped",
+        actor: "user",
+        reason: "stopped_by_owner",
+        partialContentRetained: true,
+        recordedAt: "2026-03-25T10:00:00.000Z",
+      },
+    });
+  });
+
+  it("treats generic stream errors as interrupted terminal state", () => {
+    const dispatch = vi.fn();
+    const processor = createChatStreamProcessor();
+
+    processor.process(
+      { type: "error", message: "Connection lost during streaming." },
+      { dispatch, assistantIndex: 1 },
+    );
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "SET_STREAM_TERMINAL_STATE",
+      index: 1,
+      generation: {
+        status: "interrupted",
+        actor: "system",
+        reason: "Connection lost during streaming.",
+      },
+    });
+  });
 });

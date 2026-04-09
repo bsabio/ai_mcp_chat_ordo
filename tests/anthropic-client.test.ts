@@ -83,4 +83,29 @@ describe("createMessageWithModelFallback", () => {
       }),
     ).rejects.toThrow("Anthropic provider error: Provider request timed out.");
   });
+
+  it("does not retry timeout errors even with multiple retry attempts", async () => {
+    const create = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ content: [{ type: "text", text: "late" }] }), 50);
+        }),
+    );
+
+    const client = { messages: { create } };
+
+    await expect(
+      createMessageWithModelFallback({
+        client: client as never,
+        messages: [{ role: "user", content: "hello" }] as never,
+        toolChoice: { type: "auto" },
+        options: { retryAttempts: 3, retryDelayMs: 0, timeoutMs: 1 },
+        systemPrompt: "system",
+        tools: [],
+      }),
+    ).rejects.toThrow("Anthropic provider error: Provider request timed out.");
+
+    // Should only attempt once — timeouts are not retried
+    expect(create).toHaveBeenCalledTimes(1);
+  });
 });

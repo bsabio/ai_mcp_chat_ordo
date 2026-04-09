@@ -10,6 +10,7 @@ export const generateAudioTool: ToolDescriptor = {
       properties: {
         text: { type: "string" },
         title: { type: "string" },
+        assetId: { type: "string" },
       },
       required: ["text", "title"],
     },

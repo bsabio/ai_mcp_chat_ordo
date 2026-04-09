@@ -8,6 +8,11 @@ import { usePresentedChatMessages } from "@/hooks/usePresentedChatMessages";
 import { useUICommands } from "@/hooks/useUICommands";
 import { useChatComposerController } from "@/hooks/chat/useChatComposerController";
 import type { ActionLinkType } from "@/core/entities/rich-content";
+import { buildTranscriptCopy } from "@/lib/chat/conversation-portability";
+import {
+  exportConversationById,
+  importConversationFromPayload,
+} from "@/hooks/chat/chatConversationApi";
 
 export type ActionDispatchDeps = {
   router: ReturnType<typeof useRouter>;
@@ -97,9 +102,23 @@ export function useChatSurfaceState({
   isEmbedded: boolean;
 }) {
   const router = useRouter();
-  const { messages, isSending, retryFailedMessage, sendMessage, conversationId, isLoadingMessages, setConversationId, refreshConversation } =
+  const {
+    activeStreamId,
+    messages,
+    isSending,
+    retryFailedMessage,
+    sendMessage,
+    stopStream,
+    conversationId,
+    currentConversation,
+    isLoadingMessages,
+    applyConversationPayload,
+    setConversationId,
+    refreshConversation,
+  } =
     useGlobalChat();
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
+  const [isConversationActionPending, setIsConversationActionPending] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
@@ -159,6 +178,57 @@ export function useChatSurfaceState({
     await retryFailedMessage(retryKey);
   }, [isSending, retryFailedMessage]);
 
+  const handleCopyTranscript = useCallback(async () => {
+    const transcript = buildTranscriptCopy(messages);
+    if (!transcript) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(transcript);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }, [messages]);
+
+  const handleExportConversation = useCallback(async () => {
+    if (!conversationId) {
+      return;
+    }
+
+    setIsConversationActionPending(true);
+    try {
+      const result = await exportConversationById(conversationId);
+      if (result.status !== "exported" || !result.payload) {
+        return;
+      }
+
+      const blob = new Blob([`${JSON.stringify(result.payload, null, 2)}\n`], {
+        type: "application/json",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `conversation-${conversationId}.json`;
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setIsConversationActionPending(false);
+    }
+  }, [conversationId]);
+
+  const handleImportConversationFile = useCallback(async (file: File) => {
+    setIsConversationActionPending(true);
+    try {
+      const result = await importConversationFromPayload(await file.text());
+      if (result.status === "imported" && result.payload) {
+        applyConversationPayload(result.payload);
+      }
+    } finally {
+      setIsConversationActionPending(false);
+    }
+  }, [applyConversationPayload]);
+
   const isHeroState =
     isEmbedded &&
     !sessionSearchQuery &&
@@ -168,7 +238,12 @@ export function useChatSurfaceState({
 
   const contentProps = {
     activeTrigger: activeTrigger ? activeTrigger.char : null,
+    activeStreamId,
     canSend,
+    canCopyTranscript: messages.length > 0,
+    canExportConversation: Boolean(conversationId),
+    canImportConversation: true,
+    canStopStream: Boolean(activeStreamId),
     dynamicSuggestions,
     input,
     inputRef: textareaRef,
@@ -185,9 +260,14 @@ export function useChatSurfaceState({
     onMentionIndexChange: setMentionIndex,
     onRetryClick: handleRetryClick,
     onSend: handleSend,
+    onCopyTranscript: handleCopyTranscript,
+    onExportConversation: handleExportConversation,
+    onImportConversationFile: handleImportConversationFile,
     onSuggestionClick: handleSuggestionClick,
     onSuggestionSelect: handleSuggestionSelect,
+    onStopStream: stopStream,
     pendingFiles,
+    isConversationActionPending,
     scrollDependency,
     searchQuery: sessionSearchQuery,
     suggestions: mentionSuggestions,
@@ -195,11 +275,20 @@ export function useChatSurfaceState({
 
   return {
     activeTrigger: activeTrigger ? activeTrigger.char : null,
+    activeStreamId,
     canSend,
+    canCopyTranscript: messages.length > 0,
+    canExportConversation: Boolean(conversationId),
+    canImportConversation: true,
+    canStopStream: Boolean(activeStreamId),
     contentProps,
     conversationId,
+    currentConversation,
     dynamicSuggestions,
     handleActionClick,
+    handleCopyTranscript,
+    handleExportConversation,
+    handleImportConversationFile,
     handleFileRemove,
     handleFileSelect,
     handleInputChange,
@@ -212,8 +301,10 @@ export function useChatSurfaceState({
     isHeroState,
     isLoadingMessages,
     isSending,
+    isConversationActionPending,
     mentionIndex,
     mentionSuggestions,
+    stopStream,
     pendingFiles,
     presentedMessages,
     scrollDependency,

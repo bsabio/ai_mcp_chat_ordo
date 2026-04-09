@@ -41,6 +41,13 @@ function getCheckpoint(results: EvalCheckpointResult[], id: string): EvalCheckpo
   return results.find((result) => result.id === id);
 }
 
+function getRecoveryCheckpoint(results: EvalCheckpointResult[]): EvalCheckpointResult | undefined {
+  return getCheckpoint(results, "tool-recovery")
+    ?? getCheckpoint(results, "terminal-job-recovered")
+    ?? getCheckpoint(results, "existing-job-found")
+    ?? getCheckpoint(results, "recovery-guidance-visible");
+}
+
 function getToolCallObservations(execution: EvalExecutionLike) {
   return execution.observations.filter((observation) => observation.kind === "tool_call");
 }
@@ -106,7 +113,7 @@ export function scoreEvalExecution(execution: EvalExecutionLike): EvalScoreDimen
           }
 
           if (behavior.policy === "recover") {
-            return Boolean(getCheckpoint(execution.checkpointResults, "tool-recovery")?.passed);
+            return Boolean(getRecoveryCheckpoint(execution.checkpointResults)?.passed);
           }
 
           return false;
@@ -151,9 +158,7 @@ export function scoreEvalExecution(execution: EvalExecutionLike): EvalScoreDimen
         );
       }
       case "recovery": {
-        const recoveryCheckpoint = getCheckpoint(execution.checkpointResults, "tool-recovery")
-          ?? getCheckpoint(execution.checkpointResults, "terminal-job-recovered")
-          ?? getCheckpoint(execution.checkpointResults, "existing-job-found");
+        const recoveryCheckpoint = getRecoveryCheckpoint(execution.checkpointResults);
         return buildDimension(
           dimensionId,
           recoveryCheckpoint?.passed ? 1 : 0,

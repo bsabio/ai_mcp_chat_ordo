@@ -6,6 +6,7 @@ import { DefaultingSystemPromptRepository } from "@/core/use-cases/DefaultingSys
 import { ChatPolicyInteractor } from "@/core/use-cases/ChatPolicyInteractor";
 import { ConversationEventRecorder } from "@/core/use-cases/ConversationEventRecorder";
 import { ConversationEventDataMapper } from "@/adapters/ConversationEventDataMapper";
+import { buildCorpusBasePrompt } from "@/lib/corpus-vocabulary";
 import { promptSet, promptRollback } from "@mcp/prompt-tool";
 import type { PromptToolDeps } from "@mcp/prompt-tool";
 
@@ -29,7 +30,7 @@ describe("SystemPromptDataMapper", () => {
     expect(base).not.toBeNull();
     expect(base!.version).toBe(1);
     expect(base!.isActive).toBe(true);
-    expect(base!.content).toContain("strategic workflow, implementation, and training advisor");
+    expect(base!.content).toBe(buildCorpusBasePrompt());
   });
 
   it("createVersion increments version number", async () => {
@@ -97,7 +98,7 @@ describe("ChatPolicyInteractor (DB-backed)", () => {
     const interactor = new ChatPolicyInteractor(defaulting);
     const prompt = await interactor.execute({ role: "ANONYMOUS" });
     // DB has seeded prompts, so should contain the seeded base prompt, not "FALLBACK"
-    expect(prompt).toContain("strategic workflow, implementation, and training advisor");
+    expect(prompt).toContain(buildCorpusBasePrompt());
     expect(prompt).toContain("DEMO MODE");
   });
 
@@ -118,7 +119,7 @@ describe("ChatPolicyInteractor (DB-backed)", () => {
     const defaulting = new DefaultingSystemPromptRepository(repo, "unused", {});
     const interactor = new ChatPolicyInteractor(defaulting);
     const prompt = await interactor.execute({ role: "ADMIN" });
-    expect(prompt).toContain("strategic workflow, implementation, and training advisor");
+    expect(prompt).toContain(buildCorpusBasePrompt());
     expect(prompt).toContain("SYSTEM ADMINISTRATOR");
     expect(prompt).toContain("internal operator brief");
     expect(prompt).toContain("admin_prioritize_offer");
@@ -159,7 +160,7 @@ describe("Prompt management operations", () => {
     const active = await repo.getActive("ALL", "base");
     expect(active).not.toBeNull();
     expect(active!.version).toBe(1);
-    expect(active!.content).toContain("strategic workflow, implementation, and training advisor");
+    expect(active!.content).toBe(buildCorpusBasePrompt());
   });
 
   it("set creates and activates new version", async () => {

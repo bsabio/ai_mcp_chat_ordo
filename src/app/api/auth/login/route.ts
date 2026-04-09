@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { login } from "@/lib/auth";
-import { InvalidCredentialsError } from "@/core/use-cases/AuthenticateUserInteractor";
+import { mapErrorToResponse } from "@/core/common/errors";
 import { migrateAnonymousConversationsToUser } from "@/lib/chat/migrate-anonymous-conversations";
 import {
   evaluatePublicFormRequest,
@@ -43,14 +43,14 @@ export async function POST(req: Request) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "email and password are required" },
+        { error: "email and password are required", errorCode: "VALIDATION_ERROR" },
         { status: 400 },
       );
     }
 
     const result = await login({ email, password });
 
-    await migrateAnonymousConversationsToUser(result.user.id, "login");
+    const migration = await migrateAnonymousConversationsToUser(result.user.id, "login");
 
     // Set session cookie only after anonymous migration succeeds.
     const cookieStore = await cookies();
@@ -62,18 +62,12 @@ export async function POST(req: Request) {
       maxAge: 7 * 24 * 60 * 60, // 7 days
     });
 
-    return NextResponse.json({ user: result.user });
+    return NextResponse.json({
+      user: result.user,
+      migratedConversations: migration.migratedConversationIds.length,
+    });
   } catch (error) {
-    if (error instanceof InvalidCredentialsError) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 },
-      );
-    }
-    console.error("Login error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const { status, body } = mapErrorToResponse(error);
+    return NextResponse.json(body, { status });
   }
 }

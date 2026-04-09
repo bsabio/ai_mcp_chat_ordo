@@ -2,10 +2,10 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
   createRequestId,
-  getErrorCode,
   logEvent,
 } from "@/lib/observability/logger";
 import { recordRouteMetric } from "@/lib/observability/metrics";
+import { AppError, mapErrorToResponse } from "@/core/common/errors";
 
 export type RouteContext = {
   route: string;
@@ -75,9 +75,10 @@ export function errorJson(
   message: string,
   status: number,
   init?: ResponseInit,
+  errorCode?: string,
 ) {
   const elapsed = durationMs(context.startedAt);
-  const errorCode = getErrorCode(message, status);
+  const resolvedCode = errorCode ?? (status === 404 ? "NOT_FOUND" : status === 401 || status === 403 ? "AUTH_ERROR" : status >= 500 ? "INTERNAL_ERROR" : "VALIDATION_ERROR");
   const isServerError = status >= 500;
 
   recordRouteMetric(context.route, elapsed, isServerError);
@@ -85,13 +86,13 @@ export function errorJson(
     route: context.route,
     requestId: context.requestId,
     durationMs: elapsed,
-    errorCode,
+    errorCode: resolvedCode,
     status,
     message,
   });
 
   return NextResponse.json(
-    { error: message, errorCode, requestId: context.requestId },
+    { error: message, errorCode: resolvedCode, requestId: context.requestId },
     {
       ...init,
       status,
@@ -103,14 +104,12 @@ export async function runRouteTemplate({
   route,
   request,
   execute,
-  validationMessages = [
-    "messages must be a non-empty array.",
-    "No user message found.",
-  ],
+  validationMessages = [],
 }: {
   route: string;
   request: NextRequest;
   execute: (context: RouteContext) => Promise<Response>;
+  /** @deprecated Prefer throwing a canonical AppError subclass instead. Remove after 2025-10-01. */
   validationMessages?: string[];
 }) {
   const context = startRoute(route, request);
@@ -118,6 +117,26 @@ export async function runRouteTemplate({
   try {
     return await execute(context);
   } catch (error) {
+    // Canonical AppError subclasses carry their own status/errorCode.
+    if (error instanceof AppError) {
+      const mapped = mapErrorToResponse(error, context.requestId);
+      const elapsed = durationMs(context.startedAt);
+      const isServerError = mapped.status >= 500;
+
+      recordRouteMetric(context.route, elapsed, isServerError);
+      logEvent(isServerError ? "error" : "info", "request.error", {
+        route: context.route,
+        requestId: context.requestId,
+        durationMs: elapsed,
+        errorCode: mapped.body.errorCode,
+        status: mapped.status,
+        message: mapped.body.error,
+      });
+
+      return NextResponse.json(mapped.body, { status: mapped.status });
+    }
+
+    // Legacy fallback: plain Errors with message-based validation matching.
     const message =
       error instanceof Error ? error.message : "Unexpected server error.";
     const status = validationMessages.includes(message) ? 400 : 500;

@@ -82,7 +82,7 @@ docs/_specs/admin-platform-ux-hardening/
 tests/
     ├── sprint-8-ux-config-and-new-components.test.ts
     ├── sprint-9-ux-shared-component-upgrades.test.tsx
-    ├── sprint-10-ux-layout-and-navigation.test.tsx
+    ├── ux-layout-navigation.test.tsx
     ├── sprint-11-ux-pagination-data-layer.test.ts
     ├── sprint-12-ux-conversations-p0-journal.test.tsx
     └── sprint-13-ux-auth-forms-accessibility.test.tsx

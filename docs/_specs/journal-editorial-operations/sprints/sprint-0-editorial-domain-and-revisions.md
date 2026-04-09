@@ -18,7 +18,7 @@
 | `src/lib/db/migrations.ts` | Migration helper already adds blog asset and blog artifact schema changes incrementally |
 | `src/core/use-cases/BlogPostArtifactRepository.ts` | Artifact storage already supports `create`, `listByPost`, and `listByPostAndType`, which is useful for preserving generation provenance but not enough for editorial restore |
 | `src/lib/blog/journal-taxonomy.ts` | `describeJournalPost()` and `buildJournalPublicationStructure()` currently infer section identity heuristically and split standfirsts from markdown |
-| `tests/sprint-7-blog-pipeline.test.ts` | Existing blog mapper and draft/publish tests are the correct baseline to extend for editorial metadata and workflow expansion |
+| `tests/blog-pipeline-integration.test.ts` | Existing blog mapper and draft/publish tests are the correct baseline to extend for editorial metadata and workflow expansion |
 | `tests/blog-post-artifact-repository.test.ts` | Existing artifact repository tests already cover blog artifact persistence and help guard separation from the new revision model |
 
 ---
@@ -53,7 +53,7 @@ This metadata is not just for pages. It is the authoritative substrate for `get_
 ### Task 0.1 Verify
 
 ```bash
-npm exec vitest run tests/sprint-7-blog-pipeline.test.ts tests/blog-hero-rendering.test.tsx
+npm exec vitest run tests/blog-pipeline-integration.test.ts tests/blog-hero-rendering.test.tsx
 ```
 
 ---
@@ -145,7 +145,7 @@ Implementation rules:
 ### Task 0.3 Verify
 
 ```bash
-npm exec vitest run tests/sprint-7-blog-pipeline.test.ts tests/blog-post-revision-repository.test.ts tests/td-c-journal-editorial-operations.test.ts
+npm exec vitest run tests/blog-pipeline-integration.test.ts tests/blog-post-revision-repository.test.ts tests/td-c-journal-editorial-operations.test.ts
 ```
 
 ---

@@ -3,6 +3,7 @@ import type { LeadRecord } from "../entities/lead-record";
 import { isDealLane } from "../entities/deal-record";
 import type { ConsultationRequestRepository } from "./ConsultationRequestRepository";
 import type { ConversationRepository } from "./ConversationRepository";
+import { NotFoundError, ValidationError, ConflictError } from "../common/errors";
 import type { DealRecordRepository } from "./DealRecordRepository";
 import type { LeadRecordRepository } from "./LeadRecordRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
@@ -216,23 +217,8 @@ export class CreateDealFromWorkflowInteractor {
   }
 }
 
-export class WorkflowSourceNotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "WorkflowSourceNotFoundError";
-  }
-}
+export class WorkflowSourceNotFoundError extends NotFoundError {}
 
-export class DealCreationEligibilityError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DealCreationEligibilityError";
-  }
-}
+export class DealCreationEligibilityError extends ValidationError {}
 
-export class DealAlreadyExistsError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DealAlreadyExistsError";
-  }
-}
+export class DealAlreadyExistsError extends ConflictError {}

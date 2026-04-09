@@ -14,16 +14,21 @@ export function createValidatedSessionUser(
 
 export function createConversationRouteRequest(
   path: string,
-  method: "GET" | "POST" | "DELETE" = "GET",
+  method: "GET" | "POST" | "PATCH" | "DELETE" = "GET",
   includeSession = true,
+  body?: unknown,
 ) {
   const headers = includeSession
-    ? { cookie: `lms_session_token=${TEST_SESSION_TOKEN}` }
+    ? {
+        cookie: `lms_session_token=${TEST_SESSION_TOKEN}`,
+        ...(body !== undefined ? { "content-type": "application/json" } : {}),
+      }
     : undefined;
 
   return new NextRequest(new URL(path, "http://localhost:3000"), {
     method,
     headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
@@ -56,7 +61,13 @@ export function createConversationRouteServicesMock(overrides: {
   list?: unknown;
   ensureActive?: unknown;
   get?: unknown;
+  exportConversation?: unknown;
+  importConversation?: unknown;
   delete?: unknown;
+  rename?: unknown;
+  archive?: unknown;
+  restore?: unknown;
+  purge?: unknown;
 } = {}) {
   return {
     interactor: {
@@ -65,7 +76,13 @@ export function createConversationRouteServicesMock(overrides: {
       list: overrides.list,
       ensureActive: overrides.ensureActive,
       get: overrides.get,
+      exportConversation: overrides.exportConversation,
+      importConversation: overrides.importConversation,
       delete: overrides.delete,
+      rename: overrides.rename,
+      archive: overrides.archive,
+      restore: overrides.restore,
+      purge: overrides.purge,
     },
   };
 }

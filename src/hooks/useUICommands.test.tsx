@@ -154,7 +154,9 @@ describe("useUICommands", () => {
       expect(document.documentElement.classList.contains("theme-bauhaus")).toBe(true);
     });
 
-    expect(queryByTestId("theme-transition-overlay")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(queryByTestId("theme-transition-overlay")).toBeInTheDocument();
+    });
 
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 450));

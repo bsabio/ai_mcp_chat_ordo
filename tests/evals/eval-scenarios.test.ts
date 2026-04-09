@@ -22,11 +22,17 @@ describe("eval scenario catalog", () => {
         "mcp-tool-avoidance",
         "mcp-calculator-must-use",
         "mcp-multi-tool-synthesis",
+        "integrity-canonical-corpus-reference-deterministic",
+        "integrity-audio-recovery-deterministic",
+        "integrity-malformed-ui-tags-deterministic",
         "blog-job-status-continuity-deterministic",
         "blog-explicit-status-check-deterministic",
         "blog-job-dedupe-clarity-deterministic",
         "blog-produce-publish-handoff-deterministic",
         "blog-missed-sse-recovery-deterministic",
+        "live-runtime-self-knowledge-honesty",
+        "live-current-page-truthfulness",
+        "live-duplicate-navigation-avoidance",
         "live-blog-job-status-and-publish-handoff",
         "live-blog-job-reuse-instead-of-rerun",
         "live-blog-completion-recovery",
@@ -50,6 +56,11 @@ describe("eval scenario catalog", () => {
 
     expect(getEvalScenarioById("live-anonymous-signup-continuity")).toMatchObject({
       cohortId: "anonymous-learner",
+      layer: "live_model",
+    });
+
+    expect(getEvalScenarioById("live-runtime-self-knowledge-honesty")).toMatchObject({
+      cohortId: "runtime-integrity-auditor",
       layer: "live_model",
     });
   });

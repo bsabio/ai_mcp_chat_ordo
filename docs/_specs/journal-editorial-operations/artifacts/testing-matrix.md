@@ -6,13 +6,13 @@ This artifact makes the package's testing expectations concrete.
 
 | File | Why it matters |
 | --- | --- |
-| `tests/sprint-7-blog-pipeline.test.ts` | Existing mapper and draft/publish behavior baseline for editorial metadata, workflow, and publish invariants |
+| `tests/blog-pipeline-integration.test.ts` | Existing mapper and draft/publish behavior baseline for editorial metadata, workflow, and publish invariants |
 | `tests/blog-post-artifact-repository.test.ts` | Guards the separation between generation artifacts and the new revision model |
 | `tests/blog-hero-rendering.test.tsx` | Public journal rendering baseline for taxonomy fallback, canonical output, and route parity |
 | `tests/blog-image-generation-service.test.ts` | Protects hero-image behavior touched by admin workspace reuse |
 | `tests/deferred-blog-job-flow.test.ts` | Covers job-driven draft outputs and route summaries |
 | `tests/deferred-blog-publish-flow.test.ts` | Covers publish-flow route summaries and visibility behavior |
-| `tests/sprint-3-blog-orchestration-qa.test.ts` | Pre-cutover static compatibility guardrail for admin preview and orchestration route outputs; should be updated during Sprint 3 to assert `/journal` public truth instead of legacy admin-preview details |
+| `tests/blog-orchestration-qa.test.ts` | Pre-cutover static compatibility guardrail for admin preview and orchestration route outputs; should be updated during Sprint 3 to assert `/journal` public truth instead of legacy admin-preview details |
 | `src/app/admin/journal/preview/[slug]/page.test.tsx` | Baseline auth/noindex coverage for the canonical admin preview route |
 | `src/app/api/admin/blog/posts/[postId]/hero-images/route.test.ts` | Existing tested admin API that the journal workspace should reuse or wrap |
 | `src/app/api/admin/blog/posts/[postId]/artifacts/route.test.ts` | Existing tested admin API that the journal workspace should reuse or wrap |
@@ -47,11 +47,11 @@ This artifact makes the package's testing expectations concrete.
 
 | Sprint | Minimum focused verification |
 | --- | --- |
-| Sprint 0 | `npm exec vitest run tests/sprint-7-blog-pipeline.test.ts tests/blog-post-artifact-repository.test.ts tests/blog-post-revision-repository.test.ts tests/journal-taxonomy-metadata.test.ts` |
+| Sprint 0 | `npm exec vitest run tests/blog-pipeline-integration.test.ts tests/blog-post-artifact-repository.test.ts tests/blog-post-revision-repository.test.ts tests/journal-taxonomy-metadata.test.ts` |
 | Sprint 1 | `npm exec vitest run src/app/admin/journal/page.test.tsx src/app/admin/journal/[id]/page.test.tsx src/app/admin/journal/preview/[slug]/page.test.tsx src/app/api/admin/blog/posts/[postId]/hero-images/route.test.ts src/app/api/admin/blog/posts/[postId]/artifacts/route.test.ts` |
 | Sprint 2 | `npm exec vitest run src/lib/journal/admin-journal-actions.test.ts tests/blog-post-revision-repository.test.ts src/app/admin/journal/[id]/page.test.tsx src/adapters/ChatPresenter.test.ts src/hooks/useGlobalChat.test.tsx tests/deferred-blog-job-flow.test.ts tests/deferred-blog-publish-flow.test.ts && test -f docs/_specs/journal-editorial-operations/artifacts/executive-control-and-tool-matrix.md && test -f docs/_specs/journal-editorial-operations/artifacts/journal-worker-implementation-map.md` |
 | Sprint 2B | `npm exec vitest run src/core/use-cases/tools/journal-query.tool.test.ts src/core/use-cases/tools/journal-write.tool.test.ts tests/tool-registry.integration.test.ts tests/tool-registry.test.ts src/lib/journal/admin-journal-actions.test.ts && test -f docs/_specs/journal-editorial-operations/sprints/sprint-2b-journal-worker-wrapper-registration.md && test -f docs/_specs/journal-editorial-operations/artifacts/journal-worker-implementation-map.md` |
-| Sprint 3 | `npm exec vitest run tests/blog-hero-rendering.test.tsx src/components/AppShell.test.tsx src/components/SiteNav.test.tsx src/adapters/ChatPresenter.test.ts src/hooks/useGlobalChat.test.tsx tests/job-status-summary-tools.test.ts tests/sprint-3-blog-orchestration-qa.test.ts tests/journal-public-route-convergence.test.ts src/app/journal/page.test.tsx src/app/journal/[slug]/page.test.tsx src/app/blog/page.test.tsx src/app/blog/[slug]/page.test.tsx src/app/sitemap.test.ts && test -f docs/_specs/journal-editorial-operations/artifacts/route-convergence-checklist.md` |
+| Sprint 3 | `npm exec vitest run tests/blog-hero-rendering.test.tsx src/components/AppShell.test.tsx src/components/SiteNav.test.tsx src/adapters/ChatPresenter.test.ts src/hooks/useGlobalChat.test.tsx tests/job-status-summary-tools.test.ts tests/blog-orchestration-qa.test.ts tests/journal-public-route-convergence.test.ts src/app/journal/page.test.tsx src/app/journal/[slug]/page.test.tsx src/app/blog/page.test.tsx src/app/blog/[slug]/page.test.tsx src/app/sitemap.test.ts && test -f docs/_specs/journal-editorial-operations/artifacts/route-convergence-checklist.md` |
 | TD-A | `npm exec vitest run tests/td-a-journal-editorial-operations.test.ts` |
 | TD-C | `npm exec vitest run tests/td-c-journal-editorial-operations.test.ts` |
 | TD-D | `npm exec vitest run tests/td-d-journal-editorial-operations.test.ts` |
@@ -315,7 +315,7 @@ Edge:
 ## Full Feature Verification
 
 ```bash
-npm exec vitest run tests/sprint-7-blog-pipeline.test.ts tests/blog-post-artifact-repository.test.ts tests/blog-post-revision-repository.test.ts tests/journal-taxonomy-metadata.test.ts tests/blog-hero-rendering.test.tsx tests/deferred-blog-job-flow.test.ts tests/deferred-blog-publish-flow.test.ts tests/sprint-3-blog-orchestration-qa.test.ts src/lib/journal/admin-journal-actions.test.ts src/app/admin/journal/page.test.tsx src/app/admin/journal/[id]/page.test.tsx src/app/admin/journal/preview/[slug]/page.test.tsx src/app/api/admin/blog/posts/[postId]/hero-images/route.test.ts src/app/api/admin/blog/posts/[postId]/artifacts/route.test.ts src/adapters/ChatPresenter.test.ts src/components/AppShell.test.tsx src/components/SiteNav.test.tsx src/hooks/useGlobalChat.test.tsx tests/td-a-journal-editorial-operations.test.ts tests/td-c-journal-editorial-operations.test.ts tests/td-d-journal-editorial-operations.test.ts
+npm exec vitest run tests/blog-pipeline-integration.test.ts tests/blog-post-artifact-repository.test.ts tests/blog-post-revision-repository.test.ts tests/journal-taxonomy-metadata.test.ts tests/blog-hero-rendering.test.tsx tests/deferred-blog-job-flow.test.ts tests/deferred-blog-publish-flow.test.ts tests/blog-orchestration-qa.test.ts src/lib/journal/admin-journal-actions.test.ts src/app/admin/journal/page.test.tsx src/app/admin/journal/[id]/page.test.tsx src/app/admin/journal/preview/[slug]/page.test.tsx src/app/api/admin/blog/posts/[postId]/hero-images/route.test.ts src/app/api/admin/blog/posts/[postId]/artifacts/route.test.ts src/adapters/ChatPresenter.test.ts src/components/AppShell.test.tsx src/components/SiteNav.test.tsx src/hooks/useGlobalChat.test.tsx tests/td-a-journal-editorial-operations.test.ts tests/td-c-journal-editorial-operations.test.ts tests/td-d-journal-editorial-operations.test.ts
 npm run build
 ```
 

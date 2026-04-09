@@ -1,22 +1,14 @@
 import type { UserProfile, UserProfilePatch } from "@/core/entities/user-profile";
 import type { UserProfileRepository } from "@/core/use-cases/UserProfileRepository";
+import { ValidationError, ConflictError } from "@/core/common/errors";
 import { UserProfileNotFoundError } from "@/core/use-cases/GetUserProfileInteractor";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export class UserProfileValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UserProfileValidationError";
-  }
-}
+export class UserProfileValidationError extends ValidationError {}
 
-export class UserProfileConflictError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UserProfileConflictError";
-  }
-}
+export class UserProfileConflictError extends ConflictError {}
+
 
 function normalizeName(name: string | undefined, fallback: string): string {
   const next = (name ?? fallback).trim();

@@ -413,7 +413,7 @@ The package should leverage the repo's strongest existing tests and add explicit
 
 Minimum target coverage by layer:
 
-1. **Repository/data mapper:** extend `tests/sprint-7-blog-pipeline.test.ts`, `tests/blog-post-artifact-repository.test.ts`, and add a dedicated revision repository test file for state transitions, revision creation, and restore behavior. `[JEO-119A]`
+1. **Repository/data mapper:** extend `tests/blog-pipeline-integration.test.ts`, `tests/blog-post-artifact-repository.test.ts`, and add a dedicated revision repository test file for state transitions, revision creation, and restore behavior. `[JEO-119A]`
 2. **Admin routes/pages:** extend `src/app/admin/journal/preview/[slug]/page.test.tsx` and add `/admin/journal` page tests for auth, list rendering, and preview behavior. `[JEO-119B]`
 3. **Admin APIs:** extend `src/app/api/admin/blog/posts/[postId]/hero-images/route.test.ts` and `src/app/api/admin/blog/posts/[postId]/artifacts/route.test.ts`; add journal-named wrapper tests only if wrappers are introduced. `[JEO-119C]`
 4. **Presentation and chat-facing outputs:** extend `src/adapters/ChatPresenter.test.ts`, `src/hooks/useGlobalChat.test.tsx`, and `src/components/AppShell.test.tsx` for `/journal` cutover and preview-link updates. `[JEO-119D]`
@@ -426,7 +426,7 @@ The exact existing and planned test-file inventory for this package should be ma
 Minimum feature verification should remain:
 
 ```bash
-npm exec vitest run tests/sprint-7-blog-pipeline.test.ts tests/blog-post-artifact-repository.test.ts tests/blog-hero-rendering.test.tsx src/adapters/ChatPresenter.test.ts src/components/AppShell.test.tsx
+npm exec vitest run tests/blog-pipeline-integration.test.ts tests/blog-post-artifact-repository.test.ts tests/blog-hero-rendering.test.tsx src/adapters/ChatPresenter.test.ts src/components/AppShell.test.tsx
 npm run build
 ```
 

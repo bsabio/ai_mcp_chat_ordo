@@ -71,9 +71,10 @@ function extractInlineText(nodes: InlineNode[]): string {
     .map((node) => {
       switch (node.type) {
         case "text":
-        case "bold":
         case "code-inline":
           return node.text;
+        case "bold":
+          return extractInlineText(node.content);
         case "library-link":
           return node.slug.replace(/-/g, " ");
         case "action-link":
@@ -290,31 +291,7 @@ const UserBubble = React.memo<{ content: PresentedMessage }>(({ content }) => {
       <div className="ui-chat-message-user relative theme-body tier-body max-w-[92%] rounded-[calc(var(--chat-suggestion-frame-radius)-var(--space-2))] rounded-br-[calc(var(--space-6)+var(--space-2))] rounded-tr-[calc(var(--space-6)+var(--space-1))] px-(--space-inset-default) py-(--space-inset-compact) sm:max-w-[74%]" data-chat-bubble-surface="true">
         <ErrorBoundary name="UserBubble">
           <RichContentRenderer content={content.content} />
-          {content.attachments.length > 0 && (
-            <div className={`${content.rawContent ? "mt-(--space-3)" : ""} flex flex-col gap-(--space-2)`}>
-              {content.attachments.map((attachment) => (
-                <a
-                  key={attachment.assetId}
-                  href={`/api/user-files/${attachment.assetId}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ui-chat-attachment-card flex items-center justify-between gap-(--space-inset-compact) rounded-2xl px-(--space-inset-compact) py-(--space-2) text-left transition-colors hover:bg-background"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/56">
-                      Attachment
-                    </span>
-                    <span className="block truncate text-sm font-medium normal-case tracking-normal text-foreground">
-                      {attachment.fileName}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[11px] text-foreground/64">
-                    {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
-                  </span>
-                </a>
-              ))}
-            </div>
-          )}
+          <MessageAttachments attachments={content.attachments} rawContent={content.rawContent} />
         </ErrorBoundary>
       </div>
     </div>
@@ -322,6 +299,78 @@ const UserBubble = React.memo<{ content: PresentedMessage }>(({ content }) => {
 });
 
 UserBubble.displayName = "UserBubble";
+
+const MessageAttachments = React.memo<{
+  attachments: PresentedMessage["attachments"];
+  rawContent?: string;
+}>(({ attachments, rawContent }) => {
+  if (attachments.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={`${rawContent ? "mt-(--space-3)" : ""} flex flex-col gap-(--space-2)`}>
+      {attachments.map((attachment) => (
+        attachment.kind === "imported" ? (
+          <div
+            key={`${attachment.fileName}-${attachment.availability}-${attachment.originalAssetId ?? "imported"}`}
+            className="ui-chat-attachment-card rounded-2xl border border-foreground/10 px-(--space-inset-compact) py-(--space-2)"
+            data-chat-imported-attachment={attachment.availability}
+          >
+            <div className="flex items-center justify-between gap-(--space-inset-compact)">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/56">
+                  Imported attachment
+                </span>
+                <span className="block truncate text-sm font-medium normal-case tracking-normal text-foreground">
+                  {attachment.fileName}
+                </span>
+              </span>
+              <span className="shrink-0 text-[11px] text-foreground/64">
+                {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
+              </span>
+            </div>
+            <p className="mt-(--space-2) text-[0.78rem] leading-relaxed text-foreground/60">
+              {attachment.note}
+            </p>
+          </div>
+        ) : (
+          <a
+            key={attachment.assetId}
+            href={`/api/user-files/${attachment.assetId}`}
+            target="_blank"
+            rel="noreferrer"
+            className="ui-chat-attachment-card flex items-center justify-between gap-(--space-inset-compact) rounded-2xl px-(--space-inset-compact) py-(--space-2) text-left transition-colors hover:bg-background"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/56">
+                Attachment
+              </span>
+              <span className="block truncate text-sm font-medium normal-case tracking-normal text-foreground">
+                {attachment.fileName}
+              </span>
+            </span>
+            <span className="shrink-0 text-[11px] text-foreground/64">
+              {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
+            </span>
+          </a>
+        )
+      ))}
+    </div>
+  );
+});
+
+MessageAttachments.displayName = "MessageAttachments";
+
+function getGenerationStatusLabel(message: PresentedMessage): string | null {
+  if (!message.generationStatus) {
+    return null;
+  }
+
+  return message.generationStatus.status === "stopped"
+    ? "Response stopped"
+    : "Response interrupted";
+}
 
 const AssistantBubble = React.memo<{
   message: PresentedMessage;
@@ -336,6 +385,8 @@ const AssistantBubble = React.memo<{
 }>(({ message, isStreaming, onLinkClick, onActionClick, onRetryClick, isInitialGreeting, isAnchor = false, brandName, brandLogoPath }) => {
   const [displayText, setDisplayText] = React.useState("");
   const [isTyping, setIsTyping] = React.useState(!!isInitialGreeting);
+  const generationStatusLabel = getGenerationStatusLabel(message);
+  const hasStatusFooter = Boolean(generationStatusLabel || message.failedSend);
   
   React.useEffect(() => {
     if (!isInitialGreeting) return;
@@ -376,7 +427,7 @@ const AssistantBubble = React.memo<{
           ) : null}
         </div>
         <div className="ui-chat-message-assistant theme-body tier-body relative overflow-hidden rounded-[calc(var(--chat-suggestion-frame-radius)-var(--space-2))] rounded-bl-[calc(var(--space-6)+var(--space-2))] rounded-tl-[calc(var(--space-6)+var(--space-1))] px-(--space-inset-default) py-(--chat-bubble-padding-block-prominent)" data-chat-bubble-surface="true">
-          <div className="ui-chat-inline-rail pointer-events-none absolute inset-y-[calc(var(--space-inset-compact)+var(--space-1))] left-(--space-inset-default) w-[2px] rounded-full" aria-hidden="true" />
+          <div className="ui-chat-inline-rail pointer-events-none absolute inset-y-[calc(var(--space-inset-compact)+var(--space-1))] left-(--space-inset-default) w-0.5 rounded-full" aria-hidden="true" />
           <ErrorBoundary name="AssistantBubble">
             {isInitialGreeting ? (
               <div className="relative ps-(--space-stack-tight)">
@@ -407,6 +458,10 @@ const AssistantBubble = React.memo<{
             )}
           </ErrorBoundary>
 
+          {(!isInitialGreeting || !isTyping) && (
+            <MessageAttachments attachments={message.attachments} rawContent={message.rawContent} />
+          )}
+
           {message.actions.length > 0 && (
             <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
               <MessageActionChips
@@ -417,22 +472,43 @@ const AssistantBubble = React.memo<{
             </div>
           )}
 
-          {message.failedSend && (
+          {hasStatusFooter && (
             <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
-              <button
-                type="button"
-                disabled={isStreaming}
-                onClick={() => {
-                  if (!message.failedSend) {
-                    return;
-                  }
-                  onRetryClick?.(message.failedSend.retryKey);
-                }}
-                className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${isStreaming ? "cursor-wait opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
-                data-chat-retry-key={message.failedSend.retryKey}
-              >
-                Retry
-              </button>
+              {generationStatusLabel ? (
+                <div
+                  className="flex flex-wrap items-center gap-(--space-2) text-[0.8rem] text-foreground/68"
+                  data-chat-generation-status={message.generationStatus?.status}
+                >
+                  <span
+                    className="ui-chat-action-chip inline-flex items-center rounded-full px-(--space-inset-compact) py-(--space-1) font-semibold"
+                    aria-live="polite"
+                  >
+                    {generationStatusLabel}
+                  </span>
+                  {message.generationStatus?.reason ? (
+                    <span className="text-[0.78rem] text-foreground/52">{message.generationStatus.reason}</span>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {message.failedSend ? (
+                <div className={generationStatusLabel ? "mt-(--space-3)" : undefined}>
+                  <button
+                    type="button"
+                    disabled={isStreaming}
+                    onClick={() => {
+                      if (!message.failedSend) {
+                        return;
+                      }
+                      onRetryClick?.(message.failedSend.retryKey);
+                    }}
+                    className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${isStreaming ? "cursor-wait opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
+                    data-chat-retry-key={message.failedSend.retryKey}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -496,6 +572,7 @@ const ACTION_VALUE_KEY: Record<string, string> = {
   send: "text",
   corpus: "slug",
   external: "url",
+  job: "jobId",
 };
 
 const MessageActionChips: React.FC<{

@@ -44,7 +44,7 @@
   .shell-nav-search-region {
     grid-area: search;
     min-width: 0;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
   }
@@ -74,6 +74,10 @@
         minmax(max-content, 1fr);
       grid-template-areas: "brand search actions";
       row-gap: 0;
+    }
+
+    .shell-nav-search-region {
+      display: flex;
     }
   }
 
@@ -361,6 +365,56 @@
     [data-shell-main-surface][data-shell-floating-chat-clearance="true"] {
       padding-block-end: var(--shell-floating-chat-clearance-block);
       scroll-padding-block-end: calc(var(--shell-floating-chat-clearance-block) + var(--space-4));
+    }
+  }
+
+  .migration-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+    background: color-mix(in oklab, var(--surface) 96%, var(--foreground));
+    padding: 0.65rem 1rem;
+    box-shadow: 0 16px 40px -20px color-mix(in srgb, var(--shadow-base) 22%, transparent);
+    animation: migration-toast-in 320ms ease-out;
+  }
+
+  .migration-toast-text {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--foreground);
+  }
+
+  .migration-toast-dismiss {
+    flex: 0 0 auto;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.72rem;
+    line-height: 1;
+    color: color-mix(in oklab, var(--foreground) 48%, transparent);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    transition: color 160ms ease;
+  }
+
+  .migration-toast-dismiss:hover {
+    color: var(--foreground);
+  }
+
+  @keyframes migration-toast-in {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(0.75rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
   }
 }

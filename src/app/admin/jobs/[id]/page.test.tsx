@@ -5,11 +5,13 @@ const {
   requireAdminPageAccessMock,
   loadAdminJobDetailMock,
   cancelJobActionMock,
+  requeueJobActionMock,
   retryJobActionMock,
 } = vi.hoisted(() => ({
   requireAdminPageAccessMock: vi.fn(),
   loadAdminJobDetailMock: vi.fn(),
   cancelJobActionMock: vi.fn(),
+  requeueJobActionMock: vi.fn(),
   retryJobActionMock: vi.fn(),
 }));
 
@@ -23,6 +25,7 @@ vi.mock("@/lib/admin/jobs/admin-jobs", () => ({
 
 vi.mock("@/lib/admin/jobs/admin-jobs-actions", () => ({
   cancelJobAction: cancelJobActionMock,
+  requeueJobAction: requeueJobActionMock,
   retryJobAction: retryJobActionMock,
 }));
 
@@ -67,6 +70,9 @@ describe("/admin/jobs/[id] page", () => {
         initiatorType: "user",
         claimedBy: "worker_1",
         leaseExpiresAt: null,
+        failureClass: null,
+        nextRetryAt: null,
+        recoveryMode: "rerun",
         canManage: true,
         canCancel: true,
         canRetry: false,
@@ -74,7 +80,22 @@ describe("/admin/jobs/[id] page", () => {
       policy: {
         canManage: true,
         canCancel: true,
+        canRequeue: true,
         canRetry: false,
+        retryMode: "automatic",
+        maxAttempts: 3,
+        backoffStrategy: "fixed",
+        baseDelayMs: 3000,
+        retryExhausted: false,
+      },
+      capabilityPolicy: {
+        description: "Run the full editorial production pipeline from composition through draft persistence.",
+        executionPrincipal: "system_worker",
+        executionAllowedRoles: ["ADMIN"],
+        globalViewerRoles: ["ADMIN"],
+        globalActionRoles: ["ADMIN"],
+        resultRetention: "retain",
+        artifactPolicy: "open_artifact",
       },
       events: [
         {
@@ -94,6 +115,10 @@ describe("/admin/jobs/[id] page", () => {
     expect(screen.getByText("Request payload")).toBeInTheDocument();
     expect(screen.getByText("Event timeline (1)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel job" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Requeue job" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Export log" })).toHaveAttribute("href", "/api/admin/jobs/job_running/export");
+    expect(screen.getByText("Capability policy")).toBeInTheDocument();
+    expect(screen.getByText("System worker")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry job" })).toBeNull();
   });
 
@@ -125,6 +150,9 @@ describe("/admin/jobs/[id] page", () => {
         initiatorType: "user",
         claimedBy: null,
         leaseExpiresAt: null,
+        failureClass: "transient",
+        nextRetryAt: null,
+        recoveryMode: "rerun",
         canManage: true,
         canCancel: false,
         canRetry: true,
@@ -132,7 +160,22 @@ describe("/admin/jobs/[id] page", () => {
       policy: {
         canManage: true,
         canCancel: false,
+        canRequeue: false,
         canRetry: true,
+        retryMode: "automatic",
+        maxAttempts: 3,
+        backoffStrategy: "fixed",
+        baseDelayMs: 3000,
+        retryExhausted: true,
+      },
+      capabilityPolicy: {
+        description: "Publish an editorial draft and align any linked hero assets for public visibility.",
+        executionPrincipal: "system_worker",
+        executionAllowedRoles: ["ADMIN"],
+        globalViewerRoles: ["ADMIN"],
+        globalActionRoles: ["ADMIN"],
+        resultRetention: "retain",
+        artifactPolicy: "open_artifact",
       },
       events: [],
     });
@@ -141,6 +184,10 @@ describe("/admin/jobs/[id] page", () => {
 
     expect(screen.getByText("Error")).toBeInTheDocument();
     expect(screen.getByText("Publish target missing.")).toBeInTheDocument();
+    expect(screen.getByText("Resilience state")).toBeInTheDocument();
+    expect(screen.getAllByText(/Automatic retry/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Automatic retries are exhausted for this job. Manual replay is still available.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Export log" })).toHaveAttribute("href", "/api/admin/jobs/job_failed/export");
     expect(screen.getByRole("button", { name: "Retry job" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel job" })).toBeNull();
     expect(screen.getByText("Anonymous / system")).toBeInTheDocument();

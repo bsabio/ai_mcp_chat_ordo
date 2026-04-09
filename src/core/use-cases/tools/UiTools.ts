@@ -4,6 +4,7 @@ import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepo
 import { resolveGenerateChartPayload, type GenerateChartInput } from "./chart-payload";
 import { resolveGenerateGraphPayload, type GenerateGraphInput, type ResolvedGraphPayload } from "./graph-payload";
 import { resolveGraphDataSource } from "@/lib/graphs/graph-data-sources";
+import { estimateAudioDurationSeconds, estimateAudioGenerationSeconds } from "@/lib/audio/audio-estimates";
 
 export class SetThemeCommand implements ToolCommand<{ theme: string }, string> {
   async execute({ theme }: { theme: string }, _context?: ToolExecutionContext) {
@@ -69,8 +70,38 @@ export class GenerateGraphCommand implements ToolCommand<GenerateGraphInput, Res
   }
 }
 
-export class GenerateAudioCommand implements ToolCommand<{ text: string; title: string }, string> {
-  async execute(_input: { text: string; title: string }, _context?: ToolExecutionContext) {
-    return `Success. Audio player UI component appended to the chat stream.`;
+export class GenerateAudioCommand implements ToolCommand<{ text: string; title: string; assetId?: string }, {
+  action: "generate_audio";
+  title: string;
+  text: string;
+  assetId: string | null;
+  provider: string;
+  generationStatus: "client_fetch_pending" | "cached_asset";
+  estimatedDurationSeconds: number;
+  estimatedGenerationSeconds: number;
+}> {
+  async execute(
+    input: { text: string; title: string; assetId?: string },
+    _context?: ToolExecutionContext,
+  ): Promise<{
+    action: "generate_audio";
+    title: string;
+    text: string;
+    assetId: string | null;
+    provider: string;
+    generationStatus: "client_fetch_pending" | "cached_asset";
+    estimatedDurationSeconds: number;
+    estimatedGenerationSeconds: number;
+  }> {
+    return {
+      action: "generate_audio",
+      title: input.title,
+      text: input.text,
+      assetId: input.assetId ?? null,
+      provider: input.assetId ? "user-file-cache" : "openai-speech",
+      generationStatus: input.assetId ? "cached_asset" : "client_fetch_pending",
+      estimatedDurationSeconds: estimateAudioDurationSeconds(input.text),
+      estimatedGenerationSeconds: estimateAudioGenerationSeconds(input.text),
+    };
   }
 }

@@ -1,83 +1,87 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   logDegradation,
   logFailure,
 } from "@/lib/observability/logger";
+import { subscribeObservability } from "@/lib/observability/events";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
 
+/**
+ * Capture observability events emitted during a callback.
+ */
+function captureEvents(fn: () => void) {
+  const events: Array<{ type: string; payload: Record<string, unknown> }> = [];
+  const unsub = subscribeObservability((e) => events.push(e as never));
+  fn();
+  unsub();
+  return events;
+}
+
 describe("logDegradation", () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>;
+  it("emits a structured warn-level log event", () => {
+    const events = captureEvents(() =>
+      logDegradation("TEST_CODE", "something degraded", { foo: "bar" }),
+    );
 
-  beforeEach(() => {
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    warnSpy.mockRestore();
-  });
-
-  it("emits structured JSON to console.warn", () => {
-    logDegradation("TEST_CODE", "something degraded", { foo: "bar" });
-
-    expect(warnSpy).toHaveBeenCalled();
-    const output = JSON.parse(warnSpy.mock.calls[0][0] as string);
-    expect(output.level).toBe("warn");
-    expect(output.event).toBe("TEST_CODE");
-    expect(output.message).toBe("something degraded");
-    expect(output.foo).toBe("bar");
-    expect(output.timestamp).toBeDefined();
+    expect(events).toHaveLength(1);
+    const payload = events[0].payload as Record<string, unknown>;
+    expect(payload.level).toBe("warn");
+    expect(payload.event).toBe("TEST_CODE");
+    expect((payload.context as Record<string, unknown>).message).toBe("something degraded");
+    expect((payload.context as Record<string, unknown>).foo).toBe("bar");
+    expect(payload.timestamp).toBeDefined();
   });
 
   it("serializes Error objects with name, message, and stack", () => {
     const err = new Error("test failure");
-    logDegradation("TEST_CODE", "degraded", {}, err);
+    const events = captureEvents(() =>
+      logDegradation("TEST_CODE", "degraded", {}, err),
+    );
 
-    const output = JSON.parse(warnSpy.mock.calls[0][0] as string);
-    expect(output.error).toBeDefined();
-    expect(output.error.name).toBe("Error");
-    expect(output.error.message).toBe("test failure");
-    expect(output.error.stack).toBeDefined();
+    const ctx = events[0].payload.context as Record<string, unknown>;
+    const error = ctx.error as Record<string, string>;
+    expect(error).toBeDefined();
+    expect(error.name).toBe("Error");
+    expect(error.message).toBe("test failure");
+    expect(error.stack).toBeDefined();
   });
 
   it("handles non-Error objects gracefully", () => {
-    logDegradation("TEST_CODE", "degraded", {}, "just a string");
+    const events = captureEvents(() =>
+      logDegradation("TEST_CODE", "degraded", {}, "just a string"),
+    );
 
-    const output = JSON.parse(warnSpy.mock.calls[0][0] as string);
-    expect(output.error).toBeUndefined();
+    const ctx = events[0].payload.context as Record<string, unknown>;
+    expect(ctx.error).toBeUndefined();
   });
 });
 
 describe("logFailure", () => {
-  let errorSpy: ReturnType<typeof vi.spyOn>;
+  it("emits a structured error-level log event", () => {
+    const events = captureEvents(() =>
+      logFailure("FAIL_CODE", "something failed", { key: "value" }),
+    );
 
-  beforeEach(() => {
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    errorSpy.mockRestore();
-  });
-
-  it("emits structured JSON to console.error", () => {
-    logFailure("FAIL_CODE", "something failed", { key: "value" });
-
-    expect(errorSpy).toHaveBeenCalled();
-    const output = JSON.parse(errorSpy.mock.calls[0][0] as string);
-    expect(output.level).toBe("error");
-    expect(output.event).toBe("FAIL_CODE");
-    expect(output.message).toBe("something failed");
-    expect(output.key).toBe("value");
-    expect(output.timestamp).toBeDefined();
+    expect(events).toHaveLength(1);
+    const payload = events[0].payload as Record<string, unknown>;
+    expect(payload.level).toBe("error");
+    expect(payload.event).toBe("FAIL_CODE");
+    expect((payload.context as Record<string, unknown>).message).toBe("something failed");
+    expect((payload.context as Record<string, unknown>).key).toBe("value");
+    expect(payload.timestamp).toBeDefined();
   });
 
   it("serializes Error objects with name, message, and stack", () => {
     const err = new TypeError("bad type");
-    logFailure("FAIL_CODE", "typed failure", {}, err);
+    const events = captureEvents(() =>
+      logFailure("FAIL_CODE", "typed failure", {}, err),
+    );
 
-    const output = JSON.parse(errorSpy.mock.calls[0][0] as string);
-    expect(output.error.name).toBe("TypeError");
-    expect(output.error.message).toBe("bad type");
-    expect(output.error.stack).toBeDefined();
+    const ctx = events[0].payload.context as Record<string, unknown>;
+    const error = ctx.error as Record<string, string>;
+    expect(error.name).toBe("TypeError");
+    expect(error.message).toBe("bad type");
+    expect(error.stack).toBeDefined();
   });
 });
 

@@ -1,19 +1,31 @@
-import type { ConversationRepository } from "./ConversationRepository";
+import type {
+  ConversationDeleteReason,
+  ConversationListScope,
+  ConversationRepository,
+} from "./ConversationRepository";
 import type { MessageRepository } from "./MessageRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
 import type { Conversation, ConversationSummary, Message, NewMessage } from "../entities/conversation";
+import type { RoleName } from "../entities/user";
+import { NotFoundError as BaseNotFoundError, ValidationError as BaseValidationError } from "../common/errors";
 import {
   createConversationRoutingSnapshot,
   type ConversationRoutingSnapshot,
 } from "../entities/conversation-routing";
+import {
+  buildConversationExportPayload,
+  type ConversationExportPayload,
+  type NormalizedImportedConversation,
+} from "@/lib/chat/conversation-portability";
 
 const MAX_MESSAGES_PER_CONVERSATION = 200;
 const AUTO_TITLE_MAX_LENGTH = 80;
 const STREAM_CONTEXT_RECENT_MESSAGE_LIMIT = 50;
+const USER_TRASH_RETENTION_DAYS = 30;
 
 interface AtomicLimitedMessageRepository extends MessageRepository {
   createWithinConversationLimit(
-    msg: NewMessage & { tokenEstimate?: number },
+    msg: NewMessage & { tokenEstimate?: number; createdAt?: string },
     maxMessages: number,
   ): Promise<Message | null>;
 }
@@ -46,6 +58,20 @@ function supportsAtomicUserAppendEffects(
   return typeof (conversationRepo as Partial<AtomicUserAppendConversationRepository>).recordUserMessageAppendedWithEvent === "function";
 }
 
+function isDeletedConversation(conversation: Conversation | null): conversation is Conversation & { deletedAt: string } {
+  return Boolean(conversation?.deletedAt);
+}
+
+function buildPurgeAfter(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString();
+}
+
+function bypassesPurgeWindow(reason: ConversationDeleteReason): boolean {
+  return reason === "privacy_request" || reason === "retention_policy";
+}
+
 export class ConversationInteractor {
   constructor(
     private readonly conversationRepo: ConversationRepository,
@@ -60,16 +86,27 @@ export class ConversationInteractor {
     const existing = await this.conversationRepo.findActiveByUser(userId);
     if (existing) return existing;
 
-    return this.create(userId, "", options);
+    return this.create(userId, "", { ...options, status: "active" }, true);
   }
 
   private async create(
     userId: string,
     title: string = "",
-    options?: { sessionSource?: string; referralId?: string; referralSource?: string },
+    options?: {
+      sessionSource?: string;
+      referralId?: string;
+      referralSource?: string;
+      status?: Conversation["status"];
+      importedAt?: string | null;
+      importSourceConversationId?: string | null;
+      importedFromExportedAt?: string | null;
+    },
+    archiveExisting = true,
   ): Promise<Conversation> {
-    // Archive any existing active conversation before creating a new one
-    await this.conversationRepo.archiveByUser(userId);
+    if (archiveExisting) {
+      // Archive any existing active conversation before creating a new conversation.
+      await this.conversationRepo.archiveByUser(userId);
+    }
 
     const id = `conv_${crypto.randomUUID()}`;
     const sessionSource = options?.sessionSource ?? (userId.startsWith("anon_") ? "anonymous_cookie" : "authenticated");
@@ -79,21 +116,27 @@ export class ConversationInteractor {
       id,
       userId,
       title,
-      status: "active",
+      status: options?.status ?? "active",
       sessionSource,
       referralId,
       referralSource,
+      importedAt: options?.importedAt ?? null,
+      importSourceConversationId: options?.importSourceConversationId ?? null,
+      importedFromExportedAt: options?.importedFromExportedAt ?? null,
     });
 
-    await this.eventRecorder?.record(id, "started", { session_source: sessionSource });
+    await this.eventRecorder?.record(id, "started", {
+      session_source: sessionSource,
+      status: options?.status ?? "active",
+    });
 
     return conversation;
   }
 
   async get(conversationId: string, userId: string): Promise<{ conversation: Conversation; messages: Message[] }> {
     const conversation = await this.conversationRepo.findById(conversationId);
-    if (!conversation || conversation.userId !== userId) {
-      throw new NotFoundError("Conversation not found");
+    if (!conversation || conversation.userId !== userId || isDeletedConversation(conversation)) {
+      throw new ConversationNotFoundError("Conversation not found");
     }
     const messages = await this.messageRepo.listByConversation(conversationId);
     return { conversation, messages };
@@ -104,8 +147,8 @@ export class ConversationInteractor {
     userId: string,
   ): Promise<{ conversation: Conversation; messages: Message[]; usedFullHistory: boolean }> {
     const conversation = await this.conversationRepo.findById(conversationId);
-    if (!conversation || conversation.userId !== userId) {
-      throw new NotFoundError("Conversation not found");
+    if (!conversation || conversation.userId !== userId || isDeletedConversation(conversation)) {
+      throw new ConversationNotFoundError("Conversation not found");
     }
 
     if (conversation.messageCount <= STREAM_CONTEXT_RECENT_MESSAGE_LIMIT) {
@@ -133,16 +176,170 @@ export class ConversationInteractor {
     return { conversation, messages };
   }
 
-  async list(userId: string): Promise<ConversationSummary[]> {
-    return this.conversationRepo.listByUser(userId);
+  async list(
+    userId: string,
+    options?: { scope?: ConversationListScope; limit?: number },
+  ): Promise<ConversationSummary[]> {
+    return this.conversationRepo.listByUser(userId, options);
+  }
+
+  async exportConversation(
+    conversationId: string,
+    userId: string,
+  ): Promise<ConversationExportPayload> {
+    const { conversation, messages } = await this.get(conversationId, userId);
+    const payload = buildConversationExportPayload({ conversation, messages });
+
+    await this.eventRecorder?.record(conversationId, "exported", {
+      exported_by: userId,
+      exported_at: payload.exportedAt,
+      message_count: messages.length,
+    });
+
+    return payload;
+  }
+
+  async importConversation(
+    userId: string,
+    importedConversation: NormalizedImportedConversation,
+  ): Promise<{ conversation: Conversation; messages: Message[] }> {
+    const importedAt = new Date().toISOString();
+    const conversation = await this.create(
+      userId,
+      importedConversation.payload.conversation.title || "Imported conversation",
+      {
+        status: "archived",
+        sessionSource: importedConversation.payload.conversation.sessionSource || "imported_export",
+        referralSource: importedConversation.payload.conversation.referralSource ?? undefined,
+        importedAt,
+        importSourceConversationId: importedConversation.payload.conversation.id,
+        importedFromExportedAt: importedConversation.payload.exportedAt,
+      },
+      false,
+    );
+
+    const importedMessages: Message[] = [];
+    for (const message of importedConversation.importedMessages) {
+      const created = await this.messageRepo.create({
+        conversationId: conversation.id,
+        role: message.role,
+        content: message.content,
+        parts: message.parts,
+        createdAt: importedConversation.payload.messages[importedMessages.length]?.createdAt,
+      });
+      importedMessages.push(created);
+      await this.conversationRepo.recordMessageAppended(conversation.id, created.createdAt);
+    }
+
+    const refreshedConversation = await this.conversationRepo.findById(conversation.id);
+    if (!refreshedConversation) {
+      throw new ConversationNotFoundError("Conversation not found");
+    }
+
+    await this.eventRecorder?.record(conversation.id, "imported", {
+      imported_by: userId,
+      imported_at: importedAt,
+      source_conversation_id: importedConversation.payload.conversation.id,
+      source_exported_at: importedConversation.payload.exportedAt,
+      imported_message_count: importedMessages.length,
+    });
+
+    return {
+      conversation: refreshedConversation,
+      messages: importedMessages,
+    };
   }
 
   async delete(conversationId: string, userId: string): Promise<void> {
     const conversation = await this.conversationRepo.findById(conversationId);
-    if (!conversation || conversation.userId !== userId) {
-      throw new NotFoundError("Conversation not found");
+    if (!conversation || conversation.userId !== userId || isDeletedConversation(conversation)) {
+      throw new ConversationNotFoundError("Conversation not found");
     }
-    await this.conversationRepo.delete(conversationId);
+
+    const reason: ConversationDeleteReason = "user_removed";
+    const purgeAfter = buildPurgeAfter(USER_TRASH_RETENTION_DAYS);
+
+    await this.conversationRepo.softDelete(
+      conversationId,
+      { userId, role: userId.startsWith("anon_") ? "ANONYMOUS" : "AUTHENTICATED", reason },
+      { purgeAfter },
+    );
+    await this.eventRecorder?.record(conversationId, "soft_deleted", {
+      deleted_by: userId,
+      reason,
+      purge_after: purgeAfter,
+    });
+  }
+
+  async restore(conversationId: string, userId: string): Promise<void> {
+    const conversation = await this.conversationRepo.findById(conversationId);
+    if (!conversation || conversation.userId !== userId || !isDeletedConversation(conversation)) {
+      throw new ConversationNotFoundError("Conversation not found");
+    }
+
+    await this.conversationRepo.restoreDeleted(conversationId, userId);
+    await this.eventRecorder?.record(conversationId, "restored", {
+      restored_by: userId,
+    });
+  }
+
+  async purge(
+    conversationId: string,
+    actor: { userId: string; role: RoleName; reason: ConversationDeleteReason },
+  ): Promise<void> {
+    const conversation = await this.conversationRepo.findById(conversationId);
+    if (!conversation) {
+      throw new ConversationNotFoundError("Conversation not found");
+    }
+
+    if (!bypassesPurgeWindow(actor.reason)) {
+      if (!isDeletedConversation(conversation)) {
+        throw new ConversationValidationError("Conversation must be moved to trash before it can be purged.");
+      }
+
+      if (conversation.purgeAfter) {
+        const purgeAfter = Date.parse(conversation.purgeAfter);
+        if (!Number.isNaN(purgeAfter) && purgeAfter > Date.now()) {
+          throw new ConversationValidationError("Conversation is not yet purge eligible.");
+        }
+      }
+    }
+
+    await this.conversationRepo.purge(conversationId, actor);
+  }
+
+  async rename(conversationId: string, userId: string, title: string): Promise<void> {
+    const conversation = await this.conversationRepo.findById(conversationId);
+    if (!conversation || conversation.userId !== userId || isDeletedConversation(conversation)) {
+      throw new ConversationNotFoundError("Conversation not found");
+    }
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      throw new ConversationValidationError("Conversation title cannot be empty");
+    }
+
+    await this.conversationRepo.updateTitle(conversationId, trimmedTitle);
+    await this.eventRecorder?.record(conversationId, "renamed", {
+      renamed_by: userId,
+      title: trimmedTitle,
+    });
+  }
+
+  async archive(conversationId: string, userId: string): Promise<void> {
+    const conversation = await this.conversationRepo.findById(conversationId);
+    if (!conversation || conversation.userId !== userId || isDeletedConversation(conversation)) {
+      throw new ConversationNotFoundError("Conversation not found");
+    }
+
+    if (conversation.status === "archived") {
+      return;
+    }
+
+    await this.conversationRepo.archiveById(conversationId);
+    await this.eventRecorder?.record(conversationId, "archived", {
+      message_count: conversation.messageCount,
+    });
   }
 
   async archiveActive(userId: string): Promise<Conversation | null> {
@@ -164,8 +361,8 @@ export class ConversationInteractor {
 
   async appendMessage(msg: NewMessage, userId: string): Promise<Message> {
     const conversation = await this.conversationRepo.findById(msg.conversationId);
-    if (!conversation || conversation.userId !== userId) {
-      throw new NotFoundError("Conversation not found");
+    if (!conversation || conversation.userId !== userId || isDeletedConversation(conversation)) {
+      throw new ConversationNotFoundError("Conversation not found");
     }
 
     const tokenEstimate = Math.ceil(msg.content.length / 4);
@@ -227,6 +424,21 @@ export class ConversationInteractor {
     });
   }
 
+  async recordGenerationLifecycleEvent(
+    conversationId: string,
+    eventType: "generation_stopped" | "generation_interrupted",
+    metadata: {
+      actor: "user" | "system";
+      reason: string;
+      partial_content_retained: boolean;
+      stream_id: string;
+      recorded_at: string;
+      message_id?: string;
+    },
+  ): Promise<void> {
+    await this.eventRecorder?.record(conversationId, eventType, metadata);
+  }
+
   async updateRoutingSnapshot(
     conversationId: string,
     userId: string,
@@ -234,7 +446,7 @@ export class ConversationInteractor {
   ): Promise<void> {
     const conversation = await this.conversationRepo.findById(conversationId);
     if (!conversation || conversation.userId !== userId) {
-      throw new NotFoundError("Conversation not found");
+      throw new ConversationNotFoundError("Conversation not found");
     }
 
     const normalizedSnapshot = createConversationRoutingSnapshot(snapshot);
@@ -288,16 +500,12 @@ export class ConversationInteractor {
   }
 }
 
-export class NotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "NotFoundError";
-  }
-}
+export class ConversationNotFoundError extends BaseNotFoundError {}
 
-export class MessageLimitError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "MessageLimitError";
-  }
-}
+/** @deprecated Use ConversationNotFoundError — kept for backward compatibility. Remove after 2025-10-01. */
+export { ConversationNotFoundError as NotFoundError };
+
+export class MessageLimitError extends BaseValidationError {}
+
+export class ConversationValidationError extends BaseValidationError {}
+

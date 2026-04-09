@@ -215,7 +215,9 @@ export default async function AdminLeadsPage({
     >
       <div className="admin-route-stack">
         {/* Pipeline summary cards */}
-        <AdminStatusCounts items={pipelineCards} />
+        <nav aria-label="Pipeline tabs">
+          <AdminStatusCounts items={pipelineCards} />
+        </nav>
 
         {activeView === "pipeline" ? (
           <>

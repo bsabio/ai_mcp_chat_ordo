@@ -3,14 +3,10 @@ import type { NextRequest } from "next/server";
 
 import { getSessionUser } from "@/lib/auth";
 import { createProfileService } from "@/lib/profile/profile-service";
-import {
-  UserProfileConflictError,
-  UserProfileValidationError,
-} from "@/core/use-cases/UpdateUserProfileInteractor";
-import { UserProfileNotFoundError } from "@/core/use-cases/GetUserProfileInteractor";
+import { mapErrorToResponse } from "@/core/common/errors";
 
 function unauthorized() {
-  return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  return NextResponse.json({ error: "Authentication required", errorCode: "AUTH_ERROR" }, { status: 401 });
 }
 
 export async function GET() {
@@ -23,10 +19,8 @@ export async function GET() {
     const profile = await createProfileService().getProfile(user.id);
     return NextResponse.json({ profile });
   } catch (error) {
-    if (error instanceof UserProfileNotFoundError) {
-      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
-    }
-    throw error;
+    const { status, body } = mapErrorToResponse(error);
+    return NextResponse.json(body, { status });
   }
 }
 
@@ -41,7 +35,7 @@ export async function PATCH(request: NextRequest) {
     | null;
 
   if (!body) {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request body.", errorCode: "VALIDATION_ERROR" }, { status: 400 });
   }
 
   try {
@@ -52,15 +46,7 @@ export async function PATCH(request: NextRequest) {
     });
     return NextResponse.json({ profile });
   } catch (error) {
-    if (error instanceof UserProfileValidationError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    if (error instanceof UserProfileConflictError) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
-    }
-    if (error instanceof UserProfileNotFoundError) {
-      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
-    }
-    throw error;
+    const { status, body: errorBody } = mapErrorToResponse(error);
+    return NextResponse.json(errorBody, { status });
   }
 }

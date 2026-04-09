@@ -26,6 +26,7 @@ function makeMessage(overrides: Partial<PresentedMessage>): PresentedMessage {
     actions: overrides.actions ?? [],
     attachments: overrides.attachments ?? [],
     failedSend: overrides.failedSend,
+    generationStatus: overrides.generationStatus,
     timestamp: overrides.timestamp ?? "12:00",
   };
 }
@@ -253,6 +254,46 @@ describe("MessageList", () => {
     );
 
     expect(screen.getByRole("button", { name: "Stress-test this AI plan" }).closest("div")?.className).toContain("justify-center");
+  });
+
+  it("surfaces imported attachment placeholders instead of rendering a broken link", () => {
+    render(
+      <MessageList
+        messages={[
+          makeMessage({
+            id: "user-imported-attachment-context",
+            role: "user",
+            rawContent: "Context message",
+          }),
+          makeMessage({
+            id: "assistant-imported-attachment",
+            role: "assistant",
+            rawContent: "Imported attachment summary.",
+            attachments: [
+              {
+                kind: "imported",
+                type: "imported_attachment",
+                fileName: "handoff.pdf",
+                mimeType: "application/pdf",
+                fileSize: 2048,
+                availability: "unavailable",
+                note: "The original attachment is unavailable in this workspace and could not be restored.",
+              },
+            ],
+          }),
+        ]}
+        isSending={false}
+        dynamicSuggestions={[]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    expect(screen.getByText("Imported attachment")).toBeInTheDocument();
+    expect(screen.getByText("The original attachment is unavailable in this workspace and could not be restored.")).toBeInTheDocument();
   });
 
   it("applies semantic chat surface classes to assistant and user bubbles", () => {
@@ -607,5 +648,74 @@ describe("MessageList", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetryClick).toHaveBeenCalledWith("user-1");
+  });
+
+  it("labels interrupted assistant messages and keeps retry available", () => {
+    render(
+      <MessageList
+        messages={[
+          makeMessage({ id: "user-1", role: "user", rawContent: "Audit this workflow" }),
+          makeMessage({
+            id: "assistant-1",
+            role: "assistant",
+            rawContent: "Partial answer",
+            generationStatus: {
+              status: "interrupted",
+              actor: "system",
+              reason: "Connection lost during streaming.",
+              partialContentRetained: true,
+            },
+            failedSend: {
+              retryKey: "user-1",
+              failedUserMessageId: "user-1",
+            },
+          }),
+        ]}
+        isSending={false}
+        dynamicSuggestions={[]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        onRetryClick={vi.fn()}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    expect(screen.getByText("Response interrupted")).toBeInTheDocument();
+    expect(screen.getByText("Connection lost during streaming.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("labels stopped assistant messages without showing retry", () => {
+    render(
+      <MessageList
+        messages={[
+          makeMessage({
+            id: "assistant-1",
+            role: "assistant",
+            rawContent: "Partial answer",
+            generationStatus: {
+              status: "stopped",
+              actor: "user",
+              reason: "Stopped by user.",
+              partialContentRetained: true,
+            },
+          }),
+        ]}
+        isSending={false}
+        dynamicSuggestions={[]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        onRetryClick={vi.fn()}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    expect(screen.getByText("Response stopped")).toBeInTheDocument();
+    expect(screen.getByText("Stopped by user.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
 });

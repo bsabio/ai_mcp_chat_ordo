@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
-import { buildCorpusBasePrompt } from "./corpus-vocabulary";
+import { buildCorpusBasePrompt, corpusConfig } from "./corpus-vocabulary";
 
 describe("buildCorpusBasePrompt", () => {
   const prompt = buildCorpusBasePrompt();
@@ -22,6 +22,16 @@ describe("buildCorpusBasePrompt", () => {
 
   it("does not include a static hardcoded TOOLS section", () => {
     expect(prompt).not.toContain("TOOLS:");
+  });
+
+  it("uses live corpus counts instead of stale hardcoded totals", () => {
+    expect(prompt).toContain(`${corpusConfig.documentCount} books and ${corpusConfig.sectionCount} chapters`);
+    expect(prompt).not.toContain("8 books and 61 chapters");
+  });
+
+  it("does not hardcode a stale numbered corpus inventory", () => {
+    expect(prompt).not.toContain("1. The Second Renaissance —");
+    expect(prompt).toContain("prefer corpus retrieval over memory");
   });
 
   it("does not include any live registry tool identifiers in the base prompt", () => {
@@ -60,6 +70,12 @@ describe("buildCorpusBasePrompt", () => {
 
   it("contains direct navigation tool guidance", () => {
     expect(prompt).toContain("Do not rely only on route action links");
+  });
+
+  it("contains self-knowledge truthfulness guidance", () => {
+    expect(prompt).toContain("SELF-KNOWLEDGE AND RUNTIME TRUTH:");
+    expect(prompt).toContain("Distinguish verified runtime facts from inference");
+    expect(prompt).toContain("do not invent lane or confidence values");
   });
 
   it("contains max 3 actions per message rule", () => {

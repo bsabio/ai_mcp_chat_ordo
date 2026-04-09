@@ -49,6 +49,7 @@ import {
 } from "@/lib/chat/current-page-context";
 import { logDegradation, logFailure } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
+import { registerActiveStream } from "@/lib/chat/active-stream-registry";
 import {
   REFERRAL_VISIT_COOKIE_NAME,
   resolveValidatedReferralVisit,
@@ -92,6 +93,13 @@ type DeferredToolExecutorOptions = {
   context: ToolExecutionContext;
 };
 
+type GenerationLifecycleDescriptor = {
+  status: "stopped" | "interrupted";
+  eventType: "generation_stopped" | "generation_interrupted";
+  actor: "user" | "system";
+  reason: string;
+};
+
 /* ------------------------------------------------------------------ */
 /*  Pure helpers                                                       */
 /* ------------------------------------------------------------------ */
@@ -125,6 +133,14 @@ function toStreamErrorMessage(error: unknown): string {
   return message;
 }
 
+function isAbortSignalError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.name === "AbortError" || error.message.toLowerCase().includes("abort");
+}
+
 function buildSyntheticJobEvent(job: JobRequest): JobEvent {
   const eventType = job.status === "running" ? "progress" : "queued";
   return {
@@ -140,6 +156,70 @@ function buildSyntheticJobEvent(job: JobRequest): JobEvent {
       result: job.resultPayload,
     },
     createdAt: job.updatedAt,
+  };
+}
+
+function hasAssistantOutput(assistantText: string, assistantParts: MessagePart[]): boolean {
+  return assistantText.length > 0 || assistantParts.length > 0;
+}
+
+function buildGenerationLifecyclePart(
+  lifecycle: GenerationLifecycleDescriptor,
+  partialContentRetained: boolean,
+  recordedAt: string,
+): MessagePart {
+  return {
+    type: "generation_status",
+    status: lifecycle.status,
+    actor: lifecycle.actor,
+    reason: lifecycle.reason,
+    partialContentRetained,
+    recordedAt,
+  };
+}
+
+function buildGenerationLifecycleEvent(
+  lifecycle: GenerationLifecycleDescriptor,
+  partialContentRetained: boolean,
+  recordedAt: string,
+): Record<string, unknown> {
+  return {
+    type: lifecycle.eventType,
+    actor: lifecycle.actor,
+    reason: lifecycle.reason,
+    partialContentRetained,
+    recordedAt,
+  };
+}
+
+function resolveAbortLifecycle(signal: AbortSignal): GenerationLifecycleDescriptor {
+  const reason = typeof signal.reason === "string" && signal.reason.trim().length > 0
+    ? signal.reason
+    : "stream_aborted";
+
+  if (reason === "stopped_by_owner") {
+    return {
+      status: "stopped",
+      eventType: "generation_stopped",
+      actor: "user",
+      reason,
+    };
+  }
+
+  return {
+    status: "interrupted",
+    eventType: "generation_interrupted",
+    actor: "system",
+    reason,
+  };
+}
+
+function resolveUnexpectedLifecycle(error: unknown): GenerationLifecycleDescriptor {
+  return {
+    status: "interrupted",
+    eventType: "generation_interrupted",
+    actor: "system",
+    reason: toStreamErrorMessage(error),
   };
 }
 
@@ -441,12 +521,74 @@ export class ChatStreamPipeline {
   }) {
     const encoder = new TextEncoder();
     const streamAbortController = new AbortController();
+    const { streamId, unregister } = registerActiveStream({
+      ownerUserId: options.userId,
+      conversationId: options.conversationId,
+      abortController: streamAbortController,
+    });
     const assistantParts: MessagePart[] = [];
     let assistantText = "";
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
+        const finalizeGenerationLifecycle = async (
+          lifecycle: GenerationLifecycleDescriptor,
+        ) => {
+          const recordedAt = new Date().toISOString();
+          const partialContentRetained = hasAssistantOutput(assistantText, assistantParts);
+          let messageId: string | undefined;
+
+          try {
+            const message = await options.interactor.appendMessage(
+              {
+                conversationId: options.conversationId,
+                role: "assistant",
+                content: assistantText,
+                parts: [
+                  ...assistantParts,
+                  buildGenerationLifecyclePart(lifecycle, partialContentRetained, recordedAt),
+                ],
+              },
+              options.userId,
+            );
+
+            messageId = message?.id;
+
+            options.summarizationInteractor
+              .summarizeIfNeeded(options.conversationId)
+              .catch((summarizationError) => logDegradation(REASON_CODES.CONVERSATION_LOOKUP_FAILED, "Summarization failed", { conversationId: options.conversationId }, summarizationError));
+          } catch (persistError) {
+            logFailure(REASON_CODES.MESSAGE_PERSIST_FAILED, "Failed to persist assistant lifecycle state", { conversationId: options.conversationId }, persistError);
+          }
+
+          try {
+            await options.interactor.recordGenerationLifecycleEvent(
+              options.conversationId,
+              lifecycle.eventType,
+              {
+                actor: lifecycle.actor,
+                reason: lifecycle.reason,
+                partial_content_retained: partialContentRetained,
+                stream_id: streamId,
+                recorded_at: recordedAt,
+                message_id: messageId,
+              },
+            );
+          } catch (eventError) {
+            logDegradation(REASON_CODES.UNKNOWN_ROUTE_ERROR, "Generation lifecycle event recording failed", { conversationId: options.conversationId, streamId }, eventError);
+          }
+
+          controller.enqueue(
+            encoder.encode(
+              sseChunk(buildGenerationLifecycleEvent(lifecycle, partialContentRetained, recordedAt)),
+            ),
+          );
+        };
+
         try {
+          controller.enqueue(
+            encoder.encode(sseChunk({ stream_id: streamId })),
+          );
           controller.enqueue(
             encoder.encode(sseChunk({ conversation_id: options.conversationId })),
           );
@@ -525,15 +667,24 @@ export class ChatStreamPipeline {
 
           controller.close();
         } catch (error) {
+          if (streamAbortController.signal.aborted || isAbortSignalError(error)) {
+            await finalizeGenerationLifecycle(resolveAbortLifecycle(streamAbortController.signal));
+
+            controller.close();
+            return;
+          }
+
           logFailure(REASON_CODES.UNKNOWN_ROUTE_ERROR, "Unexpected stream error", {}, error);
-          controller.enqueue(
-            encoder.encode(sseChunk({ error: toStreamErrorMessage(error) })),
-          );
+          await finalizeGenerationLifecycle(resolveUnexpectedLifecycle(error));
+
           controller.close();
+        } finally {
+          unregister();
         }
       },
       cancel() {
         streamAbortController.abort();
+        unregister();
       },
     });
 

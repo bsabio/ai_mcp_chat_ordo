@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createToolRegistry } from "@/lib/chat/tool-composition-root";
 import { composeMiddleware, type ToolExecuteFn } from "@/core/tool-registry/ToolMiddleware";
 import { LoggingMiddleware } from "@/core/tool-registry/LoggingMiddleware";
@@ -6,6 +6,13 @@ import { RbacGuardMiddleware } from "@/core/tool-registry/RbacGuardMiddleware";
 import { ToolAccessDeniedError, UnknownToolError } from "@/core/tool-registry/errors";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
+import { logEvent } from "@/lib/observability/logger";
+
+vi.mock("@/lib/observability/logger", () => ({
+  logEvent: vi.fn(),
+}));
+
+const logEventMock = vi.mocked(logEvent);
 
 // Minimal mock CorpusRepository — returns canned data, no filesystem
 const mockCorpusRepo: CorpusRepository = {
@@ -30,17 +37,8 @@ const authCtx: ToolExecutionContext = { role: "AUTHENTICATED", userId: "user-1" 
 const adminCtx: ToolExecutionContext = { role: "ADMIN", userId: "admin-1" };
 
 describe("Tool Registry Integration", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-  let errorSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-    errorSpy.mockRestore();
+    logEventMock.mockClear();
   });
 
   // TEST-REG-01
@@ -62,12 +60,21 @@ describe("Tool Registry Integration", () => {
   });
 
   // TEST-REG-03
-  it("ANONYMOUS gets exactly 7 tools", () => {
+  it("ANONYMOUS gets the current public tool surface", () => {
     const { registry } = buildStack();
     const schemas = registry.getSchemasForRole("ANONYMOUS");
     const names = schemas.map(s => s.name).sort();
     expect(names).toEqual([
-      "adjust_ui", "calculator", "get_corpus_summary", "get_current_page", "inspect_theme", "list_available_pages", "navigate", "navigate_to_page", "search_corpus", "set_theme",
+      "adjust_ui",
+      "calculator",
+      "get_corpus_summary",
+      "get_current_page",
+      "inspect_runtime_context",
+      "inspect_theme",
+      "list_available_pages",
+      "navigate_to_page",
+      "search_corpus",
+      "set_theme",
     ]);
   });
 
@@ -125,35 +132,21 @@ describe("Tool Registry Integration", () => {
   it("logs START + SUCCESS for successful execution", async () => {
     const { executor } = buildStack();
     await executor("calculator", { operation: "add", a: 1, b: 2 }, anonCtx);
-    const logs: string[] = logSpy.mock.calls.map((c: unknown[]) => c[0] as string);
-    expect(logs.some(l => l.includes("[Tool:calculator] START"))).toBe(true);
-    expect(logs.some(l => l.includes("[Tool:calculator] SUCCESS"))).toBe(true);
+    expect(logEventMock).toHaveBeenCalledWith("info", "tool.start", expect.objectContaining({ tool: "calculator" }));
+    expect(logEventMock).toHaveBeenCalledWith("info", "tool.success", expect.objectContaining({ tool: "calculator" }));
   });
 
   it("logs START + ERROR for denied access", async () => {
     const { executor } = buildStack();
     try { await executor("get_section", {}, anonCtx); } catch { /* expected */ }
-    const allLogs = [
-      ...logSpy.mock.calls.map((c: unknown[]) => c[0] as string),
-      ...errorSpy.mock.calls.map((c: unknown[]) => c[0] as string),
-    ];
-    expect(allLogs.some(l => l.includes("[Tool:get_section] START"))).toBe(true);
-    expect(allLogs.some(l => l.includes("[Tool:get_section] ERROR"))).toBe(true);
+    expect(logEventMock).toHaveBeenCalledWith("info", "tool.start", expect.objectContaining({ tool: "get_section" }));
+    expect(logEventMock).toHaveBeenCalledWith("error", "tool.error", expect.objectContaining({ tool: "get_section" }));
   });
 });
 
 describe("Security Verification", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-  let errorSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-    errorSpy.mockRestore();
+    logEventMock.mockClear();
   });
 
   // TEST-SEC-01: Context isolation — LLM input cannot escalate privileges

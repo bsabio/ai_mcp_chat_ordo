@@ -5,7 +5,12 @@ import { AdminDetailShell } from "@/components/admin/AdminDetailShell";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminJobDetail } from "@/lib/admin/jobs/admin-jobs";
-import { cancelJobAction, retryJobAction } from "@/lib/admin/jobs/admin-jobs-actions";
+import {
+  cancelJobAction,
+  requeueJobAction,
+  retryJobAction,
+} from "@/lib/admin/jobs/admin-jobs-actions";
+import { getAdminJobsExportPath } from "@/lib/admin/jobs/admin-jobs-routes";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +27,66 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: "Canceled",
 };
 
+const FAILURE_CLASS_LABELS: Record<string, string> = {
+  canceled: "Canceled",
+  policy: "Policy blocked",
+  terminal: "Terminal",
+  transient: "Transient",
+  unknown: "Unknown",
+};
+
+const EXECUTION_PRINCIPAL_LABELS: Record<string, string> = {
+  system_worker: "System worker",
+  admin_delegate: "Admin delegate",
+  owner_delegate: "Owner delegate",
+};
+
+const RESULT_RETENTION_LABELS: Record<string, string> = {
+  retain: "Retain payload and events",
+  prune_payload_keep_events: "Prune payload, keep events",
+};
+
+const ARTIFACT_POLICY_LABELS: Record<string, string> = {
+  retain: "Retain only",
+  open_artifact: "Open artifact",
+  open_or_download: "Open or download",
+};
+
+function formatFailureClass(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return FAILURE_CLASS_LABELS[value] ?? value;
+}
+
+function formatRetryPolicy(policy: {
+  retryMode: "manual_only" | "automatic";
+  maxAttempts: number | null;
+  backoffStrategy: string | null;
+  baseDelayMs: number | null;
+}): string {
+  if (policy.retryMode !== "automatic") {
+    return "Manual replay only";
+  }
+
+  const strategy = policy.backoffStrategy ? policy.backoffStrategy.replace(/_/g, " ") : "retry";
+  const delay = typeof policy.baseDelayMs === "number"
+    ? `${Math.max(0, policy.baseDelayMs) / 1000}s`
+    : null;
+  const parts = [
+    policy.maxAttempts ? `${policy.maxAttempts} attempts max` : null,
+    strategy !== "retry" ? `${strategy} backoff` : null,
+    delay ? `base ${delay}` : null,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? `Automatic retry (${parts.join(", ")})` : "Automatic retry";
+}
+
+function formatRoleList(roles: readonly string[]): string {
+  return roles.join(", ");
+}
+
 export default async function AdminJobDetailPage({
   params,
 }: {
@@ -30,10 +95,12 @@ export default async function AdminJobDetailPage({
   const admin = await requireAdminPageAccess();
   const { id } = await params;
   const detail = await loadAdminJobDetail(id, admin.roles);
-  const { job, events, policy } = detail;
+  const { job, events, policy, capabilityPolicy } = detail;
 
   const canCancel = policy.canCancel;
+  const canRequeue = policy.canRequeue;
   const canRetry = policy.canRetry;
+  const failureClass = formatFailureClass(job.failureClass);
 
   return (
     <AdminSection
@@ -104,6 +171,41 @@ export default async function AdminJobDetailPage({
                 </section>
               )}
 
+              {(job.nextRetryAt || policy.retryExhausted || failureClass || job.recoveryMode) && (
+                <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
+                  <h2 className="text-sm font-semibold text-foreground/60">Resilience state</h2>
+                  <dl className="mt-(--space-3) grid gap-(--space-2) text-sm">
+                    <div className="flex justify-between gap-(--space-3)">
+                      <dt className="text-foreground/50">Retry policy</dt>
+                      <dd className="text-right text-foreground text-xs">{formatRetryPolicy(policy)}</dd>
+                    </div>
+                    {failureClass && (
+                      <div className="flex justify-between gap-(--space-3)">
+                        <dt className="text-foreground/50">Failure class</dt>
+                        <dd className="text-right text-foreground text-xs">{failureClass}</dd>
+                      </div>
+                    )}
+                    {job.nextRetryAt && (
+                      <div className="flex justify-between gap-(--space-3)">
+                        <dt className="text-foreground/50">Next retry</dt>
+                        <dd className="text-right text-foreground text-xs">{job.nextRetryAt}</dd>
+                      </div>
+                    )}
+                    {job.recoveryMode && (
+                      <div className="flex justify-between gap-(--space-3)">
+                        <dt className="text-foreground/50">Recovery mode</dt>
+                        <dd className="text-right text-foreground text-xs">{job.recoveryMode}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  {policy.retryExhausted && (
+                    <p className="mt-(--space-3) text-xs text-foreground/55">
+                      Automatic retries are exhausted for this job. Manual replay is still available.
+                    </p>
+                  )}
+                </section>
+              )}
+
               {/* Event timeline */}
               <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
                 <h2 className="text-sm font-semibold text-foreground/60">
@@ -131,7 +233,7 @@ export default async function AdminJobDetailPage({
               </section>
 
               {/* Action bar */}
-              {(canCancel || canRetry) && (
+              {(canCancel || canRequeue || canRetry || policy.canManage) && (
                 <div className="flex gap-(--space-2)">
                   {canCancel && (
                     <form action={cancelJobAction}>
@@ -141,6 +243,17 @@ export default async function AdminJobDetailPage({
                         className="rounded-lg border border-foreground/12 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5"
                       >
                         Cancel job
+                      </button>
+                    </form>
+                  )}
+                  {canRequeue && (
+                    <form action={requeueJobAction}>
+                      <input type="hidden" name="id" value={job.id} />
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-foreground/12 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5"
+                      >
+                        Requeue job
                       </button>
                     </form>
                   )}
@@ -155,6 +268,12 @@ export default async function AdminJobDetailPage({
                       </button>
                     </form>
                   )}
+                  <a
+                    href={getAdminJobsExportPath(job.id)}
+                    className="rounded-lg border border-foreground/12 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5"
+                  >
+                    Export log
+                  </a>
                 </div>
               )}
             </div>
@@ -182,6 +301,12 @@ export default async function AdminJobDetailPage({
                     <dd className="text-foreground text-xs">{policy.canManage ? "Global manage" : "View only"}</dd>
                   </div>
                   <div className="flex justify-between">
+                    <dt className="text-foreground/50">Execution</dt>
+                    <dd className="text-right text-foreground text-xs">
+                      {EXECUTION_PRINCIPAL_LABELS[job.executionPrincipal] ?? job.executionPrincipal}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
                     <dt className="text-foreground/50">ID</dt>
                     <dd className="truncate text-foreground text-xs font-mono">{job.id}</dd>
                   </div>
@@ -192,6 +317,10 @@ export default async function AdminJobDetailPage({
                   <div className="flex justify-between">
                     <dt className="text-foreground/50">Attempts</dt>
                     <dd className="text-foreground">{job.attemptCount}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground/50">Retry policy</dt>
+                    <dd className="text-right text-foreground text-xs">{formatRetryPolicy(policy)}</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-foreground/50">Initiator</dt>
@@ -215,6 +344,45 @@ export default async function AdminJobDetailPage({
                       <dd className="text-foreground text-xs">{job.leaseExpiresAt}</dd>
                     </div>
                   )}
+                </dl>
+              </section>
+
+              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
+                <h2 className="text-sm font-semibold text-foreground/60">Capability policy</h2>
+                <p className="mt-(--space-2) text-xs leading-5 text-foreground/55">
+                  {capabilityPolicy.description}
+                </p>
+                <dl className="mt-(--space-3) grid gap-(--space-2) text-sm">
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Execution principal</dt>
+                    <dd className="text-right text-foreground text-xs">
+                      {EXECUTION_PRINCIPAL_LABELS[capabilityPolicy.executionPrincipal] ?? capabilityPolicy.executionPrincipal}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Execution roles</dt>
+                    <dd className="text-right text-foreground text-xs">{formatRoleList(capabilityPolicy.executionAllowedRoles)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Global viewers</dt>
+                    <dd className="text-right text-foreground text-xs">{formatRoleList(capabilityPolicy.globalViewerRoles)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Global actions</dt>
+                    <dd className="text-right text-foreground text-xs">{formatRoleList(capabilityPolicy.globalActionRoles)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Result retention</dt>
+                    <dd className="text-right text-foreground text-xs">
+                      {RESULT_RETENTION_LABELS[capabilityPolicy.resultRetention] ?? capabilityPolicy.resultRetention}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Artifact policy</dt>
+                    <dd className="text-right text-foreground text-xs">
+                      {ARTIFACT_POLICY_LABELS[capabilityPolicy.artifactPolicy] ?? capabilityPolicy.artifactPolicy}
+                    </dd>
+                  </div>
                 </dl>
               </section>
 

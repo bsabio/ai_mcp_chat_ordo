@@ -8,7 +8,7 @@ export async function GET() {
   const user = await getSessionUser();
   if (user.roles.includes("ANONYMOUS")) {
     return NextResponse.json(
-      { error: "Authentication required" },
+      { error: "Authentication required", errorCode: "AUTH_ERROR" },
       { status: 401 },
     );
   }
@@ -22,7 +22,7 @@ export async function PUT(request: NextRequest) {
   const user = await getSessionUser();
   if (user.roles.includes("ANONYMOUS")) {
     return NextResponse.json(
-      { error: "Authentication required" },
+      { error: "Authentication required", errorCode: "AUTH_ERROR" },
       { status: 401 },
     );
   }
@@ -31,7 +31,7 @@ export async function PUT(request: NextRequest) {
   const preferences = body.preferences;
   if (!Array.isArray(preferences)) {
     return NextResponse.json(
-      { error: "preferences must be an array" },
+      { error: "preferences must be an array", errorCode: "VALIDATION_ERROR" },
       { status: 400 },
     );
   }
@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest) {
   for (const { key, value } of preferences) {
     if (typeof key !== "string" || typeof value !== "string") {
       return NextResponse.json(
-        { error: "Invalid preference: key and value must be strings" },
+        { error: "Invalid preference: key and value must be strings", errorCode: "VALIDATION_ERROR" },
         { status: 400 },
       );
     }
@@ -48,7 +48,7 @@ export async function PUT(request: NextRequest) {
       await repo.set(user.id, key, value);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      return NextResponse.json({ error: message }, { status: 400 });
+      return NextResponse.json({ error: message, errorCode: "VALIDATION_ERROR" }, { status: 400 });
     }
   }
 

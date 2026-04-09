@@ -77,6 +77,20 @@ export function createTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS conversation_purge_audits (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      actor_user_id TEXT NOT NULL,
+      actor_role TEXT NOT NULL,
+      purge_reason TEXT NOT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      purged_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_purged_at ON conversation_purge_audits(purged_at);
+    CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_reason ON conversation_purge_audits(purge_reason);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS lead_records (
       id TEXT PRIMARY KEY,
       conversation_id TEXT NOT NULL UNIQUE,
@@ -420,12 +434,20 @@ export function createTables(db: Database.Database): void {
       attempt_count INTEGER NOT NULL DEFAULT 0,
       lease_expires_at TEXT DEFAULT NULL,
       claimed_by TEXT DEFAULT NULL,
+      failure_class TEXT DEFAULT NULL,
+      next_retry_at TEXT DEFAULT NULL,
+      recovery_mode TEXT DEFAULT NULL,
+      last_checkpoint_id TEXT DEFAULT NULL,
+      replayed_from_job_id TEXT DEFAULT NULL,
+      superseded_by_job_id TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       started_at TEXT DEFAULT NULL,
       completed_at TEXT DEFAULT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (replayed_from_job_id) REFERENCES job_requests(id) ON DELETE SET NULL,
+      FOREIGN KEY (superseded_by_job_id) REFERENCES job_requests(id) ON DELETE SET NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_job_requests_conversation ON job_requests(conversation_id);

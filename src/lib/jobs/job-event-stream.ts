@@ -22,6 +22,10 @@ export function encodeJobEvent(sequence: number, payload: Record<string, unknown
 
 export function mapJobEventPayload(job: JobRequest, event: JobEvent): Record<string, unknown> {
   const part = buildJobStatusPartFromProjection(projectJobForEvent(job, event), event);
+  const stablePart = buildJobStatusPartFromProjection(job, {
+    ...event,
+    payload: {},
+  });
   const base = {
     jobId: job.id,
     conversationId: job.conversationId,
@@ -64,12 +68,32 @@ export function mapJobEventPayload(job: JobRequest, event: JobEvent): Record<str
         ...base,
       };
     default:
-      return {
-        type: "job_progress",
-        ...base,
-        progressPercent: part.progressPercent,
-        progressLabel: part.progressLabel,
-      };
+      switch (job.status) {
+        case "queued":
+          return { type: "job_queued", ...base };
+        case "running":
+          return {
+            type: "job_progress",
+            ...base,
+            progressPercent: stablePart.progressPercent,
+            progressLabel: stablePart.progressLabel,
+          };
+        case "succeeded":
+          return {
+            type: "job_completed",
+            ...base,
+            summary: stablePart.summary,
+            resultPayload: stablePart.resultPayload,
+          };
+        case "failed":
+          return {
+            type: "job_failed",
+            ...base,
+            error: stablePart.error ?? "Deferred job failed.",
+          };
+        case "canceled":
+          return { type: "job_canceled", ...base };
+      }
   }
 }
 
@@ -84,13 +108,22 @@ export function createJobEventStreamResponse(options: JobEventStreamOptions): Ne
     async start(controller) {
       let afterSequence = options.initialAfterSequence;
       const startedAt = Date.now();
+      let hasPolledBacklog = false;
 
       controller.enqueue(encoder.encode(`retry: ${options.pollIntervalMs}\n\n`));
 
-      while (!options.request.signal.aborted && Date.now() - startedAt < options.streamWindowMs) {
+      while (
+        !options.request.signal.aborted
+        && (!hasPolledBacklog || Date.now() - startedAt < options.streamWindowMs)
+      ) {
         const events = await options.listEvents(afterSequence, options.batchLimit);
+        hasPolledBacklog = true;
 
         if (events.length === 0) {
+          if (Date.now() - startedAt >= options.streamWindowMs) {
+            break;
+          }
+
           await sleep(options.pollIntervalMs);
           continue;
         }

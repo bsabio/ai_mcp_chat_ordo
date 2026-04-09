@@ -14,6 +14,22 @@ export interface ChatStreamTextBuffer {
   dispose: () => void;
 }
 
+function splitRenderableMarkdownTail(text: string): {
+  flushableText: string;
+  pendingTail: string;
+} {
+  const incompleteSuffix = text.match(/(\[\[[^\]]*$|\[\[[^\]]+\]$|\[[^\]]*$|\[[^\]]+\]\([^)]*$|\*\*[^*]*$|`[^`]*$)$/);
+
+  if (!incompleteSuffix || incompleteSuffix.index == null) {
+    return { flushableText: text, pendingTail: "" };
+  }
+
+  return {
+    flushableText: text.slice(0, incompleteSuffix.index),
+    pendingTail: text.slice(incompleteSuffix.index),
+  };
+}
+
 export function createChatStreamTextBuffer({
   assistantIndex,
   dispatch,
@@ -21,13 +37,31 @@ export function createChatStreamTextBuffer({
   let pendingTextDelta = "";
   let pendingTextFlushHandle: ReturnType<typeof setTimeout> | null = null;
 
+  const dispatchTextDelta = (delta: string) => {
+    if (!delta) {
+      return;
+    }
+
+    dispatch({ type: "APPEND_TEXT", index: assistantIndex, delta });
+  };
+
   const flush = () => {
     if (!pendingTextDelta) {
       return;
     }
 
-    dispatch({ type: "APPEND_TEXT", index: assistantIndex, delta: pendingTextDelta });
+    dispatchTextDelta(pendingTextDelta);
     pendingTextDelta = "";
+  };
+
+  const flushRenderablePrefix = () => {
+    if (!pendingTextDelta) {
+      return;
+    }
+
+    const { flushableText, pendingTail } = splitRenderableMarkdownTail(pendingTextDelta);
+    dispatchTextDelta(flushableText);
+    pendingTextDelta = pendingTail;
   };
 
   const cancelPendingFlush = () => {
@@ -44,7 +78,7 @@ export function createChatStreamTextBuffer({
 
     pendingTextFlushHandle = setTimeout(() => {
       pendingTextFlushHandle = null;
-      flush();
+      flushRenderablePrefix();
     }, 0);
   };
 

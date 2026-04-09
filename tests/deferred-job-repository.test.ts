@@ -44,6 +44,69 @@ describe("JobQueueDataMapper", () => {
     expect(job.requestPayload).toEqual({ title: "Queued draft" });
   });
 
+  it("persists replay lineage and recovery metadata", async () => {
+    const sourceJob = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "draft_content",
+      requestPayload: { title: "Source" },
+    });
+
+    await repo.updateJobStatus(sourceJob.id, {
+      status: "failed",
+      errorMessage: "Source failed",
+    });
+
+    const replayedJob = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "draft_content",
+      requestPayload: { title: "Source" },
+      recoveryMode: "rerun",
+      replayedFromJobId: sourceJob.id,
+    });
+
+    const updatedSource = await repo.updateJobStatus(sourceJob.id, {
+      status: "failed",
+      supersededByJobId: replayedJob.id,
+    });
+
+    expect(replayedJob.recoveryMode).toBe("rerun");
+    expect(replayedJob.replayedFromJobId).toBe(sourceJob.id);
+    expect(updatedSource.supersededByJobId).toBe(replayedJob.id);
+  });
+
+  it("backfills migrated job ownership and records an ownership audit event", async () => {
+    const anonymousJob = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: null,
+      toolName: "draft_content",
+      initiatorType: "anonymous_session",
+      requestPayload: { title: "Migrated" },
+    });
+
+    const transferred = await repo.transferJobsToUser({
+      conversationIds: ["conv_jobs"],
+      userId: "usr_test",
+      previousUserId: "anon_seed",
+      source: "login",
+      transferredAt: "2026-03-25T03:05:00.000Z",
+    });
+    const updatedJob = await repo.findJobById(anonymousJob.id);
+    const events = await repo.listEventsForJob(anonymousJob.id);
+
+    expect(transferred.map((job) => job.id)).toEqual([anonymousJob.id]);
+    expect(updatedJob?.userId).toBe("usr_test");
+    expect(events.at(-1)).toMatchObject({
+      eventType: "ownership_transferred",
+      payload: expect.objectContaining({
+        previousUserId: "anon_seed",
+        nextUserId: "usr_test",
+        source: "login",
+      }),
+    });
+  });
+
   it("assigns monotonic conversation-scoped event sequences across jobs", async () => {
     const firstJob = await repo.createJob({
       conversationId: "conv_jobs",

@@ -28,15 +28,18 @@ import { useChatSend } from "@/hooks/chat/useChatSend";
 import type { RoleName } from "@/core/entities/user";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 import { useInstancePrompts } from "@/lib/config/InstanceConfigContext";
+import type { RestoredConversationPayload } from "@/hooks/chat/chatConversationApi";
 import {
   buildReferralContext,
   shouldRefreshBootstrapMessages,
 } from "@/hooks/chat/chatBootstrap";
 import type { FailedSendPayload } from "@/hooks/chat/useChatSend";
+import { hydrateFailedSendRecovery } from "@/hooks/chat/chatFailedSendRecovery";
 
 interface ChatContextType {
   messages: ChatMessage[];
   isSending: boolean;
+  activeStreamId: string | null;
   conversationId: string | null;
   currentConversation: Conversation | null;
   isLoadingMessages: boolean;
@@ -47,8 +50,10 @@ interface ChatContextType {
     taskOriginHandoff?: TaskOriginHandoff,
   ) => Promise<{ ok: boolean; error?: string }>;
   retryFailedMessage: (retryKey: string) => Promise<{ ok: boolean; error?: string }>;
+  stopStream: () => Promise<{ ok: boolean; error?: string }>;
   setConversationId: (id: string | null) => void;
   refreshConversation: (conversationIdOverride?: string | null) => Promise<void>;
+  applyConversationPayload: (payload: RestoredConversationPayload) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -81,15 +86,39 @@ export function ChatProvider({
     failedSendsRef.current.delete(retryKey);
   }, []);
 
+  useEffect(() => {
+    const { failedSends } = hydrateFailedSendRecovery(messages);
+    const nextFailedSends = new Map<string, FailedSendPayload>();
+
+    for (const payload of failedSends) {
+      const existing = failedSendsRef.current.get(payload.retryKey);
+      nextFailedSends.set(payload.retryKey, {
+        ...payload,
+        ...(existing?.taskOriginHandoff
+          ? { taskOriginHandoff: existing.taskOriginHandoff }
+          : {}),
+      });
+    }
+
+    failedSendsRef.current = nextFailedSends;
+  }, [messages]);
+
   const {
     conversationId,
     currentConversation,
     isLoadingMessages,
     refreshConversation,
+    setCurrentConversation,
     setConversationId,
   } = useChatConversationSession({
     dispatch,
   });
+
+  const applyConversationPayload = useCallback((payload: RestoredConversationPayload) => {
+    setConversationId(payload.conversationId);
+    setCurrentConversation(payload.conversation);
+    dispatch({ type: "REPLACE_ALL", messages: payload.messages });
+  }, [dispatch, setConversationId, setCurrentConversation]);
 
   // Fetch referral context from cookie
   useEffect(() => {
@@ -110,7 +139,7 @@ export function ChatProvider({
       .catch(() => { /* fall back to default greeting */ });
   }, [initialRole, prompts]);
 
-  const { sendMessage, retryFailedMessage } = useChatSend({
+  const { activeStreamId, sendMessage, retryFailedMessage, stopStream } = useChatSend({
     conversationId,
     currentPathname,
     refreshConversation,
@@ -161,14 +190,16 @@ export function ChatProvider({
 
   return (
     <ChatContext.Provider value={{
-      messages, isSending, conversationId,
+      messages, isSending, activeStreamId, conversationId,
       currentConversation,
       isLoadingMessages,
       routingSnapshot: currentConversation?.routingSnapshot ?? null,
       retryFailedMessage,
       sendMessage,
+      stopStream,
       setConversationId,
-      refreshConversation
+      refreshConversation,
+      applyConversationPayload,
     }}>
       {children}
     </ChatContext.Provider>

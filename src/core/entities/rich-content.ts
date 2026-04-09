@@ -75,12 +75,24 @@ export type GraphSpec = {
   source?: GraphSourceMeta;
 };
 
+export type TextInlineNode = { type: typeof INLINE_TYPES.TEXT; text: string };
+export type BoldInlineNode = { type: typeof INLINE_TYPES.BOLD; content: InlineNode[] };
+export type CodeInlineNode = { type: typeof INLINE_TYPES.CODE; text: string };
+export type LibraryLinkInlineNode = { type: typeof INLINE_TYPES.LINK; slug: string };
+export type ActionLinkInlineNode = {
+  type: typeof INLINE_TYPES.ACTION_LINK;
+  label: string;
+  actionType: ActionLinkType;
+  value: string;
+  params?: Record<string, string>;
+};
+
 export type InlineNode =
-  | { type: typeof INLINE_TYPES.TEXT; text: string }
-  | { type: typeof INLINE_TYPES.BOLD; text: string }
-  | { type: typeof INLINE_TYPES.CODE; text: string }
-  | { type: typeof INLINE_TYPES.LINK; slug: string }
-  | { type: typeof INLINE_TYPES.ACTION_LINK; label: string; actionType: ActionLinkType; value: string; params?: Record<string, string> };
+  | TextInlineNode
+  | BoldInlineNode
+  | CodeInlineNode
+  | LibraryLinkInlineNode
+  | ActionLinkInlineNode;
 
 export type BlockNode =
   | { type: typeof BLOCK_TYPES.PARAGRAPH; content: InlineNode[] }
@@ -122,7 +134,16 @@ export type BlockNode =
   | { type: typeof BLOCK_TYPES.TABLE; header?: InlineNode[][]; rows: InlineNode[][][] }
   | { type: typeof BLOCK_TYPES.DIVIDER }
   | { type: typeof BLOCK_TYPES.OPERATOR_BRIEF; sections: OperatorBriefSection[] }
-  | { type: typeof BLOCK_TYPES.AUDIO; text: string; title: string; assetId?: string }
+  | {
+      type: typeof BLOCK_TYPES.AUDIO;
+      text: string;
+      title: string;
+      assetId?: string;
+      provider?: string;
+      generationStatus?: string;
+      estimatedDurationSeconds?: number;
+      estimatedGenerationSeconds?: number;
+    }
   | { type: typeof BLOCK_TYPES.WEB_SEARCH; query: string; allowed_domains?: string[]; model?: string };
 
 export interface RichContent {

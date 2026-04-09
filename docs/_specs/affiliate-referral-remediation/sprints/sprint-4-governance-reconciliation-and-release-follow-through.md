@@ -152,7 +152,7 @@ Expanded command sequence:
 
 ```bash
 npm run test -- src/app/api/referral/[code]/route.test.ts src/app/api/referral/visit/route.test.ts src/lib/referrals/referral-visit.test.ts src/app/r/[code]/page.test.tsx src/app/referrals/page.test.tsx tests/chat-stream-route.test.ts src/lib/referrals/referral-ledger.test.ts src/core/use-cases/LeadCaptureInteractor.test.ts src/core/use-cases/RequestConsultationInteractor.test.ts src/core/use-cases/CreateDealFromWorkflowInteractor.test.ts src/core/use-cases/CreateTrainingPathFromWorkflowInteractor.test.ts src/lib/referrals/admin-referral-analytics.test.ts src/core/use-cases/tools/affiliate-analytics.tool.test.ts src/lib/graphs/graph-data-sources.test.ts tests/core-policy.test.ts tests/tool-registry.integration.test.ts src/app/api/admin/affiliates/export/route.test.ts src/app/api/notifications/feed/route.test.ts tests/evals/eval-release-evidence.test.ts
-npx vitest run tests/admin-shell-and-concierge.test.tsx tests/sprint-10-ux-layout-and-navigation.test.tsx
+npx vitest run tests/admin-shell-and-concierge.test.tsx tests/ux-layout-navigation.test.tsx
 npx playwright test tests/browser-ui/admin-shell-responsive.spec.ts
 npm run lint
 npm run typecheck

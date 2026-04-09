@@ -23,6 +23,7 @@ const {
   convCountByLaneMock,
   convSetConversationModeMock,
   convArchiveByIdMock,
+  convRestoreDeletedMock,
   convFindByIdMock,
   // Message mapper
   msgCreateMock,
@@ -49,6 +50,7 @@ const {
   convCountByLaneMock: vi.fn(),
   convSetConversationModeMock: vi.fn(),
   convArchiveByIdMock: vi.fn(),
+  convRestoreDeletedMock: vi.fn(),
   convFindByIdMock: vi.fn(),
   msgCreateMock: vi.fn(),
   msgListByConversationMock: vi.fn(),
@@ -92,6 +94,7 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     countByLane: convCountByLaneMock,
     setConversationMode: convSetConversationModeMock,
     archiveById: convArchiveByIdMock,
+    restoreDeleted: convRestoreDeletedMock,
     findById: convFindByIdMock,
   }),
   getMessageDataMapper: () => ({
@@ -144,6 +147,7 @@ import {
   takeOverConversationAction,
   handBackConversationAction,
   bulkArchiveConversationsAction,
+  restoreConversationAction,
 } from "@/lib/admin/conversations/admin-conversations-actions";
 import AdminPromptsPage from "@/app/admin/prompts/page";
 import AdminPromptDetailPage from "@/app/admin/prompts/[role]/[promptType]/page";
@@ -610,6 +614,44 @@ describe("D4.6 — conversation detail loader", () => {
     expect(detail.conversation.recommendedNextStep).toBe("Pair programming");
     expect(detail.conversation.convertedFrom).toBe("conv_0");
   });
+
+  it("includes deleted-state metadata when present", async () => {
+    loadAdminConversationDetailMock.mockResolvedValue({
+      conversation: {
+        id: "conv_deleted",
+        userId: "user_3",
+        userName: "Carol",
+        title: "Deleted Chat",
+        status: "deleted",
+        lane: "individual",
+        laneConfidence: 0.7,
+        messageCount: 1,
+        lastToolUsed: null,
+        sessionSource: "web",
+        conversationMode: "ai",
+        createdAt: "2025-06-01T00:00:00Z",
+        updatedAt: "2025-06-01T12:00:00Z",
+        detailHref: "/admin/conversations/conv_deleted",
+        detectedNeedSummary: null,
+        recommendedNextStep: null,
+        promptVersion: null,
+        referralSource: null,
+        convertedFrom: null,
+        deletedAt: "2025-06-02T00:00:00Z",
+        deletedByUserId: "user_3",
+        deleteReason: "user_removed",
+        purgeAfter: "2025-07-02T00:00:00Z",
+        restoredAt: null,
+      },
+      messages: [],
+      totalTokens: 0,
+    });
+
+    const detail = await (await import("@/lib/admin/conversations/admin-conversations")).loadAdminConversationDetail("conv_deleted");
+    expect(detail.conversation.deletedAt).toBe("2025-06-02T00:00:00Z");
+    expect(detail.conversation.deleteReason).toBe("user_removed");
+    expect(detail.conversation.purgeAfter).toBe("2025-07-02T00:00:00Z");
+  });
 });
 
 // ── D4.11 — Takeover action ────────────────────────────────────────────
@@ -710,6 +752,22 @@ describe("D4.12 — bulkArchiveConversationsAction", () => {
     await expect(
       bulkArchiveConversationsAction(makeFormData({ ids: "" })),
     ).rejects.toThrow();
+  });
+});
+
+describe("D4.12 — restoreConversationAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPageAccessMock.mockResolvedValue(ADMIN_USER);
+    convRestoreDeletedMock.mockResolvedValue(undefined);
+  });
+
+  it("restores a deleted conversation and revalidates detail + list paths", async () => {
+    await restoreConversationAction(makeFormData({ id: "conv_deleted" }));
+
+    expect(convRestoreDeletedMock).toHaveBeenCalledWith("conv_deleted", "admin_1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/conversations");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/conversations/conv_deleted");
   });
 });
 

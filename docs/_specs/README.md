@@ -38,6 +38,7 @@ docs/_specs/
 | [Librarian](librarian/) | **Draft** | 2 (0–1) | `_corpus/` auto-discovery, MCP librarian tools, zip import |
 | [Web Search](web-search/) | **Complete** | 1 (0) | Admin web search via OpenAI GPT-5, rich UI, citations |
 | [Conversation Memory](conversation-memory/) | **Draft** | 3 (0–2) | Anonymous persistence, auto-resume, rolling summaries, conversation search |
+| [Conversation Operations And Retention](conversation-operations-and-retention/) | **Draft** | 5 planned (0–4) | Safe conversation management across roles with rename, restore, soft-delete, export/import, stop-generation, and admin auditability |
 | [Browser UI Hardening](browser-ui-hardening/) | **Draft** | 7 (0–6) | Cross-browser shell, overlay, motion, media, and regression hardening for Safari, Chrome, Firefox, and mobile browsers |
 | [Homepage Chat Shell](homepage-chat-shell/) | **Draft** | 4 (0–3) | Homepage-first chat stage architecture with below-the-fold footer, exclusive message scrolling, and pinned composer behavior |
 | [Chat Experience](chat-experience/) | **In Progress** | 3 (0–2) | Message semantics, inline navigation, composer ergonomics, scroll intent, and calmer conversation presentation |
@@ -55,6 +56,7 @@ docs/_specs/
 | [Flexible Graphing System](flexible-graphing-system/) | **Draft** | 3 planned (0–2) | Quantitative graph generation for time series, comparisons, distributions, and arbitrary structured data, separate from Mermaid diagrams |
 | [Deferred Job Orchestration](deferred-job-orchestration/) | **Draft** | 4 planned (0–3) | Durable queue-backed execution for long-running MCP tasks with chat-native status updates, resumable event streams, and optional push notifications |
 | [Job Visibility And Control](job-visibility-and-control/) | **Draft** | 7 planned (0–3 + TD-A/TD-C/TD-D) | Transcript-native job updates, a first-class Jobs page in the account surface, and prose-first agent status responses |
+| [Job Operations And Resilience](job-operations-and-resilience/) | **Draft** | 5 planned (0–4) | Role-aware job management, replay/recovery policy, execution governance, artifact/result portability, and audit-grade retention |
 | [Blog Article Production Pipeline](blog-article-production-pipeline/) | **Draft** | 5 planned (0–4) | Native article-generation pipeline for blog drafting, LLM QA, QA resolution, hero-image prompt synthesis, image generation, and orchestration through discrete MCP tools |
 | [Journal Publication Redesign](journal-publication-redesign/) | **Draft** | 5 planned (0–4) | Re-architect the public journal so the index, sections, archive, and article routes read like an intentional publication rather than product UI with editorial styling |
 | [Journal Editorial Operations](journal-editorial-operations/) | **Draft** | 4 planned (0–3) | Add a proper journal management surface, explicit editorial metadata and workflow, revision history, and phased external route convergence from `/blog` to `/journal` |

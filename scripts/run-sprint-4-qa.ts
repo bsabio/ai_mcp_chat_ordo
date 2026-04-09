@@ -1,4 +1,6 @@
 #!/usr/bin/env tsx
+import fs from "node:fs";
+import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 type Step = {
@@ -8,33 +10,34 @@ type Step = {
 };
 
 const focusedVitestFiles = [
-  "src/app/api/referral/[code]/route.test.ts",
-  "src/app/api/referral/visit/route.test.ts",
-  "src/lib/referrals/referral-visit.test.ts",
-  "src/app/r/[code]/page.test.tsx",
-  "src/app/referrals/page.test.tsx",
-  "tests/chat-stream-route.test.ts",
-  "src/lib/referrals/referral-ledger.test.ts",
-  "src/core/use-cases/LeadCaptureInteractor.test.ts",
-  "src/core/use-cases/RequestConsultationInteractor.test.ts",
-  "src/core/use-cases/CreateDealFromWorkflowInteractor.test.ts",
-  "src/core/use-cases/CreateTrainingPathFromWorkflowInteractor.test.ts",
-  "src/lib/referrals/admin-referral-analytics.test.ts",
-  "src/core/use-cases/tools/affiliate-analytics.tool.test.ts",
-  "src/lib/graphs/graph-data-sources.test.ts",
-  "tests/sprint-4-referral-governance-qa.test.ts",
-  "tests/core-policy.test.ts",
-  "tests/tool-registry.integration.test.ts",
-  "src/app/api/admin/affiliates/export/route.test.ts",
-  "src/app/api/notifications/feed/route.test.ts",
+  "tests/deferred-job-notifications.test.ts",
+  "tests/deferred-job-repository.test.ts",
+  "tests/deferred-job-worker.test.ts",
+  "tests/jobs/ownership-migration.test.ts",
+  "src/app/api/auth/auth-routes.test.ts",
+  "src/lib/jobs/job-event-stream.test.ts",
+  "src/lib/jobs/job-read-model.test.ts",
+  "tests/jobs-system-dashboard.test.ts",
   "tests/evals/eval-release-evidence.test.ts",
 ];
+
+const browserSpecs = [
+  "tests/browser-ui/jobs-page.spec.ts",
+  "tests/browser-ui/push-notifications.spec.ts",
+];
+
+function hasReleaseEvidenceInputs(): boolean {
+  const releaseDir = path.join(process.cwd(), "release");
+
+  return fs.existsSync(path.join(releaseDir, "runtime-integrity-evidence.json"))
+    && fs.existsSync(path.join(releaseDir, "canary-summary.json"));
+}
 
 function printUsage(): void {
   process.stderr.write(
     [
       "Usage: npm run qa:sprint-4",
-      "Runs the focused referral governance bundle, the admin shell regression checks, Playwright responsive smoke, lint, typecheck, and build.",
+      "Runs the focused jobs notification/migration bundle, browser verification for /jobs and push notifications, and regenerates release evidence when prerequisite artifacts already exist.",
     ].join("\n") + "\n",
   );
 }
@@ -61,40 +64,33 @@ async function main(): Promise<void> {
 
   const steps: Step[] = [
     {
-      label: "referral governance test bundle",
+      label: "jobs notification and migration regression bundle",
       command: "npm",
-      args: ["run", "test", "--", ...focusedVitestFiles],
+      args: ["exec", "vitest", "run", ...focusedVitestFiles],
     },
     {
-      label: "admin shell regression checks",
+      label: "jobs migration and push browser verification",
       command: "npm",
-      args: ["exec", "vitest", "run", "tests/admin-shell-and-concierge.test.tsx", "tests/sprint-10-ux-layout-and-navigation.test.tsx"],
-    },
-    {
-      label: "responsive browser smoke",
-      command: "npm",
-      args: ["exec", "playwright", "test", "tests/browser-ui/admin-shell-responsive.spec.ts"],
-    },
-    {
-      label: "lint",
-      command: "npm",
-      args: ["run", "lint"],
-    },
-    {
-      label: "typecheck",
-      command: "npm",
-      args: ["run", "typecheck"],
-    },
-    {
-      label: "build",
-      command: "npm",
-      args: ["run", "build"],
+      args: ["exec", "playwright", "test", ...browserSpecs],
     },
   ];
 
   for (const step of steps) {
     runStep(step);
   }
+
+  if (hasReleaseEvidenceInputs()) {
+    runStep({
+      label: "release evidence regeneration",
+      command: "npm",
+      args: ["run", "release:evidence"],
+    });
+    return;
+  }
+
+  process.stdout.write(
+    "\n==> release evidence regeneration\nSkipping: release/runtime-integrity-evidence.json and/or release/canary-summary.json are missing.\n",
+  );
 }
 
 main().catch((error) => {

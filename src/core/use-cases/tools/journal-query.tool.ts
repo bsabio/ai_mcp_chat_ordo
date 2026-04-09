@@ -31,7 +31,8 @@ export interface ListJournalPostsInput {
 }
 
 export interface GetJournalPostInput {
-  post_id: string;
+  post_id?: string;
+  slug?: string;
 }
 
 export interface ListJournalRevisionsInput {
@@ -200,9 +201,14 @@ export function parseListJournalPostsInput(value: Record<string, unknown>): List
 }
 
 export function parseGetJournalPostInput(value: Record<string, unknown>): GetJournalPostInput {
-  return {
-    post_id: requireNonEmptyString(value.post_id, "post_id"),
-  };
+  const post_id = parseOptionalString(value.post_id);
+  const slug = parseOptionalString(value.slug);
+
+  if (!post_id && !slug) {
+    throw new Error("Either post_id or slug is required.");
+  }
+
+  return { ...(post_id ? { post_id } : {}), ...(slug ? { slug } : {}) };
 }
 
 export function parseListJournalRevisionsInput(value: Record<string, unknown>): ListJournalRevisionsInput {
@@ -268,9 +274,16 @@ export class GetJournalPostInteractor {
   constructor(private readonly blogRepo: BlogPostRepository) {}
 
   async execute(input: GetJournalPostInput) {
-    const post = await this.blogRepo.findById(input.post_id);
+    let post: BlogPost | null = null;
+
+    if (input.post_id) {
+      post = await this.blogRepo.findById(input.post_id);
+    } else if (input.slug) {
+      post = await this.blogRepo.findBySlug(input.slug);
+    }
+
     if (!post) {
-      throw new Error(`Post not found: ${input.post_id}`);
+      throw new Error(`Post not found: ${input.post_id ?? input.slug}`);
     }
 
     return {
@@ -435,13 +448,13 @@ export function createGetJournalPostTool(
 ): ToolDescriptor<GetJournalPostInput, Awaited<ReturnType<GetJournalPostInteractor["execute"]>>> {
   return adminTool(
     "get_journal_post",
-    "Load one journal post with editorial metadata, workflow status, and admin support routes.",
+    "Load one journal post with editorial metadata, workflow status, and admin support routes. Accepts either the post ID or the article slug.",
     {
       type: "object",
       properties: {
         post_id: { type: "string", description: "The journal post identifier" },
+        slug: { type: "string", description: "The journal post slug (alternative to post_id)" },
       },
-      required: ["post_id"],
     },
     new GetJournalPostCommand(interactor),
   );

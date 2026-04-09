@@ -6,13 +6,14 @@ import { createAdminReferralAnalyticsService } from "@/lib/referrals/admin-refer
 import { createReferralAnalyticsService } from "@/lib/referrals/referral-analytics";
 
 function unauthorized() {
-  return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  return NextResponse.json({ error: "Authentication required", errorCode: "AUTH_ERROR" }, { status: 401 });
 }
 
 function forbidden() {
   return NextResponse.json(
     {
       error: "Referral self-service is not enabled for this account yet.",
+      errorCode: "FORBIDDEN",
       code: "AFFILIATE_ACCESS_DISABLED",
     },
     { status: 403 },

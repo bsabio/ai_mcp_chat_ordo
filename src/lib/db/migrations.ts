@@ -87,7 +87,33 @@ export function runMigrations(db: Database.Database): void {
   );
   addColumnIfNotExists(db, "conversations", "referral_id", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "conversations", "referral_source", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "deleted_at", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "deleted_by_user_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "delete_reason", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "purge_after", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "restored_at", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "imported_at", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "import_source_conversation_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "conversations", "imported_from_exported_at", "TEXT DEFAULT NULL");
   db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_referral_id ON conversations(referral_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_user_status_deleted ON conversations(user_id, status, deleted_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_deleted_at ON conversations(deleted_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_purge_after ON conversations(purge_after)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_imported_at ON conversations(imported_at)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conversation_purge_audits (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      actor_user_id TEXT NOT NULL,
+      actor_role TEXT NOT NULL,
+      purge_reason TEXT NOT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      purged_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_purged_at ON conversation_purge_audits(purged_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_reason ON conversation_purge_audits(purge_reason)`);
 
   addColumnIfNotExists(
     db,
@@ -95,6 +121,15 @@ export function runMigrations(db: Database.Database): void {
     "token_estimate",
     "INTEGER NOT NULL DEFAULT 0",
   );
+
+  addColumnIfNotExists(db, "job_requests", "failure_class", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "next_retry_at", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "recovery_mode", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "last_checkpoint_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "replayed_from_job_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "superseded_by_job_id", "TEXT DEFAULT NULL");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_replayed_from ON job_requests(replayed_from_job_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_superseded_by ON job_requests(superseded_by_job_id)`);
 
   addColumnIfNotExists(
     db,

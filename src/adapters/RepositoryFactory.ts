@@ -53,6 +53,7 @@ let blogArtifactRepo: BlogPostArtifactRepository | null = null;
 let blogRevisionRepo: BlogPostRevisionRepository | null = null;
 let journalEditorialMutationRepo: JournalEditorialMutationRepository | null = null;
 let jobQueueRepo: JobQueueRepository | null = null;
+let jobQueueRepoDb: ReturnType<typeof getDb> | null = null;
 let jobStatusQuery: JobStatusQuery | null = null;
 let pushSubscriptionRepo: PushSubscriptionRepository | null = null;
 let userDataMapper: UserDataMapper | null = null;
@@ -100,8 +101,12 @@ export function getJournalEditorialMutationRepository(): JournalEditorialMutatio
 }
 
 export function getJobQueueRepository(): JobQueueRepository {
-  if (!jobQueueRepo) {
-    jobQueueRepo = new JobQueueDataMapper(getDb());
+  const db = getDb();
+
+  if (!jobQueueRepo || jobQueueRepoDb !== db) {
+    jobQueueRepo = new JobQueueDataMapper(db);
+    jobQueueRepoDb = db;
+    jobStatusQuery = null;
   }
   return jobQueueRepo;
 }
