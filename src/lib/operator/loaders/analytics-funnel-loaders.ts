@@ -1,5 +1,5 @@
 import type { User as SessionUser } from "@/core/entities/user";
-import { conversationAnalytics } from "@mcp/analytics-tool";
+import { conversationAnalytics } from "@/lib/capabilities/shared/analytics-tool";
 
 import {
   getFunnelStageCount,

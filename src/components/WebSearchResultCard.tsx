@@ -1,20 +1,18 @@
 "use client";
 
 import { useReducer, useEffect, useRef, useCallback } from "react";
+import {
+  isAdminWebSearchPayload,
+  type AdminWebSearchPayload,
+  type WebSearchCitation,
+} from "@/lib/web-search/admin-web-search-payload";
 import { ToolCard } from "./ToolCard";
 
 /* ---------- types ---------- */
 
-interface Citation {
-  url: string;
-  title: string;
-  start_index: number;
-  end_index: number;
-}
-
 interface WebSearchResult {
   answer: string;
-  citations: Citation[];
+  citations: WebSearchCitation[];
   sources: string[];
   model: string;
 }
@@ -24,10 +22,32 @@ interface WebSearchError {
   code?: number;
 }
 
-type SearchResult = WebSearchResult | WebSearchError;
+export type SearchResult = WebSearchResult | WebSearchError;
 
 function isError(r: SearchResult): r is WebSearchError {
   return "error" in r;
+}
+
+function normalizeSearchResponse(
+  payload: SearchResult | AdminWebSearchPayload,
+): SearchResult {
+  if (!isAdminWebSearchPayload(payload)) {
+    return payload;
+  }
+
+  if ("error" in payload) {
+    return {
+      error: payload.error,
+      code: payload.code,
+    };
+  }
+
+  return {
+    answer: payload.answer,
+    citations: payload.citations,
+    sources: payload.sources,
+    model: payload.model,
+  };
 }
 
 /* ---------- state machine ---------- */
@@ -143,10 +163,36 @@ interface Props {
   query: string;
   allowed_domains?: string[];
   model?: string;
+  initialResult?: WebSearchResult | null;
+  initialError?: string | null;
 }
 
-export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
-  const [state, dispatch] = useReducer(reducer, INITIAL);
+function buildInitialState(initialResult?: WebSearchResult | null, initialError?: string | null): State {
+  if (initialResult) {
+    return {
+      stage: "done",
+      result: initialResult,
+      error: null,
+      startedAt: null,
+      elapsedMs: 0,
+    };
+  }
+
+  if (initialError) {
+    return {
+      stage: "error",
+      result: null,
+      error: initialError,
+      startedAt: null,
+      elapsedMs: 0,
+    };
+  }
+
+  return INITIAL;
+}
+
+export function WebSearchResultCard({ query, allowed_domains, model, initialResult, initialError }: Props) {
+  const [state, dispatch] = useReducer(reducer, buildInitialState(initialResult, initialError));
   const initiated = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -167,7 +213,8 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
         body: JSON.stringify({ query, allowed_domains, model }),
       });
 
-      const data: SearchResult = await res.json();
+      const payload = await res.json() as SearchResult | AdminWebSearchPayload;
+      const data = normalizeSearchResponse(payload);
 
       stageTimers.forEach(clearTimeout);
 
@@ -191,10 +238,14 @@ export function WebSearchResultCard({ query, allowed_domains, model }: Props) {
 
   // Auto-run on mount
   useEffect(() => {
+    if (initialResult || initialError) {
+      initiated.current = true;
+      return;
+    }
     if (initiated.current) return;
     initiated.current = true;
     runSearch();
-  }, [runSearch]);
+  }, [initialError, initialResult, runSearch]);
 
   // Elapsed-time ticker
   useEffect(() => {

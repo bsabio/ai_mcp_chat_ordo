@@ -103,7 +103,6 @@ describe("browser FAB mobile density", () => {
     const composerShell = container.querySelector('[data-chat-composer-shell="true"]');
     const composerRow = container.querySelector('[data-chat-composer-row="true"]');
     const composerForm = container.querySelector('[data-chat-composer-form="true"]');
-    const composerHelper = container.querySelector('[data-chat-composer-helper="true"]');
     const leadingRegion = container.querySelector('[data-chat-floating-header-leading="true"]');
     const transcriptPlane = container.querySelector('[data-chat-transcript-plane="true"]');
     const composerPlane = container.querySelector('[data-chat-composer-plane="true"]');
@@ -119,13 +118,10 @@ describe("browser FAB mobile density", () => {
     expect(composerRow).toBeNull();
     expect(composerForm).not.toBeNull();
     expect(composerForm).toHaveAttribute("data-chat-composer-state", "idle");
-    expect(composerHelper).toHaveAttribute("data-chat-helper-mode", "focus");
-    expect(composerHelper?.children).toHaveLength(1);
     expect(leadingRegion).toBeNull();
 
     expect(screen.getByRole("button", { name: /enter full screen/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /minimize chat/i })).toBeInTheDocument();
-    expect(screen.getByText("Enter to send. Shift+Enter for line breaks.")).toBeInTheDocument();
   });
 
   it("keeps the compact mobile header layout stable", async () => {
@@ -148,7 +144,7 @@ describe("browser FAB mobile density", () => {
     // In single-conversation mode, leading region no longer renders (no conversation actions)
     expect(leadingRegion).toBeNull();
     expect(chrome).not.toBeNull();
-    expect(chrome?.querySelectorAll("button")).toHaveLength(2);
+    expect(chrome?.querySelectorAll("button")).toHaveLength(3);
   });
 
   it("action chips render at mobile viewport width without overflow", async () => {

@@ -84,6 +84,9 @@ This directory is the discovery entry point for the browser-focused regression s
   - runs the focused browser regression suite
 - `npm run browser:smoke`
   - runs the live Playwright smoke and browser specs against the Playwright-managed production server
+- `npm run test:browser-live:worker`
+  - runs the worker-enabled deferred-job browser proof against the Playwright-managed production server
+  - seeds a real queued job into the Playwright SQLite database and waits for the live deferred worker to complete it
 - `npm run browser:verify:quality`
   - runs browser-focused tests, a production build, and Lighthouse CI guidance
 - `npm run lhci`
@@ -94,5 +97,6 @@ This directory is the discovery entry point for the browser-focused regression s
 - These tests are intentionally focused. They protect browser-sensitive behavior without duplicating broader application tests.
 - Set `PLAYWRIGHT_BASE_URL` if the live smoke target is not `http://127.0.0.1:3000`.
 - Set `PLAYWRIGHT_BASE_URL` to target an existing deployed or already-running environment instead of the default Playwright-managed server.
+- Set `PLAYWRIGHT_ENABLE_DEFERRED_JOB_WORKER=1` when you need the Playwright-managed server to run the real deferred worker instead of the default worker-disabled smoke mode.
 - Manual evidence and per-browser acceptance criteria live in `docs/_specs/browser-ui-hardening/artifacts/browser-ui-verification-matrix.md`.
 - Baseline comparison notes live in `docs/_specs/browser-ui-hardening/artifacts/browser-ui-baseline.md`.

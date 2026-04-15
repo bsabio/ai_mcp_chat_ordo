@@ -1,5 +1,5 @@
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
 import {
@@ -7,9 +7,20 @@ import {
   type CurrentPageDetails,
 } from "@/lib/chat/current-page-context";
 import { getRuntimeToolManifestForRole } from "@/lib/chat/runtime-manifest";
+import { compactProvenance } from "@/lib/prompts/prompt-provenance-store";
+
+interface PromptRuntimeInspectionResult {
+  surface: string;
+  effectiveHash: string;
+  slotRefs: ReturnType<typeof compactProvenance>["slotRefs"];
+  sections: ReturnType<typeof compactProvenance>["sections"];
+  warnings: ReturnType<typeof compactProvenance>["warnings"];
+  redacted: true;
+}
 
 interface InspectRuntimeContextInput {
   includeTools?: boolean;
+  includePrompt?: boolean;
 }
 
 interface InspectRuntimeContextOutput {
@@ -23,49 +34,75 @@ interface InspectRuntimeContextOutput {
     category: string;
   }>;
   toolCount: number;
+  promptRuntime?: PromptRuntimeInspectionResult | null;
 }
 
-class InspectRuntimeContextCommand implements ToolCommand<InspectRuntimeContextInput, InspectRuntimeContextOutput> {
-  constructor(private readonly registry: ToolRegistry) {}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-  async execute(input: InspectRuntimeContextInput, context?: ToolExecutionContext): Promise<InspectRuntimeContextOutput> {
-    const role = context?.role ?? "ANONYMOUS";
-    const currentPathname = context?.currentPageSnapshot?.pathname ?? context?.currentPathname ?? null;
-    const currentPage = currentPathname
-      ? resolveCurrentPageDetails(currentPathname, context?.currentPageSnapshot)
-      : null;
-    const availableTools = input.includeTools === false
-      ? []
-      : getRuntimeToolManifestForRole(this.registry, role);
-
-    return {
-      action: "inspect_runtime_context",
-      role,
-      currentPathname,
-      currentPage,
-      availableTools,
-      toolCount: availableTools.length,
-    };
+export function parseInspectRuntimeContextInput(value: unknown): InspectRuntimeContextInput {
+  if (value === undefined || value === null) {
+    return {};
   }
+
+  if (!isRecord(value)) {
+    throw new Error("inspect_runtime_context input must be an object.");
+  }
+
+  if (value.includeTools !== undefined && typeof value.includeTools !== "boolean") {
+    throw new Error("inspect_runtime_context includeTools must be a boolean when provided.");
+  }
+
+  if (value.includePrompt !== undefined && typeof value.includePrompt !== "boolean") {
+    throw new Error("inspect_runtime_context includePrompt must be a boolean when provided.");
+  }
+
+  return {
+    ...(value.includeTools === undefined ? {} : { includeTools: value.includeTools }),
+    ...(value.includePrompt === undefined ? {} : { includePrompt: value.includePrompt }),
+  };
 }
 
-export function createInspectRuntimeContextTool(registry: ToolRegistry): ToolDescriptor<InspectRuntimeContextInput, InspectRuntimeContextOutput> {
+export async function executeInspectRuntimeContext(
+  registry: ToolRegistry,
+  input: InspectRuntimeContextInput,
+  context?: ToolExecutionContext,
+): Promise<InspectRuntimeContextOutput> {
+  const role = context?.role ?? "ANONYMOUS";
+  const currentPathname = context?.currentPageSnapshot?.pathname ?? context?.currentPathname ?? null;
+  const currentPage = currentPathname
+    ? resolveCurrentPageDetails(currentPathname, context?.currentPageSnapshot)
+    : null;
+  const availableTools = input.includeTools === false
+    ? []
+    : getRuntimeToolManifestForRole(registry, role, {
+      allowedToolNames: context?.allowedToolNames,
+    });
+
   return {
-    name: "inspect_runtime_context",
-    schema: {
-      description: "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
-      input_schema: {
-        type: "object",
-        properties: {
-          includeTools: {
-            type: "boolean",
-            description: "Set to false to inspect current page context without returning the role-scoped tool manifest.",
-          },
-        },
-      },
-    },
-    command: new InspectRuntimeContextCommand(registry),
-    roles: "ALL",
-    category: "system",
+    action: "inspect_runtime_context",
+    role,
+    currentPathname,
+    currentPage,
+    availableTools,
+    toolCount: availableTools.length,
+    ...(input.includePrompt === true
+      ? {
+          promptRuntime: context?.promptRuntime
+            ? {
+                ...compactProvenance(context.promptRuntime),
+                redacted: true as const,
+              }
+            : null,
+        }
+      : {}),
   };
+}
+
+export function createInspectRuntimeContextTool(registry: ToolRegistry) {
+  return buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.inspect_runtime_context, {
+    parse: parseInspectRuntimeContextInput,
+    execute: (input, context) => executeInspectRuntimeContext(registry, input, context),
+  });
 }

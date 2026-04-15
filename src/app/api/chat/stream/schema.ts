@@ -14,7 +14,7 @@ export const ChatStreamRequestSchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().min(1).max(100_000),
+        content: z.string().trim().min(1).max(100_000),
       }),
     )
     .min(1),
@@ -22,10 +22,10 @@ export const ChatStreamRequestSchema = z.object({
   attachments: z
     .array(
       z.object({
-        assetId: z.string(),
-        fileName: z.string(),
-        mimeType: z.string(),
-        fileSize: z.number(),
+        assetId: z.string().min(1),
+        fileName: z.string().min(1),
+        mimeType: z.string().min(1),
+        fileSize: z.number().int().nonnegative(),
       }),
     )
     .optional()

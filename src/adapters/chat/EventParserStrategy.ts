@@ -1,6 +1,63 @@
 import type { StreamEvent } from "../../core/entities/chat-stream";
+import type { JobStatusMessagePart } from "@/core/entities/message-parts";
+import { isCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 
 type RawSSEData = Record<string, unknown>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseJobStatusPart(value: unknown): JobStatusMessagePart | undefined {
+  if (!isRecord(value) || value.type !== "job_status") {
+    return undefined;
+  }
+
+  const status = value.status === "running"
+    || value.status === "succeeded"
+    || value.status === "failed"
+    || value.status === "canceled"
+    ? value.status
+    : "queued";
+
+  return {
+    type: "job_status",
+    jobId: String(value.jobId ?? ""),
+    toolName: String(value.toolName ?? ""),
+    label: String(value.label ?? ""),
+    status,
+    ...(typeof value.title === "string" ? { title: value.title } : {}),
+    ...(typeof value.subtitle === "string" ? { subtitle: value.subtitle } : {}),
+    ...(typeof value.sequence === "number" ? { sequence: value.sequence } : {}),
+    ...(typeof value.progressPercent === "number" || value.progressPercent === null
+      ? { progressPercent: value.progressPercent as number | null }
+      : {}),
+    ...(typeof value.progressLabel === "string" || value.progressLabel === null
+      ? { progressLabel: value.progressLabel as string | null }
+      : {}),
+    ...(typeof value.summary === "string" ? { summary: value.summary } : {}),
+    ...(typeof value.error === "string" ? { error: value.error } : {}),
+    ...(typeof value.updatedAt === "string" ? { updatedAt: value.updatedAt } : {}),
+    ...(value.resultPayload !== undefined ? { resultPayload: value.resultPayload } : {}),
+    ...(value.resultEnvelope === null
+      ? { resultEnvelope: null }
+      : isCapabilityResultEnvelope(value.resultEnvelope)
+        ? { resultEnvelope: value.resultEnvelope }
+        : {}),
+    ...(typeof value.failureClass === "string" || value.failureClass === null
+      ? { failureClass: value.failureClass as JobStatusMessagePart["failureClass"] }
+      : {}),
+    ...(typeof value.recoveryMode === "string" || value.recoveryMode === null
+      ? { recoveryMode: value.recoveryMode as JobStatusMessagePart["recoveryMode"] }
+      : {}),
+    ...(typeof value.replayedFromJobId === "string" || value.replayedFromJobId === null
+      ? { replayedFromJobId: value.replayedFromJobId as string | null }
+      : {}),
+    ...(typeof value.supersededByJobId === "string" || value.supersededByJobId === null
+      ? { supersededByJobId: value.supersededByJobId as string | null }
+      : {}),
+  };
+}
 
 /**
  * Strategy Interface for Parsing Raw SSE JSON Data
@@ -89,8 +146,11 @@ class TypedEventParser implements EventParserStrategy {
           sequence: data.sequence as number,
           toolName: data.toolName as string,
           label: data.label as string,
+          title: typeof data.title === "string" ? data.title : undefined,
+          subtitle: typeof data.subtitle === "string" ? data.subtitle : undefined,
           messageId: typeof data.messageId === "string" ? data.messageId : undefined,
           updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+          part: parseJobStatusPart(data.part),
         };
       case "job_progress":
         return {
@@ -100,10 +160,13 @@ class TypedEventParser implements EventParserStrategy {
           sequence: data.sequence as number,
           toolName: data.toolName as string,
           label: data.label as string,
+          title: typeof data.title === "string" ? data.title : undefined,
+          subtitle: typeof data.subtitle === "string" ? data.subtitle : undefined,
           messageId: typeof data.messageId === "string" ? data.messageId : undefined,
           progressPercent: typeof data.progressPercent === "number" ? data.progressPercent : undefined,
           progressLabel: typeof data.progressLabel === "string" ? data.progressLabel : undefined,
           updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+          part: parseJobStatusPart(data.part),
         };
       case "job_completed":
         return {
@@ -113,10 +176,13 @@ class TypedEventParser implements EventParserStrategy {
           sequence: data.sequence as number,
           toolName: data.toolName as string,
           label: data.label as string,
+          title: typeof data.title === "string" ? data.title : undefined,
+          subtitle: typeof data.subtitle === "string" ? data.subtitle : undefined,
           messageId: typeof data.messageId === "string" ? data.messageId : undefined,
           summary: typeof data.summary === "string" ? data.summary : undefined,
           resultPayload: data.resultPayload,
           updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+          part: parseJobStatusPart(data.part),
         };
       case "job_failed":
         return {
@@ -126,9 +192,12 @@ class TypedEventParser implements EventParserStrategy {
           sequence: data.sequence as number,
           toolName: data.toolName as string,
           label: data.label as string,
+          title: typeof data.title === "string" ? data.title : undefined,
+          subtitle: typeof data.subtitle === "string" ? data.subtitle : undefined,
           messageId: typeof data.messageId === "string" ? data.messageId : undefined,
           error: data.error as string,
           updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+          part: parseJobStatusPart(data.part),
         };
       case "job_canceled":
         return {
@@ -138,8 +207,11 @@ class TypedEventParser implements EventParserStrategy {
           sequence: data.sequence as number,
           toolName: data.toolName as string,
           label: data.label as string,
+          title: typeof data.title === "string" ? data.title : undefined,
+          subtitle: typeof data.subtitle === "string" ? data.subtitle : undefined,
           messageId: typeof data.messageId === "string" ? data.messageId : undefined,
           updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+          part: parseJobStatusPart(data.part),
         };
       default:
         throw new Error(`Unsupported typed SSE event: ${String(this.eventType)}`);

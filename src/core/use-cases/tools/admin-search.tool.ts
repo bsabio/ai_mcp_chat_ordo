@@ -1,5 +1,5 @@
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
 import {
   type AdminSearchResult,
   searchAdminEntities,
@@ -15,43 +15,38 @@ interface AdminSearchOutput {
   totalCount: number;
 }
 
-class AdminSearchCommand implements ToolCommand<AdminSearchInput, AdminSearchOutput> {
-  async execute(input: AdminSearchInput): Promise<AdminSearchOutput> {
-    if (!input.query || input.query.trim().length < 2) {
-      return { results: [], totalCount: 0 };
-    }
-
-    const results = await searchAdminEntities(input.query, {
-      entityTypes: input.entityTypes,
-    });
-
-    return { results, totalCount: results.length };
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export const adminSearchTool: ToolDescriptor<AdminSearchInput, AdminSearchOutput> = {
-  name: "admin_search",
-  schema: {
-    description:
-      "Search across all admin entities (users, leads, consultations, deals, training, conversations, jobs, prompts, journal posts). Returns matching results with links to detail pages. Admin only.",
-    input_schema: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Search query (minimum 2 characters).",
-        },
-        entityTypes: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Optional filter to search only specific entity types. Valid values: user, lead, consultation, deal, training, conversation, job, prompt, journal.",
-        },
-      },
-      required: ["query"],
-    },
-  },
-  command: new AdminSearchCommand(),
-  roles: ["ADMIN"],
-  category: "system",
-};
+export function sanitizeAdminSearchInput(value: unknown): AdminSearchInput {
+  if (!isRecord(value)) {
+    return { query: "" };
+  }
+
+  const query = typeof value.query === "string" ? value.query.trim() : "";
+  const entityTypes = Array.isArray(value.entityTypes)
+    ? value.entityTypes.filter((entityType): entityType is string => typeof entityType === "string")
+    : undefined;
+
+  return entityTypes && entityTypes.length > 0
+    ? { query, entityTypes }
+    : { query };
+}
+
+export async function executeAdminSearch(input: AdminSearchInput): Promise<AdminSearchOutput> {
+  if (!input.query || input.query.trim().length < 2) {
+    return { results: [], totalCount: 0 };
+  }
+
+  const results = await searchAdminEntities(input.query, {
+    entityTypes: input.entityTypes,
+  });
+
+  return { results, totalCount: results.length };
+}
+
+export const adminSearchTool = buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.admin_search, {
+  parse: sanitizeAdminSearchInput,
+  execute: (input) => executeAdminSearch(input),
+});

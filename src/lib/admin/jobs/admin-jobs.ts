@@ -24,7 +24,7 @@ import {
 // ── Filters ────────────────────────────────────────────────────────────
 
 const VALID_STATUSES: readonly string[] = ["queued", "running", "succeeded", "failed", "canceled"];
-const VALID_FAMILIES = ["editorial", "content", "workflow", "training", "system", "other"] as const satisfies readonly JobFamily[];
+const VALID_FAMILIES = ["editorial", "content", "workflow", "training", "system", "media", "other"] as const satisfies readonly JobFamily[];
 const CANCELABLE_STATUSES = new Set<JobStatus>(["queued", "running"]);
 const REQUEUEABLE_STATUSES = new Set<JobStatus>(["queued", "running"]);
 const RETRIABLE_STATUSES = new Set<JobStatus>(["failed", "canceled"]);
@@ -35,6 +35,7 @@ const JOB_FAMILY_LABELS: Record<JobFamily, string> = {
   workflow: "Workflow",
   training: "Training",
   system: "System",
+  media: "Media",
   other: "Other",
 };
 

@@ -153,26 +153,31 @@ describe("Sprint 3 — Positive tests", () => {
 // ── §5.2 Negative tests ────────────────────────────────────────────
 
 describe("Sprint 3 — Negative tests", () => {
-  it("N1: createInitialChatMessages ignores config for non-ANONYMOUS roles", () => {
+  it("N1: createInitialChatMessages uses roleBootstraps config for non-ANONYMOUS roles", () => {
     const prompts: InstancePrompts = {
-      firstMessage: { default: "This should not appear for ADMIN." },
+      roleBootstraps: {
+        ADMIN: {
+          message: "Custom admin welcome.",
+          suggestions: ["Review the queue"],
+        },
+      },
     };
     const [msg] = createInitialChatMessages("ADMIN", prompts);
-    expect(msg.content).toContain("Operator console is ready");
-    expect(msg.content).not.toContain("This should not appear");
+    expect(msg.content).toContain("Custom admin welcome.");
+    expect(msg.content).toContain("Review the queue");
   });
 
   it("N2: createInitialChatMessages falls back to hardcoded when prompts is undefined", () => {
     const [msg] = createInitialChatMessages("ANONYMOUS");
     expect(msg.content).toContain(
-      "Bring me the messy workflow, bold idea, or half-finished handoff.",
+      "Bring me the messy workflow, half-finished idea, or customer task.",
     );
   });
 
   it("N3: createInitialChatMessages falls back when firstMessage.default is undefined", () => {
     const [msg] = createInitialChatMessages("ANONYMOUS", {});
     expect(msg.content).toContain(
-      "Bring me the messy workflow, bold idea, or half-finished handoff.",
+      "Bring me the messy workflow, half-finished idea, or customer task.",
     );
   });
 
@@ -270,11 +275,11 @@ describe("Sprint 3 — Edge tests", () => {
   it("E6: createInitialChatMessages with partial prompts uses defaults for missing fields", () => {
     const prompts: InstancePrompts = {
       firstMessage: { default: "Custom greeting only." },
-      // no defaultSuggestions → should use hardcoded ANONYMOUS suggestions
+      // no defaultSuggestions → should use default ANONYMOUS suggestions
     };
     const [msg] = createInitialChatMessages("ANONYMOUS", prompts);
     expect(msg.content).toContain("Custom greeting only.");
-    expect(msg.content).toContain("Audit this workflow");
+    expect(msg.content).toContain("Plan this workflow");
   });
 
   it("E7: BrandHeader hero renders correctly when prompts has only heroHeading", () => {

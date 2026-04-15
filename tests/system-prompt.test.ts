@@ -7,8 +7,8 @@ import { ChatPolicyInteractor } from "@/core/use-cases/ChatPolicyInteractor";
 import { ConversationEventRecorder } from "@/core/use-cases/ConversationEventRecorder";
 import { ConversationEventDataMapper } from "@/adapters/ConversationEventDataMapper";
 import { buildCorpusBasePrompt } from "@/lib/corpus-vocabulary";
-import { promptSet, promptRollback } from "@mcp/prompt-tool";
-import type { PromptToolDeps } from "@mcp/prompt-tool";
+import { promptSet, promptRollback } from "@/lib/capabilities/shared/prompt-tool";
+import type { PromptToolDeps } from "@/lib/capabilities/shared/prompt-tool";
 
 function freshDb(): Database.Database {
   const db = new Database(":memory:");
@@ -161,6 +161,13 @@ describe("Prompt management operations", () => {
     expect(active).not.toBeNull();
     expect(active!.version).toBe(1);
     expect(active!.content).toBe(buildCorpusBasePrompt());
+  });
+
+  it("includes APPRENTICE directive coverage in seeded prompt slots", async () => {
+    const apprentice = await repo.getActive("APPRENTICE", "role_directive");
+    expect(apprentice).not.toBeNull();
+    expect(apprentice!.version).toBe(1);
+    expect(apprentice!.content).toContain("APPRENTICE (STUDENT)");
   });
 
   it("set creates and activates new version", async () => {

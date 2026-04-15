@@ -1,23 +1,23 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-08T15:02:24.750Z",
+  "generatedAt": "2026-04-12T16:07:23.936Z",
   "bundleId": "agent-runtime-truthfulness-and-retrieval-integrity",
   "status": "passed",
   "inventory": {
-    "generatedAt": "2026-04-08T15:02:24.750Z",
+    "generatedAt": "2026-04-12T16:07:19.151Z",
     "corpus": {
       "name": "Second Renaissance Knowledge System",
-      "documentCount": 10,
-      "sectionCount": 87,
+      "documentCount": 11,
+      "sectionCount": 93,
       "routeBase": "/library"
     },
     "tools": {
       "countsByRole": {
         "ANONYMOUS": 10,
-        "AUTHENTICATED": 25,
-        "APPRENTICE": 25,
-        "STAFF": 25,
-        "ADMIN": 54
+        "AUTHENTICATED": 26,
+        "APPRENTICE": 26,
+        "STAFF": 26,
+        "ADMIN": 55
       },
       "manifestsByRole": {
         "ANONYMOUS": [
@@ -33,7 +33,7 @@
           },
           {
             "name": "get_corpus_summary",
-            "description": "Get an overview of all 10 books and their chapters.",
+            "description": "Get an overview of all 11 books and their chapters.",
             "category": "content"
           },
           {
@@ -43,7 +43,7 @@
           },
           {
             "name": "inspect_runtime_context",
-            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools, the current page, and prompt provenance when requested.",
             "category": "system"
           },
           {
@@ -63,7 +63,7 @@
           },
           {
             "name": "search_corpus",
-            "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+            "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
             "category": "content"
           },
           {
@@ -82,6 +82,11 @@
             "name": "calculator",
             "description": "Performs arithmetic. Mandatory for every math calculation.",
             "category": "math"
+          },
+          {
+            "name": "compose_media",
+            "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
+            "category": "content"
           },
           {
             "name": "generate_audio",
@@ -105,7 +110,7 @@
           },
           {
             "name": "get_corpus_summary",
-            "description": "Get an overview of all 10 books and their chapters.",
+            "description": "Get an overview of all 11 books and their chapters.",
             "category": "content"
           },
           {
@@ -135,12 +140,12 @@
           },
           {
             "name": "get_section",
-            "description": "Retrieve full content of a specific section.",
+            "description": "Retrieve structured full content, canonical metadata, and related sections for a specific section.",
             "category": "content"
           },
           {
             "name": "inspect_runtime_context",
-            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools, the current page, and prompt provenance when requested.",
             "category": "system"
           },
           {
@@ -175,7 +180,7 @@
           },
           {
             "name": "search_corpus",
-            "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+            "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
             "category": "content"
           },
           {
@@ -211,6 +216,11 @@
             "category": "math"
           },
           {
+            "name": "compose_media",
+            "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
+            "category": "content"
+          },
+          {
             "name": "generate_audio",
             "description": "Generate in-chat audio player.",
             "category": "ui"
@@ -232,7 +242,7 @@
           },
           {
             "name": "get_corpus_summary",
-            "description": "Get an overview of all 10 books and their chapters.",
+            "description": "Get an overview of all 11 books and their chapters.",
             "category": "content"
           },
           {
@@ -262,12 +272,12 @@
           },
           {
             "name": "get_section",
-            "description": "Retrieve full content of a specific section.",
+            "description": "Retrieve structured full content, canonical metadata, and related sections for a specific section.",
             "category": "content"
           },
           {
             "name": "inspect_runtime_context",
-            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools, the current page, and prompt provenance when requested.",
             "category": "system"
           },
           {
@@ -302,7 +312,7 @@
           },
           {
             "name": "search_corpus",
-            "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+            "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
             "category": "content"
           },
           {
@@ -338,6 +348,11 @@
             "category": "math"
           },
           {
+            "name": "compose_media",
+            "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
+            "category": "content"
+          },
+          {
             "name": "generate_audio",
             "description": "Generate in-chat audio player.",
             "category": "ui"
@@ -359,7 +374,7 @@
           },
           {
             "name": "get_corpus_summary",
-            "description": "Get an overview of all 10 books and their chapters.",
+            "description": "Get an overview of all 11 books and their chapters.",
             "category": "content"
           },
           {
@@ -389,12 +404,12 @@
           },
           {
             "name": "get_section",
-            "description": "Retrieve full content of a specific section.",
+            "description": "Retrieve structured full content, canonical metadata, and related sections for a specific section.",
             "category": "content"
           },
           {
             "name": "inspect_runtime_context",
-            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools, the current page, and prompt provenance when requested.",
             "category": "system"
           },
           {
@@ -429,7 +444,7 @@
           },
           {
             "name": "search_corpus",
-            "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+            "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
             "category": "content"
           },
           {
@@ -500,6 +515,11 @@
             "category": "content"
           },
           {
+            "name": "compose_media",
+            "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
+            "category": "content"
+          },
+          {
             "name": "draft_content",
             "description": "Draft a journal article as structured markdown. Use markdown headings, lists, links, quotes, tables, or fenced code blocks as appropriate. Do not repeat the title inside the content body. The article is saved as a draft that must be explicitly published by an admin.",
             "category": "content"
@@ -541,7 +561,7 @@
           },
           {
             "name": "get_corpus_summary",
-            "description": "Get an overview of all 10 books and their chapters.",
+            "description": "Get an overview of all 11 books and their chapters.",
             "category": "content"
           },
           {
@@ -586,12 +606,12 @@
           },
           {
             "name": "get_section",
-            "description": "Retrieve full content of a specific section.",
+            "description": "Retrieve structured full content, canonical metadata, and related sections for a specific section.",
             "category": "content"
           },
           {
             "name": "inspect_runtime_context",
-            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools and the current page.",
+            "description": "Inspect the current role-scoped runtime context for truthful meta answers about available tools, the current page, and prompt provenance when requested.",
             "category": "system"
           },
           {
@@ -681,7 +701,7 @@
           },
           {
             "name": "search_corpus",
-            "description": "Search across all 10 books (87 chapters) in the Second Renaissance Knowledge System.",
+            "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
             "category": "content"
           },
           {
@@ -1012,7 +1032,1402 @@
           }
         ]
       }
+    },
+    "mcp": {
+      "processCount": 2,
+      "processes": [
+        {
+          "id": "calculator",
+          "serverName": "calculator-mcp-server",
+          "entrypoint": "mcp/calculator-server.ts",
+          "canonicalCommand": "npm run mcp:calculator",
+          "compatibilityAliases": [],
+          "capabilityGroups": [
+            "math"
+          ]
+        },
+        {
+          "id": "operations",
+          "serverName": "operations-mcp-server",
+          "entrypoint": "mcp/operations-server.ts",
+          "canonicalCommand": "npm run mcp:operations",
+          "compatibilityAliases": [],
+          "capabilityGroups": [
+            "embeddings",
+            "corpus",
+            "prompt",
+            "analytics"
+          ]
+        }
+      ]
     }
+  },
+  "eliteOps": {
+    "version": 1,
+    "generatedAt": "2026-04-12T16:07:23.936Z",
+    "status": "passed",
+    "architectureDrift": {
+      "status": "passed",
+      "checks": [
+        {
+          "id": "tool_registry_primary_runtime_path",
+          "label": "Internal ToolRegistry remains the primary runtime path",
+          "status": "passed",
+          "expected": "tool-composition-root builds the internal ToolRegistry without importing the MCP SDK.",
+          "observed": "hasToolRegistry=true; hasRbacGuard=true; importsMcpSdk=false",
+          "sources": [
+            "src/lib/chat/tool-composition-root.ts"
+          ]
+        },
+        {
+          "id": "mcp_transport_boundary_canonical",
+          "label": "mcp/ stays transport-only",
+          "status": "passed",
+          "expected": "[\"calculator-server.ts\",\"operations-server.ts\"]",
+          "observed": "[\"calculator-server.ts\",\"operations-server.ts\"]",
+          "sources": [
+            "mcp",
+            "src/core/capability-catalog/mcp-process-metadata.ts"
+          ]
+        },
+        {
+          "id": "operations_inventory_matches_shared_exports",
+          "label": "Recorded operations MCP inventory matches shared export schemas",
+          "status": "passed",
+          "expected": "[\"conversation_analytics\",\"conversation_cohort\",\"conversation_inspect\",\"corpus_add_document\",\"corpus_add_section\",\"corpus_get\",\"corpus_list\",\"corpus_remove_document\",\"corpus_remove_section\",\"delete_embeddings\",\"embed_document\",\"embed_text\",\"get_index_stats\",\"prompt_diff\",\"prompt_get\",\"prompt_get_provenance\",\"prompt_list\",\"prompt_rollback\",\"prompt_set\",\"rebuild_index\",\"search_similar\"]",
+          "observed": "[\"conversation_analytics\",\"conversation_cohort\",\"conversation_inspect\",\"corpus_add_document\",\"corpus_add_section\",\"corpus_get\",\"corpus_list\",\"corpus_remove_document\",\"corpus_remove_section\",\"delete_embeddings\",\"embed_document\",\"embed_text\",\"get_index_stats\",\"prompt_diff\",\"prompt_get\",\"prompt_get_provenance\",\"prompt_list\",\"prompt_rollback\",\"prompt_set\",\"rebuild_index\",\"search_similar\"]",
+          "sources": [
+            "tests/mcp/transport/operations-tool-inventory.json",
+            "src/lib/capabilities/shared/embedding-tool.ts",
+            "src/lib/capabilities/shared/librarian-tool.ts",
+            "src/lib/capabilities/shared/prompt-tool.ts",
+            "src/lib/capabilities/shared/analytics-tool.ts"
+          ]
+        },
+        {
+          "id": "runtime_inventory_tracks_mcp_process_metadata",
+          "label": "Runtime inventory MCP processes match canonical process metadata",
+          "status": "passed",
+          "expected": "[{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
+          "observed": "[{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
+          "sources": [
+            "src/lib/evals/runtime-integrity-evidence.ts",
+            "src/core/capability-catalog/mcp-process-metadata.ts"
+          ]
+        },
+        {
+          "id": "active_docs_match_runtime_story",
+          "label": "Active operations docs match the governed runtime story",
+          "status": "passed",
+          "expected": "Process and system docs describe MCP as a thin export boundary and the internal ToolRegistry as the primary runtime.",
+          "observed": "processModelHasThinBoundary=true; processModelHasCommands=true; systemArchitectureHasExportStory=true; systemArchitectureHasToolRegistry=true",
+          "sources": [
+            "docs/operations/process-model.md",
+            "docs/operations/system-architecture.md"
+          ]
+        },
+        {
+          "id": "release_evidence_promotes_elite_ops_summary",
+          "label": "Release evidence promotes Sprint 25 elite-ops summaries",
+          "status": "passed",
+          "expected": "release-evidence exposes a top-level eliteOps summary derived from runtime-integrity evidence.",
+          "observed": "hasEliteOpsField=true; readsRuntimeEliteOps=true",
+          "sources": [
+            "src/lib/evals/release-evidence.ts"
+          ]
+        }
+      ],
+      "blockingReasons": [],
+      "warnings": []
+    },
+    "rbacMatrix": {
+      "status": "passed",
+      "entries": [
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "navigate_to_page",
+          "role": "ANONYMOUS",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Navigation stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "navigate_to_page",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Navigation stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "navigate_to_page",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Navigation stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "navigate_to_page",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Navigation stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "navigate_to_page",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Navigation stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_corpus",
+          "role": "ANONYMOUS",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Corpus retrieval stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_corpus",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Corpus retrieval stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_corpus",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Corpus retrieval stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_corpus",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Corpus retrieval stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_corpus",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Corpus retrieval stays available to every runtime role.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "generate_chart",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Chart generation stays scoped to signed-in roles.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "generate_chart",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Chart generation stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "generate_chart",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Chart generation stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "generate_chart",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Chart generation stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "generate_chart",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Chart generation stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_my_conversations",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Private conversation search stays scoped to signed-in roles.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_my_conversations",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Private conversation search stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_my_conversations",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Private conversation search stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_my_conversations",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Private conversation search stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "search_my_conversations",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Private conversation search stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_my_affiliate_summary",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Affiliate self-serve tooling stays scoped to signed-in roles.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_my_affiliate_summary",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Affiliate self-serve tooling stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_my_affiliate_summary",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Affiliate self-serve tooling stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_my_affiliate_summary",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Affiliate self-serve tooling stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_my_affiliate_summary",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Affiliate self-serve tooling stays scoped to signed-in roles.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "admin_search",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin search stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "admin_search",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin search stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "admin_search",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin search stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "admin_search",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin search stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "admin_search",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Admin search stays operator-only.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_admin_affiliate_summary",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin affiliate analytics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_admin_affiliate_summary",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin affiliate analytics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_admin_affiliate_summary",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin affiliate analytics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_admin_affiliate_summary",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Admin affiliate analytics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "get_admin_affiliate_summary",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Admin affiliate analytics stay operator-only.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "draft_content",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Content drafting stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "draft_content",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Content drafting stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "draft_content",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Content drafting stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "draft_content",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Content drafting stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "tool",
+          "surfaceId": "draft_content",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Content drafting stays operator-only.",
+          "mechanisms": [
+            "runtime_manifest"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/library",
+          "role": "ANONYMOUS",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The library remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/library",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The library remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/library",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The library remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/library",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The library remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/library",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The library remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/journal",
+          "role": "ANONYMOUS",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The public journal remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/journal",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The public journal remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/journal",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The public journal remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/journal",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The public journal remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/journal",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The public journal remains visible to every role.",
+          "mechanisms": [
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/jobs",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Job history stays scoped to signed-in users.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/jobs",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Job history stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/jobs",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Job history stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/jobs",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Job history stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/jobs",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Job history stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/profile",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Profile access stays scoped to signed-in users.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/profile",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Profile access stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/profile",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Profile access stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/profile",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Profile access stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/profile",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Profile access stays scoped to signed-in users.",
+          "mechanisms": [
+            "account",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "The admin dashboard stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "The admin dashboard stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "The admin dashboard stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "The admin dashboard stays operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "The admin dashboard stays operator-only.",
+          "mechanisms": [
+            "account",
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/system",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "System diagnostics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/system",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "System diagnostics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/system",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "System diagnostics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/system",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "System diagnostics stay operator-only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/system",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "System diagnostics stay operator-only.",
+          "mechanisms": [
+            "account",
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/journal",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Editorial workflow access stays staff-or-admin only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/journal",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Editorial workflow access stays staff-or-admin only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/journal",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Editorial workflow access stays staff-or-admin only.",
+          "mechanisms": []
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/journal",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Editorial workflow access stays staff-or-admin only.",
+          "mechanisms": [
+            "account"
+          ]
+        },
+        {
+          "surfaceKind": "route",
+          "surfaceId": "/admin/journal",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Editorial workflow access stays staff-or-admin only.",
+          "mechanisms": [
+            "account",
+            "command",
+            "footer"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "calculator:calculator",
+          "role": "ANONYMOUS",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Calculator remains dual-surface across runtime and MCP.",
+          "mechanisms": [
+            "transport_export:calculator"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "calculator:calculator",
+          "role": "AUTHENTICATED",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Calculator remains dual-surface across runtime and MCP.",
+          "mechanisms": [
+            "transport_export:calculator"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "calculator:calculator",
+          "role": "APPRENTICE",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Calculator remains dual-surface across runtime and MCP.",
+          "mechanisms": [
+            "transport_export:calculator"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "calculator:calculator",
+          "role": "STAFF",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Calculator remains dual-surface across runtime and MCP.",
+          "mechanisms": [
+            "transport_export:calculator"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "calculator:calculator",
+          "role": "ADMIN",
+          "expected": "allow",
+          "observed": "allow",
+          "status": "passed",
+          "rationale": "Calculator remains dual-surface across runtime and MCP.",
+          "mechanisms": [
+            "transport_export:calculator"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_set",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt mutation remains MCP-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_set",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt mutation remains MCP-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_set",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt mutation remains MCP-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_set",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt mutation remains MCP-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_set",
+          "role": "ADMIN",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt mutation remains MCP-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_get_provenance",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt provenance replay stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_get_provenance",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt provenance replay stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_get_provenance",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt provenance replay stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_get_provenance",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt provenance replay stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:prompt_get_provenance",
+          "role": "ADMIN",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Prompt provenance replay stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:conversation_analytics",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Conversation analytics remain export-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:conversation_analytics",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Conversation analytics remain export-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:conversation_analytics",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Conversation analytics remain export-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:conversation_analytics",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Conversation analytics remain export-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:conversation_analytics",
+          "role": "ADMIN",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Conversation analytics remain export-only.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:corpus_list",
+          "role": "ANONYMOUS",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Corpus management stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:corpus_list",
+          "role": "AUTHENTICATED",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Corpus management stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:corpus_list",
+          "role": "APPRENTICE",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Corpus management stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:corpus_list",
+          "role": "STAFF",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Corpus management stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        },
+        {
+          "surfaceKind": "mcp_export",
+          "surfaceId": "operations:corpus_list",
+          "role": "ADMIN",
+          "expected": "deny",
+          "observed": "deny",
+          "status": "passed",
+          "rationale": "Corpus management stays on the operations export boundary.",
+          "mechanisms": [
+            "transport_export:operations"
+          ]
+        }
+      ],
+      "summary": {
+        "totalEntries": 100,
+        "failedEntries": 0,
+        "toolEntries": 40,
+        "routeEntries": 35,
+        "mcpExportEntries": 25
+      },
+      "blockingReasons": [],
+      "warnings": []
+    },
+    "latencyBudgets": {
+      "status": "passed",
+      "measurements": [
+        {
+          "id": "retrieval_preparation",
+          "label": "Retrieval preparation",
+          "budgetMs": 250,
+          "observedMs": 5.581665999998222,
+          "status": "passed",
+          "notes": [
+            "vectorTokens=9",
+            "bm25Tokens=9",
+            "Measures query normalization and synonym expansion only, not full retrieval, to avoid local embedder variance."
+          ]
+        },
+        {
+          "id": "prompt_assembly",
+          "label": "Prompt assembly",
+          "budgetMs": 1500,
+          "observedMs": 1.969000000000051,
+          "status": "passed",
+          "notes": [
+            "Measures the governed ADMIN prompt assembly path with the live tool manifest."
+          ]
+        },
+        {
+          "id": "first_tool_execution",
+          "label": "First tool execution",
+          "budgetMs": 1500,
+          "observedMs": 4.691459000000123,
+          "status": "passed",
+          "notes": [
+            "Measures the first governed calculator execution through the composition root."
+          ]
+        },
+        {
+          "id": "representative_mcp_round_trip",
+          "label": "Representative MCP stdio round trip",
+          "budgetMs": 8000,
+          "observedMs": 1292.306875,
+          "status": "passed",
+          "notes": [
+            "Measures calculator MCP stdio startup, call, and teardown as the representative export path."
+          ]
+        }
+      ],
+      "blockingReasons": [],
+      "warnings": [
+        "Budgets are intentionally generous and rely on representative local samples so the gate catches order-of-magnitude regressions rather than incidental variance."
+      ]
+    },
+    "failureModes": {
+      "status": "passed",
+      "probes": [
+        {
+          "id": "provider_fallback_path",
+          "label": "Provider fallback path",
+          "status": "passed",
+          "diagnostic": "modelCandidates=3; classification=model_not_found",
+          "expectedSignal": "Model-not-found failures classify predictably and both provider callers emit model_fallback events.",
+          "evidenceSources": [
+            "src/lib/chat/provider-policy.ts",
+            "src/lib/chat/anthropic-stream.ts",
+            "src/lib/chat/anthropic-client.ts"
+          ]
+        },
+        {
+          "id": "env_misconfiguration_path",
+          "label": "Missing key / env misconfiguration path",
+          "status": "passed",
+          "diagnostic": "ANTHROPIC_API_KEY/API__ANTHROPIC_API_KEY must be set to a non-empty value.",
+          "expectedSignal": "Missing Anthropic configuration fails fast with an explicit non-empty-value error.",
+          "evidenceSources": [
+            "src/lib/config/env.ts",
+            "src/lib/admin/processes.ts"
+          ]
+        },
+        {
+          "id": "db_busy_timeout_path",
+          "label": "DB busy / lock contention path",
+          "status": "passed",
+          "diagnostic": "busy_timeout=5000",
+          "expectedSignal": "SQLite connections advertise a 5000ms busy_timeout before surfacing SQLITE_BUSY.",
+          "evidenceSources": [
+            "src/lib/db/index.ts"
+          ]
+        },
+        {
+          "id": "mcp_startup_failure_diagnostics",
+          "label": "MCP process startup failure diagnostics",
+          "status": "passed",
+          "diagnostic": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts' imported from /Users/kwilliams/Projects/ordoSite/\n    at finalizeResolution (node:internal/modules/esm/resolve:271:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at defaultResolve (node:internal/modules/esm/resolve:988:11)\n    at nextResolve (node:internal/modules/esm/hooks:769:28)\n    at resolveBase (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776010043802:2:3744)\n    at async resolveDirectory (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776010043802:2:4237)\n    at async resolve (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776010043802:2:5355)\n    at async nextResolve (node:internal/modules/esm/hooks:769:22)\n    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:265:24)\n    at async handleMessage (node:internal/modules/esm/worker:251:18) {\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: 'file:///Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts'\n}\n\nNode.js v25.9.0",
+          "expectedSignal": "A broken MCP entrypoint fails fast with an explicit missing-module diagnostic.",
+          "evidenceSources": [
+            "tests/mcp/transport/stdio-harness.ts",
+            "mcp"
+          ]
+        }
+      ],
+      "blockingReasons": [],
+      "warnings": []
+    },
+    "blockingReasons": [],
+    "warnings": [
+      "Budgets are intentionally generous and rely on representative local samples so the gate catches order-of-magnitude regressions rather than incidental variance."
+    ]
   },
   "coverage": {
     "deterministicScenarioIds": [
@@ -1026,6 +2441,7 @@
       "live-duplicate-navigation-avoidance"
     ],
     "focusedTestSuites": [
+      "tests/evals/elite-ops-evidence.test.ts",
       "tests/evals/runtime-integrity-checks.test.ts",
       "tests/evals/eval-scenarios.test.ts",
       "tests/evals/eval-runner.test.ts",
@@ -1060,12 +2476,14 @@
   },
   "review": {
     "blockingReasons": [],
-    "warnings": []
+    "warnings": [
+      "Budgets are intentionally generous and rely on representative local samples so the gate catches order-of-magnitude regressions rather than incidental variance."
+    ]
   },
   "steps": [
     {
       "label": "integrity eval suites",
-      "command": "npm exec vitest run tests/evals/runtime-integrity-checks.test.ts tests/evals/eval-scenarios.test.ts tests/evals/eval-runner.test.ts tests/evals/eval-live-runner.test.ts tests/evals/eval-release-evidence.test.ts tests/evals/runtime-integrity-evidence.test.ts src/lib/corpus-vocabulary.test.ts src/lib/readme-drift.test.ts src/core/use-cases/tools/search-corpus.tool.test.ts src/core/tool-registry/ToolResultFormatter.test.ts src/core/use-cases/tools/inspect-runtime-context.tool.test.ts src/lib/chat/tool-composition-root.test.ts src/lib/chat/current-page-context.test.ts src/adapters/ChatPresenter.test.ts src/frameworks/ui/RichContentRenderer.test.tsx src/components/AudioPlayer.test.tsx",
+      "command": "npm exec vitest run tests/evals/elite-ops-evidence.test.ts tests/evals/runtime-integrity-checks.test.ts tests/evals/eval-scenarios.test.ts tests/evals/eval-runner.test.ts tests/evals/eval-live-runner.test.ts tests/evals/eval-release-evidence.test.ts tests/evals/runtime-integrity-evidence.test.ts src/lib/corpus-vocabulary.test.ts src/lib/readme-drift.test.ts src/core/use-cases/tools/search-corpus.tool.test.ts src/core/tool-registry/ToolResultFormatter.test.ts src/core/use-cases/tools/inspect-runtime-context.tool.test.ts src/lib/chat/tool-composition-root.test.ts src/lib/chat/current-page-context.test.ts src/adapters/ChatPresenter.test.ts src/frameworks/ui/RichContentRenderer.test.tsx src/components/AudioPlayer.test.tsx",
       "status": "passed"
     },
     {

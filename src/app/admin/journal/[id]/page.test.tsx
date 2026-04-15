@@ -149,7 +149,7 @@ describe("/admin/journal/[id] page", () => {
     render(await AdminJournalDetailPage({ params: Promise.resolve({ id: "post_1" }) }));
 
     expect(screen.getByRole("heading", { name: "Ops Ledger" })).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Ops Ledger")).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("Ops Ledger")).toHaveLength(2);
     expect(screen.getByPlaceholderText("Optional standfirst for the journal article.")).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Section" })).toHaveValue("");
     expect(screen.getByLabelText("Draft body")).toHaveValue("## Draft\n\nBody copy.");
@@ -162,11 +162,19 @@ describe("/admin/journal/[id] page", () => {
   it("renders metadata editing, draft-body editing, workflow controls, and revision restore actions", async () => {
     render(await AdminJournalDetailPage({ params: Promise.resolve({ id: "post_1" }) }));
 
-    expect(screen.getByRole("button", { name: "Save metadata" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Editor" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish article" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save settings" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Manual status" })).toHaveValue("review");
+    expect(screen.getByRole("button", { name: "Update status" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Workflow note")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save draft body" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Optional note describing this draft revision.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit for review" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Workflow change note for Submit for review")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Optional note for why this body revision is being recorded.")).toBeInTheDocument();
+    expect(screen.getByText("Advanced workflow")).toBeInTheDocument();
+    expect(screen.getByText("Post settings")).toBeInTheDocument();
+    expect(screen.getByText("Featured image")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Optional note describing this metadata edit.")).not.toBeInTheDocument();
     expect(screen.getByText("By admin_1")).toBeInTheDocument();
     expect(screen.getByText("Restore preview")).toBeInTheDocument();
     expect(screen.getByText("Matches current draft")).toBeInTheDocument();
@@ -209,7 +217,7 @@ describe("/admin/journal/[id] page", () => {
 
     render(await AdminJournalDetailPage({ params: Promise.resolve({ id: "post_1" }) }));
 
-    expect(screen.getByText("No hero candidates yet.")).toBeInTheDocument();
+    expect(screen.getByText("No hero image selected yet.")).toBeInTheDocument();
     expect(screen.getByText("No artifacts recorded yet.")).toBeInTheDocument();
   });
 
@@ -259,9 +267,11 @@ describe("/admin/journal/[id] page", () => {
     render(await AdminJournalDetailPage({ params: Promise.resolve({ id: "post_1" }) }));
 
     expect(screen.getByDisplayValue("Essay")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Published")).toBeInTheDocument();
-    expect(screen.getByText("Published Mar 26, 2026, 11:00 AM")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Return to approved" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Current publishing status: Published")).toBeInTheDocument();
+    expect(screen.getAllByText("Published Mar 26, 2026, 11:00 AM")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Publish article" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View published" })).toHaveAttribute("href", "/admin/journal/preview/ops-ledger");
+    expect(screen.getByRole("combobox", { name: "Manual status" })).toHaveValue("approved");
   });
 
   it("returns not found when the post id does not resolve", async () => {

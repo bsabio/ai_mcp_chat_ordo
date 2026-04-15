@@ -92,6 +92,10 @@ describe("useJobsEventStream", () => {
 
     render(<Harness selectedJobId={null} />);
 
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     expect(screen.getByTestId("sync-state")).toHaveTextContent("fallback");
 
     await act(async () => {

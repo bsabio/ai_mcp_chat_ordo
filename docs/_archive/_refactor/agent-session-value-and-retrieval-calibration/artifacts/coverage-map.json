@@ -1,0 +1,665 @@
+{
+  "generatedAt": "2026-04-10T10:06:21.131Z",
+  "sampleSize": 10,
+  "chapters": [
+    {
+      "bookSlug": "archetype-atlas",
+      "sectionSlug": "ch01-what-an-archetype-is",
+      "sectionTitle": "What an Archetype Is (And Isn't)",
+      "expectedCanonicalPath": "/library/archetype-atlas/ch01-what-an-archetype-is",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0.2,
+      "benchmarkRuns": [
+        {
+          "query": "what is an archetype",
+          "expectedHitRank": 3,
+          "topHitCanonicalPath": "/library/sources-and-lineage/ch06-jung-mark-pearson",
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch06-jung-mark-pearson",
+            "/library/sources-and-lineage/ch06-jung-mark-pearson",
+            "/library/archetype-atlas/ch01-what-an-archetype-is"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "define archetype",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "archetype meaning",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/identity-system/ch13-archetype-design-primitives-table",
+          "top3CanonicalPaths": [
+            "/library/identity-system/ch13-archetype-design-primitives-table",
+            "/library/sources-and-lineage/ch06-jung-mark-pearson",
+            "/library/sources-and-lineage/ch06-jung-mark-pearson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how should i think about archetypes",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "no_results",
+          "retrievalQuality": "none"
+        },
+        {
+          "query": "archetype framework definition",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/sources-and-lineage/ch06-jung-mark-pearson",
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch06-jung-mark-pearson",
+            "/library/sources-and-lineage/ch06-jung-mark-pearson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "partial"
+    },
+    {
+      "bookSlug": "building-ai-native-systems",
+      "sectionSlug": "ch01-llm-application-engineering",
+      "sectionTitle": "LLM Application Engineering: What It Actually Means",
+      "expectedCanonicalPath": "/library/building-ai-native-systems/ch01-llm-application-engineering",
+      "queriesTested": 5,
+      "top1HitRate": 0.4,
+      "top3HitRate": 0.4,
+      "benchmarkRuns": [
+        {
+          "query": "what is llm application engineering",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/building-ai-native-systems/ch01-llm-application-engineering",
+          "top3CanonicalPaths": [
+            "/library/building-ai-native-systems/ch01-llm-application-engineering",
+            "/library/curriculum-architecture/ch02-eight-course-spine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "building an llm application",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/building-ai-native-systems/ch01-llm-application-engineering",
+          "top3CanonicalPaths": [
+            "/library/building-ai-native-systems/ch01-llm-application-engineering"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "application engineering for language models",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "ai-native application engineering",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "shipping production llm systems",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "partial"
+    },
+    {
+      "bookSlug": "curriculum-architecture",
+      "sectionSlug": "ch01-trivium-quadrivium",
+      "sectionTitle": "The Updated Trivium and Quadrivium: A Formation Model for the AI Era",
+      "expectedCanonicalPath": "/library/curriculum-architecture/ch01-trivium-quadrivium",
+      "queriesTested": 5,
+      "top1HitRate": 0.8,
+      "top3HitRate": 1,
+      "benchmarkRuns": [
+        {
+          "query": "updated trivium and quadrivium",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/curriculum-architecture/ch01-trivium-quadrivium",
+          "top3CanonicalPaths": [
+            "/library/curriculum-architecture/ch01-trivium-quadrivium"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "formation model for the ai era",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/curriculum-architecture/ch01-trivium-quadrivium",
+          "top3CanonicalPaths": [
+            "/library/curriculum-architecture/ch01-trivium-quadrivium",
+            "/library/formation-and-governance/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "curriculum trivium quadrivium",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/curriculum-architecture/ch01-trivium-quadrivium",
+          "top3CanonicalPaths": [
+            "/library/curriculum-architecture/ch01-trivium-quadrivium",
+            "/library/sources-and-lineage/ch00-the-thread",
+            "/library/curriculum-architecture/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "modern trivium quadrivium model",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/curriculum-architecture/ch01-trivium-quadrivium",
+          "top3CanonicalPaths": [
+            "/library/curriculum-architecture/ch01-trivium-quadrivium"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "classical formation for ai builders",
+          "expectedHitRank": 2,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [
+            "/library/curriculum-architecture/ch01-trivium-quadrivium",
+            "/library/formation-and-governance/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "strong"
+    },
+    {
+      "bookSlug": "formation-and-governance",
+      "sectionSlug": "ch01-whole-person-formation",
+      "sectionTitle": "Whole-Person Formation vs. Content Delivery",
+      "expectedCanonicalPath": "/library/formation-and-governance/ch01-whole-person-formation",
+      "queriesTested": 5,
+      "top1HitRate": 0.4,
+      "top3HitRate": 0.6,
+      "benchmarkRuns": [
+        {
+          "query": "whole-person formation",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/formation-and-governance/ch01-whole-person-formation",
+          "top3CanonicalPaths": [
+            "/library/formation-and-governance/ch01-whole-person-formation",
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/curriculum-architecture/ch01-trivium-quadrivium"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "formation versus content delivery",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/formation-and-governance/ch01-whole-person-formation",
+          "top3CanonicalPaths": [
+            "/library/formation-and-governance/ch01-whole-person-formation",
+            "/library/formation-and-governance/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "educating the whole person",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/signal-and-deployment/ch03-meetup-ladder",
+          "top3CanonicalPaths": [
+            "/library/signal-and-deployment/ch03-meetup-ladder",
+            "/library/identity-system/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "formation and governance curriculum",
+          "expectedHitRank": 3,
+          "topHitCanonicalPath": "/library/formation-and-governance/ch00-the-thread",
+          "top3CanonicalPaths": [
+            "/library/formation-and-governance/ch00-the-thread",
+            "/library/formation-and-governance/ch04-nist-ai-rmf",
+            "/library/formation-and-governance/ch01-whole-person-formation"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "whole person education model",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/formation-and-governance/ch00-the-thread",
+          "top3CanonicalPaths": [
+            "/library/formation-and-governance/ch00-the-thread",
+            "/library/curriculum-architecture/ch01-trivium-quadrivium",
+            "/library/sources-and-lineage/ch08-erikson-anderson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "partial"
+    },
+    {
+      "bookSlug": "identity-system",
+      "sectionSlug": "ch01-the-one-line-system",
+      "sectionTitle": "The One-Line System",
+      "expectedCanonicalPath": "/library/identity-system/ch01-the-one-line-system",
+      "queriesTested": 5,
+      "top1HitRate": 0.6,
+      "top3HitRate": 0.6,
+      "benchmarkRuns": [
+        {
+          "query": "what is the one-line system",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/identity-system/ch01-the-one-line-system",
+          "top3CanonicalPaths": [
+            "/library/identity-system/ch01-the-one-line-system",
+            "/library/identity-system/ch15-invariants-forbidden-states-rubric"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "one line system identity",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/sources-and-lineage/ch08-erikson-anderson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "identity one-line system",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/identity-system/ch01-the-one-line-system",
+          "top3CanonicalPaths": [
+            "/library/identity-system/ch01-the-one-line-system",
+            "/library/sources-and-lineage/ch08-erikson-anderson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "one-line identity framework",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/identity-system/ch01-the-one-line-system",
+          "top3CanonicalPaths": [
+            "/library/identity-system/ch01-the-one-line-system",
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/sources-and-lineage/ch06-jung-mark-pearson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how the one line system works",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [
+            "/library/curriculum-architecture/ch02-eight-course-spine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "partial"
+    },
+    {
+      "bookSlug": "perception-visual-intelligence",
+      "sectionSlug": "ch01-what-happens-in-the-first-second",
+      "sectionTitle": "What Happens in the First Second",
+      "expectedCanonicalPath": "/library/perception-visual-intelligence/ch01-what-happens-in-the-first-second",
+      "queriesTested": 5,
+      "top1HitRate": 0.4,
+      "top3HitRate": 0.4,
+      "benchmarkRuns": [
+        {
+          "query": "what happens in the first second",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/perception-visual-intelligence/ch01-what-happens-in-the-first-second",
+          "top3CanonicalPaths": [
+            "/library/perception-visual-intelligence/ch01-what-happens-in-the-first-second",
+            "/library/perception-visual-intelligence/ch00-the-thread",
+            "/library/sources-and-lineage/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "first second visual judgment",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/perception-visual-intelligence/ch01-what-happens-in-the-first-second",
+          "top3CanonicalPaths": [
+            "/library/perception-visual-intelligence/ch01-what-happens-in-the-first-second",
+            "/library/perception-visual-intelligence/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "initial visual impression",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [
+            "/library/perception-visual-intelligence/ch06-visual-congruence-check"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "first-second perception model",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/identity-system/ch06-layer-4-5-perception-attention",
+          "top3CanonicalPaths": [
+            "/library/identity-system/ch06-layer-4-5-perception-attention",
+            "/library/perception-visual-intelligence/ch00-the-thread",
+            "/library/curriculum-architecture/ch01-trivium-quadrivium"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how visual judgment starts",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "partial"
+    },
+    {
+      "bookSlug": "second-renaissance",
+      "sectionSlug": "ch01-why-now",
+      "sectionTitle": "Why Now: The Printing Press Analogy",
+      "expectedCanonicalPath": "/library/second-renaissance/ch01-why-now",
+      "queriesTested": 5,
+      "top1HitRate": 0.8,
+      "top3HitRate": 1,
+      "benchmarkRuns": [
+        {
+          "query": "printing press analogy",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/second-renaissance/ch01-why-now",
+          "top3CanonicalPaths": [
+            "/library/second-renaissance/ch01-why-now",
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/sources-and-lineage/ch01-eisenstein"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "why now printing press",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/second-renaissance/ch01-why-now",
+          "top3CanonicalPaths": [
+            "/library/second-renaissance/ch01-why-now",
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/sources-and-lineage/ch01-eisenstein"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "ai and the printing press",
+          "expectedHitRank": 2,
+          "topHitCanonicalPath": "/library/second-renaissance/ch00-the-thread",
+          "top3CanonicalPaths": [
+            "/library/second-renaissance/ch00-the-thread",
+            "/library/second-renaissance/ch01-why-now",
+            "/library/sources-and-lineage/ch08-erikson-anderson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "second renaissance printing press comparison",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/second-renaissance/ch01-why-now",
+          "top3CanonicalPaths": [
+            "/library/second-renaissance/ch01-why-now",
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/sources-and-lineage/ch01-eisenstein"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "historical analogy for ai transition",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/second-renaissance/ch01-why-now",
+          "top3CanonicalPaths": [
+            "/library/second-renaissance/ch01-why-now",
+            "/library/sources-and-lineage/ch08-erikson-anderson"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "strong"
+    },
+    {
+      "bookSlug": "signal-and-deployment",
+      "sectionSlug": "ch01-portfolio-as-product",
+      "sectionTitle": "The Portfolio as Product, Not Homework",
+      "expectedCanonicalPath": "/library/signal-and-deployment/ch01-portfolio-as-product",
+      "queriesTested": 5,
+      "top1HitRate": 0.4,
+      "top3HitRate": 0.4,
+      "benchmarkRuns": [
+        {
+          "query": "portfolio as product",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "portfolio not homework",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/signal-and-deployment/ch01-portfolio-as-product",
+          "top3CanonicalPaths": [
+            "/library/signal-and-deployment/ch01-portfolio-as-product",
+            "/library/signal-and-deployment/ch00-the-thread",
+            "/library/identity-system/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "turn portfolio into a product",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "portfolio as deployed signal",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/signal-and-deployment/ch00-the-thread",
+          "top3CanonicalPaths": [
+            "/library/signal-and-deployment/ch00-the-thread",
+            "/library/building-ai-native-systems/ch06-forward-deployed-engineer",
+            "/library/sources-and-lineage/ch09-andreessen-pmf"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "why portfolio should be productized",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/signal-and-deployment/ch01-portfolio-as-product",
+          "top3CanonicalPaths": [
+            "/library/signal-and-deployment/ch01-portfolio-as-product",
+            "/library/signal-and-deployment/ch00-the-thread",
+            "/library/identity-system/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "partial"
+    },
+    {
+      "bookSlug": "sources-and-lineage",
+      "sectionSlug": "ch01-eisenstein",
+      "sectionTitle": "Elizabeth Eisenstein: The Printing Press and the Information Economy",
+      "expectedCanonicalPath": "/library/sources-and-lineage/ch01-eisenstein",
+      "queriesTested": 5,
+      "top1HitRate": 0.6,
+      "top3HitRate": 1,
+      "benchmarkRuns": [
+        {
+          "query": "Elizabeth Eisenstein printing press",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/sources-and-lineage/ch01-eisenstein",
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch01-eisenstein",
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/second-renaissance/ch01-why-now"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "Eisenstein information economy",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/sources-and-lineage/ch01-eisenstein",
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch01-eisenstein",
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/second-renaissance/ch02-political-economy-of-skills"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "print revolution information economy",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/sources-and-lineage/ch01-eisenstein",
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch01-eisenstein",
+            "/library/sources-and-lineage/ch02-dittmar",
+            "/library/second-renaissance/ch02-political-economy-of-skills"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "Eisenstein on print economics",
+          "expectedHitRank": 2,
+          "topHitCanonicalPath": "/library/sources-and-lineage/ch08-erikson-anderson",
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/sources-and-lineage/ch01-eisenstein",
+            "/library/trust-proof-persuasion/ch05-behavioral-economics-foundation"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "information economics of print",
+          "expectedHitRank": 2,
+          "topHitCanonicalPath": "/library/sources-and-lineage/ch08-erikson-anderson",
+          "top3CanonicalPaths": [
+            "/library/sources-and-lineage/ch08-erikson-anderson",
+            "/library/sources-and-lineage/ch01-eisenstein",
+            "/library/sources-and-lineage/ch02-dittmar"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "strong"
+    },
+    {
+      "bookSlug": "trust-proof-persuasion",
+      "sectionSlug": "ch01-trust-is-not-a-mood",
+      "sectionTitle": "Trust Is Not a Mood",
+      "expectedCanonicalPath": "/library/trust-proof-persuasion/ch01-trust-is-not-a-mood",
+      "queriesTested": 5,
+      "top1HitRate": 0.2,
+      "top3HitRate": 0.2,
+      "benchmarkRuns": [
+        {
+          "query": "trust is not a mood",
+          "expectedHitRank": 1,
+          "topHitCanonicalPath": "/library/trust-proof-persuasion/ch01-trust-is-not-a-mood",
+          "top3CanonicalPaths": [
+            "/library/trust-proof-persuasion/ch01-trust-is-not-a-mood",
+            "/library/identity-system/ch07-layer-6-trust",
+            "/library/trust-proof-persuasion/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how trust works structurally",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "trust proof persuasion",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/trust-proof-persuasion/ch04-ethical-guardrails",
+          "top3CanonicalPaths": [
+            "/library/trust-proof-persuasion/ch04-ethical-guardrails",
+            "/library/identity-system/ch13-archetype-design-primitives-table",
+            "/library/trust-proof-persuasion/ch03-proof-block-architecture"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "trust as structural proof",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [
+            "/library/trust-proof-persuasion/ch03-proof-block-architecture"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "what makes trust legible",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [
+            "/library/archetype-atlas/ch00-the-thread"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "partial"
+    }
+  ]
+}

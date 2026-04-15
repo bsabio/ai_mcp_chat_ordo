@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { getDb } from "@/lib/db";
-import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper";
+import { getUserPreferencesDataMapper } from "@/adapters/RepositoryFactory";
+
 
 export async function GET() {
   const user = await getSessionUser();
@@ -13,7 +13,7 @@ export async function GET() {
     );
   }
 
-  const repo = new UserPreferencesDataMapper(getDb());
+  const repo = getUserPreferencesDataMapper();
   const prefs = await repo.getAll(user.id);
   return NextResponse.json({ preferences: prefs });
 }
@@ -36,7 +36,7 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const repo = new UserPreferencesDataMapper(getDb());
+  const repo = getUserPreferencesDataMapper();
   for (const { key, value } of preferences) {
     if (typeof key !== "string" || typeof value !== "string") {
       return NextResponse.json(

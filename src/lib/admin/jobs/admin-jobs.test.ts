@@ -131,9 +131,10 @@ describe("admin jobs loader", () => {
     });
     expect(result.statusCounts).toEqual({ queued: 1, running: 1 });
     expect(result.toolNameCounts).toEqual({ produce_blog_article: 2 });
-    expect(result.familyCounts).toEqual({ editorial: 2 });
+    expect(result.familyCounts).toEqual({ editorial: 2, media: 0 });
     expect(result.familyOptions).toEqual([
       { value: "editorial", label: "Editorial", count: 2 },
+      { value: "media", label: "Media", count: 0 },
     ]);
     expect(result.toolOptions).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -142,6 +143,7 @@ describe("admin jobs loader", () => {
         family: "editorial",
       }),
     ]));
+    expect(result.toolOptions.some((option) => option.value === "compose_media")).toBe(false);
     expect(result.jobs[0]).toMatchObject({
       id: "job_1",
       toolName: "produce_blog_article",

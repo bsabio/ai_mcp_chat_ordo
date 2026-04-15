@@ -14,6 +14,7 @@ export interface JournalAttributionEntry {
 export async function loadJournalAttribution(
   options?: { afterDate?: string; beforeDate?: string },
 ): Promise<JournalAttributionEntry[]> {
+  // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
 
   // Get all published journal posts in the date range
@@ -79,6 +80,7 @@ export async function loadSinglePostAttribution(
   dealsGenerated: number;
   estimatedRevenue: number;
 } | null> {
+  // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
 
   const sql = `

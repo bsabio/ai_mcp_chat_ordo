@@ -1,12 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
-import {
-  getAnthropicRequestRetryAttempts,
-  getAnthropicRequestRetryDelayMs,
-  getAnthropicRequestTimeoutMs,
-  getModelFallbacks,
-} from "@/lib/config/env";
 import { createAbortTimeout } from "@/lib/chat/disposability";
 import { CHAT_CONFIG } from "@/lib/chat/chat-config";
+import {
+  isModelNotFoundError,
+  isTimeoutError,
+  isTransientProviderError,
+  toErrorMessage,
+} from "@/lib/chat/provider-policy";
+import { ChatProviderError } from "@/lib/chat/provider-decorators";
+import {
+  createProviderRuntime,
+  type ProviderAttemptAction,
+} from "@/lib/chat/provider-runtime";
 
 export interface StreamCallbacks {
   onDelta?: (text: string) => void;
@@ -34,57 +39,74 @@ export interface ClaudeAgentLoopResult {
   toolResults: ClaudeAgentLoopToolResult[];
 }
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
+const providerRuntime = createProviderRuntime();
+
+function resolveAbortReason(signal?: AbortSignal): string {
+  const reason = signal?.reason;
+  if (typeof reason === "string" && reason.trim().length > 0) {
+    return reason;
+  }
+
+  if (reason instanceof Error && reason.message.trim().length > 0) {
+    return reason.message;
+  }
+
+  return "aborted";
 }
 
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unexpected provider error.";
+function createAbortError(signal?: AbortSignal): Error {
+  const error = new Error(resolveAbortReason(signal));
+  error.name = "AbortError";
+  return error;
 }
 
-function isModelNotFoundError(error: unknown): boolean {
-  const message = toErrorMessage(error).toLowerCase();
-  return message.includes("not_found_error") || message.includes("model:");
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof Error
+    && (error.name === "AbortError" || error.message.toLowerCase().includes("abort"));
 }
 
-function isTransientProviderError(error: unknown): boolean {
-  const message = toErrorMessage(error).toLowerCase();
-  return (
-    message.includes("timed out")
-    || message.includes("timeout")
-    || message.includes("rate limit")
-    || message.includes("429")
-    || message.includes("500")
-    || message.includes("502")
-    || message.includes("503")
-    || message.includes("network")
-    || message.includes("fetch failed")
-    || message.includes("temporarily unavailable")
+function normalizeStreamProviderError(error: unknown): Error {
+  return new ChatProviderError(
+    `Stream provider error: ${toErrorMessage(error)}`,
+    error,
   );
 }
 
-function isTimeoutError(error: unknown): boolean {
-  const message = toErrorMessage(error).toLowerCase();
-  return message.includes("timed out") || message.includes("timeout");
+function resolveStreamErrorAction({
+  error,
+  attempt,
+  retryAttempts,
+  timeoutMs,
+  completedRounds,
+}: {
+  error: unknown;
+  attempt: number;
+  retryAttempts: number;
+  timeoutMs: number;
+  completedRounds: number;
+}): ProviderAttemptAction {
+  if (isModelNotFoundError(error)) {
+    return { type: "next-model" };
+  }
+
+  if (isTimeoutError(error) && completedRounds > 0) {
+    return {
+      type: "throw",
+      error: new ChatProviderError(
+        `Stream provider timed out after ${timeoutMs}ms (round ${completedRounds}).`,
+        error,
+      ),
+    };
+  }
+
+  if (isTransientProviderError(error) && attempt < retryAttempts) {
+    return { type: "retry" };
+  }
+
+  return { type: "throw", error: normalizeStreamProviderError(error) };
 }
 
-export async function runClaudeAgentLoopStream({
-  apiKey,
-  messages,
-  callbacks,
-  maxToolRounds = CHAT_CONFIG.maxToolRounds,
-  signal,
-  systemPrompt,
-  tools,
-  toolExecutor,
-  client,
-  modelCandidates,
-  retryAttempts = getAnthropicRequestRetryAttempts(),
-  retryDelayMs = getAnthropicRequestRetryDelayMs(),
-  timeoutMs = getAnthropicRequestTimeoutMs(),
-}: {
+export async function runClaudeAgentLoopStream(options: {
   apiKey: string;
   messages: Anthropic.MessageParam[];
   callbacks: StreamCallbacks;
@@ -99,174 +121,205 @@ export async function runClaudeAgentLoopStream({
   retryDelayMs?: number;
   timeoutMs?: number;
 }): Promise<ClaudeAgentLoopResult> {
-  const models = modelCandidates ?? getModelFallbacks();
-
-  if (models.length === 0) {
-    throw new Error("No valid Anthropic model configured.");
-  }
+  const basePolicy = providerRuntime.resolvePolicy("stream");
+  const {
+    apiKey,
+    messages,
+    callbacks,
+    maxToolRounds = CHAT_CONFIG.maxToolRounds,
+    signal,
+    systemPrompt,
+    tools,
+    toolExecutor,
+    client,
+    modelCandidates = basePolicy.modelCandidates,
+    retryAttempts = basePolicy.retryAttempts,
+    retryDelayMs = basePolicy.retryDelayMs,
+    timeoutMs = basePolicy.timeoutMs,
+  } = options;
+  const resolvedPolicy = {
+    ...basePolicy,
+    modelCandidates,
+    retryAttempts,
+    retryDelayMs,
+    timeoutMs,
+  };
 
   const anthropicClient = client ?? new Anthropic({ apiKey });
 
-  const anthropicTools: Anthropic.Tool[] = tools.map((t) => ({
+  const anthropicTools: Anthropic.Tool[] = (tools ?? []).map((t) => ({
     name: t.name,
     description: t.description || "",
     input_schema: t.input_schema || { type: "object", properties: {} },
   }));
+  let activeModel: string | null = null;
+  let conversation: Anthropic.MessageParam[] = [];
+  let toolCalls: ClaudeAgentLoopToolCall[] = [];
+  let toolResults: ClaudeAgentLoopToolResult[] = [];
+  let assistantText = "";
+  let stopReason: string | null = null;
+  let round = 0;
+  let completedRounds = 0;
 
-  let lastError: unknown;
+  function resetModelState(model: string): void {
+    activeModel = model;
+    conversation = [...messages];
+    toolCalls = [];
+    toolResults = [];
+    assistantText = "";
+    stopReason = null;
+    round = 0;
+    completedRounds = 0;
+  }
 
-  for (const model of models) {
-    const conversation = [...messages];
-    const toolCalls: ClaudeAgentLoopToolCall[] = [];
-    const toolResults: ClaudeAgentLoopToolResult[] = [];
-    let assistantText = "";
-    let stopReason: string | null = null;
-    let round = 0;
-    let completedRounds = 0;
+  return providerRuntime.runWithResilience({
+    surface: "stream",
+    policy: resolvedPolicy,
+    runAttempt: async ({ model }) => {
+      if (activeModel !== model) {
+        resetModelState(model);
+      }
 
-    for (let attempt = 1; attempt <= retryAttempts; attempt += 1) {
-      try {
-        while (round < maxToolRounds) {
-          round++;
-          if (signal?.aborted) {
-            stopReason = "aborted";
+      while (round < maxToolRounds) {
+        round++;
+        if (signal?.aborted) {
+          throw createAbortError(signal);
+        }
+
+        const timeout = createAbortTimeout(resolvedPolicy.timeoutMs);
+        const requestSignal = signal
+          ? AbortSignal.any([signal, timeout.controller.signal])
+          : timeout.controller.signal;
+
+        let stream: ReturnType<typeof anthropicClient.messages.stream>;
+        try {
+          stream = anthropicClient.messages.stream(
+            {
+              model,
+              max_tokens: 2048,
+              system: systemPrompt,
+              messages: conversation,
+              tools: anthropicTools,
+            },
+            { signal: requestSignal },
+          );
+
+          stream.on("text", (text: string) => {
+            assistantText += text;
+            callbacks.onDelta?.(text);
+          });
+
+          const response = await stream.finalMessage();
+          stopReason = response.stop_reason;
+
+          if (response.stop_reason !== "tool_use") {
+            completedRounds++;
+            timeout.clear();
             break;
           }
 
-          const timeout = createAbortTimeout(timeoutMs);
-          const requestSignal = signal
-            ? AbortSignal.any([signal, timeout.controller.signal])
-            : timeout.controller.signal;
+          const toolUseBlocks = response.content.filter(
+            (block: Anthropic.ContentBlock): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+          );
 
-          let stream: ReturnType<typeof anthropicClient.messages.stream>;
-          try {
-            stream = anthropicClient.messages.stream(
-              {
-                model,
-                max_tokens: 2048,
-                system: systemPrompt,
-                messages: conversation,
-                tools: anthropicTools,
-              },
-              { signal: requestSignal },
-            );
-
-            stream.on("text", (text: string) => {
-              assistantText += text;
-              callbacks.onDelta?.(text);
-            });
-
-            const response = await stream.finalMessage();
-            stopReason = response.stop_reason;
-
-            if (response.stop_reason !== "tool_use") {
-              completedRounds++;
-              timeout.clear();
-              break;
-            }
-
-            const toolUseBlocks = response.content.filter(
-              (block: Anthropic.ContentBlock): block is Anthropic.ToolUseBlock => block.type === "tool_use",
-            );
-
-            if (toolUseBlocks.length === 0) {
-              timeout.clear();
-              stopReason = "tool_use_without_blocks";
-              break;
-            }
-
-            conversation.push({ role: "assistant", content: response.content });
-
-            const toolResultContents: Anthropic.ToolResultBlockParam[] = [];
-
-            for (const use of toolUseBlocks) {
-              const args = use.input as Record<string, unknown>;
-              toolCalls.push({ name: use.name, args });
-              callbacks.onToolCall?.(use.name, args);
-
-              let resultBlock: Anthropic.Messages.ToolResultBlockParam;
-              let isError = false;
-              try {
-                const result = await toolExecutor(use.name, args);
-                const content = typeof result === "string" ? result : JSON.stringify(result);
-                resultBlock = { type: "tool_result", tool_use_id: use.id, content };
-              } catch (error) {
-                isError = true;
-                resultBlock = {
-                  type: "tool_result",
-                  tool_use_id: use.id,
-                  content: error instanceof Error ? error.message : "Tool execution failed.",
-                  is_error: true,
-                };
-              }
-
-              let finalResult: unknown = resultBlock.content;
-              if (typeof resultBlock.content === "string") {
-                try {
-                  finalResult = JSON.parse(resultBlock.content);
-                } catch {
-                  // Leave non-JSON tool content as-is.
-                }
-              }
-
-              callbacks.onToolResult?.(use.name, finalResult);
-              toolResults.push({ name: use.name, result: finalResult, isError });
-              toolResultContents.push(resultBlock);
-            }
-
-            conversation.push({ role: "user", content: toolResultContents });
-            completedRounds++;
+          if (toolUseBlocks.length === 0) {
             timeout.clear();
-          } catch (error) {
-            timeout.clear();
-
-            if (timeout.controller.signal.aborted && !signal?.aborted) {
-              throw new Error(`Provider request timed out after ${timeoutMs}ms.`);
-            }
-
-            throw error;
+            stopReason = "tool_use_without_blocks";
+            break;
           }
-        }
 
-        if (stopReason === "tool_use" && round >= maxToolRounds) {
-          stopReason = "max_tool_rounds_exhausted";
-        }
+          conversation.push({ role: "assistant", content: response.content });
 
-        return {
-          model,
-          assistantText,
-          stopReason,
-          toolRoundCount: round,
-          toolCalls,
-          toolResults,
-        };
-      } catch (error) {
-        if (isModelNotFoundError(error)) {
-          lastError = error;
-          break;
-        }
+          const toolResultContents: Anthropic.ToolResultBlockParam[] = [];
 
-        const isTimeout = isTimeoutError(error);
-        if (isTimeout && completedRounds > 0) {
-          // Timeout after a successful round means the payload grew too
-          // large — retrying the same context will time out again.
+          for (const use of toolUseBlocks) {
+            if (signal?.aborted) {
+              throw createAbortError(signal);
+            }
+
+            const args = use.input as Record<string, unknown>;
+            toolCalls.push({ name: use.name, args });
+            callbacks.onToolCall?.(use.name, args);
+
+            let resultBlock: Anthropic.Messages.ToolResultBlockParam;
+            let isError = false;
+            try {
+              const result = await toolExecutor(use.name, args);
+              if (signal?.aborted) {
+                throw createAbortError(signal);
+              }
+              const content = typeof result === "string" ? result : JSON.stringify(result);
+              resultBlock = { type: "tool_result", tool_use_id: use.id, content };
+            } catch (error) {
+              if (signal?.aborted || isAbortLikeError(error)) {
+                throw error;
+              }
+
+              isError = true;
+              resultBlock = {
+                type: "tool_result",
+                tool_use_id: use.id,
+                content: error instanceof Error ? error.message : "Tool execution failed.",
+                is_error: true,
+              };
+            }
+
+            let finalResult: unknown = resultBlock.content;
+            if (typeof resultBlock.content === "string") {
+              try {
+                finalResult = JSON.parse(resultBlock.content);
+              } catch {
+                // Leave non-JSON tool content as-is.
+              }
+            }
+
+            callbacks.onToolResult?.(use.name, finalResult);
+            toolResults.push({ name: use.name, result: finalResult, isError });
+            toolResultContents.push(resultBlock);
+          }
+
+          conversation.push({ role: "user", content: toolResultContents });
+          completedRounds++;
+          timeout.clear();
+        } catch (error) {
+          timeout.clear();
+
+          if (timeout.controller.signal.aborted && !signal?.aborted) {
+            throw new ChatProviderError(
+              `Provider request timed out after ${resolvedPolicy.timeoutMs}ms.`,
+            );
+          }
+
           throw error;
         }
-
-        if (isTransientProviderError(error) && attempt < retryAttempts) {
-          lastError = error;
-          await delay(retryDelayMs * attempt);
-          continue;
-        }
-
-        throw error;
       }
-    }
-  }
 
-  if (lastError) {
-    throw lastError;
-  }
+      if (stopReason === "tool_use" && round >= maxToolRounds) {
+        stopReason = "max_tool_rounds_exhausted";
+      }
 
-  throw new Error("No valid Anthropic model configured.");
+      return {
+        model,
+        assistantText,
+        stopReason,
+        toolRoundCount: round,
+        toolCalls,
+        toolResults,
+      };
+    },
+    handleError: ({ error, attempt, policy }): ProviderAttemptAction =>
+      resolveStreamErrorAction({
+        error,
+        attempt,
+        retryAttempts: policy.retryAttempts,
+        timeoutMs: policy.timeoutMs,
+        completedRounds,
+      }),
+    onExhausted: (lastError) =>
+      new ChatProviderError(
+        `Stream provider exhausted all models/retries: ${toErrorMessage(lastError)}`,
+        lastError,
+      ),
+    onNoModels: () => new Error("No valid Anthropic model configured."),
+  });
 }

@@ -1,5 +1,4 @@
-import { describe, expect, it } from "vitest";
-import { createDeferredJobHandlers } from "@/lib/jobs/deferred-job-handlers";
+import { describe, expect, it, vi } from "vitest";
 import {
   canRoleManageGlobalJob,
   canRolesManageGlobalJob,
@@ -8,6 +7,7 @@ import {
   CURRENT_GLOBAL_JOB_OPERATOR_ROLES,
   CURRENT_SIGNED_IN_JOB_AUDIENCE_ROLES,
   JOB_CAPABILITY_REGISTRY,
+  JOB_CAPABILITY_TOOL_NAMES,
   getJobCapabilityPresentation,
   getGlobalJobOperatorRoles,
   getJobCapability,
@@ -15,13 +15,32 @@ import {
   listGlobalJobCapabilitiesForRole,
   listGlobalJobCapabilitiesForRoles,
   listJobCapabilities,
+  type JobCapabilityName,
 } from "@/lib/jobs/job-capability-registry";
+import {
+  COMPOSE_MEDIA_PHASES,
+  PRODUCE_BLOG_ARTICLE_PHASES,
+} from "@/lib/jobs/job-progress-state";
+
+// Mock the handler factory to avoid loading better-sqlite3 (which may be compiled
+// for the wrong Node version in the test environment).
+const MOCK_HANDLER_NAMES: JobCapabilityName[] = [...JOB_CAPABILITY_TOOL_NAMES];
+
+const mockHandlers = Object.fromEntries(
+  MOCK_HANDLER_NAMES.map((name) => [name, vi.fn()]),
+) as Record<JobCapabilityName, ReturnType<typeof vi.fn>>;
+
+vi.mock("@/lib/jobs/deferred-job-handlers", () => ({
+  createDeferredJobHandlers: vi.fn(() => mockHandlers),
+}));
+
+import { createDeferredJobHandlers } from "@/lib/jobs/deferred-job-handlers";
 
 describe("job capability registry", () => {
   it("covers every live deferred handler exactly once", () => {
     const liveHandlerNames = Object.keys(createDeferredJobHandlers());
 
-    expect(Object.keys(JOB_CAPABILITY_REGISTRY)).toEqual(liveHandlerNames);
+    expect(JOB_CAPABILITY_TOOL_NAMES).toEqual(liveHandlerNames);
     expect(listJobCapabilities().map((capability) => capability.toolName)).toEqual(liveHandlerNames);
   });
 
@@ -35,7 +54,11 @@ describe("job capability registry", () => {
   });
 
   it("keeps the current editorial handler audience and execution policy admin-only", () => {
-    for (const toolName of Object.keys(createDeferredJobHandlers()) as Array<keyof typeof JOB_CAPABILITY_REGISTRY>) {
+    const editorialHandlers = Object.keys(JOB_CAPABILITY_REGISTRY).filter(
+      (key) => JOB_CAPABILITY_REGISTRY[key as keyof typeof JOB_CAPABILITY_REGISTRY].family === "editorial",
+    );
+
+    for (const toolName of editorialHandlers as Array<keyof typeof JOB_CAPABILITY_REGISTRY>) {
       expect(JOB_CAPABILITY_REGISTRY[toolName]).toMatchObject({
         family: "editorial",
         executionPrincipal: "system_worker",
@@ -52,7 +75,27 @@ describe("job capability registry", () => {
     }
   });
 
-  it("enables automatic retry only for the safe editorial capabilities in Sprint 2", () => {
+  it("registers compose_media as a user-scoped media family job", () => {
+    const cap = JOB_CAPABILITY_REGISTRY.compose_media;
+    expect(cap.family).toBe("media");
+    expect(cap.defaultSurface).toBe("self");
+    expect(cap.initiatorRoles).toContain("AUTHENTICATED");
+    expect(cap.ownerViewerRoles).toContain("AUTHENTICATED");
+    expect(cap.globalViewerRoles).toEqual(CURRENT_GLOBAL_JOB_OPERATOR_ROLES);
+    expect(cap.retryPolicy.mode).toBe("automatic");
+    expect(cap.artifactPolicy.mode).toBe("retain");
+  });
+
+  it("projects phased job progress metadata from the catalog", () => {
+    expect(JOB_CAPABILITY_REGISTRY.produce_blog_article.progressPhases).toEqual(
+      PRODUCE_BLOG_ARTICLE_PHASES,
+    );
+    expect(JOB_CAPABILITY_REGISTRY.compose_media.progressPhases).toEqual(
+      COMPOSE_MEDIA_PHASES,
+    );
+  });
+
+  it("keeps automatic retry limited to the bounded safe editorial capabilities", () => {
     expect(JOB_CAPABILITY_REGISTRY.draft_content.retryPolicy).toEqual({
       mode: "automatic",
       maxAttempts: 3,
@@ -110,13 +153,14 @@ describe("job capability registry", () => {
   });
 
   it("exposes the current global queue only to admin roles", () => {
+    // All capabilities (including compose_media) have globalViewerRoles = [ADMIN]
     expect(listGlobalJobCapabilitiesForRole("ADMIN").map((capability) => capability.toolName)).toEqual(
-      Object.keys(JOB_CAPABILITY_REGISTRY),
+      JOB_CAPABILITY_TOOL_NAMES,
     );
     expect(listGlobalJobCapabilitiesForRole("STAFF")).toEqual([]);
     expect(listGlobalJobCapabilitiesForRole("AUTHENTICATED")).toEqual([]);
     expect(listGlobalJobCapabilitiesForRoles(["STAFF", "ADMIN"]).map((capability) => capability.toolName)).toEqual(
-      Object.keys(JOB_CAPABILITY_REGISTRY),
+      JOB_CAPABILITY_TOOL_NAMES,
     );
   });
 

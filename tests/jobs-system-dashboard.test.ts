@@ -112,7 +112,7 @@ describe("job list loader", () => {
     expect(result.total).toBe(2);
     expect(result.statusCounts).toEqual({ queued: 1, running: 1 });
     expect(result.toolNameCounts).toEqual({ produce_blog_article: 2 });
-    expect(result.familyCounts).toEqual({ editorial: 2 });
+    expect(result.familyCounts).toEqual(expect.objectContaining({ editorial: 2, media: 0 }));
     expect(result.jobs).toHaveLength(2);
     expect(result.jobs[0].toolLabel).toBe("Produce Blog Article");
     expect(result.jobs[0].toolFamily).toBe("editorial");
@@ -288,16 +288,16 @@ describe("Sprint 4 notification and migration closure", () => {
 
   it("keeps audit-only job events aligned with the current durable job status", () => {
     const source = readSource("src/lib/jobs/job-event-stream.ts");
-    expect(source).toContain("const stablePart = buildJobStatusPartFromProjection(job");
-    expect(source).toContain("switch (job.status)");
-    expect(source).toContain('type: "job_completed"');
+    expect(source).toContain("buildJobPublication(job, event, renderableEvent)");
+    expect(source).toContain("publicationToStreamEvent(publication, job, { sequence: event.sequence })");
+    expect(source).toContain("isRenderableJobEventType(event.eventType)");
   });
 
   it("tracks Sprint 4 in the sprint index and QA script", () => {
-    const sprintIndex = readSource("docs/_specs/job-operations-and-resilience/sprints/README.md");
+    const sprintIndex = readSource("docs/_archive/_specs/job-operations-and-resilience/sprints/README.md");
     const qaScript = readSource("scripts/run-sprint-4-qa.ts");
 
-    expect(fileExists("docs/_specs/job-operations-and-resilience/sprints/sprint-4-notification-migration-and-qa-closure.md")).toBe(true);
+    expect(fileExists("docs/_archive/_specs/job-operations-and-resilience/sprints/sprint-4-notification-migration-and-qa-closure.md")).toBe(true);
     expect(sprintIndex).toContain("Sprint 4");
     expect(qaScript).toContain("tests/browser-ui/jobs-page.spec.ts");
     expect(qaScript).toContain("tests/browser-ui/push-notifications.spec.ts");
@@ -410,17 +410,20 @@ describe("Dashboard action chips", () => {
 // ── D5.8: Overdue follow-ups loader ────────────────────────────────────
 
 describe("Overdue follow-ups loader", () => {
-  it("loadOverdueFollowUpsBlock is exported from admin-queue-loaders", () => {
-    const source = readSource("src/lib/operator/loaders/admin-queue-loaders.ts");
-    expect(source).toContain("loadOverdueFollowUpsBlock");
-    expect(source).toContain("overdue_follow_ups");
+  it("keeps operator compatibility while moving implementation to the cross-feature pipeline slice", () => {
+    const operatorSource = readSource("src/lib/operator/loaders/admin-queue-loaders.ts");
+    const pipelineSource = readSource("src/lib/admin/pipeline/admin-pipeline-attention.ts");
+
+    expect(operatorSource).toContain("loadOverdueFollowUpsBlock");
+    expect(operatorSource).toContain("@/lib/admin/pipeline/admin-pipeline-attention");
+    expect(pipelineSource).toContain("overdue_follow_ups");
   });
 
-  it("queries lead_records and deal_records for overdue follow-up dates", () => {
-    const source = readSource("src/lib/operator/loaders/admin-queue-loaders.ts");
-    expect(source).toContain("lead_records");
-    expect(source).toContain("deal_records");
-    expect(source).toContain("follow_up_at");
+  it("reads overdue follow-ups through the lead and deal repository seams", () => {
+    const source = readSource("src/lib/admin/pipeline/admin-pipeline-attention.ts");
+    expect(source).toContain("getLeadRecordDataMapper");
+    expect(source).toContain("getDealRecordDataMapper");
+    expect(source).toContain("listOverdueFollowUps");
   });
 });
 

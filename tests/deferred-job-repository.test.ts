@@ -262,4 +262,39 @@ describe("JobQueueDataMapper", () => {
     expect(latestEvent?.id).toBe(latest.id);
     expect(latestEvent?.eventType).toBe("progress");
   });
+
+  it("finds the latest renderable event when the newest event is audit-only", async () => {
+    const job = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "produce_blog_article",
+      requestPayload: { brief: "Launch Plan" },
+    });
+
+    await repo.appendEvent({
+      jobId: job.id,
+      conversationId: "conv_jobs",
+      eventType: "progress",
+      payload: {
+        progressPercent: 42,
+        progressLabel: "Reviewing article",
+        phases: [
+          { key: "compose_blog_article", label: "Composing article", status: "succeeded" },
+          { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+        ],
+        activePhaseKey: "qa_blog_article",
+      },
+    });
+    await repo.appendEvent({
+      jobId: job.id,
+      conversationId: "conv_jobs",
+      eventType: "notification_sent",
+      payload: { summary: "Push delivered." },
+    });
+
+    const latestRenderable = await repo.findLatestRenderableEventForJob(job.id);
+
+    expect(latestRenderable?.eventType).toBe("progress");
+    expect(latestRenderable?.payload).toMatchObject({ activePhaseKey: "qa_blog_article" });
+  });
 });

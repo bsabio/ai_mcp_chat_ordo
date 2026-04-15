@@ -12,6 +12,7 @@ The architecture has four explicit goals:
 - keep tool access aligned with RBAC
 - keep prompts structured and auditable
 - keep runtime operations visible through scripts, tests, and MCP tooling
+- archived deep-dive reference: [Search, RBAC, and Memory Deep-Dive](../_archive/_audit/search-rbac-memory-deep-dive.md)
 
 ## 2. Top-Level Architecture
 
@@ -25,6 +26,8 @@ At a high level, the system is composed of six layers.
 | Tool execution | Internal `ToolRegistry`, middleware, formatters, and typed tool commands |
 | Adapters and repositories | SQLite data mappers, corpus repository, blog repository, embeddings, vector store, BM25 store |
 | External and MCP boundaries | Anthropic, OpenAI, local embedding models, and MCP servers |
+
+The official architecture story is plain: Studio Ordo is an internal tool platform with MCP export. The main application orchestrates tool use through the internal `ToolRegistry`; MCP exposes selected capabilities outward as operational interfaces.
 
 ## 3. Request Flow
 
@@ -83,7 +86,7 @@ The role model is defined in `src/core/entities/user.ts` and shaped further by `
 
 ## 6. Tool Architecture
 
-Studio Ordo uses an internal tool architecture distinct from MCP.
+Studio Ordo's primary runtime is an internal tool platform distinct from MCP.
 
 ### Internal tool execution path
 
@@ -104,25 +107,27 @@ Studio Ordo uses an internal tool architecture distinct from MCP.
 
 The registry can also be filtered by `config/tools.json`, which allows instance-level tool enable/disable control without editing code.
 
-## 7. MCP Architecture
+## 7. MCP Export Boundary
 
-MCP is used as a structured operational boundary.
+MCP is used to export selected capabilities outside the main app runtime. The streaming chat route does not orchestrate through an MCP client; it resolves tool schemas from the internal registry and executes tool calls in-process.
 
 ### MCP servers shipped in this repo
 
 | Server | Command | Purpose |
 | --- | --- | --- |
 | Calculator MCP server | `npm run mcp:calculator` | exposes the standalone `calculator` MCP tool |
-| Embedding MCP server | `npm run mcp:embeddings` | embeddings, corpus management, prompt management, and analytics tools |
+| Operations MCP server | `npm run mcp:operations` | embeddings, corpus management, prompt management, and analytics tools |
 
-### Embedding MCP server capability groups
+### Operations MCP server capability groups
 
 - Embeddings and search: `embed_text`, `embed_document`, `search_similar`, `rebuild_index`, `get_index_stats`, `delete_embeddings`
 - Corpus management: `corpus_list`, `corpus_get`, `corpus_add_document`, `corpus_add_section`, `corpus_remove_document`, `corpus_remove_section`
-- Prompt management: `prompt_list`, `prompt_get`, `prompt_set`, `prompt_rollback`, `prompt_diff`
+- Prompt management: `prompt_list`, `prompt_get`, `prompt_set`, `prompt_rollback`, `prompt_diff`, `prompt_get_provenance`
 - Conversation analytics: `conversation_analytics`, `conversation_inspect`, `conversation_cohort`
 
-The MCP layer is not the only source of truth. It sits beside the main Next.js application and internal tool registry, sharing the same repositories and SQLite state where appropriate.
+The MCP layer is not the main source of truth for application orchestration. It sits beside the Next.js application and internal tool registry, sharing repositories and SQLite state where appropriate.
+
+Shared capability adapters now live under `src/lib/capabilities/shared/`, where both the Next.js app and MCP server entrypoints import them. `mcp/` is reserved for protocol-facing entrypoints rather than reusable execution modules. The cleanup plan and alias retirement are documented in [mcp-naming-cleanup.md](mcp-naming-cleanup.md).
 
 ## 8. Data And Storage
 
@@ -190,5 +195,107 @@ This matters because a passing unit test is not treated as proof that the system
 3. Specs and sprint docs are delivery contracts, not optional notes.
 4. MCP tools are operational interfaces, not a replacement for application architecture.
 5. Browser-visible behavior should be verified with runtime evidence when necessary.
+
+## 13. Architecture Unification (Sprints 0-14)
+
+The architecture unification program (documented in
+`docs/_refactor/unification/sprints/`) consolidated several overlapping systems
+into shared contracts across two phases. The following sections summarize the
+shipped architecture.
+
+### Phase 1 — Foundation (Sprints 0-8)
+
+#### Provider Resilience and Observability (Sprint 4+7)
+
+All model-backed API calls route through a shared provider-policy contract:
+
+| Component | File | Purpose |
+| --- | --- | --- |
+| `ProviderResiliencePolicy` | `src/lib/chat/provider-policy.ts` | Timeout, retry, backoff, model-fallback config |
+| `emitProviderEvent()` | `src/lib/chat/provider-policy.ts` | Structured lifecycle events (start, success, retry, failure, fallback) |
+| `classifyProviderError()` | `src/lib/chat/provider-policy.ts` | Canonical error classification (transient, timeout, abort, fatal) |
+| `ProviderSurface` | `src/lib/chat/provider-policy.ts` | 7 surfaces: stream, direct_turn, summarization, image_generation, tts, blog_production, web_search |
+
+Instrumented callers: `anthropic-stream.ts`, `anthropic-client.ts`,
+`AnthropicSummarizer.ts`, `OpenAiBlogImageProvider.ts`, `tts/route.ts`.
+
+#### Capability Catalog (Sprint 5)
+
+A unified catalog (`src/core/capability-catalog/catalog.ts`) defines each
+capability once and derives all downstream representations:
+
+| Projection | Function | What it produces |
+| --- | --- | --- |
+| Presentation | `projectPresentationDescriptor()` | UI card kind, family, execution mode |
+| Job | `projectJobCapability()` | Deferred job config, retry policy, RBAC |
+| Browser | `projectBrowserCapability()` | WASM worker config, fallback policy |
+| Prompt hint | `projectPromptHint()` | Role-specific directive lines |
+| MCP export | `projectMcpToolRegistration()` | MCP tool schema from catalog metadata |
+
+The `CapabilityDefinition` type (`capability-definition.ts`) has facets: core,
+runtime, presentation, job, browser, promptHint, mcpExport.
+
+#### Unified Job Publication (Sprint 6)
+
+All 5 job-state publication channels converge through one function:
+
+```text
+buildJobPublication(job, event?, renderableEvent?)
+  → { part: JobStatusMessagePart, usedSyntheticEvent: boolean }
+```
+
+Channels: main-stream promotion, SSE event route, job snapshot route,
+conversation projector, and background heartbeat.
+
+#### MCP Export Projection (Sprint 7)
+
+The catalog's `mcpExport` facet drives MCP tool registration:
+
+```text
+catalog.mcpExport.sharedModule = "mcp/web-search-tool"
+  → McpToolRegistration { name, description, sharedModule, category, allowedRoles }
+```
+
+### Phase 2 — Remaining Fragmentation (Sprints 9-14)
+
+#### Data Access Migration (Sprint 9)
+
+All 33 direct `getDb()` callers migrated to `RepositoryFactory` patterns.
+Three new RepositoryFactory exports added: `getConversationDataMapper`,
+`getReferralDataMapper`, `getReferralEventDataMapper`.
+
+#### Full Catalog Expansion (Sprint 10)
+
+Catalog expanded from 4 pilot tools to 55+ entries across 11 bundles
+(calculator, audio, chart/graph, search, conversation, profile, job status,
+admin, blog editorial, journal workflow).
+
+#### MCP Domain/Transport Separation (Sprint 11)
+
+The monolithic `analytics-tool.ts` (841 lines) split into domain (`analytics-domain.ts`)
+and transport layers. Catalog `mcpExport` facets wired to MCP server startup.
+
+#### Registry Convergence (Sprint 12)
+
+Three parallel registries (Presentation, Job, Browser) replaced with
+catalog-driven projections via `projectPresentationDescriptor()`,
+`projectJobCapability()`, and `projectBrowserCapability()`.
+
+#### Prompt Directive Unification (Sprint 13)
+
+The monolithic 105-line `ROLE_DIRECTIVES` replaced with `assembleRoleDirective()`
+which collects directives from 5 sources: role framing, 19 catalog `promptHint`
+facets, corpus MCP lines, operator format guidance, and dynamic job-status lines.
+
+#### Final Closeout (Sprint 14)
+
+8 non-test source type errors fixed (45 → 37 test-only). End-to-end catalog
+flow test added proving the full pipeline: catalog → presentation → job →
+prompt directive.
+
+### Verification
+
+The unification program is verified by 190+ tests across 14 test files.
+Run `npm run qa:unification` to execute the full seam verification suite.
 
 For a task-oriented guide to using the system, see [user-handbook.md](user-handbook.md).

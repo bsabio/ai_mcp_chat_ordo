@@ -60,6 +60,10 @@ const DEVELOPMENT_SIGNALS = [
   "build",
   "implement",
   "implementation",
+  "debug",
+  "refactor",
+  "audit",
+  "diagnose",
   "develop",
   "development",
   "integrate",
@@ -72,6 +76,12 @@ const DEVELOPMENT_SIGNALS = [
   "engineering",
   "codebase",
   "api",
+  "architecture",
+  "release",
+  "test",
+  "testing",
+  "migration",
+  "observability",
   "deployment",
   "infrastructure",
   "mvp",
@@ -85,11 +95,68 @@ const DEVELOPMENT_PHRASES = [
   "build this",
   "build it",
   "implement this",
+  "debug this",
+  "refactor this",
   "ship this",
   "integrate with",
   "technical environment",
   "delivery scope",
   "automation workflow",
+  "test matrix",
+  "release readiness",
+  "technical roadmap",
+];
+
+const CLARIFICATION_INTERRUPT_THRESHOLD = 0.25;
+const AMBIGUITY_MARKERS = [
+  "not sure",
+  "unsure",
+  "for me or for a future team",
+  "for me or for my team",
+  "for our team or for me",
+  "either",
+  "or maybe",
+  "something like",
+];
+const COHERENT_ACTION_TERMS = [
+  "build",
+  "implement",
+  "integrate",
+  "debug",
+  "refactor",
+  "audit",
+  "diagnose",
+  "design",
+  "scope",
+  "evaluate",
+  "plan",
+  "outline",
+  "deploy",
+  "migrate",
+  "redesign",
+  "train",
+  "mentor",
+  "coach",
+];
+const COHERENT_DOMAIN_TERMS = [
+  "workflow",
+  "process",
+  "system",
+  "platform",
+  "api",
+  "codebase",
+  "architecture",
+  "release",
+  "test",
+  "integration",
+  "team",
+  "organization",
+  "operations",
+  "training",
+  "curriculum",
+  "portfolio",
+  "roadmap",
+  "pipeline",
 ];
 
 const CLARIFYING_NEXT_STEP = "Ask one clarifying question to determine whether the need is a customer workflow, technical implementation, or training outcome.";
@@ -124,7 +191,7 @@ export class HeuristicConversationRoutingAnalyzer implements ConversationRouting
 
       return createConversationRoutingSnapshot({
         lane: "uncertain",
-        confidence: 0.24,
+        confidence: CLARIFICATION_INTERRUPT_THRESHOLD - 0.01,
         recommendedNextStep: CLARIFYING_NEXT_STEP,
         detectedNeedSummary: "Current signals are insufficient to determine whether the need is a workflow question, implementation task, or training need.",
         lastAnalyzedAt: analyzedAt,
@@ -134,6 +201,17 @@ export class HeuristicConversationRoutingAnalyzer implements ConversationRouting
     const difference = topScore - secondScore;
 
     if (difference <= 1) {
+      if (shouldSuppressClarifyingTurn(input.latestUserText, topLane, topScore)) {
+        const coherentLane = resolveCoherentLane(topLane, scores, input.latestUserText);
+        return createConversationRoutingSnapshot({
+          lane: coherentLane,
+          confidence: clampConfidence(0.44 + topScore * 0.04 + Math.max(difference, 0) * 0.02),
+          recommendedNextStep: recommendedNextStepFor(coherentLane),
+          detectedNeedSummary: summaryFor(coherentLane, "mixed", corpus),
+          lastAnalyzedAt: analyzedAt,
+        });
+      }
+
       if (previous.lane !== "uncertain" && scores[previous.lane] >= secondScore) {
         const priorScore = scores[previous.lane];
 
@@ -150,7 +228,7 @@ export class HeuristicConversationRoutingAnalyzer implements ConversationRouting
 
       return createConversationRoutingSnapshot({
         lane: "uncertain",
-        confidence: clampConfidence(0.4 + topScore * 0.03),
+        confidence: CLARIFICATION_INTERRUPT_THRESHOLD - 0.01,
         recommendedNextStep: CLARIFYING_NEXT_STEP,
         detectedNeedSummary: MIXED_SIGNALS_SUMMARY,
         lastAnalyzedAt: analyzedAt,
@@ -201,6 +279,73 @@ function scoreSignals(corpus: string, terms: string[], strongPhrases: string[]):
   }
 
   return score;
+}
+
+function shouldSuppressClarifyingTurn(
+  latestUserText: string,
+  topLane: ScoredLane,
+  topScore: number,
+): boolean {
+  if (topScore < 2) {
+    return false;
+  }
+
+  if (!looksLikeCoherentRequest(latestUserText)) {
+    return false;
+  }
+
+  if (topLane === "development") {
+    return true;
+  }
+
+  return topScore >= 3;
+}
+
+function resolveCoherentLane(
+  topLane: ScoredLane,
+  scores: Record<ScoredLane, number>,
+  latestUserText: string,
+): ScoredLane {
+  if (
+    looksLikeTechnicalRequest(latestUserText)
+    && scores.development >= Math.max(scores.organization, scores.individual) - 1
+  ) {
+    return "development";
+  }
+
+  return topLane;
+}
+
+function looksLikeCoherentRequest(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length < 8) {
+    return false;
+  }
+
+  if (AMBIGUITY_MARKERS.some((marker) => normalized.includes(marker))) {
+    return false;
+  }
+
+  const hasActionTerm = COHERENT_ACTION_TERMS.some((term) => normalized.includes(term));
+  const hasDomainTerm = COHERENT_DOMAIN_TERMS.some((term) => normalized.includes(term));
+  return hasActionTerm && hasDomainTerm;
+}
+
+function looksLikeTechnicalRequest(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  const technicalActions = ["build", "implement", "integrate", "debug", "refactor", "ship", "deploy", "migrate"];
+  const technicalObjects = ["api", "platform", "codebase", "architecture", "release", "integration", "workflow", "automation", "test"];
+  return technicalActions.some((term) => normalized.includes(term))
+    && technicalObjects.some((term) => normalized.includes(term));
 }
 
 function clampConfidence(value: number): number {

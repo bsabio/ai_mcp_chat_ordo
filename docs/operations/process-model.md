@@ -6,7 +6,7 @@ This document explains the runtime process shape of the application. For the hum
 
 - `web`: Next.js application process (`npm run dev`, `npm run start` via `scripts/start-server.mjs`)
 - `admin`: one-off scripts under `scripts/` (env validation, secret scan, health diagnostics)
-- `mcp`: standalone MCP tool processes such as `npm run mcp:calculator` and `npm run mcp:embeddings`
+- `mcp`: standalone MCP tool processes such as `npm run mcp:calculator`, `npm run mcp:operations`, and `npm run mcp:admin-web-search`
 
 ## Why This Matters
 

@@ -1,0 +1,8 @@
+import {
+  ALLOWED_CHAT_UPLOAD_MIME_TYPES,
+  MAX_CHAT_UPLOAD_FILE_SIZE_BYTES,
+} from "@/lib/media/media-upload-policy";
+
+export const ALLOWED_MIME_TYPES = ALLOWED_CHAT_UPLOAD_MIME_TYPES;
+
+export const MAX_FILE_SIZE_BYTES = MAX_CHAT_UPLOAD_FILE_SIZE_BYTES;

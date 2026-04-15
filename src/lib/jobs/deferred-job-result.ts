@@ -1,7 +1,9 @@
 import type { StreamEvent } from "@/core/entities/chat-stream";
 import type { JobEvent, JobRequest, JobStatus } from "@/core/entities/job";
+import type { CapabilityResultEnvelope } from "@/core/entities/capability-result";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
 import { buildJobStatusPart } from "./job-status";
+import { jobStatusPartToStreamEvent } from "./job-status-snapshots";
 
 export interface DeferredJobEnvelope {
   jobId: string;
@@ -17,6 +19,11 @@ export interface DeferredJobEnvelope {
   summary?: string;
   error?: string;
   resultPayload?: unknown;
+  resultEnvelope?: CapabilityResultEnvelope | null;
+  failureClass?: JobStatusMessagePart["failureClass"];
+  recoveryMode?: JobStatusMessagePart["recoveryMode"];
+  replayedFromJobId?: string | null;
+  supersededByJobId?: string | null;
   updatedAt?: string;
   deduped?: boolean;
 }
@@ -47,6 +54,11 @@ export function createDeferredJobResultPayload(
       summary: part.summary,
       error: part.error,
       resultPayload: job.resultPayload ?? part.resultPayload,
+      resultEnvelope: part.resultEnvelope ?? null,
+      failureClass: part.failureClass,
+      recoveryMode: part.recoveryMode,
+      replayedFromJobId: part.replayedFromJobId,
+      supersededByJobId: part.supersededByJobId,
       updatedAt: part.updatedAt,
       deduped: options?.deduped,
     },
@@ -65,24 +77,32 @@ export function isDeferredJobResultPayload(value: unknown): value is DeferredJob
 
 export function deferredJobResultToMessagePart(payload: DeferredJobResultPayload): JobStatusMessagePart {
   const deferredJob = payload.deferred_job;
+  const resultEnvelope = deferredJob.resultEnvelope ?? null;
+  const envelopeSummary = resultEnvelope?.summary;
+  const envelopeProgress = resultEnvelope?.progress;
   const summary = deferredJob.deduped && (deferredJob.status === "queued" || deferredJob.status === "running")
     ? `Using existing ${deferredJob.label} job in this conversation.`
-    : deferredJob.summary;
+    : deferredJob.summary ?? envelopeSummary?.message;
 
   return {
     type: "job_status",
     jobId: deferredJob.jobId,
     toolName: deferredJob.toolName,
     label: deferredJob.label,
-    title: deferredJob.title,
-    subtitle: deferredJob.subtitle,
+    title: deferredJob.title ?? envelopeSummary?.title,
+    subtitle: deferredJob.subtitle ?? envelopeSummary?.subtitle,
     status: deferredJob.status,
     sequence: deferredJob.sequence,
-    progressPercent: deferredJob.progressPercent,
-    progressLabel: deferredJob.progressLabel,
+    progressPercent: deferredJob.progressPercent ?? envelopeProgress?.percent,
+    progressLabel: deferredJob.progressLabel ?? envelopeProgress?.label,
     summary,
     error: deferredJob.error,
     resultPayload: deferredJob.resultPayload,
+    resultEnvelope,
+    failureClass: deferredJob.failureClass,
+    recoveryMode: deferredJob.recoveryMode,
+    replayedFromJobId: deferredJob.replayedFromJobId,
+    supersededByJobId: deferredJob.supersededByJobId,
     updatedAt: deferredJob.updatedAt,
   };
 }
@@ -92,47 +112,8 @@ export function deferredJobResultToStreamEvent(payload: DeferredJobResultPayload
   { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
 > {
   const deferredJob = payload.deferred_job;
-  const base = {
-    jobId: deferredJob.jobId,
+  return jobStatusPartToStreamEvent(deferredJobResultToMessagePart(payload), {
     conversationId: deferredJob.conversationId,
     sequence: deferredJob.sequence,
-    toolName: deferredJob.toolName,
-    label: deferredJob.label,
-    title: deferredJob.title,
-    subtitle: deferredJob.subtitle,
-    updatedAt: deferredJob.updatedAt,
-  };
-
-  switch (deferredJob.status) {
-    case "queued":
-      return {
-        type: "job_queued",
-        ...base,
-      };
-    case "running":
-      return {
-        type: "job_progress",
-        ...base,
-        progressPercent: deferredJob.progressPercent,
-        progressLabel: deferredJob.progressLabel,
-      };
-    case "succeeded":
-      return {
-        type: "job_completed",
-        ...base,
-        summary: deferredJob.summary,
-        resultPayload: deferredJob.resultPayload,
-      };
-    case "failed":
-      return {
-        type: "job_failed",
-        ...base,
-        error: deferredJob.error ?? "Deferred job failed.",
-      };
-    case "canceled":
-      return {
-        type: "job_canceled",
-        ...base,
-      };
-  }
+  });
 }

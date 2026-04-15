@@ -1,9 +1,10 @@
-import { UserDataMapper } from "@/adapters/UserDataMapper";
-import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper";
+import {
+  getUserDataMapper,
+  getUserPreferencesDataMapper,
+} from "@/adapters/RepositoryFactory";
 import type { UserProfilePatch } from "@/core/entities/user-profile";
 import { GetUserProfileInteractor } from "@/core/use-cases/GetUserProfileInteractor";
 import { UpdateUserProfileInteractor } from "@/core/use-cases/UpdateUserProfileInteractor";
-import { getDb } from "@/lib/db";
 import type { UserProfileViewModel } from "@/lib/profile/types";
 import { buildPublicReferralUrl } from "@/lib/referrals/referral-origin";
 import {
@@ -38,9 +39,8 @@ function toViewModel(
 }
 
 export function createProfileService() {
-  const db = getDb();
-  const repo = new UserDataMapper(db);
-  const preferencesRepo = new UserPreferencesDataMapper(db);
+  const repo = getUserDataMapper();
+  const preferencesRepo = getUserPreferencesDataMapper();
   const getProfile = new GetUserProfileInteractor(repo);
   const updateProfile = new UpdateUserProfileInteractor(repo);
 

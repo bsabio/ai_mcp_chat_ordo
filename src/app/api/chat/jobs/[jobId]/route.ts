@@ -10,6 +10,37 @@ type RouteParams = {
   params: Promise<{ jobId: string }>;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function buildCanceledEventPayload(
+  latestRenderablePayload: Record<string, unknown> | undefined,
+  canceledBy: string,
+): Record<string, unknown> {
+  return {
+    progressPercent: null,
+    progressLabel: null,
+    ...(Array.isArray(latestRenderablePayload?.phases)
+      ? { phases: latestRenderablePayload.phases }
+      : {}),
+    activePhaseKey: null,
+    ...(typeof latestRenderablePayload?.summary === "string"
+      ? { summary: latestRenderablePayload.summary }
+      : {}),
+    ...(latestRenderablePayload?.resultEnvelope === null || isRecord(latestRenderablePayload?.resultEnvelope)
+      ? { resultEnvelope: latestRenderablePayload.resultEnvelope }
+      : {}),
+    ...(latestRenderablePayload?.replaySnapshot === null || isRecord(latestRenderablePayload?.replaySnapshot)
+      ? { replaySnapshot: latestRenderablePayload.replaySnapshot }
+      : {}),
+    ...(Array.isArray(latestRenderablePayload?.artifacts)
+      ? { artifacts: latestRenderablePayload.artifacts }
+      : {}),
+    canceledBy,
+  };
+}
+
 function parseAction(value: unknown): "cancel" | "retry" | null {
   return value === "cancel" || value === "retry" ? value : null;
 }
@@ -75,12 +106,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return errorJson(context, "Job cannot be canceled in its current state", 409);
         }
 
+        const latestRenderableEvent = await repository.findLatestRenderableEventForJob(job.id);
         const canceledJob = await repository.cancelJob(job.id, now);
         const canceledEvent = await repository.appendEvent({
           jobId: job.id,
           conversationId: job.conversationId,
           eventType: "canceled",
-          payload: { canceledBy: userId },
+          payload: buildCanceledEventPayload(latestRenderableEvent?.payload, userId),
         });
 
         await projector.project(canceledJob, canceledEvent);

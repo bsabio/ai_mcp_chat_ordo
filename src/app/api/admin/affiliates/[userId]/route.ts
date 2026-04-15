@@ -22,6 +22,7 @@ export async function PATCH(
     return Response.json({ error: "userId is required." }, { status: 400 });
   }
 
+  // getDb() approved: raw SQL route handler — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
 
   const existing = db

@@ -39,10 +39,11 @@ describe("TD-A — ROLE_DIRECTIVES entity extraction (F2, F3)", () => {
     expect(interactor).not.toContain("export { ROLE_DIRECTIVES");
   });
 
-  it("P3: policy.ts imports ROLE_DIRECTIVES from entity module", () => {
+  it("P3: policy.ts delegates prompt assembly to prompt-runtime", () => {
     const policy = readSource("src/lib/chat/policy.ts");
 
-    expect(policy).toContain('from "@/core/entities/role-directives"');
+    expect(policy).toContain('from "@/lib/chat/prompt-runtime"');
+    expect(policy).toContain("createPromptAssemblyBuilder");
     expect(policy).not.toContain("ChatPolicyInteractor");
   });
 
@@ -52,16 +53,14 @@ describe("TD-A — ROLE_DIRECTIVES entity extraction (F2, F3)", () => {
   });
 });
 
-describe("TD-A — lazy initialization (F4)", () => {
-  it("P4: BASE_PROMPT is lazily initialized", () => {
+describe("TD-A — prompt builder delegation (F4)", () => {
+  it("P4: policy.ts avoids module-scope prompt state and delegates through the builder factory", () => {
     const policy = readSource("src/lib/chat/policy.ts");
 
-    // No module-scope instantiation
     expect(policy).not.toMatch(/^const\s+\w+\s*=\s*new ConfigIdentitySource\(\)/m);
     expect(policy).not.toMatch(/^const\s+BASE_PROMPT/m);
-
-    // Has lazy getBasePrompt
-    expect(policy).toContain("function getBasePrompt()");
+    expect(policy).toContain("export async function createSystemPromptBuilder");
+    expect(policy).toContain("return createPromptAssemblyBuilder({");
   });
 
   it("N4: policy.ts has no module-scope ConfigIdentitySource instantiation", () => {

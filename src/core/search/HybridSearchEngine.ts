@@ -4,6 +4,7 @@ import type { BM25IndexStore } from "./ports/BM25IndexStore";
 import type { HybridSearchResult } from "./types";
 import type { BM25Scorer } from "./BM25Scorer";
 import type { QueryProcessor } from "./QueryProcessor";
+import { toSearchChunkMetadata } from "./chunk-metadata";
 import { dotSimilarity } from "./dotSimilarity";
 import { l2Normalize } from "./l2Normalize";
 import { reciprocalRankFusion } from "./ReciprocalRankFusion";
@@ -127,6 +128,7 @@ export class HybridSearchEngine {
             start: record.chunkIndex * 400,
             end: record.chunkIndex * 400 + record.content.length,
           },
+          chunkMetadata: toSearchChunkMetadata(record.metadata),
           bookTitle: documentTitle,
           bookNumber: documentId,
           bookSlug: documentSlug,

@@ -1,3 +1,4 @@
+import { getConversationDataMapper } from "@/adapters/RepositoryFactory";
 import { ConversationDataMapper } from "@/adapters/ConversationDataMapper";
 import { ReferralDataMapper } from "@/adapters/ReferralDataMapper";
 import { ReferralEventDataMapper } from "@/adapters/ReferralEventDataMapper";
@@ -460,9 +461,10 @@ export class ReferralLedgerService implements ReferralLifecycleRecorder {
 }
 
 export function getReferralLedgerService(): ReferralLedgerService {
+  // getDb() approved: referral default parameter + raw SQL — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   return new ReferralLedgerService(
-    new ConversationDataMapper(db),
+    getConversationDataMapper(),
     new ReferralDataMapper(db),
     new ReferralEventDataMapper(db),
     createReferralMilestoneNotifier(),

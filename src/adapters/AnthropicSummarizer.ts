@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Message } from "@/core/entities/conversation";
 import type { LlmSummarizer } from "@/core/use-cases/LlmSummarizer";
+import {
+  classifyProviderError,
+  emitProviderEvent,
+  toErrorMessage,
+} from "@/lib/chat/provider-policy";
 
 const SUMMARY_PROMPT = `Summarize the following conversation concisely. Preserve:
 - Key topics discussed and conclusions reached
@@ -31,14 +36,45 @@ export class AnthropicSummarizer implements LlmSummarizer {
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-    const response = await client.messages.create({
+    const startedAt = Date.now();
+    emitProviderEvent({
+      kind: "attempt_start",
+      surface: "summarization",
       model: this.model,
-      max_tokens: SUMMARY_MAX_TOKENS,
-      system: SUMMARY_PROMPT,
-      messages: formatted,
+      attempt: 1,
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    return textBlock?.text ?? "";
+    try {
+      const response = await client.messages.create({
+        model: this.model,
+        max_tokens: SUMMARY_MAX_TOKENS,
+        system: SUMMARY_PROMPT,
+        messages: formatted,
+      });
+
+      const textBlock = response.content.find((b) => b.type === "text");
+      const result = textBlock?.text ?? "";
+
+      emitProviderEvent({
+        kind: "attempt_success",
+        surface: "summarization",
+        model: this.model,
+        attempt: 1,
+        durationMs: Date.now() - startedAt,
+      });
+
+      return result;
+    } catch (error) {
+      emitProviderEvent({
+        kind: "attempt_failure",
+        surface: "summarization",
+        model: this.model,
+        attempt: 1,
+        durationMs: Date.now() - startedAt,
+        error: toErrorMessage(error),
+        errorClassification: classifyProviderError(error),
+      });
+      throw error;
+    }
   }
 }

@@ -21,6 +21,7 @@ export async function GET(
     return Response.json({ error: "Invalid referral code" }, { status: 400 });
   }
 
+  // getDb() approved: raw SQL route handler — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   const row = db
     .prepare(

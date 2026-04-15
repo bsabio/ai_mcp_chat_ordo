@@ -21,6 +21,15 @@ function asAttachmentPart(value: unknown): AttachmentPart | null {
     fileName: candidate.fileName,
     mimeType: candidate.mimeType,
     fileSize: candidate.fileSize,
+    ...(typeof candidate.assetKind === "string" ? { assetKind: candidate.assetKind as AttachmentPart["assetKind"] } : {}),
+    ...(typeof candidate.width === "number" ? { width: candidate.width } : {}),
+    ...(typeof candidate.height === "number" ? { height: candidate.height } : {}),
+    ...(typeof candidate.durationSeconds === "number" ? { durationSeconds: candidate.durationSeconds } : {}),
+    ...(typeof candidate.source === "string" ? { source: candidate.source as AttachmentPart["source"] } : {}),
+    ...(typeof candidate.retentionClass === "string"
+      ? { retentionClass: candidate.retentionClass as AttachmentPart["retentionClass"] }
+      : {}),
+    ...(typeof candidate.toolName === "string" ? { toolName: candidate.toolName } : {}),
   };
 }
 

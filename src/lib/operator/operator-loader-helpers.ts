@@ -40,11 +40,13 @@ import {
 
 export function requireSignedInDb(user: Pick<SessionUser, "id" | "roles">) {
   assertSignedInUser(user);
+  // getDb() approved: operator raw SQL helpers — see data-access-canary.test.ts (Sprint 9)
   return getDb();
 }
 
 export function requireAdminDb(user: Pick<SessionUser, "id" | "roles">) {
   assertAdminUser(user);
+  // getDb() approved: operator raw SQL helpers — see data-access-canary.test.ts (Sprint 9)
   return getDb();
 }
 

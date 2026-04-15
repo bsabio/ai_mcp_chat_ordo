@@ -1,5 +1,5 @@
-import { UserFileDataMapper } from "@/adapters/UserFileDataMapper";
-import { getDb } from "@/lib/db";
+import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
+
 import {
   CHAT_UPLOAD_REAPER_TTL_MINUTES,
   UserFileSystem,
@@ -22,7 +22,7 @@ export async function reapStaleChatUploads(
 ): Promise<ReapStaleChatUploadsResult> {
   const olderThanMinutes =
     options.olderThanMinutes ?? CHAT_UPLOAD_REAPER_TTL_MINUTES;
-  const ufs = new UserFileSystem(new UserFileDataMapper(getDb()));
+  const ufs = new UserFileSystem(getUserFileDataMapper());
   const deletedIds = await ufs.reapUnattachedFiles({
     olderThanMinutes,
     userId: options.userId,

@@ -2,6 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import type { RoleName } from "@/core/entities/user";
 import { buildSystemPrompt } from "@/lib/chat/policy";
+import type { PromptRuntimeResult } from "@/lib/chat/prompt-runtime";
+import { getPromptRuntime } from "@/lib/chat/prompt-runtime";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { runClaudeAgentLoopStream, type ClaudeAgentLoopResult } from "@/lib/chat/anthropic-stream";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
@@ -17,6 +19,7 @@ export interface LiveEvalRuntimeRequest {
   maxToolRounds?: number;
   signal?: AbortSignal;
   systemPrompt?: string;
+  promptRuntime?: PromptRuntimeResult | null;
   tools?: Anthropic.Tool[];
   toolExecutor?: (name: string, input: Record<string, unknown>) => Promise<unknown>;
   invokeStream?: typeof runClaudeAgentLoopStream;
@@ -31,13 +34,34 @@ export async function executeLiveEvalRuntime(
   request: LiveEvalRuntimeRequest,
 ): Promise<LiveEvalRuntimeResult> {
   const { registry, executor } = getToolComposition();
-  const systemPrompt = request.systemPrompt ?? await buildSystemPrompt(request.role);
+  let promptRuntime = request.promptRuntime ?? null;
+  let systemPrompt = promptRuntime?.text ?? request.systemPrompt;
+
+  if (!systemPrompt) {
+    promptRuntime = await getPromptRuntime().build({
+      surface: "live_eval",
+      role: request.role,
+      currentPathname: request.currentPathname,
+      currentPageSnapshot: request.currentPageSnapshot,
+    });
+    systemPrompt = promptRuntime.text;
+  }
+
+  if (!systemPrompt) {
+    systemPrompt = await buildSystemPrompt(request.role, {
+      surface: "live_eval",
+      currentPathname: request.currentPathname,
+      currentPageSnapshot: request.currentPageSnapshot,
+    });
+  }
+
   const tools = request.tools ?? (registry.getSchemasForRole(request.role) as Anthropic.Tool[]);
   const execContext: ToolExecutionContext = {
     role: request.role,
     userId: request.userId,
     currentPathname: request.currentPathname,
     currentPageSnapshot: request.currentPageSnapshot,
+    ...(promptRuntime ? { promptRuntime } : {}),
   };
   const toolExecutor = request.toolExecutor
     ?? ((name: string, input: Record<string, unknown>) => executor(name, input, execContext));

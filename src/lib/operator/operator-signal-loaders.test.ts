@@ -55,7 +55,7 @@ vi.mock("@/lib/db", () => ({
   getDb: getDbMock,
 }));
 
-vi.mock("@mcp/analytics-tool", () => ({
+vi.mock("@/lib/capabilities/shared/analytics-tool", () => ({
   conversationAnalytics: conversationAnalyticsMock,
 }));
 

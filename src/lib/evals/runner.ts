@@ -1,5 +1,6 @@
 import { resolveEvalRuntimeConfig } from "./config";
 import type { EvalObservation, EvalRunConfig, EvalScenario } from "./domain";
+import { resolveSessionResolutionSignal } from "@/lib/chat/session-resolution";
 import { BlogPostDataMapper } from "@/adapters/BlogPostDataMapper";
 import { ChatPresenter } from "@/adapters/ChatPresenter";
 import { CommandParserService } from "@/adapters/CommandParserService";
@@ -7,15 +8,19 @@ import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { MarkdownParserService } from "@/adapters/MarkdownParserService";
 import { getCorpusRepository } from "@/adapters/RepositoryFactory";
 import type { ChatMessage } from "@/core/entities/chat-message";
+import type { Document } from "@/core/entities/corpus";
+import { Section } from "@/core/entities/corpus";
 import type { InlineNode } from "@/core/entities/rich-content";
 import { isDealCustomerVisibleStatus } from "@/core/entities/deal-record";
 import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-path-record";
-import { SearchCorpusCommand } from "@/core/use-cases/tools/CorpusTools";
+import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
+import { GetSectionCommand, SearchCorpusCommand, type GetSectionPayload, type SearchCorpusPayload } from "@/core/use-cases/tools/CorpusTools";
 import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
 import { createDeferredJobResultPayload, deferredJobResultToMessagePart } from "@/lib/jobs/deferred-job-result";
 import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import {
   evaluateCanonicalCorpusSearchPayload,
+  evaluateStructuredGetSectionPayload,
   type CanonicalCorpusSearchPayload,
 } from "./runtime-integrity-checks";
 import { getEvalScenarioById } from "./scenarios";
@@ -126,6 +131,43 @@ function pushConversationEventObservations(
       },
     });
   }
+}
+
+function createActiveJobCountCheckpoint(
+  scenario: EvalScenario,
+  checkpointId: string,
+  activeJobs: Array<{ toolName: string }>,
+  toolName: string,
+  jobLabel: string,
+): EvalCheckpointResult {
+  const matchingJobCount = activeJobs.filter((candidate) => candidate.toolName === toolName).length;
+
+  return createCheckpointResult(
+    scenario,
+    checkpointId,
+    matchingJobCount === 1,
+    `Found ${matchingJobCount} active ${jobLabel} jobs.`,
+  );
+}
+
+function createDeterministicCorpusRepository(sections: Section[], documents: Document[]): CorpusRepository {
+  return {
+    getAllDocuments: async () => documents,
+    getDocument: async (slug: string) => documents.find((document) => document.slug === slug) ?? null,
+    getSectionsByDocument: async (documentSlug: string) => sections.filter((section) => section.documentSlug === documentSlug),
+    getAllSections: async () => sections,
+    getSection: async (documentSlug: string, sectionSlug: string) => {
+      const section = sections.find(
+        (candidate) => candidate.documentSlug === documentSlug && candidate.sectionSlug === sectionSlug,
+      );
+
+      if (!section) {
+        throw new Error(`Missing section: ${documentSlug}/${sectionSlug}`);
+      }
+
+      return section;
+    },
+  };
 }
 
 export async function runDeterministicEvalScenario(
@@ -408,9 +450,9 @@ export async function runDeterministicEvalScenario(
         checkpointResults.push(
           createCheckpointResult(
             scenario,
-            "suggestions-repaired",
-            presented.suggestions.length > 0,
-            JSON.stringify(presented.suggestions),
+            "suggestions-suppressed",
+            presented.suggestions.length === 0 && presented.responseState === "closed",
+            JSON.stringify({ responseState: presented.responseState, suggestions: presented.suggestions }),
           ),
           createCheckpointResult(
             scenario,
@@ -433,11 +475,316 @@ export async function runDeterministicEvalScenario(
             stopReason: null,
             finalLane,
             finalRecommendation: presented.actions[0]?.params.path ?? null,
+            responseState: presented.responseState,
             suggestions: presented.suggestions,
             actions: presented.actions,
           },
         });
         finalRecommendation = presented.actions[0]?.params.path ?? finalRecommendation;
+        break;
+      }
+      case "integrity-session-resolution-deterministic": {
+        const actionableText = 'Here is your deployment path. __response_state__:"open" __actions__:[{"label":"Continue","action":"route","params":{"path":"/onward"}}]';
+        const actionableExtracted = resolveSessionResolutionSignal({
+          status: "completed",
+          assistantText: actionableText,
+          assistantParts: [],
+        });
+
+        const closedText = 'You are entirely squared away under those conditions. __response_state__:"closed"';
+        const closedExtracted = resolveSessionResolutionSignal({
+          status: "completed",
+          assistantText: closedText,
+          assistantParts: [],
+        });
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "resolution-advanced",
+            actionableExtracted?.kind === "advanced" && actionableExtracted?.reason === "actionable_next_steps",
+            JSON.stringify(actionableExtracted),
+          ),
+          createCheckpointResult(
+            scenario,
+            "resolution-resolved",
+            closedExtracted?.kind === "resolved" && closedExtracted?.reason === "closed_response_state",
+            JSON.stringify(closedExtracted),
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation,
+            actionableExtracted,
+            closedExtracted,
+          },
+        });
+        break;
+      }
+      case "integrity-retrieval-quality-deterministic": {
+        const searchCommand = new SearchCorpusCommand(getCorpusRepository());
+        const authUser = { role: "AUTHENTICATED", userId: inflated.refs.authenticatedUserId ?? conversation.userId } as const;
+
+        const strongPayload = await searchCommand.execute({ query: "technology" }, authUser) as any;
+        const partialPayload = await searchCommand.execute({ query: "technology technology technology technology technology" }, authUser) as any;
+        const nonePayload = await searchCommand.execute({ query: "zzxz zzyz zzzx" }, authUser) as any;
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "quality-strong",
+            strongPayload.retrievalQuality === "strong",
+            strongPayload.retrievalQuality,
+          ),
+          createCheckpointResult(
+            scenario,
+            "quality-partial",
+            partialPayload.retrievalQuality === "partial",
+            partialPayload.retrievalQuality,
+          ),
+          createCheckpointResult(
+            scenario,
+            "quality-none",
+            nonePayload.retrievalQuality === "none",
+            nonePayload.retrievalQuality,
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation,
+            strongPayload: strongPayload.retrievalQuality,
+            partialPayload: partialPayload.retrievalQuality,
+            nonePayload: nonePayload.retrievalQuality,
+          },
+        });
+        break;
+      }
+      case "integrity-two-stage-retrieval-deterministic": {
+        const documents: Document[] = [
+          { slug: "archetype-atlas", title: "The Archetype Atlas", number: "III", audience: "public" },
+          { slug: "second-renaissance", title: "The Second Renaissance", number: "I", audience: "public" },
+        ];
+        const sections = [
+          new Section(
+            "archetype-atlas",
+            "ch04-the-sage",
+            "The Sage: Clarity, Method, Evidence",
+            "The Sage values method, clarity, rigor, and evidence in judgment.",
+            [],
+            ["evidence"],
+            ["clarity", "method"],
+          ),
+          new Section(
+            "archetype-atlas",
+            "ch05-the-magician",
+            "The Magician: Method In Practice",
+            "Method and clarity become transformation when they are deployed repeatedly in practice.",
+            [],
+            ["method"],
+            ["clarity", "deployment"],
+          ),
+          new Section(
+            "second-renaissance",
+            "ch02-signal-and-proof",
+            "Signal And Proof",
+            "Visible proof depends on evidence, clarity, and repeated method.",
+            [],
+            ["proof"],
+            ["evidence", "clarity"],
+          ),
+        ];
+        const repo = createDeterministicCorpusRepository(sections, documents);
+        const searchCommand = new SearchCorpusCommand(repo);
+        const authUser = { role: "AUTHENTICATED", userId: inflated.refs.authenticatedUserId ?? conversation.userId } as const;
+
+        const strongPayload = await searchCommand.execute({ query: "clarity method evidence", max_results: 3 }, authUser) as SearchCorpusPayload;
+        const partialPayload = await searchCommand.execute({ query: "method", max_results: 3 }, authUser) as SearchCorpusPayload;
+
+        toolCalls.push("search_corpus");
+        observations.push(
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "search_corpus",
+              args: { query: "clarity method evidence", max_results: 3 },
+              result: strongPayload,
+            },
+          },
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "search_corpus",
+              args: { query: "method", max_results: 3 },
+              result: partialPayload,
+            },
+          },
+        );
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "strong-auto-read",
+            strongPayload.groundingState === "prefetched_section" && strongPayload.prefetchedSection?.found === true,
+            JSON.stringify({ groundingState: strongPayload.groundingState, found: strongPayload.prefetchedSection?.found ?? false }),
+          ),
+          createCheckpointResult(
+            scenario,
+            "partial-stays-locate-step",
+            partialPayload.groundingState === "search_only" && partialPayload.followUp === "call_get_section_before_detailed_claims" && partialPayload.prefetchedSection === null,
+            JSON.stringify({ groundingState: partialPayload.groundingState, followUp: partialPayload.followUp }),
+          ),
+          createCheckpointResult(
+            scenario,
+            "strong-prefetch-canonical",
+            strongPayload.prefetchedSection?.canonicalPath === strongPayload.results[0]?.canonicalPath,
+            JSON.stringify({
+              prefetchedCanonicalPath: strongPayload.prefetchedSection?.canonicalPath ?? null,
+              resultCanonicalPath: strongPayload.results[0]?.canonicalPath ?? null,
+            }),
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation,
+            strongGroundingState: strongPayload.groundingState,
+            partialGroundingState: partialPayload.groundingState,
+          },
+        });
+        break;
+      }
+      case "integrity-structured-get-section-deterministic": {
+        const documents: Document[] = [
+          { slug: "second-renaissance", title: "The Second Renaissance", number: "I", audience: "public" },
+          { slug: "archetype-atlas", title: "The Archetype Atlas", number: "III", audience: "public" },
+        ];
+        const sections = [
+          new Section(
+            "second-renaissance",
+            "ch00-introduction",
+            "Introduction",
+            "This chapter frames the broader transition.",
+            [],
+            [],
+            ["transition"],
+          ),
+          new Section(
+            "second-renaissance",
+            "ch01-why-now",
+            "Why Now: The Printing Press Analogy",
+            "The printing press analogy explains why this transition compounds.",
+            [],
+            ["proof"],
+            ["printing press", "transition"],
+          ),
+          new Section(
+            "second-renaissance",
+            "ch02-signal",
+            "Signal And Proof",
+            "Visible proof makes the transition legible to other people.",
+            [],
+            ["proof"],
+            ["signal", "transition"],
+          ),
+          new Section(
+            "archetype-atlas",
+            "ch04-the-sage",
+            "The Sage: Clarity, Method, Evidence",
+            "Clarity and evidence give the reader a stable method.",
+            [],
+            ["evidence"],
+            ["clarity", "method"],
+          ),
+        ];
+        const repo = createDeterministicCorpusRepository(sections, documents);
+        const command = new GetSectionCommand(repo);
+        const authUser = { role: "AUTHENTICATED", userId: inflated.refs.authenticatedUserId ?? conversation.userId } as const;
+
+        const structuredPayload = await command.execute(
+          { document_slug: "wrong-book", section_slug: "why-now" },
+          authUser,
+        ) as GetSectionPayload;
+        const missingPayload = await command.execute(
+          { document_slug: "wrong-book", section_slug: "missing-section" },
+          authUser,
+        ) as GetSectionPayload;
+        const evaluation = evaluateStructuredGetSectionPayload(structuredPayload);
+
+        toolCalls.push("get_section");
+        observations.push(
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "get_section",
+              args: { document_slug: "wrong-book", section_slug: "why-now" },
+              result: structuredPayload,
+              matchedExpected: evaluation.matchedExpected,
+            },
+          },
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "get_section",
+              args: { document_slug: "wrong-book", section_slug: "missing-section" },
+              result: missingPayload,
+            },
+          },
+        );
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "structured-metadata-returned",
+            evaluation.structuredMetadataReturned && structuredPayload.resolvedFromAlias,
+            JSON.stringify({ found: structuredPayload.found, resolvedFromAlias: structuredPayload.resolvedFromAlias, title: structuredPayload.title }),
+          ),
+          createCheckpointResult(
+            scenario,
+            "related-sections-returned",
+            evaluation.relatedSectionsReturned,
+            JSON.stringify(structuredPayload.relatedSections.map((section) => section.canonicalPath ?? section.fallbackSearchPath)),
+          ),
+          createCheckpointResult(
+            scenario,
+            "citation-targets-safe",
+            evaluation.citationTargetsSafe && missingPayload.canonicalPath === null && missingPayload.fallbackSearchPath === "/library",
+            JSON.stringify({
+              relatedSections: structuredPayload.relatedSections,
+              missingFallbackSearchPath: missingPayload.fallbackSearchPath,
+              missingCanonicalPath: missingPayload.canonicalPath,
+            }),
+          ),
+        );
+
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation,
+            resolvedFromAlias: structuredPayload.resolvedFromAlias,
+            relatedSectionCount: structuredPayload.relatedSections.length,
+          },
+        });
         break;
       }
       case "organization-buyer-deterministic": {
@@ -608,12 +955,7 @@ export async function runDeterministicEvalScenario(
             activeJobs.some((candidate) => candidate.id === runningJob.id && candidate.status === "running"),
             activeJobs.length > 0 ? null : "No active deferred job was returned by the read path.",
           ),
-          createCheckpointResult(
-            scenario,
-            "status-read-no-rerun",
-            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
-            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
-          ),
+          createActiveJobCountCheckpoint(scenario, "status-read-no-rerun", activeJobs, "produce_blog_article", "production"),
           createCheckpointResult(
             scenario,
             "progress-preserved",
@@ -709,12 +1051,7 @@ export async function runDeterministicEvalScenario(
             finalAssistantMessage.content.includes("You have 1 active job") && !finalAssistantMessage.content.includes("\n-"),
             finalAssistantMessage.content,
           ),
-          createCheckpointResult(
-            scenario,
-            "status-read-no-rerun",
-            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
-            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
-          ),
+          createActiveJobCountCheckpoint(scenario, "status-read-no-rerun", activeJobs, "produce_blog_article", "production"),
         );
 
         observations.push({
@@ -798,12 +1135,7 @@ export async function runDeterministicEvalScenario(
             finalAssistantMessage.content.includes(`Job ${runningJob.id} is still running`) && finalAssistantMessage.content.includes("did not start another run"),
             finalAssistantMessage.content,
           ),
-          createCheckpointResult(
-            scenario,
-            "status-read-no-rerun",
-            activeJobs.filter((candidate) => candidate.toolName === "draft_content").length === 1,
-            `Found ${activeJobs.filter((candidate) => candidate.toolName === "draft_content").length} active draft jobs.`,
-          ),
+          createActiveJobCountCheckpoint(scenario, "status-read-no-rerun", activeJobs, "draft_content", "draft"),
         );
 
         observations.push({
@@ -1081,12 +1413,7 @@ export async function runDeterministicEvalScenario(
               && finalAssistantMessage.content.includes("did not start another run"),
             finalAssistantMessage.content,
           ),
-          createCheckpointResult(
-            scenario,
-            "status-read-no-rerun",
-            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
-            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
-          ),
+          createActiveJobCountCheckpoint(scenario, "status-read-no-rerun", activeJobs, "produce_blog_article", "production"),
         );
 
         observations.push({
@@ -1174,12 +1501,7 @@ export async function runDeterministicEvalScenario(
             dedupedPart.summary === "Using existing Produce Blog Article job in this conversation.",
             dedupedPart.summary ?? null,
           ),
-          createCheckpointResult(
-            scenario,
-            "single-job-preserved",
-            activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length === 1,
-            `Found ${activeJobs.filter((candidate) => candidate.toolName === "produce_blog_article").length} active production jobs.`,
-          ),
+          createActiveJobCountCheckpoint(scenario, "single-job-preserved", activeJobs, "produce_blog_article", "production"),
         );
 
         observations.push({
@@ -1254,9 +1576,9 @@ export async function runDeterministicEvalScenario(
           timestamp: new Date(run.startedAt),
           parts: [snapshot.part],
         } as ChatMessage);
-        const jobStatusBlock = presented.content.blocks.find((block) => block.type === "job-status");
-        const publishAction = Array.isArray(jobStatusBlock?.actions)
-          ? jobStatusBlock.actions.find(
+        const jobStatusEntry = presented.toolRenderEntries?.find((e) => e.kind === "job-status");
+        const publishAction = jobStatusEntry?.kind === "job-status" && Array.isArray(jobStatusEntry.computedActions)
+          ? jobStatusEntry.computedActions.find(
             (action): action is Extract<InlineNode, { type: "action-link" }> =>
               action.type === "action-link" && action.label === "Publish",
           )

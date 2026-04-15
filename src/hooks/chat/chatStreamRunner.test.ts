@@ -11,6 +11,7 @@ describe("chatStreamRunner", () => {
       flush: vi.fn(),
       flushBeforeNonTextEvent: vi.fn(),
       dispose: vi.fn(),
+      hasDispatchedText: vi.fn(() => false),
     };
     const dispatch = vi.fn();
     const setConversationId = vi.fn();
@@ -52,6 +53,7 @@ describe("chatStreamRunner", () => {
       flush: vi.fn(),
       flushBeforeNonTextEvent: vi.fn(),
       dispose: vi.fn(),
+      hasDispatchedText: vi.fn(() => false),
     };
     const dispatch = vi.fn();
     const setConversationId = vi.fn();

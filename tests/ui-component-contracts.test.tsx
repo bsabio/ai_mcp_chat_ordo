@@ -122,6 +122,26 @@ describe("AdminDataTable", () => {
     fireEvent.click(checkbox);
     expect(onSelectionChange).toHaveBeenCalledWith(new Set(["1"]));
   });
+
+  it("renders a mobile select-all control for selectable multi-row tables", async () => {
+    const { AdminDataTable } = await import(
+      "@/components/admin/AdminDataTable"
+    );
+    const onSelectionChange = vi.fn();
+    render(
+      <AdminDataTable
+        columns={columns}
+        rows={rows}
+        emptyMessage="No rows"
+        selectable
+        selectedIds={new Set<string>()}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Select all rows/i }));
+    expect(onSelectionChange).toHaveBeenCalledWith(new Set(["1", "2"]));
+  });
 });
 
 // ── AdminDetailShell ───────────────────────────────────────────────────

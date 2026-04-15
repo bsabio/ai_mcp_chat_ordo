@@ -79,9 +79,90 @@ describe("DeferredJobWorker", () => {
       expect.objectContaining({
         type: "job_status",
         jobId: job.id,
-        status: "running",
+        status: "succeeded",
       }),
     ]);
+  });
+
+  it("renews the lease window when healthy progress is reported", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-25T03:00:00.000Z"));
+
+    const job = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "draft_content",
+      requestPayload: { title: "Lease renewal" },
+    });
+
+    const worker = new DeferredJobWorker(repo, {
+      draft_content: async (_claimedJob, { reportProgress }) => {
+        vi.setSystemTime(new Date("2026-03-25T03:00:45.000Z"));
+        await reportProgress({ progressPercent: 40, progressLabel: "Drafting" });
+        return { postId: "blog_lease" };
+      },
+    }, projector);
+
+    await worker.runNext({
+      workerId: "worker_lease",
+      now: new Date("2026-03-25T03:00:00.000Z"),
+      leaseDurationMs: 30_000,
+    });
+
+    const events = await repo.listConversationEvents("conv_jobs");
+    expect(events.map((event) => event.eventType)).toEqual(["started", "progress", "result"]);
+    expect(events[0]?.payload).toMatchObject({ leaseExpiresAt: "2026-03-25T03:00:30.000Z" });
+
+    const progressLease = (await repo.findJobById(job.id))?.updatedAt;
+    expect(progressLease).toBeTruthy();
+
+    vi.useRealTimers();
+  });
+
+  it("persists phased progress metadata while keeping compatibility fields populated", async () => {
+    const job = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "produce_blog_article",
+      requestPayload: { brief: "Launch" },
+    });
+
+    const worker = new DeferredJobWorker(repo, {
+      produce_blog_article: async (_claimedJob, { reportProgress }) => {
+        await reportProgress({
+          activePhaseKey: "qa_blog_article",
+          phases: [
+            { key: "compose_blog_article", label: "Composing article", status: "succeeded" },
+            { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+            { key: "resolve_blog_article_qa", label: "Resolving QA findings", status: "pending" },
+          ],
+        });
+        return { postId: "blog_123" };
+      },
+    }, projector);
+
+    await worker.runNext({
+      workerId: "worker_1",
+      now: new Date("2026-03-25T03:00:00.000Z"),
+      leaseDurationMs: 60_000,
+    });
+
+    const persisted = await repo.findJobById(job.id);
+    expect(persisted).toMatchObject({
+      progressLabel: "Reviewing article",
+      progressPercent: 42,
+    });
+
+    const events = await repo.listConversationEvents("conv_jobs");
+    expect(events[1]?.payload).toMatchObject({
+      activePhaseKey: "qa_blog_article",
+      progressLabel: "Reviewing article",
+      progressPercent: 42,
+      phases: expect.arrayContaining([
+        expect.objectContaining({ key: "compose_blog_article", status: "succeeded" }),
+        expect.objectContaining({ key: "qa_blog_article", status: "active", percent: 60 }),
+      ]),
+    });
   });
 
   it("requeues expired running jobs before claiming the next available queued job", async () => {
@@ -174,7 +255,7 @@ describe("DeferredJobWorker", () => {
       expect.objectContaining({
         type: "job_status",
         jobId: expired.id,
-        status: "running",
+        status: "succeeded",
       }),
     ]);
   });
@@ -368,6 +449,47 @@ describe("DeferredJobWorker", () => {
     const persisted = await repo.findJobById(job.id);
     expect(persisted?.status).toBe("canceled");
     expect(persisted?.resultPayload).toBeNull();
+  });
+
+  it("aborts a running handler when the job is canceled mid-flight", async () => {
+    const job = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "produce_blog_article",
+      requestPayload: {},
+    });
+
+    let handlerSignal: AbortSignal | null = null;
+
+    const worker = new DeferredJobWorker(repo, {
+      produce_blog_article: async (_claimedJob, { abortSignal }) => {
+        handlerSignal = abortSignal;
+
+        await new Promise<void>((resolve, reject) => {
+          abortSignal.addEventListener("abort", () => {
+            const error = new Error("deferred_job_canceled");
+            error.name = "AbortError";
+            reject(error);
+          }, { once: true });
+
+          setTimeout(resolve, 2_000);
+        });
+
+        return { postId: "blog_123" };
+      },
+    }, projector);
+
+    const run = worker.runNext({ workerId: "worker_cancel" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await repo.cancelJob(job.id, "2026-03-25T03:00:01.000Z");
+
+    const result = await run;
+
+    expect(handlerSignal?.aborted).toBe(true);
+    expect(result.outcome).toBe("canceled");
+
+    const persisted = await repo.findJobById(job.id);
+    expect(persisted?.status).toBe("canceled");
   });
 
   it("appends notification_sent after terminal delivery succeeds", async () => {

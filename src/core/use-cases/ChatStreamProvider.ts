@@ -1,6 +1,7 @@
 import type { StreamEvent } from "../entities/chat-stream";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
+import type { AttachmentMessagePart } from "@/core/entities/message-parts";
 
 /**
  * Core Interface for AI Streaming
@@ -17,12 +18,7 @@ export interface FetchChatStreamOptions {
   conversationId?: string;
   currentPathname?: string;
   currentPageSnapshot?: CurrentPageSnapshot;
-  attachments?: Array<{
-    assetId: string;
-    fileName: string;
-    mimeType: string;
-    fileSize: number;
-  }>;
+  attachments?: Array<Omit<AttachmentMessagePart, "type">>;
   taskOriginHandoff?: TaskOriginHandoff;
 }
 

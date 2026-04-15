@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getLatestUserMessage, parseIncomingMessages } from "@/lib/chat/validation";
+import {
+  findLatestUserMessage,
+  getLatestUserMessage,
+  parseIncomingMessages,
+} from "@/lib/chat/validation";
 
 describe("chat validation", () => {
   it("throws for empty message array", () => {
@@ -25,5 +29,9 @@ describe("chat validation", () => {
     ]);
 
     expect(value).toBe("second");
+  });
+
+  it("treats whitespace-only user content as missing", () => {
+    expect(findLatestUserMessage([{ role: "user", content: "   " }])).toBeNull();
   });
 });

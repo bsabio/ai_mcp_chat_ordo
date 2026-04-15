@@ -1,5 +1,5 @@
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { SHELL_ROUTES, type ShellRouteDefinition } from "@/lib/shell/shell-navigation";
 
@@ -13,26 +13,34 @@ function isVisibleToRole(route: ShellRouteDefinition, role: string): boolean {
   return (vis as readonly string[]).includes(role);
 }
 
-class ListAvailablePagesCommand implements ToolCommand<Record<string, never>, ListAvailablePagesOutput> {
-  async execute(_input: Record<string, never>, context?: ToolExecutionContext): Promise<ListAvailablePagesOutput> {
-    const role = context?.role ?? "ANONYMOUS";
-    const routes = SHELL_ROUTES
-      .filter((r) => r.kind === "internal" && isVisibleToRole(r, role))
-      .map((r) => ({ label: r.label, href: r.href, description: r.description }));
-    return { routes };
+export function parseListAvailablePagesInput(value: unknown): Record<string, never> {
+  if (value === undefined || value === null) {
+    return {};
   }
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("list_available_pages input must be an object.");
+  }
+
+  return {};
 }
 
-export const listAvailablePagesTool: ToolDescriptor<Record<string, never>, ListAvailablePagesOutput> = {
-  name: "list_available_pages",
-  schema: {
-    description: "List all pages the current user can access based on their role.",
-    input_schema: {
-      type: "object",
-      properties: {},
-    },
+export async function executeListAvailablePages(
+  _input: Record<string, never>,
+  context?: ToolExecutionContext,
+): Promise<ListAvailablePagesOutput> {
+  const role = context?.role ?? "ANONYMOUS";
+  const routes = SHELL_ROUTES
+    .filter((route) => route.kind === "internal" && isVisibleToRole(route, role))
+    .map((route) => ({ label: route.label, href: route.href, description: route.description }));
+
+  return { routes };
+}
+
+export const listAvailablePagesTool = buildCatalogBoundToolDescriptor(
+  CAPABILITY_CATALOG.list_available_pages,
+  {
+    parse: parseListAvailablePagesInput,
+    execute: (input, context) => executeListAvailablePages(input, context),
   },
-  command: new ListAvailablePagesCommand(),
-  roles: "ALL",
-  category: "ui",
-};
+);

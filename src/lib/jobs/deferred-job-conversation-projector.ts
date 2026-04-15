@@ -3,7 +3,8 @@ import type { MessageRepository } from "@/core/use-cases/MessageRepository";
 import type { Message } from "@/core/entities/conversation";
 import type { JobEvent, JobRequest } from "@/core/entities/job";
 import type { JobStatusMessagePart, MessagePart } from "@/core/entities/message-parts";
-import { buildJobStatusPart, getJobMessageId } from "./job-status";
+import { getJobMessageId } from "./job-status";
+import { buildJobPublication } from "./job-publication";
 
 function isJobStatusPart(part: MessagePart): part is JobStatusMessagePart {
   return part.type === "job_status";
@@ -25,13 +26,17 @@ export class DeferredJobConversationProjector {
   ) {}
 
   async project(job: JobRequest, event: JobEvent): Promise<Message> {
-    const nextPart = buildJobStatusPart(job, event);
+    const { part: nextPart } = buildJobPublication(job, event);
     const existing = await this.findExistingMessage(job.conversationId, job.id);
 
     if (isTerminalEvent(event.eventType)) {
       if (existing) {
+        const updated = await this.messageRepo.update(existing.id, {
+          content: "",
+          parts: replaceJobStatusPart(existing.parts, nextPart),
+        });
         await this.conversationRepo.touch(job.conversationId);
-        return existing;
+        return updated;
       }
 
       const created = await this.messageRepo.create({

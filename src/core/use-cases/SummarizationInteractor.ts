@@ -50,7 +50,15 @@ export class SummarizationInteractor {
                 conversationId,
                 role: "system",
                 content: summaryText,
-                parts: [{ type: "summary", text: summaryText, coversUpToMessageId: lastSummarizedMessage.id }],
+                parts: [
+                  { type: "summary", text: summaryText, coversUpToMessageId: lastSummarizedMessage.id },
+                  {
+                    type: "compaction_marker",
+                    kind: "summary",
+                    compactedCount: messagesToSummarize.length,
+                    coversUpToMessageId: lastSummarizedMessage.id,
+                  },
+                ],
                 tokenEstimate,
               });
 
@@ -116,12 +124,20 @@ export class SummarizationInteractor {
       conversationId,
       role: "system",
       content: metaSummaryText,
-      parts: [{
-        type: "meta_summary",
-        text: metaSummaryText,
-        coversUpToSummaryId: lastSummary.id,
-        summariesCompacted: summariesToCompact.length,
-      }],
+      parts: [
+        {
+          type: "meta_summary",
+          text: metaSummaryText,
+          coversUpToSummaryId: lastSummary.id,
+          summariesCompacted: summariesToCompact.length,
+        },
+        {
+          type: "compaction_marker",
+          kind: "meta_summary",
+          compactedCount: summariesToCompact.length,
+          coversUpToSummaryId: lastSummary.id,
+        },
+      ],
       tokenEstimate,
     });
 

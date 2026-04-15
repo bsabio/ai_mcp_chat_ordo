@@ -1,13 +1,18 @@
-import { ConversationDataMapper } from "@/adapters/ConversationDataMapper";
-import { MessageDataMapper } from "@/adapters/MessageDataMapper";
-import { getDb } from "@/lib/db";
+import {
+  getConversationDataMapper,
+  getMessageDataMapper,
+} from "@/adapters/RepositoryFactory";
 import { DeferredJobConversationProjector } from "@/lib/jobs/deferred-job-conversation-projector";
 
+/**
+ * Create a DeferredJobConversationProjector using process-cached
+ * repositories from RepositoryFactory.
+ *
+ * @lifetime per-call (constructor), but deps are process-cached
+ */
 export function createDeferredJobConversationProjector(): DeferredJobConversationProjector {
-  const db = getDb();
-
   return new DeferredJobConversationProjector(
-    new ConversationDataMapper(db),
-    new MessageDataMapper(db),
+    getConversationDataMapper(),
+    getMessageDataMapper(),
   );
 }

@@ -13,6 +13,7 @@ interface PresentedChatMessagesResult {
 
 export function usePresentedChatMessages(
   messages: ChatMessage[],
+  isSending = false,
 ): PresentedChatMessagesResult {
   const markdownParser = useMemo(() => new MarkdownParserService(), []);
   const commandParser = useMemo(() => new CommandParserService(), []);
@@ -21,14 +22,37 @@ export function usePresentedChatMessages(
     [commandParser, markdownParser],
   );
 
-  const presentedMessages = useMemo(
-    () => presenter.presentMany(messages),
-    [messages, presenter],
-  );
+  const presentedMessages = useMemo(() => {
+    const presented = presenter.presentMany(messages);
+
+    // Mark the last user message as pending while sending
+    if (isSending) {
+      for (let i = presented.length - 1; i >= 0; i--) {
+        if (presented[i]?.role === "user") {
+          presented[i] = { ...presented[i], status: "pending" };
+          break;
+        }
+      }
+    }
+
+    // Mark user messages as failed when the following assistant has failedSend
+    for (let i = 0; i < presented.length; i++) {
+      const msg = presented[i];
+      if (msg?.role === "assistant" && msg.failedSend) {
+        const userId = msg.failedSend.failedUserMessageId;
+        const userIdx = presented.findIndex((m) => m.id === userId);
+        if (userIdx >= 0 && presented[userIdx]) {
+          presented[userIdx] = { ...presented[userIdx], status: "failed" };
+        }
+      }
+    }
+
+    return presented;
+  }, [messages, presenter, isSending]);
 
   const dynamicSuggestions = useMemo(() => {
     const lastMsg = presentedMessages[presentedMessages.length - 1];
-    return lastMsg?.role === "assistant" && lastMsg.suggestions
+    return lastMsg?.role === "assistant" && lastMsg.responseState === "open" && lastMsg.suggestions
       ? lastMsg.suggestions
       : [];
   }, [presentedMessages]);

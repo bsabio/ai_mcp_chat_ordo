@@ -12,7 +12,7 @@ import { CreateDealFromWorkflowInteractor } from "@/core/use-cases/CreateDealFro
 import { CreateTrainingPathFromWorkflowInteractor } from "@/core/use-cases/CreateTrainingPathFromWorkflowInteractor";
 import type { CalculatorResult } from "@/lib/calculator";
 import { ensureSchema } from "@/lib/db/schema";
-import { executeCalculatorTool, type CalculatorToolArgs } from "../../../mcp/calculator-tool";
+import { executeCalculatorTool, type CalculatorToolArgs } from "@/lib/capabilities/shared/calculator-tool";
 
 type MessageRole = "user" | "assistant" | "system";
 

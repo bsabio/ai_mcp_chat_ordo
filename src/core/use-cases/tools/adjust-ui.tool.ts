@@ -1,4 +1,6 @@
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
+import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
 import {
   SUPPORTED_COLOR_BLIND_MODES,
@@ -10,27 +12,70 @@ import {
 } from "@/lib/theme/theme-manifest";
 import { AdjustUICommand } from "./UiTools";
 
-export function createAdjustUiTool(repo?: UserPreferencesRepository): ToolDescriptor {
+export interface AdjustUiInput {
+  preset?: string;
+  fontSize?: string;
+  lineHeight?: string;
+  letterSpacing?: string;
+  density?: string;
+  dark?: boolean;
+  theme?: string;
+  colorBlindMode?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseOptionalEnum(
+  fieldName: string,
+  value: unknown,
+  allowed: readonly string[],
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string" || !allowed.includes(value)) {
+    throw new Error(`${fieldName} must be one of: ${allowed.join(", ")}.`);
+  }
+
+  return value;
+}
+
+export function parseAdjustUiInput(value: unknown): AdjustUiInput {
+  if (!isRecord(value)) {
+    throw new Error("adjust_ui input must be an object.");
+  }
+
+  const dark = value.dark;
+  if (dark !== undefined && typeof dark !== "boolean") {
+    throw new Error("dark must be a boolean when provided.");
+  }
+
   return {
-    name: "adjust_ui",
-    schema: {
-      description: "Adjust the UI appearance for accessibility, comfort, or user preference. Use when users say things like 'make text bigger', 'I'm old', 'too bright', 'I'm color blind', 'compact mode', or 'hard to read'. You can apply a named preset OR set individual properties. Presets: 'elderly' (large text, relaxed spacing), 'compact' (dense info), 'high-contrast' (dark + large), 'color-blind-deuteranopia', 'color-blind-protanopia', 'color-blind-tritanopia', 'default' (reset all).",
-      input_schema: {
-        type: "object",
-        properties: {
-          preset: { type: "string", enum: [...SUPPORTED_UI_PRESET_IDS], description: "Apply a curated preset. Overrides individual settings." },
-          fontSize: { type: "string", enum: [...SUPPORTED_FONT_SIZES], description: "Base font size." },
-          lineHeight: { type: "string", enum: [...SUPPORTED_SPACING_LEVELS], description: "Line spacing." },
-          letterSpacing: { type: "string", enum: [...SUPPORTED_SPACING_LEVELS], description: "Letter spacing." },
-          density: { type: "string", enum: [...SUPPORTED_DENSITY_LEVELS], description: "UI density — affects padding and gaps." },
-          dark: { type: "boolean", description: "Enable or disable dark mode." },
-          theme: { type: "string", enum: [...SUPPORTED_THEME_IDS], description: "Visual theme era." },
-          colorBlindMode: { type: "string", enum: [...SUPPORTED_COLOR_BLIND_MODES], description: "Color-blind safe palette." },
-        },
-      },
-    },
-    command: new AdjustUICommand(repo),
-    roles: "ALL",
-    category: "ui",
+    preset: parseOptionalEnum("preset", value.preset, SUPPORTED_UI_PRESET_IDS),
+    fontSize: parseOptionalEnum("fontSize", value.fontSize, SUPPORTED_FONT_SIZES),
+    lineHeight: parseOptionalEnum("lineHeight", value.lineHeight, SUPPORTED_SPACING_LEVELS),
+    letterSpacing: parseOptionalEnum("letterSpacing", value.letterSpacing, SUPPORTED_SPACING_LEVELS),
+    density: parseOptionalEnum("density", value.density, SUPPORTED_DENSITY_LEVELS),
+    dark,
+    theme: parseOptionalEnum("theme", value.theme, SUPPORTED_THEME_IDS),
+    colorBlindMode: parseOptionalEnum("colorBlindMode", value.colorBlindMode, SUPPORTED_COLOR_BLIND_MODES),
   };
+}
+
+export async function executeAdjustUi(
+  repo: UserPreferencesRepository | undefined,
+  input: AdjustUiInput,
+  context?: ToolExecutionContext,
+): Promise<string> {
+  return new AdjustUICommand(repo).execute(input as Record<string, unknown>, context);
+}
+
+export function createAdjustUiTool(repo?: UserPreferencesRepository) {
+  return buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.adjust_ui, {
+    parse: parseAdjustUiInput,
+    execute: (input, context) => executeAdjustUi(repo, input, context),
+  });
 }

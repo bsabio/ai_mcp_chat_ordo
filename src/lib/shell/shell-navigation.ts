@@ -40,6 +40,14 @@ export interface ResolvedShellNavDrawerGroup {
   routes: ShellRouteDefinition[];
 }
 
+export interface ShellRouteVisibilitySnapshot {
+  command: boolean;
+  header: boolean;
+  footer: boolean;
+  account: boolean;
+  any: boolean;
+}
+
 export interface ShellBrandMetadata {
   name: string;
   shortName: string;
@@ -252,6 +260,36 @@ function resolveRouteSet(
   return routeIds
     .map(getShellRouteById)
     .filter((route) => matchesVisibility(visibilityResolver(route), user));
+}
+
+export function getShellRouteVisibilitySnapshot(
+  route: ShellRouteDefinition,
+  user?: Pick<SessionUser, "roles"> | null,
+): ShellRouteVisibilitySnapshot {
+  const command = route.showInCommands
+    ? matchesVisibility(
+        route.footerVisibility ?? route.headerVisibility ?? route.accountVisibility,
+        user,
+      )
+    : false;
+  const header = matchesVisibility(route.headerVisibility, user);
+  const footer = matchesVisibility(route.footerVisibility, user);
+  const account = matchesVisibility(route.accountVisibility, user);
+
+  return {
+    command,
+    header,
+    footer,
+    account,
+    any: command || header || footer || account,
+  };
+}
+
+export function canRoleAccessShellRoute(
+  route: ShellRouteDefinition,
+  role: RoleName,
+): boolean {
+  return getShellRouteVisibilitySnapshot(route, { roles: [role] }).any;
 }
 
 export function resolvePrimaryNavRoutes(

@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { executeLiveEvalRuntime } from "@/lib/evals/live-runtime";
 import { runLiveEvalScenario } from "@/lib/evals/live-runner";
 
+import { createProviderBoundaryHarness } from "../helpers/provider-boundary-harness";
+
 describe("eval live runtime and runner", () => {
   it("executes the injected live runtime adapter with the real stream boundary shape", async () => {
     const invokeStream = vi.fn().mockResolvedValue({
@@ -35,6 +37,100 @@ describe("eval live runtime and runner", () => {
         toolCount: 0,
       }),
     );
+  });
+
+  it("reuses the shared provider-boundary harness for live runtime tool execution", async () => {
+    const toolExecutor = vi.fn().mockResolvedValue({
+      action: "inspect_runtime_context",
+      ok: true,
+    });
+    const providerHarness = createProviderBoundaryHarness({
+      steps: [
+        { type: "delta", text: "Checking runtime. " },
+        {
+          type: "tool",
+          name: "inspect_runtime_context",
+          args: { includePrompt: true },
+        },
+        { type: "delta", text: "Done." },
+      ],
+    });
+
+    const result = await executeLiveEvalRuntime({
+      apiKey: "test-key",
+      role: "AUTHENTICATED",
+      userId: "usr_test",
+      messages: [{ role: "user", content: "hello" }],
+      systemPrompt: "system",
+      tools: [
+        {
+          name: "inspect_runtime_context",
+          description: "Inspect runtime context.",
+          input_schema: { type: "object", properties: {} },
+        },
+      ],
+      toolExecutor,
+      invokeStream: providerHarness.invokeStream,
+    });
+
+    expect(providerHarness.calls[0]?.request.tools.map((tool) => tool.name)).toEqual([
+      "inspect_runtime_context",
+    ]);
+    expect(providerHarness.calls[0]?.request.systemPrompt).toBe("system");
+    expect(toolExecutor).toHaveBeenCalledWith("inspect_runtime_context", {
+      includePrompt: true,
+    });
+    expect(result.assistantText).toBe("Checking runtime. Done.");
+    expect(result.toolCalls).toEqual([
+      {
+        name: "inspect_runtime_context",
+        args: { includePrompt: true },
+      },
+    ]);
+  });
+
+  it("captures tool failures through the shared provider-boundary harness without short-circuiting the loop", async () => {
+    const toolExecutor = vi.fn().mockRejectedValue(new Error("temporarily unavailable"));
+    const providerHarness = createProviderBoundaryHarness({
+      steps: [
+        {
+          type: "tool",
+          name: "inspect_runtime_context",
+          args: { includePrompt: true },
+        },
+        { type: "delta", text: "Recovered." },
+      ],
+    });
+
+    const result = await executeLiveEvalRuntime({
+      apiKey: "test-key",
+      role: "AUTHENTICATED",
+      userId: "usr_test",
+      messages: [{ role: "user", content: "hello" }],
+      systemPrompt: "system",
+      tools: [
+        {
+          name: "inspect_runtime_context",
+          description: "Inspect runtime context.",
+          input_schema: { type: "object", properties: {} },
+        },
+      ],
+      toolExecutor,
+      invokeStream: providerHarness.invokeStream,
+    });
+
+    expect(providerHarness.calls[0]?.request.messages).toEqual([
+      { role: "user", content: "hello" },
+    ]);
+    expect(providerHarness.calls[0]?.request.signalProvided).toBe(false);
+    expect(result.assistantText).toBe("Recovered.");
+    expect(result.toolResults).toEqual([
+      {
+        name: "inspect_runtime_context",
+        result: "temporarily unavailable",
+        isError: true,
+      },
+    ]);
   });
 
   it("records live anonymous signup continuity with a post-signup continued exchange", async () => {
@@ -239,6 +335,65 @@ describe("eval live runtime and runner", () => {
         expect.objectContaining({ id: "verified-tools-reported", passed: true }),
         expect.objectContaining({ id: "page-context-reported", passed: true }),
       ]),
+    );
+  });
+
+  it("returns prompt provenance from runtime inspection for live eval prompts", async () => {
+    const executeRuntime = vi.fn().mockImplementation(async (request) => {
+      const toolExecutor = request.toolExecutor;
+
+      if (!toolExecutor) {
+        throw new Error("Expected a runtime inspection tool executor.");
+      }
+
+      const inspected = await toolExecutor("inspect_runtime_context", {
+        includePrompt: true,
+      }) as {
+        promptRuntime: {
+          surface: string;
+          effectiveHash: string;
+          sections: Array<{ key: string }>;
+          redacted: boolean;
+        } | null;
+      };
+
+      expect(inspected.promptRuntime).toEqual(
+        expect.objectContaining({
+          surface: "live_eval",
+          effectiveHash: expect.any(String),
+          redacted: true,
+        }),
+      );
+      expect(inspected.promptRuntime?.sections.map((section) => section.key)).toEqual(
+        expect.arrayContaining(["live_eval_funnel_directive", "routing"]),
+      );
+
+      return {
+        model: "claude-sonnet-4-6",
+        assistantText: "Prompt provenance inspected.",
+        stopReason: "end_turn",
+        toolRoundCount: 1,
+        toolCalls: [
+          { name: "inspect_runtime_context", args: { includePrompt: true } },
+        ],
+        toolResults: [
+          { name: "inspect_runtime_context", result: inspected, isError: false },
+        ],
+        systemPrompt: request.systemPrompt ?? "system",
+        toolCount: request.tools?.length ?? 0,
+      };
+    });
+
+    const execution = await runLiveEvalScenario("organization-buyer-funnel", {
+      executeRuntime,
+    });
+
+    expect(executeRuntime).toHaveBeenCalledTimes(1);
+    expect(execution.finalState.promptProvenance).toEqual(
+      expect.objectContaining({
+        surface: "live_eval",
+        effectiveHash: expect.any(String),
+      }),
     );
   });
 

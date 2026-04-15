@@ -1,0 +1,247 @@
+{
+  "generatedAt": "2026-04-10T10:06:21.131Z",
+  "authenticatedStrong": {
+    "query": "printing press analogy",
+    "backend": "search_pipeline",
+    "fallbackError": null,
+    "groundingState": "prefetched_section",
+    "followUp": "cite_canonical_paths",
+    "retrievalQuality": "strong",
+    "resultCount": 3,
+    "results": [
+      {
+        "section": "Why Now: The Printing Press Analogy",
+        "canonicalPath": "/library/second-renaissance/ch01-why-now",
+        "resolverPath": "/library/section/ch01-why-now",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 15.53407498250343,
+        "vectorRank": null,
+        "bm25Rank": 1,
+        "matchContextPreview": "# Why Now: The Printing Press Analogy",
+        "matchPassagePreview": "# Why Now: The Printing Press Analogy",
+        "matchSection": null,
+        "chunkMetadata": {
+          "chunkId": "second-renaissance/ch01-why-now#passage:0",
+          "chunkLevel": "passage",
+          "localChunkIndex": 0,
+          "localChunkCount": 6,
+          "parentChunkId": null,
+          "previousChunkId": null,
+          "nextChunkId": "second-renaissance/ch01-why-now#section:1",
+          "boundarySource": "document_start",
+          "conceptKeywords": [
+            "printing",
+            "press",
+            "analogy"
+          ]
+        }
+      },
+      {
+        "section": "Erik Erikson and Benedict Anderson: Identity Formation and Imagined Communities",
+        "canonicalPath": "/library/sources-and-lineage/ch08-erikson-anderson",
+        "resolverPath": "/library/section/ch08-erikson-anderson",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 9.193183386751189,
+        "vectorRank": null,
+        "bm25Rank": 2,
+        "matchContextPreview": "**Book I, Chapter 1 (Why Now: The Printing Press Analogy)** — Anderson's concept of print capitalism is the third strand of the historical argument, alongside Eisenstein (information economics) and Dittmar (empirical ...",
+        "matchPassagePreview": "**Book I, Chapter 1 (Why Now: The Printing Press Analogy)** — Anderson's concept of print capitalism is the third strand of the historical argument, alongside Eisenstein (information economics) and Dittmar (empirical ...",
+        "matchSection": "Where This Appears in the Curriculum",
+        "chunkMetadata": {
+          "chunkId": "sources-and-lineage/ch08-erikson-anderson#passage:6",
+          "chunkLevel": "passage",
+          "localChunkIndex": 6,
+          "localChunkCount": 7,
+          "parentChunkId": "sources-and-lineage/ch08-erikson-anderson#section:4",
+          "previousChunkId": "sources-and-lineage/ch08-erikson-anderson#passage:5",
+          "nextChunkId": null,
+          "boundarySource": "inline_offset",
+          "conceptKeywords": [
+            "anderson",
+            "identity",
+            "imagined",
+            "communities",
+            "printing",
+            "press"
+          ]
+        }
+      },
+      {
+        "section": "Elizabeth Eisenstein: The Printing Press and the Information Economy",
+        "canonicalPath": "/library/sources-and-lineage/ch01-eisenstein",
+        "resolverPath": "/library/section/ch01-eisenstein",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 8.608727644189411,
+        "vectorRank": null,
+        "bm25Rank": 3,
+        "matchContextPreview": "# Elizabeth Eisenstein: The Printing Press and the Information Economy Elizabeth Eisenstein (1923–2016) was an American historian and the Regents' Professor of History at the University of Michigan. She spent more tha...",
+        "matchPassagePreview": "# Elizabeth Eisenstein: The Printing Press and the Information Economy Elizabeth Eisenstein (1923–2016) was an American historian and the Regents' Professor of History at the University of Michigan. She spent more tha...",
+        "matchSection": null,
+        "chunkMetadata": {
+          "chunkId": "sources-and-lineage/ch01-eisenstein#passage:0",
+          "chunkLevel": "passage",
+          "localChunkIndex": 0,
+          "localChunkCount": 5,
+          "parentChunkId": null,
+          "previousChunkId": null,
+          "nextChunkId": "sources-and-lineage/ch01-eisenstein#section:1",
+          "boundarySource": "document_start",
+          "conceptKeywords": [
+            "elizabeth",
+            "eisenstein",
+            "printing",
+            "press",
+            "information",
+            "economy"
+          ]
+        }
+      }
+    ],
+    "prefetchedSection": {
+      "title": "Why Now: The Printing Press Analogy",
+      "canonicalPath": "/library/second-renaissance/ch01-why-now",
+      "resolverPath": "/library/section/ch01-why-now",
+      "contentPreview": "## The Question That Matters Before we talk about AI, we need to talk about Johannes Gutenberg. Not because history is a polite hobby. Because the mechanism that made the Renaissance possible is happening again, at a different layer, and understanding it changes everything about how you should be preparing yourself....",
+      "contentLength": 4021,
+      "contentTruncated": true
+    }
+  },
+  "anonymousStrong": {
+    "query": "printing press analogy",
+    "backend": "search_pipeline",
+    "fallbackError": null,
+    "groundingState": "search_only",
+    "followUp": "call_get_section_before_detailed_claims",
+    "retrievalQuality": "strong",
+    "resultCount": 3,
+    "results": [
+      {
+        "section": "Why Now: The Printing Press Analogy",
+        "canonicalPath": "/library/second-renaissance/ch01-why-now",
+        "resolverPath": "/library/section/ch01-why-now",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 15.53407498250343,
+        "vectorRank": null,
+        "bm25Rank": 1,
+        "matchContextPreview": "# Why Now: The Printing Press Analogy",
+        "matchPassagePreview": "# Why Now: The Printing Press Analogy",
+        "matchSection": null,
+        "chunkMetadata": {
+          "chunkId": "second-renaissance/ch01-why-now#passage:0",
+          "chunkLevel": "passage",
+          "localChunkIndex": 0,
+          "localChunkCount": 6,
+          "parentChunkId": null,
+          "previousChunkId": null,
+          "nextChunkId": "second-renaissance/ch01-why-now#section:1",
+          "boundarySource": "document_start",
+          "conceptKeywords": [
+            "printing",
+            "press",
+            "analogy"
+          ]
+        }
+      },
+      {
+        "section": "Erik Erikson and Benedict Anderson: Identity Formation and Imagined Communities",
+        "canonicalPath": "/library/sources-and-lineage/ch08-erikson-anderson",
+        "resolverPath": "/library/section/ch08-erikson-anderson",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 9.193183386751189,
+        "vectorRank": null,
+        "bm25Rank": 2,
+        "matchContextPreview": "**Book I, Chapter 1 (Why Now: The Printing Press Analogy)** — Anderson's concept of print capitalism is the third strand of the historical argument, alongside Eisenstein (information economics) and Dittmar (empirical ...",
+        "matchPassagePreview": "**Book I, Chapter 1 (Why Now: The Printing Press Analogy)** — Anderson's concept of print capitalism is the third strand of the historical argument, alongside Eisenstein (information economics) and Dittmar (empirical ...",
+        "matchSection": "Where This Appears in the Curriculum",
+        "chunkMetadata": {
+          "chunkId": "sources-and-lineage/ch08-erikson-anderson#passage:6",
+          "chunkLevel": "passage",
+          "localChunkIndex": 6,
+          "localChunkCount": 7,
+          "parentChunkId": "sources-and-lineage/ch08-erikson-anderson#section:4",
+          "previousChunkId": "sources-and-lineage/ch08-erikson-anderson#passage:5",
+          "nextChunkId": null,
+          "boundarySource": "inline_offset",
+          "conceptKeywords": [
+            "anderson",
+            "identity",
+            "imagined",
+            "communities",
+            "printing",
+            "press"
+          ]
+        }
+      },
+      {
+        "section": "Elizabeth Eisenstein: The Printing Press and the Information Economy",
+        "canonicalPath": "/library/sources-and-lineage/ch01-eisenstein",
+        "resolverPath": "/library/section/ch01-eisenstein",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 8.608727644189411,
+        "vectorRank": null,
+        "bm25Rank": 3,
+        "matchContextPreview": "# Elizabeth Eisenstein: The Printing Press and the Information Economy Elizabeth Eisenstein (1923–2016) was an American historian and the Regents' Professor of History at the University of Michigan. She spent more tha...",
+        "matchPassagePreview": "# Elizabeth Eisenstein: The Printing Press and the Information Economy Elizabeth Eisenstein (1923–2016) was an American historian and the Regents' Professor of History at the University of Michigan. She spent more tha...",
+        "matchSection": null,
+        "chunkMetadata": {
+          "chunkId": "sources-and-lineage/ch01-eisenstein#passage:0",
+          "chunkLevel": "passage",
+          "localChunkIndex": 0,
+          "localChunkCount": 5,
+          "parentChunkId": null,
+          "previousChunkId": null,
+          "nextChunkId": "sources-and-lineage/ch01-eisenstein#section:1",
+          "boundarySource": "document_start",
+          "conceptKeywords": [
+            "elizabeth",
+            "eisenstein",
+            "printing",
+            "press",
+            "information",
+            "economy"
+          ]
+        }
+      }
+    ],
+    "prefetchedSection": null
+  },
+  "noResults": {
+    "query": "zzzxqv non existent corpus sentinel",
+    "backend": "search_pipeline",
+    "fallbackError": null,
+    "groundingState": "no_results",
+    "followUp": "refine_query",
+    "retrievalQuality": "none",
+    "resultCount": 0,
+    "results": [],
+    "prefetchedSection": null
+  },
+  "getSection": {
+    "document_slug": "second-renaissance",
+    "section_slug": "ch01-why-now",
+    "outputType": "object",
+    "found": true,
+    "canonicalPath": "/library/second-renaissance/ch01-why-now",
+    "resolverPath": "/library/section/ch01-why-now",
+    "outputLength": 4021,
+    "includesTruncationMarker": true,
+    "relatedSectionCount": 3,
+    "navigation": {
+      "previousCanonicalPath": "/library/second-renaissance/ch00-the-thread",
+      "nextCanonicalPath": "/library/second-renaissance/ch02-political-economy-of-skills"
+    },
+    "outputPreview": "## The Question That Matters Before we talk about AI, we need to talk about Johannes Gutenberg. Not because history is a polite hobby. Because the mechanism that made the Renaissance possible is happening again, at a different layer, and understanding it changes everything about how you should be preparing yourself. The printing press mattered historically not because it produced more books. It mattered because it **restructured who got to participate** in the production and interpretation of..."
+  }
+}

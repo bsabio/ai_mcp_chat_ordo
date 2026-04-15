@@ -88,11 +88,12 @@ describe("browser graph data preview", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /view diagram/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand full screen" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Export graph JSON" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Hide data preview" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Hide data preview" }));
     expect(within(dialog).queryByTestId("graph-data-preview")).toBeNull();

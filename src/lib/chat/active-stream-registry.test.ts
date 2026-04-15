@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ActiveStreamConflictError,
   clearActiveStreamsForTests,
   getActiveStreamSnapshot,
+  getActiveStreamSnapshotForOwnerConversation,
   registerActiveStream,
   stopActiveStream,
 } from "@/lib/chat/active-stream-registry";
@@ -48,6 +50,41 @@ describe("activeStreamRegistry", () => {
     });
     expect(abortController.signal.aborted).toBe(true);
     expect(getActiveStreamSnapshot("stream_test_2")).toBeNull();
+  });
+
+  it("returns the active stream snapshot for an owner and conversation pair", () => {
+    clearActiveStreamsForTests();
+
+    registerActiveStream({
+      streamId: "stream_test_lookup",
+      ownerUserId: "usr_owner",
+      conversationId: "conv_lookup",
+      abortController: new AbortController(),
+    });
+
+    expect(getActiveStreamSnapshotForOwnerConversation("usr_owner", "conv_lookup")).toMatchObject({
+      streamId: "stream_test_lookup",
+      ownerUserId: "usr_owner",
+      conversationId: "conv_lookup",
+    });
+  });
+
+  it("rejects duplicate streams for the same owner and conversation", () => {
+    clearActiveStreamsForTests();
+
+    registerActiveStream({
+      streamId: "stream_test_primary",
+      ownerUserId: "usr_owner",
+      conversationId: "conv_dup",
+      abortController: new AbortController(),
+    });
+
+    expect(() => registerActiveStream({
+      streamId: "stream_test_secondary",
+      ownerUserId: "usr_owner",
+      conversationId: "conv_dup",
+      abortController: new AbortController(),
+    })).toThrowError(ActiveStreamConflictError);
   });
 
   it("does not stop a stream for a different owner", () => {

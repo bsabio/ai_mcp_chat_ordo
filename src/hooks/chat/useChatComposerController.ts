@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from "react";
+import { useCallback, useRef, type RefObject } from "react";
 
 import type { MentionItem } from "@/core/entities/mentions";
 import { useMentions } from "@/hooks/useMentions";
@@ -12,17 +12,20 @@ interface UseChatComposerControllerOptions {
     messageText: string,
     pendingFiles: File[],
   ) => Promise<{ ok: boolean; error?: string }>;
+  onSendError?: (error: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 }
 
 export function useChatComposerController({
   isSending,
   onSendMessage,
+  onSendError,
   textareaRef,
 }: UseChatComposerControllerOptions) {
   const composer = useChatComposerState(isSending);
   const { executeCommand, findCommands } = useCommandRegistry();
   const mentions = useMentions(textareaRef, { findCommands });
+  const cursorRef = useRef(0);
 
   const setComposerText = useCallback(
     (text: string) => {
@@ -34,6 +37,7 @@ export function useChatComposerController({
   const handleInputChange = useCallback(
     (value: string, selectionStart: number) => {
       composer.updateInput(value);
+      cursorRef.current = selectionStart;
       mentions.handleInput(value, selectionStart);
       composer.setMentionIndex(0);
     },
@@ -49,7 +53,7 @@ export function useChatComposerController({
         }
       }
 
-      const nextText = mentions.insertMention(item);
+      const nextText = mentions.insertMention(item, composer.input, cursorRef.current);
       composer.updateInput(nextText);
     },
     [composer, executeCommand, mentions],
@@ -67,15 +71,23 @@ export function useChatComposerController({
 
     const queuedFiles = [...composer.pendingFiles];
     composer.clearComposer();
-    const result = await onSendMessage(draft, queuedFiles);
-    if (!result.ok) {
+
+    try {
+      const result = await onSendMessage(draft, queuedFiles);
+      if (!result.ok) {
+        composer.restoreComposer(draft, queuedFiles);
+        if (result.error) onSendError?.(result.error);
+      }
+    } catch (error) {
       composer.restoreComposer(draft, queuedFiles);
+      onSendError?.(error instanceof Error ? error.message : "Failed to send message");
     }
-  }, [composer, isSending, onSendMessage]);
+  }, [composer, isSending, onSendMessage, onSendError]);
 
   return {
     activeTrigger: mentions.activeTrigger,
     canSend: composer.canSend,
+    handleFileDrop: composer.handleFileDrop,
     handleFileRemove: composer.handleFileRemove,
     handleFileSelect: composer.handleFileSelect,
     handleInputChange,

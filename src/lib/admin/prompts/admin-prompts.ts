@@ -4,7 +4,12 @@
  * Provides list-of-slots and detail view models for the admin surface.
  */
 
-import { getSystemPromptDataMapper } from "@/adapters/RepositoryFactory";
+import { createPromptControlPlaneService } from "@/lib/prompts/prompt-control-plane-service";
+import type {
+  PromptControlPlaneService,
+  PromptControlPlaneSlotSummary,
+  PromptRuntimeCoverage,
+} from "@/core/use-cases/PromptControlPlaneService";
 import type { SystemPrompt } from "@/core/use-cases/SystemPromptRepository";
 
 // ── View-model types ───────────────────────────────────────────────────
@@ -16,6 +21,7 @@ export interface AdminPromptSlot {
   totalVersions: number;
   lastUpdated: string;
   updatedBy: string | null;
+  runtimeCoverage: PromptRuntimeCoverage;
 }
 
 export interface AdminPromptVersionEntry {
@@ -31,60 +37,29 @@ export interface AdminPromptDetailViewModel {
   slot: AdminPromptSlot;
   versions: AdminPromptVersionEntry[];
   activeContent: string;
+  fallbackContent: string | null;
 }
-
-// ── Slot roles & types ─────────────────────────────────────────────────
-
-const ROLES = ["ALL", "ANONYMOUS", "AUTHENTICATED", "STAFF", "ADMIN"] as const;
-const PROMPT_TYPES = ["base", "role_directive"] as const;
 
 // ── Loaders ────────────────────────────────────────────────────────────
 
-export async function loadAdminPromptSlots(): Promise<AdminPromptSlot[]> {
-  const mapper = getSystemPromptDataMapper();
-  const slots: AdminPromptSlot[] = [];
-
-  for (const role of ROLES) {
-    for (const promptType of PROMPT_TYPES) {
-      const versions = await mapper.listVersions(role, promptType);
-      if (versions.length === 0) continue;
-
-      const active = versions.find((v) => v.isActive);
-      const latest = versions[0]; // listVersions returns DESC by version
-
-      slots.push({
-        role,
-        promptType,
-        activeVersion: active?.version ?? null,
-        totalVersions: versions.length,
-        lastUpdated: latest.createdAt,
-        updatedBy: latest.createdBy,
-      });
-    }
-  }
-
-  return slots;
+export async function loadAdminPromptSlots(
+  service: PromptControlPlaneService = createPromptControlPlaneService(),
+): Promise<AdminPromptSlot[]> {
+  const slots = await service.listSlots();
+  return slots.map(toAdminPromptSlot);
 }
 
 export async function loadAdminPromptDetail(
   role: string,
   promptType: string,
+  service: PromptControlPlaneService = createPromptControlPlaneService(),
 ): Promise<AdminPromptDetailViewModel> {
-  const mapper = getSystemPromptDataMapper();
-  const all = await mapper.listVersions(role, promptType);
-
-  const active = all.find((v) => v.isActive);
-
-  const slot: AdminPromptSlot = {
+  const detail = await service.getSlotDetail({
     role,
-    promptType,
-    activeVersion: active?.version ?? null,
-    totalVersions: all.length,
-    lastUpdated: all[0]?.createdAt ?? "",
-    updatedBy: all[0]?.createdBy ?? null,
-  };
+    promptType: promptType as "base" | "role_directive",
+  });
 
-  const versions: AdminPromptVersionEntry[] = all.map((v: SystemPrompt) => ({
+  const versions: AdminPromptVersionEntry[] = detail.versions.map((v: SystemPrompt) => ({
     version: v.version,
     isActive: v.isActive,
     createdAt: v.createdAt,
@@ -94,8 +69,21 @@ export async function loadAdminPromptDetail(
   }));
 
   return {
-    slot,
+    slot: toAdminPromptSlot(detail.slot),
     versions,
-    activeContent: active?.content ?? "",
+    activeContent: detail.activeContent,
+    fallbackContent: detail.fallbackContent,
+  };
+}
+
+function toAdminPromptSlot(slot: PromptControlPlaneSlotSummary): AdminPromptSlot {
+  return {
+    role: slot.role,
+    promptType: slot.promptType,
+    activeVersion: slot.activeVersion,
+    totalVersions: slot.totalVersions,
+    lastUpdated: slot.lastUpdated,
+    updatedBy: slot.updatedBy,
+    runtimeCoverage: slot.runtimeCoverage,
   };
 }

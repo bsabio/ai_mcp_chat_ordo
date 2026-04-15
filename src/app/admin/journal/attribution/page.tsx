@@ -5,6 +5,7 @@ import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { loadJournalAttribution } from "@/lib/admin/attribution/admin-attribution";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
+import { requireJournalWorkspaceAccess } from "@/lib/journal/admin-journal";
 import {
   getAdminJournalDetailPath,
 } from "@/lib/journal/admin-journal-routes";
@@ -21,7 +22,7 @@ export default async function AttributionPage({
 }: {
   searchParams: Promise<{ after?: string; before?: string }>;
 }) {
-  await requireAdminPageAccess();
+  await requireJournalWorkspaceAccess();
   const params = await searchParams;
 
   const now = new Date();

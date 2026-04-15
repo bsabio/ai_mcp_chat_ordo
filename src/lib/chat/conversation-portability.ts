@@ -3,12 +3,23 @@ import { z } from "zod";
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { Conversation, Message } from "@/core/entities/conversation";
 import { createConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
+import { isCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
+import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 import type {
   ImportedAttachmentAvailability,
   ImportedAttachmentMessagePart,
   JobStatusMessagePart,
   MessagePart,
 } from "@/core/entities/message-parts";
+import type { CapabilityArtifactRef, CapabilityResultEnvelope } from "@/core/entities/capability-result";
+import type { MediaAssetRetentionClass, MediaAssetSource } from "@/core/entities/media-asset";
+import { resolveGenerateChartPayload } from "@/core/use-cases/tools/chart-payload";
+import { resolveGenerateGraphPayload } from "@/core/use-cases/tools/graph-payload";
+import { describeJobStatus } from "@/lib/jobs/job-status";
+import {
+  buildTranscriptFromMessages,
+  type TranscriptEntry,
+} from "@/lib/chat/transcript-store";
 
 export const CONVERSATION_EXPORT_VERSION = 1;
 export const CONVERSATION_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
@@ -26,6 +37,13 @@ export interface PortableAttachmentManifestEntry {
   fileSize: number;
   availability: PortableAttachmentAvailability;
   assetId?: string | null;
+  assetKind?: "audio" | "video" | "image" | "chart" | "graph" | "subtitle" | "waveform" | null;
+  width?: number | null;
+  height?: number | null;
+  durationSeconds?: number | null;
+  source?: "uploaded" | "generated" | "derived" | null;
+  retentionClass?: "ephemeral" | "conversation" | "durable" | null;
+  toolName?: string | null;
   note?: string | null;
 }
 
@@ -72,6 +90,7 @@ export interface ConversationExportPayload {
   messages: ExportConversationMessage[];
   attachmentManifest: PortableAttachmentManifestEntry[];
   jobReferences: PortableJobReference[];
+  transcript?: TranscriptEntry[];
 }
 
 interface BuildConversationExportOptions {
@@ -93,6 +112,30 @@ interface ImportConversationShape {
   attachmentManifest: PortableAttachmentManifestEntry[];
   jobReferences: PortableJobReference[];
 }
+
+type PortableMediaToolName = "generate_audio" | "generate_chart" | "generate_graph" | "compose_media";
+
+type PortableAssetFields = {
+  assetId?: string | null;
+  mimeType?: string;
+  assetSource?: MediaAssetSource;
+  retentionClass?: MediaAssetRetentionClass;
+};
+
+type PortableGenerateAudioPayload = {
+  action: "generate_audio";
+  title: string;
+  text: string;
+  assetId: string | null;
+  assetKind?: "audio";
+  mimeType?: string;
+  assetSource?: MediaAssetSource;
+  retentionClass?: MediaAssetRetentionClass;
+  provider: string;
+  generationStatus: "client_fetch_pending" | "cached_asset";
+  estimatedDurationSeconds: number;
+  estimatedGenerationSeconds: number;
+};
 
 export interface NormalizedImportedConversation {
   payload: ImportConversationShape;
@@ -152,6 +195,13 @@ const exportConversationSchema = z.object({
     fileSize: z.number().int().nonnegative(),
     availability: z.enum(["durable_asset", "embedded", "unavailable"]),
     assetId: z.string().nullable().optional(),
+    assetKind: z.enum(["audio", "video", "image", "chart", "graph", "subtitle", "waveform"]).nullable().optional(),
+    width: z.number().nullable().optional(),
+    height: z.number().nullable().optional(),
+    durationSeconds: z.number().nullable().optional(),
+    source: z.enum(["uploaded", "generated", "derived"]).nullable().optional(),
+    retentionClass: z.enum(["ephemeral", "conversation", "durable"]).nullable().optional(),
+    toolName: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
   })),
   jobReferences: z.array(z.object({
@@ -165,6 +215,344 @@ const exportConversationSchema = z.object({
 
 function deepCloneParts(parts: MessagePart[]): MessagePart[] {
   return JSON.parse(JSON.stringify(parts)) as MessagePart[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJobStatusPartLike(value: unknown): value is JobStatusMessagePart {
+  return isRecord(value)
+    && value.type === "job_status"
+    && typeof value.jobId === "string"
+    && typeof value.toolName === "string"
+    && typeof value.label === "string"
+    && typeof value.status === "string";
+}
+
+function isPortableMediaToolName(value: string): value is PortableMediaToolName {
+  return value === "generate_audio"
+    || value === "generate_chart"
+    || value === "generate_graph"
+    || value === "compose_media";
+}
+
+function isPortableGenerateAudioPayload(value: unknown): value is PortableGenerateAudioPayload {
+  return isRecord(value)
+    && value.action === "generate_audio"
+    && typeof value.title === "string"
+    && typeof value.text === "string"
+    && (typeof value.assetId === "string" || value.assetId === null)
+    && typeof value.provider === "string"
+    && typeof value.generationStatus === "string"
+    && typeof value.estimatedDurationSeconds === "number"
+    && typeof value.estimatedGenerationSeconds === "number";
+}
+
+function readPortableAssetFields(value: unknown): PortableAssetFields {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const assetSource = value.assetSource === "generated"
+    || value.assetSource === "uploaded"
+    || value.assetSource === "derived"
+    ? value.assetSource
+    : value.source === "generated" || value.source === "uploaded" || value.source === "derived"
+      ? value.source
+      : undefined;
+
+  return {
+    ...(typeof value.assetId === "string" || value.assetId === null
+      ? { assetId: value.assetId as string | null }
+      : {}),
+    ...(typeof value.mimeType === "string" ? { mimeType: value.mimeType } : {}),
+    ...(assetSource ? { assetSource } : {}),
+    ...(value.retentionClass === "ephemeral"
+      || value.retentionClass === "conversation"
+      || value.retentionClass === "durable"
+      ? { retentionClass: value.retentionClass }
+      : {}),
+  };
+}
+
+function withPortableAssetFields<T extends object>(payload: T, raw: unknown): T & PortableAssetFields {
+  return {
+    ...payload,
+    ...readPortableAssetFields(raw),
+  };
+}
+
+function isResolvedGraphPayload(value: unknown): value is { graph: { kind: string } } {
+  return isRecord(value) && isRecord(value.graph) && typeof value.graph.kind === "string";
+}
+
+function normalizePortableMediaPayload(
+  toolName: string,
+  payload: unknown,
+  hasConversationContext: boolean,
+): unknown {
+  if (!isPortableMediaToolName(toolName)) {
+    return payload;
+  }
+
+  if (toolName === "generate_audio") {
+    if (!isPortableGenerateAudioPayload(payload)) {
+      return payload;
+    }
+
+    const assetFields = readPortableAssetFields(payload);
+    return {
+      ...payload,
+      assetKind: "audio",
+      mimeType: assetFields.mimeType ?? payload.mimeType ?? "audio/mpeg",
+      assetSource: assetFields.assetSource ?? payload.assetSource ?? "generated",
+      retentionClass:
+        assetFields.retentionClass
+        ?? payload.retentionClass
+        ?? (hasConversationContext ? "conversation" : "ephemeral"),
+    };
+  }
+
+  if (toolName === "generate_chart") {
+    try {
+      const raw = isRecord(payload) ? payload : {};
+      return withPortableAssetFields(resolveGenerateChartPayload(raw), raw);
+    } catch {
+      return isRecord(payload)
+        ? { ...payload, ...readPortableAssetFields(payload) }
+        : payload;
+    }
+  }
+
+  if (toolName === "generate_graph") {
+    if (isResolvedGraphPayload(payload)) {
+      return withPortableAssetFields(payload, payload);
+    }
+
+    try {
+      const raw = isRecord(payload) ? payload : {};
+      return withPortableAssetFields(resolveGenerateGraphPayload(raw), raw);
+    } catch {
+      return isRecord(payload)
+        ? { ...payload, ...readPortableAssetFields(payload) }
+        : payload;
+    }
+  }
+
+  if (!isRecord(payload)) {
+    return payload;
+  }
+
+  const outputFormat = typeof payload.outputFormat === "string" && payload.outputFormat.trim().length > 0
+    ? payload.outputFormat.trim().toLowerCase()
+    : "mp4";
+
+  return {
+    ...payload,
+    ...(typeof payload.primaryAssetId === "string" && payload.primaryAssetId.trim().length > 0
+      ? { primaryAssetId: payload.primaryAssetId.trim() }
+      : {}),
+    ...(typeof payload.primaryAssetId === "string" && payload.primaryAssetId.trim().length > 0
+      ? { retentionClass: payload.retentionClass ?? (hasConversationContext ? "conversation" : "ephemeral") }
+      : {}),
+    ...(typeof payload.mimeType === "string"
+      ? {}
+      : { mimeType: `video/${outputFormat}` }),
+  };
+}
+
+function buildPortableMediaArtifacts(
+  toolName: string,
+  payload: unknown,
+  hasConversationContext: boolean,
+): CapabilityArtifactRef[] | undefined {
+  if (!isPortableMediaToolName(toolName)) {
+    return undefined;
+  }
+
+  const fallbackRetentionClass: MediaAssetRetentionClass = hasConversationContext ? "conversation" : "ephemeral";
+
+  if (toolName === "generate_audio" && isPortableGenerateAudioPayload(payload)) {
+    return [{
+      kind: "audio",
+      label: payload.title,
+      mimeType: payload.mimeType ?? "audio/mpeg",
+      ...(payload.assetId ? { assetId: payload.assetId, uri: `/api/user-files/${payload.assetId}` } : {}),
+      retentionClass: payload.retentionClass ?? fallbackRetentionClass,
+      durationSeconds: payload.estimatedDurationSeconds,
+      source: payload.assetSource ?? "generated",
+    }];
+  }
+
+  if (toolName === "generate_chart" && isRecord(payload)) {
+    const assetId = typeof payload.assetId === "string" && payload.assetId.trim().length > 0
+      ? payload.assetId
+      : undefined;
+    return [{
+      kind: "chart",
+      label: typeof payload.title === "string" && payload.title.trim().length > 0 ? payload.title : "Chart",
+      mimeType: typeof payload.mimeType === "string" ? payload.mimeType : "text/vnd.mermaid",
+      ...(assetId ? { assetId, uri: `/api/user-files/${assetId}` } : {}),
+      retentionClass:
+        payload.retentionClass === "ephemeral"
+        || payload.retentionClass === "conversation"
+        || payload.retentionClass === "durable"
+          ? payload.retentionClass
+          : fallbackRetentionClass,
+      source:
+        payload.assetSource === "generated" || payload.assetSource === "uploaded" || payload.assetSource === "derived"
+          ? payload.assetSource
+          : "derived",
+    }];
+  }
+
+  if (toolName === "generate_graph" && isRecord(payload)) {
+    const assetId = typeof payload.assetId === "string" && payload.assetId.trim().length > 0
+      ? payload.assetId
+      : undefined;
+    return [{
+      kind: "graph",
+      label: typeof payload.title === "string" && payload.title.trim().length > 0 ? payload.title : "Graph",
+      mimeType: typeof payload.mimeType === "string" ? payload.mimeType : "application/vnd.studioordo.graph+json",
+      ...(assetId ? { assetId, uri: `/api/user-files/${assetId}` } : {}),
+      retentionClass:
+        payload.retentionClass === "ephemeral"
+        || payload.retentionClass === "conversation"
+        || payload.retentionClass === "durable"
+          ? payload.retentionClass
+          : fallbackRetentionClass,
+      source:
+        payload.assetSource === "generated" || payload.assetSource === "uploaded" || payload.assetSource === "derived"
+          ? payload.assetSource
+          : "derived",
+    }];
+  }
+
+  if (toolName === "compose_media" && isRecord(payload)) {
+    const assetId = typeof payload.primaryAssetId === "string" && payload.primaryAssetId.trim().length > 0
+      ? payload.primaryAssetId
+      : undefined;
+    if (!assetId) {
+      return undefined;
+    }
+
+    const mimeType = typeof payload.mimeType === "string" && payload.mimeType.trim().length > 0
+      ? payload.mimeType
+      : "video/mp4";
+
+    return [{
+      kind: "video",
+      label: "Composed Video",
+      mimeType,
+      assetId,
+      uri: `/api/user-files/${assetId}`,
+      retentionClass:
+        payload.retentionClass === "ephemeral"
+        || payload.retentionClass === "conversation"
+        || payload.retentionClass === "durable"
+          ? payload.retentionClass
+          : fallbackRetentionClass,
+      source: "generated",
+    }];
+  }
+
+  return undefined;
+}
+
+function normalizePortableResultEnvelope(
+  toolName: string,
+  rawEnvelope: unknown,
+  normalizedPayload: unknown,
+  hasConversationContext: boolean,
+): CapabilityResultEnvelope | null | undefined {
+  if (!isPortableMediaToolName(toolName)) {
+    return rawEnvelope === null
+      ? null
+      : isCapabilityResultEnvelope(rawEnvelope)
+        ? rawEnvelope
+        : undefined;
+  }
+
+  if (rawEnvelope === null) {
+    return null;
+  }
+
+  const artifacts = buildPortableMediaArtifacts(toolName, normalizedPayload, hasConversationContext);
+
+  if (isCapabilityResultEnvelope(rawEnvelope)) {
+    return {
+      ...rawEnvelope,
+      payload: normalizedPayload,
+      replaySnapshot:
+        rawEnvelope.replaySnapshot && isRecord(rawEnvelope.replaySnapshot)
+          ? (normalizePortableMediaPayload(toolName, rawEnvelope.replaySnapshot, hasConversationContext) as Record<string, unknown>)
+          : rawEnvelope.replaySnapshot,
+      ...(artifacts ? { artifacts } : {}),
+    };
+  }
+
+  return projectCapabilityResultEnvelope({
+    toolName,
+    payload: normalizedPayload,
+    replaySnapshot: isRecord(normalizedPayload) ? normalizedPayload : null,
+    artifacts,
+  }) ?? undefined;
+}
+
+function normalizePortableToolResult(
+  toolName: string,
+  result: unknown,
+  hasConversationContext: boolean,
+): unknown {
+  if (isRecord(result) && isRecord(result.job) && isJobStatusPartLike(result.job.part)) {
+    return {
+      ...result,
+      job: {
+        ...result.job,
+        part: normalizePortableMessagePart(result.job.part, hasConversationContext),
+      },
+    };
+  }
+
+  return normalizePortableMediaPayload(toolName, result, hasConversationContext);
+}
+
+function normalizePortableMessagePart(
+  part: MessagePart,
+  hasConversationContext: boolean,
+): MessagePart {
+  if (part.type === "tool_result") {
+    return {
+      ...part,
+      result: normalizePortableToolResult(part.name, part.result, hasConversationContext),
+    };
+  }
+
+  if (part.type === "job_status") {
+    const rawResultPayload = part.resultPayload !== undefined
+      ? part.resultPayload
+      : isCapabilityResultEnvelope(part.resultEnvelope)
+        ? part.resultEnvelope.payload
+        : undefined;
+    const normalizedResultPayload = rawResultPayload === undefined
+      ? undefined
+      : normalizePortableMediaPayload(part.toolName, rawResultPayload, hasConversationContext);
+    const normalizedResultEnvelope = normalizePortableResultEnvelope(
+      part.toolName,
+      part.resultEnvelope,
+      normalizedResultPayload,
+      hasConversationContext,
+    );
+
+    return {
+      ...part,
+      ...(normalizedResultPayload !== undefined ? { resultPayload: normalizedResultPayload } : {}),
+      ...(normalizedResultEnvelope !== undefined ? { resultEnvelope: normalizedResultEnvelope } : {}),
+    };
+  }
+
+  return part;
 }
 
 function toAttachmentManifestId(messageId: string, partIndex: number): string {
@@ -232,6 +620,7 @@ function assertSafeImportPayload(value: unknown): void {
 function normalizeImportedPart(
   rawPart: Record<string, unknown>,
   entry: PortableAttachmentManifestEntry | undefined,
+  hasConversationContext: boolean,
 ): MessagePart {
   switch (rawPart.type) {
     case "text":
@@ -245,11 +634,11 @@ function normalizeImportedPart(
         args: (rawPart.args && typeof rawPart.args === "object" ? rawPart.args : {}) as Record<string, unknown>,
       };
     case "tool_result":
-      return {
+      return normalizePortableMessagePart({
         type: "tool_result",
         name: String(rawPart.name ?? ""),
         result: rawPart.result,
-      };
+      }, hasConversationContext);
     case "job_status":
       {
         const normalizedStatus: JobStatusMessagePart["status"] = rawPart.status === "running"
@@ -258,8 +647,7 @@ function normalizeImportedPart(
           || rawPart.status === "canceled"
           ? rawPart.status
           : "queued";
-
-      return {
+      return normalizePortableMessagePart({
         type: "job_status",
         jobId: String(rawPart.jobId ?? ""),
         toolName: String(rawPart.toolName ?? ""),
@@ -274,11 +662,16 @@ function normalizeImportedPart(
         ...(typeof rawPart.error === "string" ? { error: rawPart.error } : {}),
         ...(typeof rawPart.updatedAt === "string" ? { updatedAt: rawPart.updatedAt } : {}),
         ...(rawPart.resultPayload !== undefined ? { resultPayload: rawPart.resultPayload } : {}),
+        ...(rawPart.resultEnvelope === null
+          ? { resultEnvelope: null }
+          : isCapabilityResultEnvelope(rawPart.resultEnvelope)
+            ? { resultEnvelope: rawPart.resultEnvelope }
+            : {}),
         ...(typeof rawPart.failureClass === "string" || rawPart.failureClass === null ? { failureClass: rawPart.failureClass as string | null } : {}),
         ...(typeof rawPart.recoveryMode === "string" || rawPart.recoveryMode === null ? { recoveryMode: rawPart.recoveryMode as string | null } : {}),
         ...(typeof rawPart.replayedFromJobId === "string" || rawPart.replayedFromJobId === null ? { replayedFromJobId: rawPart.replayedFromJobId as string | null } : {}),
         ...(typeof rawPart.supersededByJobId === "string" || rawPart.supersededByJobId === null ? { supersededByJobId: rawPart.supersededByJobId as string | null } : {}),
-      } as MessagePart;
+      } as MessagePart, hasConversationContext);
       }
     case "generation_status":
       return {
@@ -301,6 +694,13 @@ function normalizeImportedPart(
           fileName: entry.fileName,
           mimeType: entry.mimeType,
           fileSize: entry.fileSize,
+          ...(entry.assetKind ? { assetKind: entry.assetKind } : {}),
+          ...(typeof entry.width === "number" ? { width: entry.width } : {}),
+          ...(typeof entry.height === "number" ? { height: entry.height } : {}),
+          ...(typeof entry.durationSeconds === "number" ? { durationSeconds: entry.durationSeconds } : {}),
+          ...(entry.source ? { source: entry.source } : {}),
+          ...(entry.retentionClass ? { retentionClass: entry.retentionClass } : {}),
+          ...(entry.toolName ? { toolName: entry.toolName } : {}),
         };
       }
 
@@ -328,6 +728,18 @@ function normalizeImportedPart(
         coversUpToSummaryId: String(rawPart.coversUpToSummaryId ?? ""),
         summariesCompacted: Number(rawPart.summariesCompacted ?? 0),
       };
+    case "compaction_marker":
+      return {
+        type: "compaction_marker",
+        kind: rawPart.kind === "meta_summary" ? "meta_summary" : "summary",
+        compactedCount: Number(rawPart.compactedCount ?? 0),
+        ...(typeof rawPart.coversUpToMessageId === "string"
+          ? { coversUpToMessageId: rawPart.coversUpToMessageId }
+          : {}),
+        ...(typeof rawPart.coversUpToSummaryId === "string"
+          ? { coversUpToSummaryId: rawPart.coversUpToSummaryId }
+          : {}),
+      };
     default:
       throw new Error(`Import payload contains an unsupported message part type: ${String(rawPart.type ?? "unknown")}`);
   }
@@ -342,9 +754,12 @@ export function buildConversationExportPayload({
   const jobReferences: PortableJobReference[] = [];
 
   const exportedMessages = messages.map<ExportConversationMessage>((message) => {
+    const normalizedParts = deepCloneParts(
+      (message.parts ?? []).map((part) => normalizePortableMessagePart(part, true)),
+    );
     const attachmentManifestIds: string[] = [];
 
-    for (const [partIndex, part] of (message.parts ?? []).entries()) {
+    for (const [partIndex, part] of normalizedParts.entries()) {
       if (part.type === "attachment") {
         const manifestId = toAttachmentManifestId(message.id, partIndex);
         attachmentManifestIds.push(manifestId);
@@ -357,6 +772,13 @@ export function buildConversationExportPayload({
           fileSize: part.fileSize,
           availability: "durable_asset",
           assetId: part.assetId,
+          ...(part.assetKind ? { assetKind: part.assetKind } : {}),
+          ...(typeof part.width === "number" ? { width: part.width } : {}),
+          ...(typeof part.height === "number" ? { height: part.height } : {}),
+          ...(typeof part.durationSeconds === "number" ? { durationSeconds: part.durationSeconds } : {}),
+          ...(part.source ? { source: part.source } : {}),
+          ...(part.retentionClass ? { retentionClass: part.retentionClass } : {}),
+          ...(part.toolName ? { toolName: part.toolName } : {}),
         });
       }
 
@@ -391,12 +813,17 @@ export function buildConversationExportPayload({
       id: message.id,
       role: message.role,
       content: message.content,
-      parts: deepCloneParts(message.parts ?? []),
+      parts: normalizedParts,
       createdAt: message.createdAt,
       tokenEstimate: message.tokenEstimate,
       attachmentManifestIds,
     };
   });
+
+  const transcriptMessages: Message[] = messages.map((message, index) => ({
+    ...message,
+    parts: exportedMessages[index]?.parts ?? [],
+  }));
 
   return {
     version: CONVERSATION_EXPORT_VERSION,
@@ -421,6 +848,7 @@ export function buildConversationExportPayload({
     messages: exportedMessages,
     attachmentManifest,
     jobReferences,
+    transcript: buildTranscriptFromMessages(transcriptMessages),
   };
 }
 
@@ -452,7 +880,7 @@ export function parseConversationImportPayload(rawText: string): NormalizedImpor
         ? manifestById.get(message.attachmentManifestIds[attachmentOrdinal++])
         : undefined;
 
-      return normalizeImportedPart(part as Record<string, unknown>, manifestEntry);
+      return normalizeImportedPart(part as Record<string, unknown>, manifestEntry, true);
     });
 
     return {
@@ -569,7 +997,7 @@ function statusLines(parts: MessagePart[] | undefined): string[] {
     }
 
     if (part.type === "job_status") {
-      return [`Job: ${part.label} (${part.status})`];
+      return [describeJobStatus(part)];
     }
 
     return [];

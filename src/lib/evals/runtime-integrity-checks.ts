@@ -19,6 +19,29 @@ export interface CanonicalCorpusSearchEvaluation {
   matchedExpected: boolean;
 }
 
+export interface StructuredGetSectionPayload {
+  found: boolean;
+  title: string | null;
+  document: string | null;
+  documentId: string | null;
+  content: string | null;
+  canonicalPath: string | null;
+  resolverPath: string | null;
+  fallbackSearchPath: string | null;
+  relatedSections: Array<{
+    canonicalPath: string | null;
+    resolverPath: string | null;
+    fallbackSearchPath: string | null;
+  }>;
+}
+
+export interface StructuredGetSectionEvaluation {
+  structuredMetadataReturned: boolean;
+  relatedSectionsReturned: boolean;
+  citationTargetsSafe: boolean;
+  matchedExpected: boolean;
+}
+
 export interface RuntimeSelfKnowledgeInspectionPayload {
   toolCount: number;
   currentPathname: string | null;
@@ -69,6 +92,27 @@ export function evaluateCanonicalCorpusSearchPayload(
     resolverPathsReturned,
     groundingFollowupHonest,
     matchedExpected: canonicalPathsReturned && resolverPathsReturned && groundingFollowupHonest,
+  };
+}
+
+export function evaluateStructuredGetSectionPayload(
+  payload: StructuredGetSectionPayload,
+): StructuredGetSectionEvaluation {
+  const structuredMetadataReturned = payload.found
+    && typeof payload.title === "string"
+    && typeof payload.document === "string"
+    && typeof payload.documentId === "string"
+    && typeof payload.content !== "undefined";
+  const relatedSectionsReturned = payload.found && payload.relatedSections.length >= 2;
+  const citationTargetsSafe = payload.relatedSections.every((section) =>
+    section.canonicalPath !== null || section.resolverPath !== null || section.fallbackSearchPath !== null,
+  );
+
+  return {
+    structuredMetadataReturned,
+    relatedSectionsReturned,
+    citationTargetsSafe,
+    matchedExpected: structuredMetadataReturned && relatedSectionsReturned && citationTargetsSafe,
   };
 }
 

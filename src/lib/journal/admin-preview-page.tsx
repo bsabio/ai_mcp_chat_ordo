@@ -9,6 +9,7 @@ import { normalizeBlogMarkdown } from "@/lib/blog/normalize-markdown";
 import { getSessionUser } from "@/lib/auth";
 import { getInstanceIdentity } from "@/lib/config/instance";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
+import { canAccessJournalWorkspace, requireJournalWorkspaceAccess } from "@/lib/journal/admin-journal";
 
 async function loadPreviewHeroAsset(post: { id: string; heroImageAssetId: string | null }) {
   if (!post.heroImageAssetId) {
@@ -31,11 +32,12 @@ function getPreviewMetadataLabel(status: "draft" | "review" | "approved" | "publ
 export async function generateAdminJournalPreviewMetadata(slug: string): Promise<Metadata> {
   const identity = getInstanceIdentity();
   const user = await getSessionUser();
+  const fallbackDescription = `Editorial draft preview for ${identity.name}.`;
 
-  if (!user.roles.includes("ADMIN")) {
+  if (!canAccessJournalWorkspace(user.roles)) {
     return {
       title: `Draft Preview | ${identity.name}`,
-      description: `Admin-only draft preview for ${identity.name}.`,
+      description: fallbackDescription,
       robots: {
         index: false,
         follow: false,
@@ -48,7 +50,7 @@ export async function generateAdminJournalPreviewMetadata(slug: string): Promise
 
   return {
     title: post ? `${post.title} | ${previewLabel} | ${identity.name}` : `Draft Preview | ${identity.name}`,
-    description: post?.description ?? `Admin-only draft preview for ${identity.name}.`,
+    description: post?.description ?? fallbackDescription,
     robots: {
       index: false,
       follow: false,
@@ -57,7 +59,7 @@ export async function generateAdminJournalPreviewMetadata(slug: string): Promise
 }
 
 export async function renderAdminJournalPreviewPage(slug: string) {
-  await requireAdminPageAccess();
+  await requireJournalWorkspaceAccess();
 
   const post = await getBlogPostRepository().findBySlug(slug);
 
@@ -88,6 +90,7 @@ export async function renderAdminJournalPreviewPage(slug: string) {
                 alt={heroAsset.altText}
                 width={heroAsset.width ?? 1200}
                 height={heroAsset.height ?? 630}
+                unoptimized
                 className="h-auto w-full object-cover"
                 sizes="(max-width: 768px) 100vw, 896px"
                 priority

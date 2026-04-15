@@ -16,6 +16,7 @@ describe("deferred job status tools", () => {
     createJob: vi.fn(),
     findJobById: findJobByIdMock,
     findLatestEventForJob: findLatestEventForJobMock,
+    findLatestRenderableEventForJob: findLatestEventForJobMock,
     findActiveJobByDedupeKey: vi.fn(),
     listJobsByConversation: listJobsByConversationMock,
     listJobsByUser: vi.fn(),

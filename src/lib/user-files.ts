@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import type { UserFile } from "@/core/entities/user-file";
 import type { UserFileRepository } from "@/core/use-cases/UserFileRepository";
+import { buildUserFileMetadata } from "@/lib/media/media-asset-projection";
 
 const USER_FILES_ROOT = path.join(process.cwd(), ".data", "user-files");
 
@@ -58,6 +59,7 @@ export class UserFileSystem {
     mimeType: string;
     extension: string;
     data: Buffer;
+    metadata?: Partial<UserFile["metadata"]>;
   }): Promise<UserFile> {
     const hash = contentHash(params.input);
     const fileName = `${hash}.${params.extension}`;
@@ -81,6 +83,7 @@ export class UserFileSystem {
       fileName,
       mimeType: params.mimeType,
       fileSize: params.data.length,
+      metadata: buildUserFileMetadata(params.metadata),
     });
   }
 
@@ -91,6 +94,7 @@ export class UserFileSystem {
     mimeType: string;
     extension: string;
     data: Buffer;
+    metadata?: Partial<UserFile["metadata"]>;
   }): Promise<UserFile> {
     const hash = binaryContentHash(params.data);
     const fileName = `${hash}.${params.extension}`;
@@ -124,6 +128,7 @@ export class UserFileSystem {
       fileName,
       mimeType: params.mimeType,
       fileSize: params.data.length,
+      metadata: buildUserFileMetadata(params.metadata),
     });
   }
 

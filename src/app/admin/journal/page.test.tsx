@@ -112,8 +112,8 @@ describe("/admin/journal page", () => {
     expect(screen.getByRole("heading", { name: "Journal workspace" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("ops")).toBeInTheDocument();
     expect(screen.getByText("4")).toBeInTheDocument();
-    expect(screen.getByText("Ops Ledger")).toBeInTheDocument();
-    expect(screen.getByText("Legacy / unset")).toBeInTheDocument();
+    expect(screen.getAllByText("Ops Ledger").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Legacy / unset").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Preview" })[0]).toHaveAttribute("href", "/admin/journal/preview/ops-ledger");
     expect(screen.getAllByRole("link", { name: "Manage" })[0]).toHaveAttribute("href", "/admin/journal/post_1");
     expect(listForAdminMock).toHaveBeenCalledWith({ search: "ops", limit: 50 });

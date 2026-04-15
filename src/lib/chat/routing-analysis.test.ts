@@ -97,8 +97,21 @@ describe("HeuristicConversationRoutingAnalyzer", () => {
       latestUserText: mixedNeed,
     });
 
+    expect(snapshot.lane).toBe("development");
+    expect(snapshot.confidence).toBeGreaterThanOrEqual(0.5);
+    expect(snapshot.detectedNeedSummary).toContain("Signals still lean development despite mixed cues");
+  });
+
+  it("keeps ambiguous mixed-signal asks on the clarifying path below the interruption threshold", async () => {
+    const snapshot = await analyzer.analyze({
+      conversation: makeConversation(),
+      messages: [makeUserMessage("I am not sure whether we need team training or a technical build for this workflow yet.")],
+      latestUserText: "I am not sure whether we need team training or a technical build for this workflow yet.",
+    });
+
     expect(snapshot.lane).toBe("uncertain");
-    expect(snapshot.detectedNeedSummary).toContain("workflow, implementation, and training needs");
+    expect(snapshot.confidence).toBeLessThan(0.25);
+    expect(snapshot.recommendedNextStep).toContain("clarifying question");
   });
 
   it("uses customer-facing uncertain copy when no signals are present", async () => {

@@ -63,7 +63,7 @@ describe("getEnvConfig", () => {
 
     const config = getEnvConfig();
 
-    expect(config.API__OPENAI_API_KEY).toBeUndefined();
+    expect(config.OPENAI_API_KEY).toBeUndefined();
     expect(config.DEFERRED_JOB_POLL_INTERVAL_MS).toBeUndefined();
   });
 

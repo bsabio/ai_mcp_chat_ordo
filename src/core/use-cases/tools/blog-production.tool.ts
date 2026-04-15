@@ -10,6 +10,7 @@ import type {
   BlogArticleProductionService,
   ProduceBlogArticleInput,
   ProduceBlogArticleOutput,
+  ProduceBlogArticleProgressReporter,
 } from "@/lib/blog/blog-article-production-service";
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -172,9 +173,19 @@ export async function executeProduceBlogArticle(
   service: BlogArticleProductionService,
   input: ProduceBlogArticleInput,
   context: ToolExecutionContext,
-  reportProgress?: (label: string, percent: number) => Promise<void>,
+  reportProgress?: ProduceBlogArticleProgressReporter,
 ): Promise<ProduceBlogArticleOutput> {
-  return service.produceArticle(input, context, reportProgress);
+  const contextProgressReporter = context.reportProgress
+    ? async (update: Parameters<ProduceBlogArticleProgressReporter>[0]) => {
+        await context.reportProgress?.(update);
+      }
+    : undefined;
+
+  return service.produceArticle(
+    input,
+    context,
+    reportProgress ?? contextProgressReporter,
+  );
 }
 
 class ComposeBlogArticleCommand implements ToolCommand<ComposeBlogArticleInput, Awaited<ReturnType<typeof executeComposeBlogArticle>>> {

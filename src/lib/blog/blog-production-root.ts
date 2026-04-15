@@ -34,17 +34,17 @@ const lazyOpenAiBlogImageProvider: BlogImageProvider = {
 };
 
 const lazyAnthropicBlogArticlePipelineModel: BlogArticlePipelineModel = {
-  composeArticle(input) {
-    return createAnthropicBlogArticlePipelineModel().composeArticle(input);
+  composeArticle(input, options) {
+    return createAnthropicBlogArticlePipelineModel().composeArticle(input, options);
   },
-  reviewArticle(article) {
-    return createAnthropicBlogArticlePipelineModel().reviewArticle(article);
+  reviewArticle(article, options) {
+    return createAnthropicBlogArticlePipelineModel().reviewArticle(article, options);
   },
-  resolveQa(article, report) {
-    return createAnthropicBlogArticlePipelineModel().resolveQa(article, report);
+  resolveQa(article, report, options) {
+    return createAnthropicBlogArticlePipelineModel().resolveQa(article, report, options);
   },
-  designHeroImagePrompt(article) {
-    return createAnthropicBlogArticlePipelineModel().designHeroImagePrompt(article);
+  designHeroImagePrompt(article, options) {
+    return createAnthropicBlogArticlePipelineModel().designHeroImagePrompt(article, options);
   },
 };
 

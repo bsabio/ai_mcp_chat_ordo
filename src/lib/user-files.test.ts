@@ -100,6 +100,7 @@ describe("UserFileSystem", () => {
     expect(file.fileSize).toBe(data.length);
     expect(file.contentHash).toBe(contentHash("Hello world"));
     expect(file.fileName).toBe(`${contentHash("Hello world")}.mp3`);
+    expect(file.metadata).toEqual({});
 
     // Verify file exists on disk
     const diskPath = getUserFilePath("usr_test", file.fileName);
@@ -307,5 +308,36 @@ describe("UserFileSystem", () => {
     expect(await ufs.getById(staleAudio.id)).not.toBeNull();
     expect(await ufs.getById(attachedDocument.id)).not.toBeNull();
     expect(fs.existsSync(getUserFilePath("usr_test", staleDocument.fileName))).toBe(false);
+  });
+
+  it("persists typed media metadata with stored files", async () => {
+    seedConversation(db);
+
+    const stored = await ufs.storeBinary({
+      userId: "usr_test",
+      conversationId: "conv_1",
+      fileType: "image",
+      mimeType: "image/png",
+      extension: "png",
+      data: Buffer.from("png bytes"),
+      metadata: {
+        assetKind: "image",
+        source: "uploaded",
+        width: 1200,
+        height: 630,
+        retentionClass: "conversation",
+      },
+    });
+
+    expect(stored.metadata).toEqual({
+      assetKind: "image",
+      source: "uploaded",
+      width: 1200,
+      height: 630,
+      retentionClass: "conversation",
+    });
+
+    const loaded = await ufs.getById(stored.id);
+    expect(loaded?.file.metadata).toEqual(stored.metadata);
   });
 });

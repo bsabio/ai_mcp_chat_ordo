@@ -9,7 +9,7 @@ import {
 const {
   getSessionUserMock,
   findJobByIdMock,
-  findLatestEventForJobMock,
+  findLatestRenderableEventForJobMock,
   cancelJobMock,
   appendEventMock,
   createJobMock,
@@ -22,7 +22,7 @@ const {
 } = vi.hoisted(() => ({
   getSessionUserMock: vi.fn(),
   findJobByIdMock: vi.fn(),
-  findLatestEventForJobMock: vi.fn(),
+  findLatestRenderableEventForJobMock: vi.fn(),
   cancelJobMock: vi.fn(),
   appendEventMock: vi.fn(),
   createJobMock: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getJobQueueRepository: () => ({
     findJobById: findJobByIdMock,
-    findLatestEventForJob: findLatestEventForJobMock,
+    findLatestRenderableEventForJob: findLatestRenderableEventForJobMock,
     cancelJob: cancelJobMock,
     appendEvent: appendEventMock,
     createJob: createJobMock,
@@ -80,6 +80,7 @@ describe("/api/jobs/[jobId]", () => {
     getConversationMock.mockResolvedValue({ conversation: { id: "conv_jobs" }, messages: [] });
     appendEventMock.mockResolvedValue({ sequence: 12 });
     projectMock.mockResolvedValue(undefined);
+    findLatestRenderableEventForJobMock.mockResolvedValue(null);
     findActiveJobByDedupeKeyMock.mockResolvedValue(null);
     updateJobStatusMock.mockResolvedValue({ id: "job_1" });
     getDescriptorMock.mockReturnValue({

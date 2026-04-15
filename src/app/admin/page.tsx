@@ -4,17 +4,19 @@ import Link from "next/link";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { AdminSection } from "@/components/admin/AdminSection";
 import {
-  loadConsultationRequestQueueBlock,
-  loadLeadQueueBlock,
-  loadOverdueFollowUpsBlock,
   loadRoutingReviewBlock,
   loadSystemHealthBlock,
-  loadTrainingPathQueueBlock,
 } from "@/lib/operator/loaders/admin-loaders";
+import { loadOverdueFollowUpsBlock } from "@/lib/admin/pipeline/admin-pipeline-attention";
 import {
   loadAnonymousOpportunitiesBlock,
   loadRecurringPainThemesBlock,
 } from "@/lib/operator/loaders/analytics-loaders";
+import {
+  loadConsultationRequestQueueBlock,
+  loadLeadQueueBlock,
+  loadTrainingPathQueueBlock,
+} from "@/lib/admin/leads/admin-leads-attention";
 import {
   loadAdminJournalList,
   requireAdminPageAccess,

@@ -15,7 +15,26 @@ import {
   getMessageDataMapper,
 } from "@/adapters/RepositoryFactory";
 import { buildConversationExportPayload } from "@/lib/chat/conversation-portability";
+import { buildTranscriptFromMessages } from "@/lib/chat/transcript-store";
 import { getConversationEventRecorder, getConversationInteractor } from "@/lib/chat/conversation-root";
+
+interface AdminConversationDownloadResult {
+  fileName: string;
+  mimeType: string;
+  payload: string;
+}
+
+async function loadConversationExportContext(id: string) {
+  const convMapper = getConversationDataMapper();
+  const msgMapper = getMessageDataMapper();
+  const conversation = await convMapper.findById(id);
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  const messages = await msgMapper.listByConversation(id);
+  return { conversation, messages };
+}
 
 // ── Takeover ───────────────────────────────────────────────────────────
 
@@ -100,14 +119,7 @@ export async function exportConversationAction(formData: FormData) {
   return runAdminAction(formData, async (admin, formData) => {
     const id = readRequiredText(formData, "id");
 
-    const convMapper = getConversationDataMapper();
-    const msgMapper = getMessageDataMapper();
-    const conversation = await convMapper.findById(id);
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
-
-    const messages = await msgMapper.listByConversation(id);
+    const { conversation, messages } = await loadConversationExportContext(id);
     const payload = buildConversationExportPayload({ conversation, messages });
 
     await getConversationEventRecorder().record(id, "exported", {
@@ -118,10 +130,58 @@ export async function exportConversationAction(formData: FormData) {
 
     revalidatePath(`/admin/conversations/${id}`);
 
-    return {
+    const result: AdminConversationDownloadResult = {
       fileName: `conversation-${id}.json`,
+      mimeType: "application/json",
       payload: `${JSON.stringify(payload, null, 2)}\n`,
     };
+
+    return result;
+  });
+}
+
+export async function exportConversationTranscriptAction(formData: FormData) {
+  return runAdminAction(formData, async (admin, formData) => {
+    const id = readRequiredText(formData, "id");
+
+    const { conversation, messages } = await loadConversationExportContext(id);
+    const exportedAt = new Date().toISOString();
+    const transcript = buildTranscriptFromMessages(messages);
+    const payload = {
+      version: 1,
+      exportedAt,
+      conversation: {
+        id: conversation.id,
+        title: conversation.title,
+        status: conversation.status,
+        messageCount: conversation.messageCount,
+        updatedAt: conversation.updatedAt,
+      },
+      transcriptSummary: {
+        entryCount: transcript.length,
+        inContextCount: transcript.filter((entry) => entry.inContextWindow).length,
+        toolResultCount: transcript.filter((entry) => entry.role === "tool_result").length,
+        compactionMarkerCount: transcript.filter((entry) => entry.role === "compaction_marker").length,
+      },
+      transcript,
+    };
+
+    await getConversationEventRecorder().record(id, "exported", {
+      exported_by: admin.id,
+      scope: "admin_transcript",
+      exported_at: exportedAt,
+      transcript_entries: transcript.length,
+    });
+
+    revalidatePath(`/admin/conversations/${id}`);
+
+    const result: AdminConversationDownloadResult = {
+      fileName: `conversation-${id}-transcript.json`,
+      mimeType: "application/json",
+      payload: `${JSON.stringify(payload, null, 2)}\n`,
+    };
+
+    return result;
   });
 }
 

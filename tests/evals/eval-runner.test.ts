@@ -102,17 +102,40 @@ describe("eval deterministic runner", () => {
     expect(execution.finalState.recommendation).toContain("Retry audio generation");
   });
 
-  it("repairs malformed UI tags into sane suggestions and canonical action params", async () => {
+  it("suppresses malformed UI suggestion tags and repairs canonical action params", async () => {
     const execution = await runDeterministicEvalScenario("integrity-malformed-ui-tags-deterministic");
 
     expect(execution.checkpointResults).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "suggestions-repaired", passed: true }),
+        expect.objectContaining({ id: "suggestions-suppressed", passed: true }),
         expect.objectContaining({ id: "actions-repaired", passed: true }),
         expect.objectContaining({ id: "canonical-action-params", passed: true }),
       ]),
     );
     expect(execution.finalState.recommendation).toBe("/library");
+  });
+
+  it("resolves session resolution signals correctly for deterministic models", async () => {
+    const execution = await runDeterministicEvalScenario("integrity-session-resolution-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "resolution-advanced", passed: true }),
+        expect.objectContaining({ id: "resolution-resolved", passed: true }),
+      ]),
+    );
+  });
+
+  it("evaluates retrieval quality correctly for deterministic models", async () => {
+    const execution = await runDeterministicEvalScenario("integrity-retrieval-quality-deterministic");
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "quality-strong", passed: true }),
+        expect.objectContaining({ id: "quality-partial", passed: true }),
+        expect.objectContaining({ id: "quality-none", passed: true }),
+      ]),
+    );
   });
 
   it("creates an estimate-ready deal for the deterministic organization buyer funnel", async () => {

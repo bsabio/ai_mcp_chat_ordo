@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } from "@/lib/chat/file-validation";
 
 interface ChatComposerState {
   canSend: boolean;
@@ -10,6 +11,7 @@ interface ChatComposerState {
   setInput: (value: string) => void;
   setMentionIndex: (index: number) => void;
   updateInput: (value: string) => void;
+  handleFileDrop: (event: React.DragEvent) => void;
   handleFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleFileRemove: (index: number) => void;
 }
@@ -58,6 +60,24 @@ export function useChatComposerState(isSending: boolean): ChatComposerState {
     );
   }, []);
 
+  const handleFileDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      if (isSending) return;
+
+      const dropped = Array.from(event.dataTransfer.files);
+      const valid = dropped.filter(
+        (file) =>
+          ALLOWED_MIME_TYPES.has(file.type) &&
+          file.size <= MAX_FILE_SIZE_BYTES,
+      );
+      if (valid.length === 0) return;
+
+      setPendingFiles((current) => [...current, ...valid]);
+    },
+    [isSending],
+  );
+
   return {
     canSend,
     clearComposer,
@@ -68,6 +88,7 @@ export function useChatComposerState(isSending: boolean): ChatComposerState {
     setInput,
     setMentionIndex,
     updateInput,
+    handleFileDrop,
     handleFileSelect,
     handleFileRemove,
   };

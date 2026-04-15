@@ -5,11 +5,14 @@
  * Uses the admin extension methods added to ConversationDataMapper (D4.7).
  */
 
-import { getConversationDataMapper, getMessageDataMapper, getUserDataMapper } from "@/adapters/RepositoryFactory";
+import { getConversationDataMapper, getMessageDataMapper, getUserDataMapper, getConversationEventDataMapper } from "@/adapters/RepositoryFactory";
 import type { Message } from "@/core/entities/conversation";
+import type { ConversationEventData } from "@/core/use-cases/ConversationEventRecorder";
 import { getAdminConversationDetailPath } from "./admin-conversations-routes";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 import { getConversationPurgeEligibility } from "@/lib/chat/conversation-portability";
+import { buildTranscriptFromMessages, type TranscriptEntry } from "@/lib/chat/transcript-store";
+import { listPromptTurnAudits, type PromptTurnAuditEntry } from "@/lib/prompts/prompt-provenance-service";
 
 // ── View-model types ───────────────────────────────────────────────────
 
@@ -59,6 +62,15 @@ export interface AdminConversationDetailViewModel {
     tokenEstimate: number;
     createdAt: string;
   }>;
+  transcript: {
+    entries: TranscriptEntry[];
+    entryCount: number;
+    inContextCount: number;
+    toolResultCount: number;
+    compactionMarkerCount: number;
+  };
+  events: ConversationEventData[];
+  promptProvenance: PromptTurnAuditEntry[];
   totalTokens: number;
 }
 
@@ -136,6 +148,7 @@ export async function loadAdminConversationDetail(
   const convMapper = getConversationDataMapper();
   const msgMapper = getMessageDataMapper();
   const userMapper = getUserDataMapper();
+  const eventMapper = getConversationEventDataMapper();
 
   const conv = await convMapper.findById(id);
   if (!conv) {
@@ -149,6 +162,9 @@ export async function loadAdminConversationDetail(
 
   const messages = await msgMapper.listByConversation(id);
   const totalTokens = messages.reduce((sum: number, m: Message) => sum + m.tokenEstimate, 0);
+  const transcriptEntries = buildTranscriptFromMessages(messages);
+  const events = await eventMapper.listByConversation(id);
+  const promptProvenance = await listPromptTurnAudits(id);
 
   const entry: AdminConversationDetailViewModel["conversation"] = {
     id: conv.id,
@@ -195,6 +211,15 @@ export async function loadAdminConversationDetail(
       tokenEstimate: m.tokenEstimate,
       createdAt: m.createdAt,
     })),
+    transcript: {
+      entries: transcriptEntries,
+      entryCount: transcriptEntries.length,
+      inContextCount: transcriptEntries.filter((entry) => entry.inContextWindow).length,
+      toolResultCount: transcriptEntries.filter((entry) => entry.role === "tool_result").length,
+      compactionMarkerCount: transcriptEntries.filter((entry) => entry.role === "compaction_marker").length,
+    },
+    events,
+    promptProvenance,
     totalTokens,
   };
 }

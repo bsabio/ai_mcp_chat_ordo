@@ -1,5 +1,5 @@
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import {
   resolveCurrentPageDetails,
@@ -12,33 +12,45 @@ interface GetCurrentPageInput {
 
 type GetCurrentPageOutput = CurrentPageDetails;
 
-class GetCurrentPageCommand implements ToolCommand<GetCurrentPageInput, GetCurrentPageOutput> {
-  async execute(
-    { pathname }: GetCurrentPageInput,
-    context?: ToolExecutionContext,
-  ): Promise<GetCurrentPageOutput> {
-    const authoritativePathname = context?.currentPageSnapshot?.pathname
-      ?? context?.currentPathname
-      ?? pathname;
-
-    if (!authoritativePathname) throw new Error("pathname is required.");
-
-    return resolveCurrentPageDetails(authoritativePathname, context?.currentPageSnapshot);
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export const getCurrentPageTool: ToolDescriptor<GetCurrentPageInput, GetCurrentPageOutput> = {
-  name: "get_current_page",
-  schema: {
-    description: "Return authoritative information about the page the user is currently viewing, including visible page content when available.",
-    input_schema: {
-      type: "object",
-      properties: {
-        pathname: { type: "string", description: "Optional pathname override when trusted page context is unavailable." },
-      },
-    },
+export function parseGetCurrentPageInput(value: unknown): GetCurrentPageInput {
+  if (value === undefined || value === null) {
+    return {};
+  }
+
+  if (!isRecord(value)) {
+    throw new Error("get_current_page input must be an object.");
+  }
+
+  if (value.pathname !== undefined && typeof value.pathname !== "string") {
+    throw new Error("get_current_page pathname must be a string when provided.");
+  }
+
+  return value.pathname === undefined ? {} : { pathname: value.pathname };
+}
+
+export async function executeGetCurrentPage(
+  { pathname }: GetCurrentPageInput,
+  context?: ToolExecutionContext,
+): Promise<GetCurrentPageOutput> {
+  const authoritativePathname = context?.currentPageSnapshot?.pathname
+    ?? context?.currentPathname
+    ?? pathname;
+
+  if (!authoritativePathname) {
+    throw new Error("pathname is required.");
+  }
+
+  return resolveCurrentPageDetails(authoritativePathname, context?.currentPageSnapshot);
+}
+
+export const getCurrentPageTool = buildCatalogBoundToolDescriptor(
+  CAPABILITY_CATALOG.get_current_page,
+  {
+    parse: parseGetCurrentPageInput,
+    execute: (input, context) => executeGetCurrentPage(input, context),
   },
-  command: new GetCurrentPageCommand(),
-  roles: "ALL",
-  category: "ui",
-};
+);

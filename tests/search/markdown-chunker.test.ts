@@ -127,6 +127,43 @@ describe("MarkdownChunker", () => {
     }
   });
 
+  it("treats sections under the default 50-word threshold as passage chunks", () => {
+    const content = [
+      "## Tiny Section",
+      "This section is intentionally short so it stays below the minimum chunk word threshold.",
+    ].join("\n");
+
+    const chunks = chunker.chunk("ux-design/chapter-3", content, metadata);
+    const sectionChunks = chunks.filter((c) => c.level === "section" && c.heading === "Tiny Section");
+    const passageChunks = chunks.filter((c) => c.level === "passage" && c.heading === "Tiny Section");
+
+    expect(sectionChunks).toHaveLength(0);
+    expect(passageChunks).toHaveLength(1);
+  });
+
+  it("prefers H3 boundaries before paragraph splitting inside oversized sections", () => {
+    const subSectionA = [
+      "### Evidence",
+      "Evidence paragraph with enough words to force passage handling and keep the subsection self-contained. ".repeat(18),
+    ].join("\n");
+    const subSectionB = [
+      "### Method",
+      "Method paragraph with enough words to force passage handling and keep the subsection self-contained. ".repeat(18),
+    ].join("\n");
+    const content = [
+      "## Large Section",
+      subSectionA,
+      "",
+      subSectionB,
+    ].join("\n");
+
+    const chunks = chunker.chunk("ux-design/chapter-3", content, metadata);
+    const passageHeadings = chunks.filter((c) => c.level === "passage").map((c) => c.heading);
+
+    expect(passageHeadings).toContain("Evidence");
+    expect(passageHeadings).toContain("Method");
+  });
+
   // TEST-VS-13: 30-word orphan paragraph → merged with previous chunk
   it("merges undersized chunks with previous chunk", () => {
     const longParagraph = "Design heuristics help evaluate interface quality. ".repeat(8); // ~56 words

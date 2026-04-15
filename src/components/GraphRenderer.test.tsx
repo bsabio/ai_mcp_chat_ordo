@@ -46,10 +46,12 @@ describe("GraphRenderer", () => {
 
     expect(screen.getByText("Lead trend")).toBeInTheDocument();
     expect(screen.getByTestId("graph-summary")).toHaveTextContent("Qualified leads increased week over week.");
+    expect(screen.getByTestId("graph-viewport")).toBeInTheDocument();
     expect(screen.getByTestId("graph-svg")).toHaveAttribute("data-graph-kind", "line");
     expect(screen.getByTestId("graph-legend")).toHaveTextContent("North");
     expect(screen.getByTestId("graph-legend")).toHaveTextContent("South");
     expect(screen.getByTestId("graph-data-preview")).toHaveTextContent("W1");
+    expect(screen.getByRole("button", { name: "Fit to view" })).toBeInTheDocument();
   });
 
   it("toggles the data preview open and closed", () => {

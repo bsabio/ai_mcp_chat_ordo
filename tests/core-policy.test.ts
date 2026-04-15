@@ -145,13 +145,17 @@ describe("ToolRegistry RBAC", () => {
     expect(names).toEqual(EXPECTED_ROLE_TOOL_SETS.ANONYMOUS);
   });
 
-  it("ANONYMOUS cannot execute restricted tools", () => {
-    expect(registry.canExecute("get_section", "ANONYMOUS")).toBe(false);
-    expect(registry.canExecute("get_checklist", "ANONYMOUS")).toBe(false);
-    expect(registry.canExecute("generate_audio", "ANONYMOUS")).toBe(false);
-    expect(registry.canExecute("generate_chart", "ANONYMOUS")).toBe(false);
-    expect(registry.canExecute("generate_graph", "ANONYMOUS")).toBe(false);
-    expect(registry.canExecute("list_practitioners", "ANONYMOUS")).toBe(false);
+  it("ANONYMOUS keeps the public self-serve tool subset while member tools stay restricted", () => {
+    expect(registry.canExecute("get_section", "ANONYMOUS")).toBe(true);
+    expect(registry.canExecute("get_checklist", "ANONYMOUS")).toBe(true);
+    expect(registry.canExecute("generate_audio", "ANONYMOUS")).toBe(true);
+    expect(registry.canExecute("generate_chart", "ANONYMOUS")).toBe(true);
+    expect(registry.canExecute("generate_graph", "ANONYMOUS")).toBe(true);
+    expect(registry.canExecute("list_practitioners", "ANONYMOUS")).toBe(true);
+    expect(registry.canExecute("compose_media", "ANONYMOUS")).toBe(false);
+    expect(registry.canExecute("search_my_conversations", "ANONYMOUS")).toBe(false);
+    expect(registry.canExecute("set_preference", "ANONYMOUS")).toBe(false);
+    expect(registry.canExecute("update_my_profile", "ANONYMOUS")).toBe(false);
   });
 
   it("AUTHENTICATED gets exactly the allowed tool set", () => {

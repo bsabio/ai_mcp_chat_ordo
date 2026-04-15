@@ -42,8 +42,9 @@ describe("TD-D — job visibility Observer", () => {
 });
 
 describe("TD-D — job visibility Strategy", () => {
-  it("P4: status-response guidance comes from explicit strategy objects", () => {
+  it("P4: status-response guidance comes from explicit strategy objects and role-directive assembly", () => {
     const strategy = readSource("src/core/entities/job-status-response-strategy.ts");
+    const assembler = readSource("src/core/entities/role-directive-assembler.ts");
     const directives = readSource("src/core/entities/role-directives.ts");
     const tools = readSource("src/core/use-cases/tools/deferred-job-status.tool.ts");
 
@@ -52,8 +53,10 @@ describe("TD-D — job visibility Strategy", () => {
     expect(strategy).toContain("class ExplicitListStatusStrategy");
     expect(strategy).toContain("class AnonymousChatNativeStatusStrategy");
 
-    expect(directives).toContain("getJobStatusDirectiveLines(\"anonymous\")");
-    expect(directives).toContain("getJobStatusDirectiveLines(\"signed-in\")");
+    expect(assembler).toContain('import { getJobStatusDirectiveLines } from "./job-status-response-strategy"');
+    expect(assembler).toContain("lines.push(...getJobStatusDirectiveLines(jobAudience));");
+    expect(directives).toContain('assembleRoleDirective("ANONYMOUS")');
+    expect(directives).toContain('assembleRoleDirective("AUTHENTICATED")');
     expect(tools).toContain("buildJobStatusToolDescription");
   });
 

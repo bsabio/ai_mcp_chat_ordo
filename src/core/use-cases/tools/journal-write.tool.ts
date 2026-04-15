@@ -11,6 +11,7 @@ import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionCon
 import type { BlogArticleProductionService } from "@/lib/blog/blog-article-production-service";
 import type { BlogImageGenerationService } from "@/lib/blog/blog-image-generation-service";
 import { getActiveJobStatuses } from "@/lib/jobs/job-read-model";
+import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
 import {
   getAdminJournalDetailPath,
   getAdminJournalPreviewPath,
@@ -463,6 +464,7 @@ export class PrepareJournalPostForPublishInteractor {
         )
         : Promise.resolve<BlogQaReport | null>(null),
     ]);
+    const relevantActiveJobs = activeJobs.filter((snapshot) => isJournalReadinessJobForPost(snapshot, post.id));
 
     const blockers = summarizeEditorialBlockers(post);
     if (revisions.length === 0) {
@@ -480,7 +482,7 @@ export class PrepareJournalPostForPublishInteractor {
       ready: blockers.length === 0,
       post: toPostRecord(post),
       blockers,
-      active_jobs: activeJobs.map((snapshot) => ({
+      active_jobs: relevantActiveJobs.map((snapshot) => ({
         job_id: snapshot.part.jobId,
         tool_name: snapshot.part.toolName,
         status: snapshot.part.status,
@@ -501,6 +503,18 @@ export class PrepareJournalPostForPublishInteractor {
           : `\"${post.title}\" is not ready to publish yet. ${blockers.length} blocker${blockers.length === 1 ? " remains" : "s remain"}.`,
     };
   }
+}
+
+function isJournalReadinessJobForPost(snapshot: JobStatusSnapshot, postId: string): boolean {
+  const normalizedPostId = postId.trim().toLowerCase();
+  const title = snapshot.part.title?.trim().toLowerCase() ?? "";
+
+  if (!normalizedPostId || !title.includes(normalizedPostId)) {
+    return false;
+  }
+
+  return snapshot.part.toolName === "prepare_journal_post_for_publish"
+    || snapshot.part.toolName === "publish_content";
 }
 
 class UpdateJournalMetadataCommand implements ToolCommand<UpdateJournalMetadataInput, Awaited<ReturnType<UpdateJournalMetadataInteractor["execute"]>>> {

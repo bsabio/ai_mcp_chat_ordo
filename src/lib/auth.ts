@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { getDb } from "./db";
-import { UserDataMapper } from "../adapters/UserDataMapper";
+import { getUserDataMapper } from "../adapters/RepositoryFactory";
 import { SessionDataMapper } from "../adapters/SessionDataMapper";
 import { BcryptHasher } from "../adapters/BcryptHasher";
 import { RegisterUserInteractor } from "../core/use-cases/RegisterUserInteractor";
@@ -15,8 +15,9 @@ export type { RoleName, SessionUser, AuthResult };
 // ── Composition root: wire interactors to concrete adapters ──
 
 function getAuthInteractors() {
+  // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
-  const userRepo = new UserDataMapper(db);
+  const userRepo = getUserDataMapper();
   const sessionRepo = new SessionDataMapper(db);
   const hasher = new BcryptHasher();
 

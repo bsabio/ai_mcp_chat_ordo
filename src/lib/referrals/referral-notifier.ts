@@ -1,13 +1,12 @@
 import webpush from "web-push";
 
-import { getPushSubscriptionRepository } from "@/adapters/RepositoryFactory";
-import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper";
+import { getPushSubscriptionRepository, getUserPreferencesDataMapper } from "@/adapters/RepositoryFactory";
 import type { Referral } from "@/core/entities/Referral";
 import type { ReferralEvent } from "@/core/entities/ReferralEvent";
 import type { PushSubscriptionRecord } from "@/core/entities/push-subscription";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
 import type { PushSubscriptionRepository } from "@/core/use-cases/PushSubscriptionRepository";
-import { getDb } from "@/lib/db";
+
 import {
   getWebPushPrivateKey,
   getWebPushPublicKey,
@@ -115,6 +114,6 @@ export class BrowserPushReferralMilestoneNotifier implements ReferralMilestoneNo
 export function createReferralMilestoneNotifier(): ReferralMilestoneNotifier {
   return new BrowserPushReferralMilestoneNotifier(
     getPushSubscriptionRepository(),
-    new UserPreferencesDataMapper(getDb()),
+    getUserPreferencesDataMapper(),
   );
 }

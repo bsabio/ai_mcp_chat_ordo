@@ -2,7 +2,7 @@ import { getConversationInteractor } from "./conversation-root";
 import { getEmbeddingPipelineFactory } from "./tool-composition-root";
 import type { ConversationMetadata } from "@/core/search/ports/Chunker";
 import { getDb } from "@/lib/db";
-import { SQLiteVectorStore } from "@/adapters/SQLiteVectorStore";
+import { getVectorStore } from "@/adapters/RepositoryFactory";
 import crypto from "crypto";
 
 type ConvertedConversationRow = {
@@ -67,7 +67,7 @@ export async function repairConversationOwnershipIndex(
   currentUserId: string,
   previousUserId: string,
 ): Promise<void> {
-  const vectorStore = new SQLiteVectorStore(getDb());
+  const vectorStore = getVectorStore();
   vectorStore.delete(getConversationSourceId(previousUserId, conversationId));
   await embedConversation(conversationId, currentUserId);
 }
@@ -75,6 +75,7 @@ export async function repairConversationOwnershipIndex(
 export async function repairConvertedConversationOwnershipIndexes(): Promise<{
   repaired: number;
 }> {
+  // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   const rows = db
     .prepare(

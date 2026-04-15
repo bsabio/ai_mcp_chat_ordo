@@ -85,6 +85,7 @@ describe("TD-C — job visibility behavioral preservation", () => {
     const query = mod.createJobStatusQuery({
       findJobById: async () => null,
       findLatestEventForJob: async () => null,
+      findLatestRenderableEventForJob: async () => null,
       listJobsByConversation: async () => [],
       listJobsByUser: async () => [],
     } as never);

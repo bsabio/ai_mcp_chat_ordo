@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { conversationAnalytics } from "@mcp/analytics-tool";
+import { conversationAnalytics } from "@/lib/capabilities/shared/analytics-tool";
 
 const VALID_TIME_RANGES = new Set(["24h", "7d", "30d", "all"]);
 
@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
   }
 
   const review = await conversationAnalytics(
+    // getDb() approved: raw SQL route handler — see data-access-canary.test.ts (Sprint 9)
     { db: getDb() },
     {
       metric: "routing_review",

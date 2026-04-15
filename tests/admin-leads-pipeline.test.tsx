@@ -154,12 +154,17 @@ vi.mock("@/lib/admin/leads/admin-leads", () => ({
   loadAdminPipelineDetail: loadAdminPipelineDetailMock,
 }));
 
-vi.mock("@/lib/operator/loaders/admin-loaders", () => ({
+vi.mock("@/lib/admin/leads/admin-leads-attention", () => ({
   loadLeadQueueBlock: loadLeadQueueBlockMock,
   loadConsultationRequestQueueBlock: loadConsultationRequestQueueBlockMock,
   loadTrainingPathQueueBlock: loadTrainingPathQueueBlockMock,
+}));
+
+vi.mock("@/lib/admin/pipeline/admin-pipeline-attention", () => ({
   loadOverdueFollowUpsBlock: loadOverdueFollowUpsBlockMock,
 }));
+
+vi.mock("@/lib/operator/loaders/admin-loaders", () => ({}));
 
 // ── Imports under test ─────────────────────────────────────────────────
 

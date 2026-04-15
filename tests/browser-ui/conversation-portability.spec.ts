@@ -163,6 +163,11 @@ async function stubConversationShell(page: Page) {
   });
 }
 
+async function openConversationDataMenu(page: Page) {
+  await page.getByRole("button", { name: "Open conversation data menu" }).click();
+  await expect(page.getByRole("menu", { name: "Conversation data" })).toBeVisible();
+}
+
 test("copy transcript, export JSON, and import degraded attachment state from the chat shell", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await stubConversationShell(page);
@@ -176,20 +181,23 @@ test("copy transcript, export JSON, and import degraded attachment state from th
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByText("Drafted export summary.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Copy transcript" }).click();
+  await openConversationDataMenu(page);
+  await page.getByRole("menuitem", { name: "Copy transcript" }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toContain("Drafted export summary.");
 
+  await openConversationDataMenu(page);
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export JSON" }).click();
+  await page.getByRole("menuitem", { name: "Export JSON" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("conversation-conv_portability_e2e.json");
   const downloadPath = await download.path();
   expect(downloadPath).not.toBeNull();
   expect(fs.readFileSync(downloadPath as string, "utf8")).toContain('"version": 1');
 
-  await page.locator('[data-chat-conversation-toolbar="true"] input[type="file"]').setInputFiles({
+  await openConversationDataMenu(page);
+  await page.locator('[data-chat-conversation-data-menu="true"] input[type="file"]').setInputFiles({
     name: "conversation-import.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(EXPORT_PAYLOAD), "utf8"),

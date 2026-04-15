@@ -1,12 +1,29 @@
 import type { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
-import { calculatorTool } from "@/core/use-cases/tools/calculator.tool";
-import { generateChartTool } from "@/core/use-cases/tools/generate-chart.tool";
-import { generateGraphTool } from "@/core/use-cases/tools/generate-graph.tool";
-import { generateAudioTool } from "@/core/use-cases/tools/generate-audio.tool";
+import { projectCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-binding";
+import {
+  createRegisteredToolBundle,
+  registerToolBundle,
+  type ToolBundleRegistration,
+} from "./bundle-registration";
+
+interface CalculatorToolRegistrationDeps {}
+
+const CALCULATOR_TOOL_REGISTRATIONS = [
+  {
+    toolName: "calculator",
+    createTool: () => projectCatalogBoundToolDescriptor("calculator"),
+  },
+] as const satisfies readonly ToolBundleRegistration<
+  "calculator",
+  CalculatorToolRegistrationDeps
+>[];
+
+export const CALCULATOR_BUNDLE = createRegisteredToolBundle(
+  "calculator",
+  "Calculator Tools",
+  CALCULATOR_TOOL_REGISTRATIONS,
+);
 
 export function registerCalculatorTools(registry: ToolRegistry): void {
-  registry.register(calculatorTool);
-  registry.register(generateChartTool);
-  registry.register(generateGraphTool);
-  registry.register(generateAudioTool);
+  registerToolBundle(registry, CALCULATOR_TOOL_REGISTRATIONS, {});
 }

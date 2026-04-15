@@ -3,7 +3,41 @@
 import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
 import { ToolCard } from "./ToolCard";
+import { PanZoomViewport } from "./PanZoomViewport";
 import { downloadFileFromUrl } from "../lib/download-browser";
+
+function getSvgViewportMetrics(svgContent: string): { width: number; height: number } {
+  if (!svgContent.trim()) {
+    return { width: 960, height: 640 };
+  }
+
+  try {
+    const parser = new DOMParser();
+    const document = parser.parseFromString(svgContent, "image/svg+xml");
+    const svg = document.querySelector("svg");
+    if (!svg) {
+      return { width: 960, height: 640 };
+    }
+
+    const viewBox = svg.getAttribute("viewBox")?.trim().split(/\s+/).map(Number);
+    if (viewBox && viewBox.length === 4 && viewBox.every((value) => Number.isFinite(value))) {
+      return {
+        width: Math.max(viewBox[2] ?? 960, 1),
+        height: Math.max(viewBox[3] ?? 640, 1),
+      };
+    }
+
+    const width = Number(svg.getAttribute("width")?.replace(/px$/, ""));
+    const height = Number(svg.getAttribute("height")?.replace(/px$/, ""));
+    if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+      return { width, height };
+    }
+  } catch {
+    // fall through to the default viewport
+  }
+
+  return { width: 960, height: 640 };
+}
 
 export function MermaidRenderer({
   code,
@@ -44,6 +78,7 @@ export function MermaidRenderer({
     ? caption.trim()
     : `${inferredKind} · Mermaid`;
   const exportStem = toFileStem(downloadFileName || title || caption || inferredKind);
+  const svgMetrics = React.useMemo(() => getSvgViewportMetrics(svgContent), [svgContent]);
 
   useEffect(() => {
     let isMounted = true;
@@ -198,7 +233,6 @@ export function MermaidRenderer({
       subtitle={headerSubtitle}
       status={status}
       expandable={!!svgContent}
-      thumbnailMode={!!svgContent}
       onDownload={svgContent ? handleDownloadPng : undefined}
       downloadTooltip="Download as PNG"
       icon={
@@ -222,17 +256,24 @@ export function MermaidRenderer({
     >
       <div
         ref={containerRef}
-        className="w-full flex items-center justify-center p-(--space-4) min-h-40 overflow-auto"
+        className="w-full p-(--space-4)"
       >
         {error ? (
           <div className="w-full rounded-lg border-[color-mix(in_oklab,var(--status-error)_20%,transparent)] bg-[color-mix(in_oklab,var(--status-error)_10%,transparent)] p-(--space-4) text-xs font-mono text-status-error">
             Failed to render chart: {error}
           </div>
         ) : svgContent ? (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            dangerouslySetInnerHTML={{ __html: svgContent }}
-          />
+          <PanZoomViewport
+            ariaLabel={`${headerTitle} chart`}
+            contentWidth={svgMetrics.width}
+            contentHeight={svgMetrics.height}
+            testId="mermaid-viewport"
+          >
+            <div
+              className="h-full w-full [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+              dangerouslySetInnerHTML={{ __html: svgContent }}
+            />
+          </PanZoomViewport>
         ) : (
           <div className="h-32 flex items-center justify-center text-xs opacity-50 animate-pulse">
             Rendering node graph...

@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildContextWindow, normalizeAlternation } from "./context-window";
+import {
+  buildContextWindow,
+  buildContextWindowGuardPrompt,
+  normalizeAlternation,
+} from "./context-window";
 import type { Message } from "@/core/entities/conversation";
+import { CHAT_CONFIG } from "@/lib/chat/chat-config";
 
 function makeMessage(overrides: Partial<Message> = {}, index = 0): Message {
   return {
@@ -23,12 +28,114 @@ describe("buildContextWindow", () => {
       makeMessage({ role: "user", content: "Question" }, 2),
     ];
 
-    const { contextMessages, hasSummary, summaryText } = buildContextWindow(messages);
+    const { contextMessages, hasSummary, summaryText, guard } = buildContextWindow(messages);
     expect(hasSummary).toBe(false);
     expect(summaryText).toBeNull();
+    expect(guard.status).toBe("ok");
     expect(contextMessages).toHaveLength(3);
     expect(contextMessages[0].content).toBe("Hello");
     expect(contextMessages[2].content).toBe("Question");
+  });
+
+  it("warns when message count reaches the exact warn threshold", () => {
+    const messages = Array.from({ length: CHAT_CONFIG.warnContextMessages }, (_, index) =>
+      makeMessage(
+        {
+          role: index % 2 === 0 ? "user" : "assistant",
+          content: `threshold-${index}`,
+          parts: [{ type: "text", text: `threshold-${index}` }],
+        },
+        index,
+      ),
+    );
+
+    const { contextMessages, guard } = buildContextWindow(messages);
+
+    expect(contextMessages).toHaveLength(CHAT_CONFIG.warnContextMessages);
+    expect(guard.status).toBe("warn");
+    expect(guard.reasons).toContain("message_count_near_limit");
+    expect(guard.finalMessageCount).toBe(CHAT_CONFIG.warnContextMessages);
+    expect(buildContextWindowGuardPrompt(guard)).toContain("[Context window guard]");
+  });
+
+  it("warns when message count goes one over the warn threshold", () => {
+    const messages = Array.from({ length: CHAT_CONFIG.warnContextMessages + 1 }, (_, index) =>
+      makeMessage(
+        {
+          role: index % 2 === 0 ? "user" : "assistant",
+          content: `threshold-${index}`,
+          parts: [{ type: "text", text: `threshold-${index}` }],
+        },
+        index,
+      ),
+    );
+
+    const { guard } = buildContextWindow(messages);
+
+    expect(guard.status).toBe("warn");
+    expect(guard.reasons).toContain("message_count_near_limit");
+    expect(guard.finalMessageCount).toBe(CHAT_CONFIG.warnContextMessages + 1);
+  });
+
+  it("warns when character count reaches the exact warn threshold", () => {
+    const thresholdContent = "x".repeat(CHAT_CONFIG.warnContextCharacters);
+    const messages = [
+      makeMessage(
+        {
+          role: "user",
+          content: thresholdContent,
+          parts: [{ type: "text", text: thresholdContent }],
+        },
+        0,
+      ),
+    ];
+
+    const { guard } = buildContextWindow(messages);
+
+    expect(guard.status).toBe("warn");
+    expect(guard.reasons).toContain("character_count_near_limit");
+    expect(guard.finalCharacterCount).toBe(CHAT_CONFIG.warnContextCharacters);
+  });
+
+  it("warns when character count goes one over the warn threshold", () => {
+    const nearLimitContent = "x".repeat(CHAT_CONFIG.warnContextCharacters + 1);
+    const messages = [
+      makeMessage(
+        {
+          role: "user",
+          content: nearLimitContent,
+          parts: [{ type: "text", text: nearLimitContent }],
+        },
+        0,
+      ),
+    ];
+
+    const { guard } = buildContextWindow(messages);
+
+    expect(guard.status).toBe("warn");
+    expect(guard.reasons).toContain("character_count_near_limit");
+    expect(guard.finalCharacterCount).toBe(CHAT_CONFIG.warnContextCharacters + 1);
+  });
+
+  it("blocks when the latest message alone exceeds the max context character budget", () => {
+    const oversizedContent = "x".repeat(CHAT_CONFIG.maxContextCharacters + 1);
+    const messages = [
+      makeMessage(
+        {
+          role: "user",
+          content: oversizedContent,
+          parts: [{ type: "text", text: oversizedContent }],
+        },
+        0,
+      ),
+    ];
+
+    const { contextMessages, guard } = buildContextWindow(messages);
+
+    expect(contextMessages).toHaveLength(1);
+    expect(guard.status).toBe("block");
+    expect(guard.reasons).toContain("latest_message_too_large");
+    expect(buildContextWindowGuardPrompt(guard)).toBeNull();
   });
 
   it("returns summary text separately and only post-summary messages", () => {

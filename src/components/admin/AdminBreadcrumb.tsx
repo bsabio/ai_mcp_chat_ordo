@@ -1,10 +1,4 @@
-/**
- * AdminBreadcrumb — wayfinding trail for admin pages.
- * Sprint 8 implementation target. This stub satisfies the module contract so
- * test files that import it can compile before the full implementation lands.
- *
- * UX-02: No breadcrumbs on any admin page.
- */
+import Link from "next/link";
 
 export interface BreadcrumbItem {
   label: string;
@@ -19,21 +13,24 @@ export function AdminBreadcrumb({ items }: AdminBreadcrumbProps) {
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Breadcrumb">
-      <ol className="flex items-center gap-1 text-xs text-foreground/50">
+    <nav aria-label="Breadcrumb" className="min-w-0" data-admin-breadcrumb="true">
+      <ol className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.72rem] font-medium uppercase tracking-[0.14em] text-foreground/46">
         {items.map((item, index) => (
-          <li key={index} className="flex items-center gap-1">
+          <li key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
             {index > 0 && (
-              <span aria-hidden="true" className="select-none">
-                /
+              <span aria-hidden="true" className="select-none text-foreground/26">
+                / 
               </span>
             )}
             {item.href ? (
-              <a href={item.href} className="hover:text-foreground transition">
+              <Link
+                href={item.href}
+                className="truncate text-foreground/52 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25"
+              >
                 {item.label}
-              </a>
+              </Link>
             ) : (
-              <span aria-current="page" className="truncate text-foreground/80">
+              <span aria-current="page" className="truncate text-foreground/84">
                 {item.label}
               </span>
             )}

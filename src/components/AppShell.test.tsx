@@ -93,6 +93,7 @@ describe("AppShell", () => {
 
     expect(container.querySelector('[data-shell-route-surface="default"]')).not.toBeNull();
     expect(container.querySelector('[data-shell-main-surface="default"]')).not.toBeNull();
+    expect(container.querySelector('[data-shell-main-surface="default"][data-shell-floating-chat-clearance="true"]')).not.toBeNull();
   });
 
   it("uses document-flow mode and shows footer on admin routes", () => {
@@ -107,6 +108,7 @@ describe("AppShell", () => {
     expect(container.querySelector('[data-shell-route-mode="document-flow"]')).not.toBeNull();
     expect(container.querySelector('[data-shell-route-surface="admin"]')).not.toBeNull();
     expect(container.querySelector('[data-shell-main-surface="admin"]')).not.toBeNull();
+    expect(container.querySelector('[data-shell-main-surface="admin"][data-shell-floating-chat-clearance="true"]')).toBeNull();
     expect(screen.getByTestId("site-nav")).toBeInTheDocument();
     expect(screen.getByTestId("site-footer")).toBeInTheDocument();
   });

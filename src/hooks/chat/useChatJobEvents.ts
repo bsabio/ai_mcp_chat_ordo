@@ -28,6 +28,7 @@ const parser = new EventParser([
 
 const processor = createChatStreamProcessor();
 const MISSING_CONVERSATION_RETRY_DELAY_MS = 5_000;
+const CHAT_JOB_REHYDRATE_LIMIT = 50;
 
 interface UseChatJobEventsOptions {
   conversationId: string | null;
@@ -47,7 +48,7 @@ async function reconcileDeferredJobs(
 ): Promise<"ok" | "missing" | "error"> {
   try {
     const response = await fetch(
-      `/api/chat/jobs?conversationId=${encodeURIComponent(conversationId)}&limit=12`,
+      `/api/chat/jobs?conversationId=${encodeURIComponent(conversationId)}&limit=${CHAT_JOB_REHYDRATE_LIMIT}`,
       { credentials: "same-origin" },
     );
 

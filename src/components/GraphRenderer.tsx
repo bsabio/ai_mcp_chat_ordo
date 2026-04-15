@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { PanZoomViewport } from "./PanZoomViewport";
 import { ToolCard } from "./ToolCard";
 import { downloadBlob } from "../lib/download-browser";
 import type { GraphAxisType, GraphRow, GraphSpec, GraphValue } from "@/core/entities/rich-content";
@@ -491,7 +492,6 @@ export function GraphRenderer({
       status={validationIssue ? "error" : hasRows ? "success" : "idle"}
       actions={headerActions}
       expandable={hasRows}
-      thumbnailMode={hasRows}
       onDownload={hasRows ? handleDownload : undefined}
       downloadTooltip="Download as SVG"
       icon={<span aria-hidden="true">/</span>}
@@ -526,213 +526,216 @@ export function GraphRenderer({
                 {summary}
               </p>
             ) : null}
-            <div className="overflow-x-auto" data-testid="graph-scroll-region">
-              <div className="min-w-160 sm:min-w-0">
-                <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible" data-testid="graph-svg" data-graph-kind={graph.kind}>
-                  <rect x="0" y="0" width={width} height={height} fill="transparent" />
-                  {yTicks.map((tick) => (
-                    <g key={`y-${tick}`}>
-                      <line x1={margin.left} x2={width - margin.right} y1={yScale(tick)} y2={yScale(tick)} stroke="currentColor" strokeOpacity="0.12" />
-                      <text x={margin.left - 10} y={yScale(tick) + 4} fontSize="11" textAnchor="end" fill="currentColor" opacity="0.65">
-                        {formatValue(tick)}
-                      </text>
-                    </g>
-                  ))}
-                  <line x1={margin.left} x2={margin.left} y1={margin.top} y2={margin.top + innerHeight} stroke="currentColor" strokeOpacity="0.4" />
-                  <line x1={margin.left} x2={width - margin.right} y1={margin.top + innerHeight} y2={margin.top + innerHeight} stroke="currentColor" strokeOpacity="0.4" />
-                  <text x={margin.left + innerWidth / 2} y={height - 18} textAnchor="middle" fontSize="12" fill="currentColor" opacity="0.72">
-                    {xAxisLabel}
-                  </text>
-                  <text x={18} y={margin.top + innerHeight / 2} textAnchor="middle" fontSize="12" fill="currentColor" opacity="0.72" transform={`rotate(-90 18 ${margin.top + innerHeight / 2})`}>
-                    {yAxisLabel}
-                  </text>
+            <PanZoomViewport
+              ariaLabel={`${headerTitle} graph`}
+              contentWidth={width}
+              contentHeight={height}
+              testId="graph-viewport"
+            >
+              <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="h-full w-full overflow-visible" data-testid="graph-svg" data-graph-kind={graph.kind}>
+                <rect x="0" y="0" width={width} height={height} fill="transparent" />
+                {yTicks.map((tick) => (
+                  <g key={`y-${tick}`}>
+                    <line x1={margin.left} x2={width - margin.right} y1={yScale(tick)} y2={yScale(tick)} stroke="currentColor" strokeOpacity="0.12" />
+                    <text x={margin.left - 10} y={yScale(tick) + 4} fontSize="11" textAnchor="end" fill="currentColor" opacity="0.65">
+                      {formatValue(tick)}
+                    </text>
+                  </g>
+                ))}
+                <line x1={margin.left} x2={margin.left} y1={margin.top} y2={margin.top + innerHeight} stroke="currentColor" strokeOpacity="0.4" />
+                <line x1={margin.left} x2={width - margin.right} y1={margin.top + innerHeight} y2={margin.top + innerHeight} stroke="currentColor" strokeOpacity="0.4" />
+                <text x={margin.left + innerWidth / 2} y={height - 18} textAnchor="middle" fontSize="12" fill="currentColor" opacity="0.72">
+                  {xAxisLabel}
+                </text>
+                <text x={18} y={margin.top + innerHeight / 2} textAnchor="middle" fontSize="12" fill="currentColor" opacity="0.72" transform={`rotate(-90 18 ${margin.top + innerHeight / 2})`}>
+                  {yAxisLabel}
+                </text>
 
-              {categoricalX
-                ? (xTickValues as GraphValue[]).map((tick) => {
-                    const x = isBarLike
-                      ? categoricalXScale(tick) + innerWidth / Math.max(categoricalDomain.length, 1) / 2
-                      : categoricalXScale(tick);
-                    return (
-                      <g key={`x-${String(tick)}`}>
-                        <line x1={x} x2={x} y1={margin.top + innerHeight} y2={margin.top + innerHeight + 6} stroke="currentColor" strokeOpacity="0.4" />
-                        <text x={x} y={height - 42} fontSize="11" textAnchor="middle" fill="currentColor" opacity="0.7">
+                {categoricalX
+                  ? (xTickValues as GraphValue[]).map((tick) => {
+                      const x = isBarLike
+                        ? categoricalXScale(tick) + innerWidth / Math.max(categoricalDomain.length, 1) / 2
+                        : categoricalXScale(tick);
+                      return (
+                        <g key={`x-${String(tick)}`}>
+                          <line x1={x} x2={x} y1={margin.top + innerHeight} y2={margin.top + innerHeight + 6} stroke="currentColor" strokeOpacity="0.4" />
+                          <text x={x} y={height - 42} fontSize="11" textAnchor="middle" fill="currentColor" opacity="0.7">
+                            {formatValue(tick, graph.x?.type)}
+                          </text>
+                        </g>
+                      );
+                    })
+                  : (xTickValues as number[]).map((tick) => (
+                      <g key={`x-${tick}`}>
+                        <line x1={continuousXScale(tick)} x2={continuousXScale(tick)} y1={margin.top + innerHeight} y2={margin.top + innerHeight + 6} stroke="currentColor" strokeOpacity="0.4" />
+                        <text x={continuousXScale(tick)} y={height - 42} fontSize="11" textAnchor="middle" fill="currentColor" opacity="0.7">
                           {formatValue(tick, graph.x?.type)}
                         </text>
                       </g>
-                    );
-                  })
-                : (xTickValues as number[]).map((tick) => (
-                    <g key={`x-${tick}`}>
-                      <line x1={continuousXScale(tick)} x2={continuousXScale(tick)} y1={margin.top + innerHeight} y2={margin.top + innerHeight + 6} stroke="currentColor" strokeOpacity="0.4" />
-                      <text x={continuousXScale(tick)} y={height - 42} fontSize="11" textAnchor="middle" fill="currentColor" opacity="0.7">
-                        {formatValue(tick, graph.x?.type)}
-                      </text>
-                    </g>
-                  ))}
+                    ))}
 
-              {graph.kind === "line" || graph.kind === "area"
-                ? groupedPoints.map((group) => {
-                    const orderedPoints = group.points.slice().sort((left, right) => {
-                      if (useContinuousX) {
-                        const leftValue = toNumber(left.xValue, graph.x?.type) ?? 0;
-                        const rightValue = toNumber(right.xValue, graph.x?.type) ?? 0;
-                        return leftValue - rightValue;
-                      }
-                      const leftIndex = categoricalDomain.findIndex((entry) => entry === left.xValue);
-                      const rightIndex = categoricalDomain.findIndex((entry) => entry === right.xValue);
-                      return leftIndex - rightIndex;
-                    });
-                    const path = orderedPoints
-                      .map((point, index) => {
-                        const x = useContinuousX
-                          ? continuousXScale(toNumber(point.xValue, graph.x?.type) ?? 0)
-                          : categoricalXScale(point.xValue);
-                        const y = yScale(point.yValue);
-                        return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-                      })
-                      .join(" ");
-                    return (
-                      <g key={group.key}>
-                        {graph.kind === "area" ? (
-                          <path
-                            d={`${path} L ${useContinuousX
-                              ? continuousXScale(toNumber(orderedPoints[orderedPoints.length - 1]?.xValue ?? 0, graph.x?.type) ?? 0)
-                              : categoricalXScale(orderedPoints[orderedPoints.length - 1]?.xValue ?? null)} ${yScale(0)} L ${useContinuousX
-                              ? continuousXScale(toNumber(orderedPoints[0]?.xValue ?? 0, graph.x?.type) ?? 0)
-                              : categoricalXScale(orderedPoints[0]?.xValue ?? null)} ${yScale(0)} Z`}
-                            fill={getSeriesColor(seriesKeys, group.key)}
-                            fillOpacity="0.18"
-                          />
-                        ) : null}
-                        <path d={path} fill="none" stroke={getSeriesColor(seriesKeys, group.key)} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" data-series-path={group.key} />
-                        {orderedPoints.map((point, index) => (
-                          <circle
-                            key={`${group.key}-${index}`}
-                            cx={useContinuousX
-                              ? continuousXScale(toNumber(point.xValue, graph.x?.type) ?? 0)
-                              : categoricalXScale(point.xValue)}
-                            cy={yScale(point.yValue)}
-                            r="4"
-                            fill={getSeriesColor(seriesKeys, group.key)}
-                            data-point={group.key}
-                          />
-                        ))}
-                      </g>
-                    );
-                  })
-                : null}
-
-              {graph.kind === "bar" || graph.kind === "grouped-bar" || graph.kind === "histogram"
-                ? barGroups.map((group, groupIndex) => {
-                    const band = innerWidth / Math.max(categoricalDomain.length, 1);
-                    const groupPadding = band * 0.16;
-                    const availableWidth = Math.max(band - groupPadding * 2, 16);
-                    const barWidth = availableWidth / Math.max(seriesKeys.length, 1);
-                    return group.map((entry, seriesIndex) => {
-                      const x = margin.left + groupIndex * band + groupPadding + seriesIndex * barWidth;
-                      const baseline = yScale(0);
-                      const top = yScale(entry.total);
+                {graph.kind === "line" || graph.kind === "area"
+                  ? groupedPoints.map((group) => {
+                      const orderedPoints = group.points.slice().sort((left, right) => {
+                        if (useContinuousX) {
+                          const leftValue = toNumber(left.xValue, graph.x?.type) ?? 0;
+                          const rightValue = toNumber(right.xValue, graph.x?.type) ?? 0;
+                          return leftValue - rightValue;
+                        }
+                        const leftIndex = categoricalDomain.findIndex((entry) => entry === left.xValue);
+                        const rightIndex = categoricalDomain.findIndex((entry) => entry === right.xValue);
+                        return leftIndex - rightIndex;
+                      });
+                      const path = orderedPoints
+                        .map((point, index) => {
+                          const x = useContinuousX
+                            ? continuousXScale(toNumber(point.xValue, graph.x?.type) ?? 0)
+                            : categoricalXScale(point.xValue);
+                          const y = yScale(point.yValue);
+                          return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+                        })
+                        .join(" ");
                       return (
-                        <rect
-                          key={`${entry.seriesKey}-${String(entry.domainValue)}`}
-                          x={x}
-                          y={Math.min(top, baseline)}
-                          width={Math.max(barWidth - 4, 2)}
-                          height={Math.abs(baseline - top)}
-                          fill={getSeriesColor(seriesKeys, entry.seriesKey)}
-                          rx="3"
-                          data-bar={entry.seriesKey}
-                        />
+                        <g key={group.key}>
+                          {graph.kind === "area" ? (
+                            <path
+                              d={`${path} L ${useContinuousX
+                                ? continuousXScale(toNumber(orderedPoints[orderedPoints.length - 1]?.xValue ?? 0, graph.x?.type) ?? 0)
+                                : categoricalXScale(orderedPoints[orderedPoints.length - 1]?.xValue ?? null)} ${yScale(0)} L ${useContinuousX
+                                ? continuousXScale(toNumber(orderedPoints[0]?.xValue ?? 0, graph.x?.type) ?? 0)
+                                : categoricalXScale(orderedPoints[0]?.xValue ?? null)} ${yScale(0)} Z`}
+                              fill={getSeriesColor(seriesKeys, group.key)}
+                              fillOpacity="0.18"
+                            />
+                          ) : null}
+                          <path d={path} fill="none" stroke={getSeriesColor(seriesKeys, group.key)} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" data-series-path={group.key} />
+                          {orderedPoints.map((point, index) => (
+                            <circle
+                              key={`${group.key}-${index}`}
+                              cx={useContinuousX
+                                ? continuousXScale(toNumber(point.xValue, graph.x?.type) ?? 0)
+                                : categoricalXScale(point.xValue)}
+                              cy={yScale(point.yValue)}
+                              r="4"
+                              fill={getSeriesColor(seriesKeys, group.key)}
+                              data-point={group.key}
+                            />
+                          ))}
+                        </g>
                       );
-                    });
-                  })
-                : null}
+                    })
+                  : null}
 
-              {graph.kind === "stacked-bar"
-                ? stackedBarGroups.map((group, groupIndex) => {
-                    const band = innerWidth / Math.max(categoricalDomain.length, 1);
-                    const groupPadding = band * 0.18;
-                    const width = Math.max(band - groupPadding * 2 - 4, 8);
-                    let runningTotal = 0;
-                    return group.series.map((entry) => {
-                      const x = margin.left + groupIndex * band + groupPadding;
-                      const start = runningTotal;
-                      const end = runningTotal + entry.total;
-                      runningTotal = end;
-                      const baseline = yScale(start);
-                      const top = yScale(end);
-                      return (
-                        <rect
-                          key={`${entry.seriesKey}-${String(group.domainValue)}`}
-                          x={x}
-                          y={Math.min(top, baseline)}
-                          width={width}
-                          height={Math.abs(baseline - top)}
-                          fill={getSeriesColor(seriesKeys, entry.seriesKey)}
-                          rx="3"
-                          data-bar={entry.seriesKey}
-                        />
-                      );
-                    });
-                  })
-                : null}
-
-              {graph.kind === "scatter" || graph.kind === "bubble"
-                ? groupedPoints.map((group) => (
-                    <g key={group.key}>
-                      {group.points.map((point, index) => {
-                        const numericX = toNumber(point.xValue, graph.x?.type);
-                        const x = numericX !== undefined && !categoricalX ? continuousXScale(numericX) : categoricalXScale(point.xValue);
-                        const radius = graph.kind === "bubble" && sizeField
-                          ? bubbleRadius(graph.data.find((row) => {
-                              const xValue = row[graph.x?.field ?? ""];
-                              const yValue = row[graph.y?.field ?? ""];
-                              const seriesValue = graph.series ? String(row[graph.series.field] ?? "Unspecified") : "Series 1";
-                              return xValue === point.xValue && yValue === point.yValue && seriesValue === group.key;
-                            })?.[sizeField] ?? null)
-                          : 5;
+                {graph.kind === "bar" || graph.kind === "grouped-bar" || graph.kind === "histogram"
+                  ? barGroups.map((group, groupIndex) => {
+                      const band = innerWidth / Math.max(categoricalDomain.length, 1);
+                      const groupPadding = band * 0.16;
+                      const availableWidth = Math.max(band - groupPadding * 2, 16);
+                      const barWidth = availableWidth / Math.max(seriesKeys.length, 1);
+                      return group.map((entry, seriesIndex) => {
+                        const x = margin.left + groupIndex * band + groupPadding + seriesIndex * barWidth;
+                        const baseline = yScale(0);
+                        const top = yScale(entry.total);
                         return (
-                          <circle
-                            key={`${group.key}-${index}`}
-                            cx={x}
-                            cy={yScale(point.yValue)}
-                            r={radius}
-                            fill={getSeriesColor(seriesKeys, group.key)}
-                            fillOpacity={graph.kind === "bubble" ? "0.55" : "0.88"}
-                            data-point={group.key}
+                          <rect
+                            key={`${entry.seriesKey}-${String(entry.domainValue)}`}
+                            x={x}
+                            y={Math.min(top, baseline)}
+                            width={Math.max(barWidth - 4, 2)}
+                            height={Math.abs(baseline - top)}
+                            fill={getSeriesColor(seriesKeys, entry.seriesKey)}
+                            rx="3"
+                            data-bar={entry.seriesKey}
                           />
                         );
-                      })}
-                    </g>
-                  ))
-                : null}
+                      });
+                    })
+                  : null}
 
-              {graph.kind === "heatmap" && heatmapFields
-                ? graph.data.map((row, index) => {
-                    const xIndex = heatmapXDomain.findIndex((entry) => entry === row[heatmapFields.xField]);
-                    const yIndex = heatmapYDomain.findIndex((entry) => entry === row[heatmapFields.yField]);
-                    const cellWidth = innerWidth / Math.max(heatmapXDomain.length, 1);
-                    const cellHeight = innerHeight / Math.max(heatmapYDomain.length, 1);
-                    const x = margin.left + xIndex * cellWidth;
-                    const y = margin.top + yIndex * cellHeight;
-                    const value = Number(row[heatmapFields.colorField] ?? 0);
-                    return (
-                      <rect
-                        key={`heat-${index}`}
-                        x={x}
-                        y={y}
-                        width={Math.max(cellWidth - 2, 2)}
-                        height={Math.max(cellHeight - 2, 2)}
-                        fill={heatmapColor(value)}
-                        rx="3"
-                        data-heat-cell="true"
-                      />
-                    );
-                  })
-                : null}
-                </svg>
-              </div>
-            </div>
+                {graph.kind === "stacked-bar"
+                  ? stackedBarGroups.map((group, groupIndex) => {
+                      const band = innerWidth / Math.max(categoricalDomain.length, 1);
+                      const groupPadding = band * 0.18;
+                      const width = Math.max(band - groupPadding * 2 - 4, 8);
+                      let runningTotal = 0;
+                      return group.series.map((entry) => {
+                        const x = margin.left + groupIndex * band + groupPadding;
+                        const start = runningTotal;
+                        const end = runningTotal + entry.total;
+                        runningTotal = end;
+                        const baseline = yScale(start);
+                        const top = yScale(end);
+                        return (
+                          <rect
+                            key={`${entry.seriesKey}-${String(group.domainValue)}`}
+                            x={x}
+                            y={Math.min(top, baseline)}
+                            width={width}
+                            height={Math.abs(baseline - top)}
+                            fill={getSeriesColor(seriesKeys, entry.seriesKey)}
+                            rx="3"
+                            data-bar={entry.seriesKey}
+                          />
+                        );
+                      });
+                    })
+                  : null}
+
+                {graph.kind === "scatter" || graph.kind === "bubble"
+                  ? groupedPoints.map((group) => (
+                      <g key={group.key}>
+                        {group.points.map((point, index) => {
+                          const numericX = toNumber(point.xValue, graph.x?.type);
+                          const x = numericX !== undefined && !categoricalX ? continuousXScale(numericX) : categoricalXScale(point.xValue);
+                          const radius = graph.kind === "bubble" && sizeField
+                            ? bubbleRadius(graph.data.find((row) => {
+                                const xValue = row[graph.x?.field ?? ""];
+                                const yValue = row[graph.y?.field ?? ""];
+                                const seriesValue = graph.series ? String(row[graph.series.field] ?? "Unspecified") : "Series 1";
+                                return xValue === point.xValue && yValue === point.yValue && seriesValue === group.key;
+                              })?.[sizeField] ?? null)
+                            : 5;
+                          return (
+                            <circle
+                              key={`${group.key}-${index}`}
+                              cx={x}
+                              cy={yScale(point.yValue)}
+                              r={radius}
+                              fill={getSeriesColor(seriesKeys, group.key)}
+                              fillOpacity={graph.kind === "bubble" ? "0.55" : "0.88"}
+                              data-point={group.key}
+                            />
+                          );
+                        })}
+                      </g>
+                    ))
+                  : null}
+
+                {graph.kind === "heatmap" && heatmapFields
+                  ? graph.data.map((row, index) => {
+                      const xIndex = heatmapXDomain.findIndex((entry) => entry === row[heatmapFields.xField]);
+                      const yIndex = heatmapYDomain.findIndex((entry) => entry === row[heatmapFields.yField]);
+                      const cellWidth = innerWidth / Math.max(heatmapXDomain.length, 1);
+                      const cellHeight = innerHeight / Math.max(heatmapYDomain.length, 1);
+                      const x = margin.left + xIndex * cellWidth;
+                      const y = margin.top + yIndex * cellHeight;
+                      const value = Number(row[heatmapFields.colorField] ?? 0);
+                      return (
+                        <rect
+                          key={`heat-${index}`}
+                          x={x}
+                          y={y}
+                          width={Math.max(cellWidth - 2, 2)}
+                          height={Math.max(cellHeight - 2, 2)}
+                          fill={heatmapColor(value)}
+                          rx="3"
+                          data-heat-cell="true"
+                        />
+                      );
+                    })
+                  : null}
+              </svg>
+            </PanZoomViewport>
             {previewRows.length > 0 && isPreviewVisible ? (
               <div className="overflow-x-auto rounded-theme border-theme bg-surface-muted/45 p-(--space-2)" data-testid="graph-data-preview">
                 <p className="px-(--space-2) pb-(--space-2) text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/52">

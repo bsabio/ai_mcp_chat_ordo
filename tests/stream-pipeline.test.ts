@@ -1,6 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  clearActiveStreamsForTests,
+  getActiveStreamSnapshot,
+  registerActiveStream,
+} from "@/lib/chat/active-stream-registry";
+import type { ContextWindowGuardReason } from "@/lib/chat/context-window";
+import { SystemPromptBuilder } from "@/core/use-cases/SystemPromptBuilder";
+
+function createContextWindowGuard(
+  overrides: Partial<{
+    status: "ok" | "warn" | "block";
+    reasons: ContextWindowGuardReason[];
+    rawMessageCount: number;
+    rawCharacterCount: number;
+    finalMessageCount: number;
+    finalCharacterCount: number;
+    warnMessageCount: number;
+    warnCharacterCount: number;
+    maxMessageCount: number;
+    maxCharacterCount: number;
+  }> = {},
+) {
+  return {
+    status: "ok" as const,
+    reasons: [],
+    rawMessageCount: 1,
+    rawCharacterCount: 5,
+    finalMessageCount: 1,
+    finalCharacterCount: 5,
+    warnMessageCount: 32,
+    warnCharacterCount: 64_000,
+    maxMessageCount: 40,
+    maxCharacterCount: 80_000,
+    ...overrides,
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Mocks — shared across pipeline method tests                        */
@@ -72,6 +108,7 @@ vi.mock("@/lib/chat/conversation-root", () => ({
       getForStreamingContext: vi.fn(),
       updateRoutingSnapshot: vi.fn(),
       recordToolUsed: vi.fn(),
+      recordSessionResolution: vi.fn(),
     },
     routingAnalyzer: { analyze: vi.fn() },
     summarizationInteractor: { summarizeIfNeeded: vi.fn() },
@@ -82,7 +119,18 @@ vi.mock("@/lib/chat/context-window", () => ({
   buildContextWindow: vi.fn(() => ({
     contextMessages: [{ role: "user", content: "hello" }],
     summaryText: "",
+    guard: createContextWindowGuard(),
   })),
+  buildGuardedContextWindow: vi.fn((messages: Array<{ role: "user" | "assistant"; content: string }>) => ({
+    contextMessages: messages,
+    guard: createContextWindowGuard({
+      rawMessageCount: messages.length,
+      finalMessageCount: messages.length,
+      rawCharacterCount: messages.reduce((sum, message) => sum + message.content.length, 0),
+      finalCharacterCount: messages.reduce((sum, message) => sum + message.content.length, 0),
+    }),
+  })),
+  buildContextWindowGuardPrompt: vi.fn(() => null),
 }));
 
 vi.mock("@/lib/chat/chat-turn", () => ({
@@ -125,6 +173,19 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     appendEvent: vi.fn(),
     findActiveJobByDedupeKey: vi.fn(),
   }),
+  getJobStatusQuery: () => ({
+    getJobSnapshot: vi.fn(),
+    getUserJobSnapshot: vi.fn(),
+    listConversationJobSnapshots: vi.fn(async () => []),
+    listUserJobSnapshots: vi.fn(async () => []),
+  }),
+  getPromptProvenanceDataMapper: () => ({
+    create: vi.fn(async () => ({ id: "pprov_pipeline_test" })),
+    attachAssistantMessage: vi.fn(async () => undefined),
+    findLatestByConversation: vi.fn(async () => null),
+    findByConversationAndTurnId: vi.fn(async () => null),
+    listByConversation: vi.fn(async () => []),
+  }),
 }));
 
 vi.mock("@/lib/jobs/deferred-job-result", () => ({
@@ -144,6 +205,7 @@ vi.mock("@/lib/jobs/job-status-snapshots", () => ({
 }));
 
 vi.mock("@/lib/observability/logger", () => ({
+  logEvent: vi.fn(),
   logDegradation: vi.fn(),
   logFailure: vi.fn(),
 }));
@@ -183,9 +245,35 @@ vi.mock("@/lib/chat/http-facade", () => ({
 describe("Spec 10 — Stream Route Decomposition", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearActiveStreamsForTests();
     resolveValidatedReferralVisitMock.mockReturnValue(null);
     attachValidatedVisitToConversationMock.mockResolvedValue(null);
   });
+
+  function extractStreamId(chunk: string): string | null {
+    return chunk.match(/"stream_id":"([^"]+)"/)?.[1] ?? null;
+  }
+
+  async function readStreamText(response: Response): Promise<string> {
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("Response body is not readable");
+    }
+
+    const decoder = new TextDecoder();
+    let output = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      output += decoder.decode(value, { stream: true });
+    }
+
+    output += decoder.decode();
+    return output;
+  }
 
   // --- Pipeline class tests ---
 
@@ -194,11 +282,15 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const expected = [
       "resolveSession",
       "validateAndParse",
+      "rejectIfActiveStreamExists",
       "ensureConversation",
       "assignAttachments",
       "persistUserMessage",
       "prepareStreamContext",
       "prepareFallbackContext",
+      "isSafePreparationFallback",
+      "finalizePreparedPrompt",
+      "maybeHandleSlashCommand",
       "checkMathShortCircuit",
       "createDeferredToolExecutor",
       "createStreamResponse",
@@ -223,6 +315,35 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     expect(result.isAnonymous).toBe(false);
   });
 
+  it("resolveSession runs inbound claim hooks around session resolution", async () => {
+    const callOrder: string[] = [];
+    getSessionUserMock.mockImplementation(async () => {
+      callOrder.push("execute:getSessionUser");
+      return { id: "u1", roles: ["STAFF"] };
+    });
+    resolveUserIdMock.mockResolvedValue({ userId: "u1", isAnonymous: false });
+
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline([
+      {
+        beforeInboundClaim(state) {
+          callOrder.push(`before:${state.routeContext?.route ?? "none"}`);
+        },
+        afterInboundClaim(state) {
+          callOrder.push(`after:${state.session.role}`);
+        },
+      },
+    ]);
+
+    await pipeline.resolveSession({ requestId: "r1", route: "/api/chat/stream", startedAt: Date.now() } as never);
+
+    expect(callOrder).toEqual([
+      "before:/api/chat/stream",
+      "execute:getSessionUser",
+      "after:STAFF",
+    ]);
+  });
+
   it("validateAndParse rejects invalid request bodies", async () => {
     const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
     const pipeline = new ChatStreamPipeline();
@@ -242,6 +363,94 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     );
     expect(result).not.toBeInstanceOf(Response);
     expect((result as { parsed: unknown }).parsed).toBeDefined();
+  });
+
+  it("validateAndParse rejects attachments with invalid file metadata", async () => {
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const fakeContext = { requestId: "r1", route: "/test", startedAt: Date.now() } as never;
+    const result = pipeline.validateAndParse(
+      {
+        messages: [{ role: "user", content: "hi" }],
+        attachments: [{ assetId: "asset_1", fileName: "brief.txt", mimeType: "text/plain", fileSize: -1 }],
+      },
+      fakeContext,
+    );
+
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(400);
+  });
+
+  it("rejectIfActiveStreamExists returns a 409 response for overlapping conversation streams", async () => {
+    registerActiveStream({
+      streamId: "stream_conflict",
+      ownerUserId: "u1",
+      conversationId: "conv_1",
+      abortController: new AbortController(),
+    });
+
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const response = pipeline.rejectIfActiveStreamExists(
+      "u1",
+      "conv_1",
+      { requestId: "r1", route: "/test", startedAt: Date.now() } as never,
+    );
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(409);
+  });
+
+  it("createDeferredToolExecutor forwards the abort signal into inline tool execution context", async () => {
+    const baseExecutor = vi.fn(async (_name: string, _input: Record<string, unknown>, context: { abortSignal?: AbortSignal }) => context.abortSignal);
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const abortController = new AbortController();
+
+    const executor = await pipeline.createDeferredToolExecutor({
+      conversationId: "conv_1",
+      isAnonymous: false,
+      registry: { getDescriptor: vi.fn(() => undefined) } as never,
+      baseExecutor,
+      context: {
+        role: "STAFF",
+        userId: "u1",
+        conversationId: "conv_1",
+      },
+    });
+
+    await expect(executor("inspect_runtime_context", {}, abortController.signal)).resolves.toBe(abortController.signal);
+    expect(baseExecutor).toHaveBeenCalledWith(
+      "inspect_runtime_context",
+      {},
+      expect.objectContaining({ abortSignal: abortController.signal }),
+    );
+  });
+
+  it("createDeferredToolExecutor rejects immediately when the abort signal is already fired", async () => {
+    const baseExecutor = vi.fn(async () => "unexpected");
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const abortController = new AbortController();
+    abortController.abort("request_disconnected");
+
+    const executor = await pipeline.createDeferredToolExecutor({
+      conversationId: "conv_1",
+      isAnonymous: false,
+      registry: { getDescriptor: vi.fn(() => undefined) } as never,
+      baseExecutor,
+      context: {
+        role: "STAFF",
+        userId: "u1",
+        conversationId: "conv_1",
+      },
+    });
+
+    await expect(executor("inspect_runtime_context", {}, abortController.signal)).rejects.toMatchObject({
+      name: "AbortError",
+      message: "request_disconnected",
+    });
+    expect(baseExecutor).not.toHaveBeenCalled();
   });
 
   it("ensureConversation creates conversation and returns ID", async () => {
@@ -299,6 +508,270 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     expect(result).toBeNull();
   });
 
+  it("prepareStreamContext appends a visible guard section while preserving summary injection", async () => {
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const contextWindowModule = await import("@/lib/chat/context-window");
+    const pipeline = new ChatStreamPipeline();
+    const builder = {
+      withConversationSummary: vi.fn(),
+      withRoutingContext: vi.fn(),
+      withSection: vi.fn(),
+      build: vi.fn(() => "system prompt"),
+      buildResult: vi.fn(async () => ({
+        surface: "chat_stream",
+        text: "system prompt",
+        effectiveHash: "hash_stream_pipeline_primary",
+        slotRefs: [],
+        sections: [],
+        warnings: [],
+      })),
+    };
+    const interactor = {
+      getForStreamingContext: vi.fn(async () => ({
+        conversation: { routingSnapshot: { lane: "general" } },
+        messages: [],
+      })),
+      updateRoutingSnapshot: vi.fn(async () => undefined),
+    };
+    const routingAnalyzer = {
+      analyze: vi.fn(async () => ({ lane: "organization" })),
+    };
+
+    vi.mocked(contextWindowModule.buildContextWindow).mockReturnValueOnce({
+      contextMessages: [{ role: "user", content: "hello" }],
+      hasSummary: true,
+      summaryText: "quoted summary",
+      guard: createContextWindowGuard({
+        status: "warn",
+        reasons: ["message_count_near_limit"],
+        rawMessageCount: 32,
+        finalMessageCount: 32,
+        rawCharacterCount: 1200,
+        finalCharacterCount: 1200,
+      }),
+    });
+    vi.mocked(contextWindowModule.buildContextWindowGuardPrompt).mockReturnValueOnce(
+      "\n[Context window guard]\nKeep the answer tight.",
+    );
+
+    const result = await pipeline.prepareStreamContext(
+      builder as never,
+      interactor as never,
+      routingAnalyzer as never,
+      "conv_1",
+      "u1",
+      [{ role: "user", content: "hello" }],
+      "hello",
+      "hello",
+      null,
+    );
+
+    expect(builder.withConversationSummary).toHaveBeenCalledWith("quoted summary");
+    expect(builder.withSection).toHaveBeenCalledWith({
+      key: "context_window_guard",
+      content: "\n[Context window guard]\nKeep the answer tight.",
+      priority: 42,
+    });
+    expect(result.mode).toBe("primary");
+    expect(result.guard.status).toBe("warn");
+    expect(result.contextMessages).toEqual([{ role: "user", content: "hello" }]);
+  });
+
+  it("finalizePreparedPrompt runs request-assembly hooks around final builder assembly", async () => {
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline([
+      {
+        beforeRequestAssembly(state) {
+          state.builder.withSection({
+            key: "hook_section",
+            content: "\n[Hook Section]\nAdded by runtime hook.",
+            priority: 12,
+          });
+        },
+        afterRequestAssembly(state) {
+          expect(state.mode).toBe("primary");
+          expect(state.systemPrompt).toContain("[Hook Section]");
+        },
+      },
+    ]);
+
+    const baseBuilder = new SystemPromptBuilder();
+    const builder = {
+      withUserPreferences(prefs: Parameters<SystemPromptBuilder["withUserPreferences"]>[0]) {
+        baseBuilder.withUserPreferences(prefs);
+        return this;
+      },
+      withConversationSummary(summaryText: Parameters<SystemPromptBuilder["withConversationSummary"]>[0]) {
+        baseBuilder.withConversationSummary(summaryText);
+        return this;
+      },
+      withRoutingContext(snapshot: Parameters<SystemPromptBuilder["withRoutingContext"]>[0]) {
+        baseBuilder.withRoutingContext(snapshot);
+        return this;
+      },
+      withTrustedReferralContext(context: Parameters<SystemPromptBuilder["withTrustedReferralContext"]>[0]) {
+        baseBuilder.withTrustedReferralContext(context);
+        return this;
+      },
+      withToolManifest(schemas: Parameters<SystemPromptBuilder["withToolManifest"]>[0]) {
+        baseBuilder.withToolManifest(schemas);
+        return this;
+      },
+      withSection(section: Parameters<SystemPromptBuilder["withSection"]>[0]) {
+        baseBuilder.withSection(section);
+        return this;
+      },
+      async build() {
+        return baseBuilder.build();
+      },
+      buildResult: vi.fn(async () => {
+        return {
+          surface: "chat_stream" as const,
+          text: baseBuilder.build(),
+          effectiveHash: "hash_stream_pipeline_hook",
+          slotRefs: [],
+          sections: [],
+          warnings: [],
+        };
+      }),
+    };
+    const result = await pipeline.finalizePreparedPrompt({
+      builder,
+      preparedContext: {
+        mode: "primary",
+        contextMessages: [{ role: "user", content: "hello" }],
+        guard: createContextWindowGuard(),
+        routingSnapshot: { lane: "organization" } as never,
+      },
+      incomingMessages: [{ role: "user", content: "hello" }],
+      latestUserText: "hello",
+      latestUserContent: "hello",
+      taskOriginHandoff: null,
+      conversationId: "conv_1",
+      userId: "u1",
+    });
+
+    expect(result.systemPrompt).toContain("[Hook Section]");
+  });
+
+  it("prepareFallbackContext applies the same guard logic to the fallback window", async () => {
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const contextWindowModule = await import("@/lib/chat/context-window");
+    const pipeline = new ChatStreamPipeline();
+    const builder = {
+      withRoutingContext: vi.fn(),
+      withSection: vi.fn(),
+      build: vi.fn(() => "fallback prompt"),
+      buildResult: vi.fn(async () => ({
+        surface: "chat_stream",
+        text: "fallback prompt",
+        effectiveHash: "hash_stream_pipeline_fallback",
+        slotRefs: [],
+        sections: [],
+        warnings: [],
+      })),
+    };
+
+    vi.mocked(contextWindowModule.buildGuardedContextWindow).mockReturnValueOnce({
+      contextMessages: [{ role: "user", content: "ctx" }],
+      guard: createContextWindowGuard({
+        status: "warn",
+        reasons: ["characters_trimmed"],
+        rawCharacterCount: 90_000,
+        finalCharacterCount: 79_000,
+      }),
+    });
+    vi.mocked(contextWindowModule.buildContextWindowGuardPrompt).mockReturnValueOnce(
+      "\n[Context window guard]\nOlder turns were trimmed.",
+    );
+
+    const result = await pipeline.prepareFallbackContext(
+      builder as never,
+      [{ role: "user", content: "short" }],
+      "ctx",
+      null,
+    );
+
+    expect(contextWindowModule.buildGuardedContextWindow).toHaveBeenCalledWith([
+      { role: "user", content: "ctx" },
+    ]);
+    expect(builder.withSection).toHaveBeenCalledWith({
+      key: "context_window_guard",
+      content: "\n[Context window guard]\nOlder turns were trimmed.",
+      priority: 42,
+    });
+    expect(result.mode).toBe("fallback");
+    expect(result.contextMessages).toEqual([{ role: "user", content: "ctx" }]);
+    expect(result.guard.status).toBe("warn");
+  });
+
+  it("maybeHandleSlashCommand short-circuits unsupported commands with a persisted assistant reply", async () => {
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const interactor = {
+      appendMessage: vi.fn(async () => undefined),
+    };
+
+    const response = await pipeline.maybeHandleSlashCommand({
+      latestUserText: "/unknown",
+      conversationId: "conv_1",
+      userId: "u1",
+      role: "ANONYMOUS",
+      isAnonymous: true,
+      interactor: interactor as never,
+      summarizationInteractor: { summarizeIfNeeded: vi.fn(async () => undefined) } as never,
+      jobStatusQuery: {
+        getJobSnapshot: vi.fn(async () => null),
+        getUserJobSnapshot: vi.fn(async () => null),
+        listConversationJobSnapshots: vi.fn(async () => []),
+        listUserJobSnapshots: vi.fn(async () => []),
+      },
+      context: { requestId: "r1", route: "/test", startedAt: Date.now() } as never,
+    });
+
+    expect(response).toBeInstanceOf(Response);
+    expect(interactor.appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conv_1",
+        role: "assistant",
+        content: "Unsupported slash command \"/unknown\". Available commands: /clear, /compact, /export, /status.",
+      }),
+      "u1",
+    );
+    const body = await readStreamText(response as Response);
+    expect(body).toContain('"conversation_id":"conv_1"');
+    expect(body).toContain('Unsupported slash command \\\"/unknown\\\". Available commands: /clear, /compact, /export, /status.');
+  });
+
+  it("maybeHandleSlashCommand short-circuits an empty slash payload predictably", async () => {
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const interactor = {
+      appendMessage: vi.fn(async () => undefined),
+    };
+
+    const response = await pipeline.maybeHandleSlashCommand({
+      latestUserText: "/",
+      conversationId: "conv_1",
+      userId: "u1",
+      role: "ANONYMOUS",
+      isAnonymous: true,
+      interactor: interactor as never,
+      summarizationInteractor: { summarizeIfNeeded: vi.fn(async () => undefined) } as never,
+      jobStatusQuery: {
+        getJobSnapshot: vi.fn(async () => null),
+        getUserJobSnapshot: vi.fn(async () => null),
+        listConversationJobSnapshots: vi.fn(async () => []),
+        listUserJobSnapshots: vi.fn(async () => []),
+      },
+      context: { requestId: "r1", route: "/test", startedAt: Date.now() } as never,
+    });
+
+    expect(response).toBeInstanceOf(Response);
+    const body = await readStreamText(response as Response);
+    expect(body).toContain('Enter a slash command after \\\"/\\\". Available commands: /clear, /compact, /export, /status.');
+  });
+
   it("createStreamResponse returns Response with SSE content type", async () => {
     runClaudeAgentLoopStreamMock.mockImplementation(async ({ callbacks }: { callbacks: { onDelta: (text: string) => void } }) => {
       callbacks.onDelta("hello");
@@ -313,6 +786,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
       interactor: {
         appendMessage: vi.fn(),
         recordToolUsed: vi.fn(async () => {}),
+        recordSessionResolution: vi.fn(async () => {}),
       } as never,
       summarizationInteractor: {
         summarizeIfNeeded: vi.fn(async () => {}),
@@ -328,13 +802,262 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     expect(res.headers.get("Content-Type")).toBe("text/event-stream");
   });
 
+  it("createStreamResponse runs turn-completion hooks after assistant persistence", async () => {
+    runClaudeAgentLoopStreamMock.mockImplementation(async ({ callbacks }: { callbacks: { onDelta: (text: string) => void } }) => {
+      callbacks.onDelta("hello");
+    });
+
+    const afterTurnCompletion = vi.fn();
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline([
+      {
+        afterTurnCompletion,
+      },
+    ]);
+
+    const response = pipeline.createStreamResponse({
+      apiKey: "test",
+      context: { requestId: "r1", route: "/test" } as never,
+      conversationId: "c1",
+      interactor: {
+        appendMessage: vi.fn(async () => ({ id: "msg_assistant" })),
+        recordToolUsed: vi.fn(async () => {}),
+        recordSessionResolution: vi.fn(async () => {}),
+      } as never,
+      summarizationInteractor: {
+        summarizeIfNeeded: vi.fn(async () => {}),
+      } as never,
+      role: "STAFF" as never,
+      userId: "u1",
+      systemPrompt: "sys",
+      contextMessages: [{ role: "user" as const, content: "hi" }],
+      tools: [],
+      toolExecutor: vi.fn(),
+    });
+
+    await readStreamText(response);
+
+    expect(afterTurnCompletion).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: "c1",
+      streamId: expect.any(String),
+      status: "completed",
+      persistedMessageId: "msg_assistant",
+      assistantText: "hello",
+    }));
+  });
+
+  it("registers an active stream while work is in flight and unregisters it after successful completion", async () => {
+    const streamControl: { resolve: (() => void) | null } = { resolve: null };
+    runClaudeAgentLoopStreamMock.mockImplementation(async () => {
+      await new Promise<void>((resolve) => {
+        streamControl.resolve = resolve;
+      });
+    });
+
+    const appendMessage = vi.fn(async () => ({ id: "msg_assistant" }));
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const response = pipeline.createStreamResponse({
+      apiKey: "test",
+      context: { requestId: "r1", route: "/test" } as never,
+      conversationId: "c1",
+      interactor: {
+        appendMessage,
+        recordToolUsed: vi.fn(async () => {}),
+        recordSessionResolution: vi.fn(async () => {}),
+      } as never,
+      summarizationInteractor: {
+        summarizeIfNeeded: vi.fn(async () => {}),
+      } as never,
+      role: "STAFF" as never,
+      userId: "u1",
+      systemPrompt: "sys",
+      contextMessages: [{ role: "user" as const, content: "hi" }],
+      tools: [],
+      toolExecutor: vi.fn(),
+    });
+
+    const reader = response.body?.getReader();
+    expect(reader).toBeDefined();
+
+    const firstChunk = await reader!.read();
+    const firstChunkText = new TextDecoder().decode(firstChunk.value);
+    const streamId = extractStreamId(firstChunkText);
+
+    expect(streamId).toBeTruthy();
+    expect(getActiveStreamSnapshot(streamId!)).toMatchObject({
+      ownerUserId: "u1",
+      conversationId: "c1",
+    });
+
+    if (streamControl.resolve) {
+      streamControl.resolve();
+    }
+
+    let remainingText = "";
+    while (true) {
+      const { done, value } = await reader!.read();
+      if (done) {
+        break;
+      }
+      remainingText += new TextDecoder().decode(value, { stream: true });
+    }
+
+    expect(appendMessage).toHaveBeenCalledTimes(1);
+    expect(getActiveStreamSnapshot(streamId!)).toBeNull();
+    expect(remainingText).toContain('"conversation_id":"c1"');
+  });
+
+  it("unregisters the active stream after an unexpected provider failure", async () => {
+    runClaudeAgentLoopStreamMock.mockRejectedValue(new Error("provider exploded"));
+
+    const appendMessage = vi.fn(async () => ({ id: "msg_lifecycle" }));
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const response = pipeline.createStreamResponse({
+      apiKey: "test",
+      context: { requestId: "r1", route: "/test" } as never,
+      conversationId: "c1",
+      interactor: {
+        appendMessage,
+        recordToolUsed: vi.fn(async () => {}),
+        recordSessionResolution: vi.fn(async () => {}),
+        recordGenerationLifecycleEvent: vi.fn(async () => {}),
+      } as never,
+      summarizationInteractor: {
+        summarizeIfNeeded: vi.fn(async () => {}),
+      } as never,
+      role: "STAFF" as never,
+      userId: "u1",
+      systemPrompt: "sys",
+      contextMessages: [{ role: "user" as const, content: "hi" }],
+      tools: [],
+      toolExecutor: vi.fn(),
+    });
+
+    const body = await readStreamText(response);
+    const streamId = extractStreamId(body);
+
+    expect(streamId).toBeTruthy();
+    expect(appendMessage).toHaveBeenCalledTimes(1);
+    expect(appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "c1",
+        role: "assistant",
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: "generation_status" }),
+        ]),
+      }),
+      "u1",
+    );
+    expect(getActiveStreamSnapshot(streamId!)).toBeNull();
+    expect(body).toContain('"type":"generation_interrupted"');
+  });
+
+  it("forwards request-signal aborts into the active stream lifecycle and cleanup path", async () => {
+    const requestAbortController = new AbortController();
+    runClaudeAgentLoopStreamMock.mockImplementation(async ({ signal }: { signal: AbortSignal }) => {
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          const error = new Error(String(signal.reason ?? "request_disconnected"));
+          error.name = "AbortError";
+          reject(error);
+        }, { once: true });
+      });
+    });
+
+    const appendMessage = vi.fn(async () => ({ id: "msg_lifecycle" }));
+    const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
+    const pipeline = new ChatStreamPipeline();
+    const response = pipeline.createStreamResponse({
+      apiKey: "test",
+      context: { requestId: "r1", route: "/test" } as never,
+      conversationId: "c1",
+      interactor: {
+        appendMessage,
+        recordToolUsed: vi.fn(async () => {}),
+        recordSessionResolution: vi.fn(async () => {}),
+        recordGenerationLifecycleEvent: vi.fn(async () => {}),
+      } as never,
+      summarizationInteractor: {
+        summarizeIfNeeded: vi.fn(async () => {}),
+      } as never,
+      role: "STAFF" as never,
+      userId: "u1",
+      systemPrompt: "sys",
+      contextMessages: [{ role: "user" as const, content: "hi" }],
+      tools: [],
+      toolExecutor: vi.fn(),
+      requestSignal: requestAbortController.signal,
+    });
+
+    const reader = response.body?.getReader();
+    expect(reader).toBeDefined();
+
+    const firstChunk = await reader!.read();
+    const firstChunkText = new TextDecoder().decode(firstChunk.value);
+    const streamId = extractStreamId(firstChunkText);
+    expect(streamId).toBeTruthy();
+    expect(getActiveStreamSnapshot(streamId!)).toMatchObject({ streamId: streamId! });
+
+    requestAbortController.abort("request_disconnected");
+
+    let remainingText = "";
+    while (true) {
+      const { done, value } = await reader!.read();
+      if (done) {
+        break;
+      }
+      remainingText += new TextDecoder().decode(value, { stream: true });
+    }
+
+    expect(appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "c1",
+        role: "assistant",
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: "generation_status", reason: "request_disconnected" }),
+        ]),
+      }),
+      "u1",
+    );
+    expect(getActiveStreamSnapshot(streamId!)).toBeNull();
+    expect(remainingText).toContain('"type":"generation_interrupted"');
+    expect(remainingText).toContain('"reason":"request_disconnected"');
+  });
+
   // --- Structural tests ---
 
-  it("route.ts POST handler is under 80 lines total", () => {
+  it("route.ts stays thin enough to delegate behavior into the pipeline", () => {
     const routePath = join(process.cwd(), "src/app/api/chat/stream/route.ts");
     const content = readFileSync(routePath, "utf-8");
-    const lines = content.split("\n").length;
-    expect(lines).toBeLessThanOrEqual(95);
+    const implementationLines = content
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("import "))
+      .length;
+
+    expect(implementationLines).toBeLessThanOrEqual(140);
+  });
+
+  it("route.ts delegates orchestration to the extracted stream route handler", () => {
+    const routePath = join(process.cwd(), "src/app/api/chat/stream/route.ts");
+    const content = readFileSync(routePath, "utf-8");
+
+    expect(content).toContain('executeChatStreamRoute');
+    expect(content).not.toContain('createSystemPromptBuilder');
+    expect(content).not.toContain('getToolComposition');
+    expect(content).not.toContain('recordPromptTurnProvenance');
+  });
+
+  it("stream-pipeline.ts delegates stage logic to extracted stream helpers", () => {
+    const pipelinePath = join(process.cwd(), "src/lib/chat/stream-pipeline.ts");
+    const content = readFileSync(pipelinePath, "utf-8");
+
+    expect(content).toContain('from "@/lib/chat/stream-intake"');
+    expect(content).toContain('from "@/lib/chat/stream-preparation"');
+    expect(content).toContain('from "@/lib/chat/stream-short-circuits"');
+    expect(content).toContain('from "@/lib/chat/stream-execution"');
   });
 
   it("stream-pipeline.ts exists and exports ChatStreamPipeline", async () => {

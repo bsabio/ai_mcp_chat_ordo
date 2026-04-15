@@ -1,3 +1,5 @@
+import type { JobStatusMessagePart } from "./message-parts";
+
 export type StreamEvent =
   | { type: "text"; delta: string }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
@@ -29,6 +31,7 @@ export type StreamEvent =
       title?: string;
       subtitle?: string;
       updatedAt?: string;
+      part?: JobStatusMessagePart;
     }
   | {
       type: "job_started";
@@ -41,6 +44,7 @@ export type StreamEvent =
       title?: string;
       subtitle?: string;
       updatedAt?: string;
+      part?: JobStatusMessagePart;
     }
   | {
       type: "job_progress";
@@ -55,6 +59,7 @@ export type StreamEvent =
       progressPercent?: number | null;
       progressLabel?: string | null;
       updatedAt?: string;
+      part?: JobStatusMessagePart;
     }
   | {
       type: "job_completed";
@@ -69,6 +74,7 @@ export type StreamEvent =
       summary?: string;
       resultPayload?: unknown;
       updatedAt?: string;
+      part?: JobStatusMessagePart;
     }
   | {
       type: "job_failed";
@@ -82,6 +88,7 @@ export type StreamEvent =
       subtitle?: string;
       error: string;
       updatedAt?: string;
+      part?: JobStatusMessagePart;
     }
   | {
       type: "job_canceled";
@@ -94,6 +101,7 @@ export type StreamEvent =
       title?: string;
       subtitle?: string;
       updatedAt?: string;
+      part?: JobStatusMessagePart;
     }
   | { type: "error"; message: string }
   | { type: "done" };

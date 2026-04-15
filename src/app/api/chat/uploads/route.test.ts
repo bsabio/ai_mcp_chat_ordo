@@ -88,6 +88,7 @@ describe("POST /api/chat/uploads", () => {
         fileType: "document",
         mimeType: "text/plain",
         extension: "txt",
+        metadata: expect.objectContaining({ source: "uploaded", retentionClass: "conversation" }),
       }),
     );
 
@@ -129,6 +130,103 @@ describe("POST /api/chat/uploads", () => {
 
     expect(response.status).toBe(200);
     expect(storeBinaryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies audio uploads as typed media attachments", async () => {
+    storeBinaryMock.mockResolvedValueOnce({
+      id: "uf_audio_1",
+      mimeType: "audio/mpeg",
+      fileSize: 7,
+      metadata: {
+        assetKind: "audio",
+        source: "uploaded",
+        retentionClass: "ephemeral",
+      },
+    });
+
+    const formData = new FormData();
+    formData.append(
+      "files",
+      new File(["audio"], "intro.mp3", { type: "audio/mpeg" }),
+    );
+
+    const response = await POST(
+      {
+        formData: async () => formData,
+      } as unknown as Request,
+    );
+
+    expect(storeBinaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileType: "audio",
+        mimeType: "audio/mpeg",
+        metadata: expect.objectContaining({ assetKind: "audio", source: "uploaded" }),
+      }),
+    );
+
+    const payload = await response.json() as {
+      attachments: Array<{ assetKind?: string; source?: string }>;
+    };
+    expect(payload.attachments).toEqual([
+      expect.objectContaining({ assetKind: "audio", source: "uploaded" }),
+    ]);
+  });
+
+  it("stores derived browser-runtime chart assets through the same governed upload path", async () => {
+    storeBinaryMock.mockResolvedValueOnce({
+      id: "uf_chart_1",
+      mimeType: "text/vnd.mermaid",
+      fileSize: 21,
+      metadata: {
+        assetKind: "chart",
+        source: "derived",
+        retentionClass: "conversation",
+      },
+    });
+
+    const formData = new FormData();
+    formData.append(
+      "files",
+      new File(["flowchart TD\nA-->B"], "launch_flow.mmd", { type: "text/vnd.mermaid" }),
+    );
+    formData.append("conversationId", "conv_1");
+
+    const response = await POST(
+      {
+        formData: async () => formData,
+      } as unknown as Request,
+    );
+
+    expect(storeBinaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileType: "chart",
+        mimeType: "text/vnd.mermaid",
+        metadata: expect.objectContaining({ assetKind: "chart", source: "derived", retentionClass: "conversation" }),
+      }),
+    );
+
+    const payload = await response.json() as {
+      attachments: Array<{ assetKind?: string; source?: string; retentionClass?: string }>;
+    };
+    expect(payload.attachments).toEqual([
+      expect.objectContaining({ assetKind: "chart", source: "derived", retentionClass: "conversation" }),
+    ]);
+  });
+
+  it("rejects unsupported binary uploads", async () => {
+    const formData = new FormData();
+    formData.append(
+      "files",
+      new File(["zip"], "archive.zip", { type: "application/zip" }),
+    );
+
+    const response = await POST(
+      {
+        formData: async () => formData,
+      } as unknown as Request,
+    );
+
+    expect(response.status).toBe(400);
   });
 
   it("cleans up unattached uploads for the current user", async () => {

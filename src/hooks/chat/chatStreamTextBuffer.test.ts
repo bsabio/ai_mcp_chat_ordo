@@ -26,6 +26,7 @@ describe("chatStreamTextBuffer", () => {
       delta: "Hello",
     });
     expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(buffer.hasDispatchedText()).toBe(true);
   });
 
   it("flushes immediately before a non-text event and clears the scheduled timer", () => {
@@ -42,6 +43,7 @@ describe("chatStreamTextBuffer", () => {
       index: 1,
       delta: "Hi",
     });
+    expect(buffer.hasDispatchedText()).toBe(true);
 
     vi.runAllTimers();
     expect(dispatch).toHaveBeenCalledTimes(1);
@@ -107,5 +109,13 @@ describe("chatStreamTextBuffer", () => {
       index: 2,
       delta: "Draft [The Magi",
     });
+    expect(buffer.hasDispatchedText()).toBe(true);
+  });
+
+  it("reports false when no text has been dispatched", () => {
+    const dispatch = vi.fn();
+    const buffer = createChatStreamTextBuffer({ assistantIndex: 5, dispatch });
+
+    expect(buffer.hasDispatchedText()).toBe(false);
   });
 });

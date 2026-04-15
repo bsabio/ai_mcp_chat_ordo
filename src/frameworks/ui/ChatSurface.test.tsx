@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
 
 const { usePathnameMock } = vi.hoisted(() => ({
   usePathnameMock: vi.fn(),
@@ -22,7 +23,9 @@ vi.mock("./FloatingChatFrame", () => ({
 }));
 
 vi.mock("./ChatSurfaceHeader", () => ({
-  ChatSurfaceHeader: () => <div data-testid="chat-surface-header" />,
+  ChatSurfaceHeader: ({ mode }: { mode: "embedded" | "floating" }) => (
+    <div data-testid={`chat-surface-header-${mode}`} />
+  ),
 }));
 
 vi.mock("./ChatContentSurface", () => ({
@@ -31,6 +34,7 @@ vi.mock("./ChatContentSurface", () => ({
 
 vi.mock("./useChatSurfaceState", () => ({
   useChatSurfaceState: () => ({
+    headerProps: {},
     contentProps: {},
   }),
 }));
@@ -40,6 +44,7 @@ vi.mock("@/hooks/useViewTransitionReady", () => ({
 }));
 
 import { ChatSurface } from "./ChatSurface";
+import { OPEN_GLOBAL_CHAT_EVENT } from "@/lib/chat/chat-events";
 
 describe("ChatSurface", () => {
   beforeEach(() => {
@@ -76,5 +81,28 @@ describe("ChatSurface", () => {
     render(<ChatSurface mode="floating" />);
 
     expect(screen.getByTestId("floating-chat-launcher")).toHaveAttribute("data-route-tone", "quiet");
+  });
+
+  it("renders embedded top chrome for the conversation data menu seam", () => {
+    usePathnameMock.mockReturnValue("/library");
+
+    render(<ChatSurface mode="embedded" />);
+
+    expect(screen.getByTestId("chat-surface-header-embedded")).toBeInTheDocument();
+    expect(screen.getByTestId("chat-content-surface")).toBeInTheDocument();
+  });
+
+  it("renders floating top chrome after the launcher opens", () => {
+    usePathnameMock.mockReturnValue("/library");
+
+    render(<ChatSurface mode="floating" />);
+
+    act(() => {
+      window.dispatchEvent(new Event(OPEN_GLOBAL_CHAT_EVENT));
+    });
+
+    expect(screen.getByTestId("floating-chat-frame")).toBeInTheDocument();
+    expect(screen.getByTestId("chat-surface-header-floating")).toBeInTheDocument();
+    expect(screen.getByTestId("chat-content-surface")).toBeInTheDocument();
   });
 });

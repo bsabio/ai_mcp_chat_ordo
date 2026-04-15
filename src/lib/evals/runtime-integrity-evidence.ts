@@ -9,6 +9,11 @@ import {
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { SHELL_ROUTES } from "@/lib/shell/shell-navigation";
 import type { RoleName } from "@/core/entities/user";
+import { MCP_PROCESS_METADATA } from "@/core/capability-catalog/mcp-process-metadata";
+import {
+  createEliteOpsEvidence,
+  type EliteOpsEvidence,
+} from "@/lib/evals/elite-ops-evidence";
 
 export interface RuntimeInventoryRouteEntry {
   label: string;
@@ -36,6 +41,17 @@ export interface RuntimeInventory {
     countsByRole: Record<RoleName, number>;
     routesByRole: Record<RoleName, RuntimeInventoryRouteEntry[]>;
   };
+  mcp: {
+    processCount: number;
+    processes: Array<{
+      id: string;
+      serverName: string;
+      entrypoint: string;
+      canonicalCommand: string;
+      compatibilityAliases: string[];
+      capabilityGroups: string[];
+    }>;
+  };
 }
 
 export interface RuntimeIntegrityQaStepResult {
@@ -50,6 +66,7 @@ export interface RuntimeIntegrityQaEvidence {
   bundleId: "agent-runtime-truthfulness-and-retrieval-integrity";
   status: "passed" | "failed";
   inventory: RuntimeInventory;
+  eliteOps: EliteOpsEvidence;
   coverage: {
     deterministicScenarioIds: string[];
     liveScenarioIds: string[];
@@ -89,6 +106,7 @@ export const RUNTIME_INTEGRITY_LIVE_SCENARIOS = [
 ] as const;
 
 export const RUNTIME_INTEGRITY_FOCUSED_TEST_SUITES = [
+  "tests/evals/elite-ops-evidence.test.ts",
   "tests/evals/runtime-integrity-checks.test.ts",
   "tests/evals/eval-scenarios.test.ts",
   "tests/evals/eval-runner.test.ts",
@@ -171,6 +189,17 @@ export function createRuntimeInventory(now: Date = new Date()): RuntimeInventory
       countsByRole: routeCountsByRole,
       routesByRole,
     },
+    mcp: {
+      processCount: MCP_PROCESS_METADATA.length,
+      processes: MCP_PROCESS_METADATA.map((process) => ({
+        id: process.id,
+        serverName: process.serverName,
+        entrypoint: process.entrypoint,
+        canonicalCommand: process.canonicalCommand,
+        compatibilityAliases: [...process.compatibilityAliases],
+        capabilityGroups: [...process.capabilityGroups],
+      })),
+    },
   };
 }
 
@@ -179,9 +208,29 @@ export function createRuntimeIntegrityQaEvidence(options: {
   warnings?: string[];
   blockingReasons?: string[];
   now?: Date;
+  inventory?: RuntimeInventory;
+  eliteOps?: EliteOpsEvidence;
 }): RuntimeIntegrityQaEvidence {
-  const warnings = uniqueNonEmpty(options.warnings);
-  const blockingReasons = uniqueNonEmpty(options.blockingReasons);
+  const inventory = options.inventory ?? createRuntimeInventory(options.now);
+  const eliteOps = options.eliteOps ?? createEliteOpsEvidence({
+    inventoryMcpProcesses: inventory.mcp.processes.map((process) => ({
+      id: process.id,
+      serverName: process.serverName,
+      entrypoint: process.entrypoint,
+      canonicalCommand: process.canonicalCommand,
+      compatibilityAliases: [...process.compatibilityAliases],
+      capabilityGroups: [...process.capabilityGroups],
+    })),
+    now: options.now,
+  });
+  const warnings = uniqueNonEmpty([
+    ...(options.warnings ?? []),
+    ...eliteOps.warnings,
+  ]);
+  const blockingReasons = uniqueNonEmpty([
+    ...(options.blockingReasons ?? []),
+    ...eliteOps.blockingReasons,
+  ]);
   const failedStep = options.steps.find((step) => step.status === "failed");
 
   if (failedStep) {
@@ -193,7 +242,8 @@ export function createRuntimeIntegrityQaEvidence(options: {
     generatedAt: (options.now ?? new Date()).toISOString(),
     bundleId: "agent-runtime-truthfulness-and-retrieval-integrity",
     status: blockingReasons.length > 0 ? "failed" : "passed",
-    inventory: createRuntimeInventory(options.now),
+    inventory,
+    eliteOps,
     coverage: {
       deterministicScenarioIds: [...RUNTIME_INTEGRITY_DETERMINISTIC_SCENARIOS],
       liveScenarioIds: [...RUNTIME_INTEGRITY_LIVE_SCENARIOS],
@@ -235,7 +285,11 @@ export function writeRuntimeIntegrityQaEvidenceArtifact(options: WriteRuntimeInt
 } {
   const releaseDir = options.releaseDir ?? path.join(process.cwd(), "release");
   const artifactPath = path.join(releaseDir, "runtime-integrity-evidence.json");
-  const evidence = createRuntimeIntegrityQaEvidence(options);
+  const inventory = createRuntimeInventory(options.now);
+  const evidence = createRuntimeIntegrityQaEvidence({
+    ...options,
+    inventory,
+  });
 
   fs.mkdirSync(releaseDir, { recursive: true });
   fs.writeFileSync(artifactPath, serializeJson(evidence), "utf8");

@@ -3,6 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { runStagingCanary } from "../src/lib/evals/staging-canary";
+import { loadLocalEnv } from "./load-local-env";
+
+loadLocalEnv();
 
 function readFlag(name: string): string | undefined {
   const prefix = `${name}=`;

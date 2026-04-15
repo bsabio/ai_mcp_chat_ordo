@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canRoleAccessShellRoute,
+  getShellRouteById,
+  getShellRouteVisibilitySnapshot,
   resolveAccountMenuRoutes,
   resolvePrimaryNavRoutes,
   resolveRailMenuRoutes,
@@ -37,5 +40,26 @@ describe("shell account menu routes", () => {
     const routes = resolveRailMenuRoutes({ roles: ["ANONYMOUS"] });
 
     expect(routes.map((route) => route.id)).toEqual(["corpus", "journal"]);
+  });
+});
+
+describe("shell route visibility snapshots", () => {
+  it("keeps admin system routes hidden from staff and visible to admins", () => {
+    const route = getShellRouteById("admin-system");
+
+    expect(canRoleAccessShellRoute(route, "STAFF")).toBe(false);
+    expect(getShellRouteVisibilitySnapshot(route, { roles: ["ADMIN"] })).toMatchObject({
+      command: true,
+      footer: true,
+      account: true,
+      any: true,
+    });
+  });
+
+  it("keeps jobs visible for signed-in users but hidden for anonymous visitors", () => {
+    const route = getShellRouteById("jobs");
+
+    expect(canRoleAccessShellRoute(route, "AUTHENTICATED")).toBe(true);
+    expect(canRoleAccessShellRoute(route, "ANONYMOUS")).toBe(false);
   });
 });

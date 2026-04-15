@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { readFile } from "node:fs/promises";
 import { getSessionUser } from "@/lib/auth";
 import { getOpenaiApiKey } from "@/lib/config/env";
-import { getDb } from "@/lib/db";
-import { UserFileDataMapper } from "@/adapters/UserFileDataMapper";
+import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
+
 import { UserFileSystem } from "@/lib/user-files";
 import { TtsRequestSchema } from "./schema";
 import {
@@ -13,6 +13,10 @@ import {
 } from "@/lib/observability/logger";
 import { recordRouteMetric } from "@/lib/observability/metrics";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
+import { estimateAudioDurationSeconds } from "@/lib/audio/audio-estimates";
+import {
+  emitProviderEvent,
+} from "@/lib/chat/provider-policy";
 
 const TTS_FETCH_TIMEOUT_MS = 30_000;
 const TTS_MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -75,7 +79,7 @@ export async function POST(req: Request) {
     }
     const { text, conversationId } = parseResult.data;
 
-    const repo = new UserFileDataMapper(getDb());
+    const repo = getUserFileDataMapper();
     const ufs = new UserFileSystem(repo);
 
     // Check cache — return stored file if it exists
@@ -111,6 +115,15 @@ export async function POST(req: Request) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TTS_FETCH_TIMEOUT_MS);
 
+    const ttsModel = "tts-1";
+    const providerStartedAt = Date.now();
+    emitProviderEvent({
+      kind: "attempt_start",
+      surface: "tts",
+      model: ttsModel,
+      attempt: 1,
+    });
+
     let oaResponse: Response;
     try {
       oaResponse = await fetch("https://api.openai.com/v1/audio/speech", {
@@ -120,7 +133,7 @@ export async function POST(req: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "tts-1",
+          model: ttsModel,
           input: text,
           voice: "alloy",
           response_format: "mp3",
@@ -133,6 +146,15 @@ export async function POST(req: Request) {
 
     if (!oaResponse.ok) {
       const _oaError = await oaResponse.text();
+      emitProviderEvent({
+        kind: "attempt_failure",
+        surface: "tts",
+        model: ttsModel,
+        attempt: 1,
+        durationMs: Date.now() - providerStartedAt,
+        error: `OpenAI TTS returned ${oaResponse.status}`,
+        errorClassification: "transient",
+      });
       logFailure(REASON_CODES.TTS_PROVIDER_FAILED, "OpenAI TTS failed", {
         route: TTS_ROUTE,
         requestId,
@@ -144,6 +166,14 @@ export async function POST(req: Request) {
       });
       return jsonError(requestId, "OpenAI TTS failed to generate audio.", 502);
     }
+
+    emitProviderEvent({
+      kind: "attempt_success",
+      surface: "tts",
+      model: ttsModel,
+      attempt: 1,
+      durationMs: Date.now() - providerStartedAt,
+    });
 
     // Buffer the full response with size guard
     const arrayBuffer = await oaResponse.arrayBuffer();
@@ -172,6 +202,12 @@ export async function POST(req: Request) {
       mimeType: "audio/mpeg",
       extension: "mp3",
       data: audioBuffer,
+      metadata: {
+        assetKind: "audio",
+        source: "generated",
+        retentionClass: conversationId ? "conversation" : "ephemeral",
+        durationSeconds: estimateAudioDurationSeconds(text),
+      },
     });
 
     finalizeRequest(requestId, startedAt, 200, {

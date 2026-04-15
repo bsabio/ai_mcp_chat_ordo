@@ -8,6 +8,7 @@ export interface BlogImageGenerationRequest {
   quality: BlogImageQuality;
   preset?: BlogImagePreset;
   enhancePrompt?: boolean;
+  abortSignal?: AbortSignal;
 }
 
 export interface BlogImageGenerationResult {

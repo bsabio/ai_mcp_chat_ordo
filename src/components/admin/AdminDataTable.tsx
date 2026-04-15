@@ -6,7 +6,7 @@
  * Supports optional row selection with checkboxes.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 export interface ColumnDef {
   key: string;
@@ -40,7 +40,12 @@ export function AdminDataTable({
   onSelectionChange,
 }: AdminDataTableProps) {
   const [internalSelected, setInternalSelected] = useState<Set<string>>(new Set());
+  const [hasMounted, setHasMounted] = useState(false);
   const selectedIds = controlledSelectedIds ?? internalSelected;
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const toggleRow = useCallback(
     (id: string) => {
@@ -83,6 +88,10 @@ export function AdminDataTable({
     return col.render ? col.render(value, row) : (value != null ? String(value) : "—");
   };
 
+  const allSelected = rows.length > 0 && selectedIds.size === rows.length;
+  const primaryColumn = columns[0] ?? null;
+  const secondaryColumns = primaryColumn ? columns.slice(1) : columns;
+
   return (
     <>
       {/* Desktop table */}
@@ -94,7 +103,7 @@ export function AdminDataTable({
                 <th scope="col" className="w-10 px-2 py-2">
                   <input
                     type="checkbox"
-                    checked={selectedIds.size === rows.length}
+                    checked={allSelected}
                     onChange={toggleAll}
                     aria-label="Select all rows"
                     className="accent-foreground"
@@ -170,6 +179,23 @@ export function AdminDataTable({
 
       {/* Mobile card stack */}
       <div className="flex flex-col gap-(--space-2) sm:hidden" data-admin-data-table="mobile">
+        {hasMounted && selectable && rows.length > 1 ? (
+          <div
+            className="flex items-center justify-between rounded-xl border border-foreground/8 bg-foreground/2.5 px-(--space-3) py-(--space-2)"
+            data-admin-mobile-selection-bar="true"
+          >
+            <div className="text-xs text-foreground/55">
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${rows.length} rows`}
+            </div>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/70 transition hover:text-foreground"
+            >
+              {allSelected ? "Clear selection" : "Select all rows"}
+            </button>
+          </div>
+        ) : null}
         {rows.map((row) => {
           const id = getRowId(row, rowKey);
           const checked = selectedIds.has(id);
@@ -182,7 +208,8 @@ export function AdminDataTable({
               data-admin-record-card="true"
             >
               {selectable && (
-                <label className="mb-(--space-2) flex items-center gap-2 text-xs text-foreground/50">
+                <label className="mb-(--space-2) flex items-center justify-between gap-2 text-xs text-foreground/50">
+                  <span>Select</span>
                   <input
                     type="checkbox"
                     checked={checked}
@@ -190,15 +217,32 @@ export function AdminDataTable({
                     aria-label={`Select row ${id}`}
                     className="accent-foreground"
                   />
-                  Select
                 </label>
               )}
-              {columns.map((col) => (
-                <div key={col.key} className="grid gap-1 py-1.5 first:pt-0 last:pb-0">
-                  <span className="text-xs text-foreground/50">{col.header}</span>
-                  <div className="min-w-0 wrap-break-word text-sm text-foreground/80">{renderCell(col, row)}</div>
+              {primaryColumn ? (
+                <div className="min-w-0">
+                  <div className="min-w-0 wrap-break-word text-sm font-semibold text-foreground">
+                    {renderCell(primaryColumn, row)}
+                  </div>
                 </div>
-              ))}
+              ) : null}
+              {secondaryColumns.length > 0 ? (
+                <div className="mt-(--space-2) grid grid-cols-2 gap-(--space-2)">
+                  {secondaryColumns.map((col) => (
+                    <div
+                      key={col.key}
+                      className="min-w-0 rounded-lg border border-foreground/8 bg-foreground/2.5 px-(--space-2) py-(--space-2)"
+                    >
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/45">
+                        {col.header}
+                      </div>
+                      <div className="mt-1 min-w-0 wrap-break-word text-sm text-foreground/78">
+                        {renderCell(col, row)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           );
         })}

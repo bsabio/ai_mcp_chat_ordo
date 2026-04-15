@@ -172,7 +172,7 @@ Use `generate_chart` for Mermaid diagrams such as workflows, flowcharts, or mind
 
 The repo ships two standalone MCP servers.
 
-Other modules under `mcp/`, including analytics and prompt helpers, are also imported directly inside the app through local `@mcp/*` path aliases. Those modules are part of the application runtime and are not separate remote MCP endpoints in the current deployment model.
+Shared capability modules now live under `src/lib/capabilities/shared/`. Those modules are part of the application runtime and are imported both by the app and by MCP server entrypoints; they are not separate remote MCP endpoints in the current deployment model.
 
 ### Calculator MCP server
 
@@ -188,12 +188,12 @@ Tools:
 | --- | --- |
 | `calculator` | add, subtract, multiply, or divide two numbers |
 
-### Embedding MCP server
+### Operations MCP server
 
 Command:
 
 ```bash
-npm run mcp:embeddings
+npm run mcp:operations
 ```
 
 This server groups four categories of tools.
@@ -229,6 +229,7 @@ This server groups four categories of tools.
 | `prompt_set` | create and activate a new prompt version |
 | `prompt_rollback` | reactivate an older prompt version |
 | `prompt_diff` | diff two prompt versions line by line |
+| `prompt_get_provenance` | inspect the last stored prompt provenance for a conversation |
 
 #### D. Analytics tools
 
@@ -278,6 +279,20 @@ npm run parity:env
 npm run scan:secrets
 ```
 
+### Release evidence and governance
+
+```bash
+npm run runtime:inventory
+npm run qa:runtime-integrity
+npm run release:evidence
+```
+
+Run `npm run qa:runtime-integrity` before `npm run release:evidence` so the
+aggregate release report has fresh integrity evidence to consume.
+
+See [release-gates-and-evidence.md](release-gates-and-evidence.md) for the full
+release ladder, current artifact outputs, and public-governance rules.
+
 ## 9. Common Workflows
 
 ### For a new user
@@ -303,7 +318,7 @@ npm run scan:secrets
 
 ### For corpus maintenance
 
-1. Start `npm run mcp:embeddings`
+1. Start `npm run mcp:operations`
 2. Use `corpus_list` and `corpus_get` to inspect current state
 3. Add or remove documents/sections with the librarian tools
 4. Rebuild embeddings/indexes when needed
@@ -322,4 +337,5 @@ npm run scan:secrets
 - visual diagrams: [architecture-diagrams.md](architecture-diagrams.md)
 - operational commands: [admin-runbook.md](admin-runbook.md)
 - environment rules: [environment-matrix.md](environment-matrix.md)
+- release verification: [release-gates-and-evidence.md](release-gates-and-evidence.md)
 - feature specs and sprint docs: [../_specs/README.md](../_specs/README.md)

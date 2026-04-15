@@ -12,6 +12,7 @@ export interface ChatStreamTextBuffer {
   flush: () => void;
   flushBeforeNonTextEvent: () => void;
   dispose: () => void;
+  hasDispatchedText: () => boolean;
 }
 
 function splitRenderableMarkdownTail(text: string): {
@@ -36,12 +37,14 @@ export function createChatStreamTextBuffer({
 }: ChatStreamTextBufferOptions): ChatStreamTextBuffer {
   let pendingTextDelta = "";
   let pendingTextFlushHandle: ReturnType<typeof setTimeout> | null = null;
+  let dispatchedText = false;
 
   const dispatchTextDelta = (delta: string) => {
     if (!delta) {
       return;
     }
 
+    dispatchedText = true;
     dispatch({ type: "APPEND_TEXT", index: assistantIndex, delta });
   };
 
@@ -95,6 +98,9 @@ export function createChatStreamTextBuffer({
     dispose() {
       cancelPendingFlush();
       flush();
+    },
+    hasDispatchedText() {
+      return dispatchedText;
     },
   };
 }

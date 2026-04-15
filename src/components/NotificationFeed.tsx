@@ -31,7 +31,7 @@ const DEFAULT_NOTIFICATIONS: FeedNotification[] = [
   {
     id: "notif-deferred-jobs",
     title: "Deferred job notifications routed",
-    body: "Terminal deferred-job updates stay out of chat and use the worker notification path.",
+    body: "Deferred-job terminal updates now stay consistent across chat, jobs, and the worker notification path.",
     href: "/admin/jobs",
     scope: "admin",
     unread: true,

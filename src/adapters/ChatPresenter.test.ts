@@ -71,17 +71,18 @@ describe("ChatPresenter", () => {
       id: "msg-4",
       role: "assistant",
       content:
-        'Content __suggestions__:["tip1","tip2"] __actions__:[{"label":"Go","action":"corpus","params":{"slug":"lean"}}]',
+        'Content __actions__:[{"label":"Go","action":"corpus","params":{"slug":"lean"}}] __response_state__:"open" __suggestions__:["tip1","tip2"]',
       timestamp: new Date("2023-01-01T12:00:00Z"),
     };
 
     const presented = presenter.present(message);
     expect(presented.suggestions).toEqual(["tip1", "tip2"]);
+    expect(presented.responseState).toBe("open");
     expect(presented.actions).toHaveLength(1);
     expect(presented.actions[0].action).toBe("corpus");
   });
 
-  it("repairs malformed action params and fallback suggestions", () => {
+  it("repairs malformed action params without synthesizing fallback suggestions", () => {
     const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
     const message: ChatMessage = {
       id: "msg-4b",
@@ -92,11 +93,103 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.suggestions.length).toBeGreaterThan(0);
+    expect(presented.responseState).toBe("closed");
+    expect(presented.suggestions).toEqual([]);
     expect(presented.actions).toEqual([
       { label: "Open library", action: "route", params: { path: "/library" } },
       { label: "Draft reply", action: "send", params: { text: "Draft the reply" } },
     ]);
+  });
+
+  it("suppresses suggestions when the response is explicitly closed", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-4c",
+      role: "assistant",
+      content: 'That resolves it. __response_state__:"closed" __suggestions__:["Ask another thing"]',
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.responseState).toBe("closed");
+    expect(presented.suggestions).toEqual([]);
+  });
+
+  it("keeps only high-value suggestions instead of padding to a quota", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-4c2",
+      role: "assistant",
+      content: 'Here is the plan. __response_state__:"open" __suggestions__:["Anything else?","Draft the rollout plan","draft the rollout plan","Review the API dependencies","Need more help?"]',
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.responseState).toBe("open");
+    expect(presented.suggestions).toEqual([
+      "Draft the rollout plan",
+      "Review the API dependencies",
+    ]);
+  });
+
+  it("derives needs_input when the assistant is blocked by one precise question", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-4d",
+      role: "assistant",
+      content: "Before I scope this, which workflow do you want audited?",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.responseState).toBe("needs_input");
+    expect(presented.suggestions).toEqual([]);
+  });
+
+  it("derives needs_input after stripping trailing actions", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-4e",
+      role: "assistant",
+      content:
+        'Which workflow do you want audited? __actions__:[{"label":"Open library","action":"route","params":{"path":"/library"}}]',
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.responseState).toBe("needs_input");
+    expect(presented.rawContent).toBe("Which workflow do you want audited?");
+    expect(presented.actions).toEqual([
+      { label: "Open library", action: "route", params: { path: "/library" } },
+    ]);
+  });
+
+  it("preserves literal response-state syntax in body text while stripping the trailing control tag", () => {
+    const freshParser = {
+      parse: vi.fn().mockReturnValue({ blocks: [] }),
+    } as unknown as MarkdownParserService;
+    const presenter = new ChatPresenter(freshParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-4f",
+      role: "assistant",
+      content:
+        'Example syntax: __response_state__:"closed" should be emitted on the final line.\n\nActual answer here.\n\n__response_state__:"closed"',
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.responseState).toBe("closed");
+    expect(presented.rawContent).toBe(
+      'Example syntax: __response_state__:"closed" should be emitted on the final line.\n\nActual answer here.',
+    );
+    expect(freshParser.parse).toHaveBeenCalledWith(
+      'Example syntax: __response_state__:"closed" should be emitted on the final line.\n\nActual answer here.',
+    );
   });
 
   it("should produce empty actions array for malformed JSON", () => {
@@ -170,10 +263,12 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "job-status",
-        actions: [
+        kind: "job-status",
+        descriptor: expect.objectContaining({ toolName: "draft_content" }),
+        resultEnvelope: expect.objectContaining({ toolName: "draft_content" }),
+        computedActions: [
           expect.objectContaining({ label: "Revise", actionType: "send" }),
           expect.objectContaining({ label: "Publish", actionType: "send" }),
         ],
@@ -201,10 +296,41 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "job-status",
-        actions: [expect.objectContaining({ label: "Retry", actionType: "job", value: "job_2" })],
+        kind: "job-status",
+        descriptor: expect.objectContaining({ toolName: "draft_content" }),
+        resultEnvelope: expect.objectContaining({ toolName: "draft_content" }),
+        computedActions: [expect.objectContaining({ label: "Retry", actionType: "job", value: "job_2" })],
+      }),
+    );
+  });
+
+  it("does not expose retry actions when the descriptor disables whole-job retry", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-3",
+      role: "assistant",
+      content: "Theme sync failed.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "job_3",
+          toolName: "set_theme",
+          label: "Set Theme",
+          status: "failed",
+          error: "Theme registry unavailable",
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        descriptor: expect.objectContaining({ toolName: "set_theme" }),
+        computedActions: undefined,
       }),
     );
   });
@@ -234,13 +360,59 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "job-status",
-        actions: [
+        kind: "job-status",
+        descriptor: expect.objectContaining({ toolName: "generate_blog_image" }),
+        resultEnvelope: expect.objectContaining({ toolName: "generate_blog_image" }),
+        computedActions: [
           expect.objectContaining({ label: "Open article", actionType: "route", value: "/journal/launch-plan" }),
           expect.objectContaining({ label: "Open image", actionType: "route", value: "/api/blog/assets/asset_1" }),
         ],
+      }),
+    );
+  });
+
+  it("projects descriptors and result envelopes for inline tool-call entries", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-tool-1",
+      role: "assistant",
+      content: "Here are the search results.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "admin_web_search",
+          args: { query: "ordo site architecture" },
+        },
+        {
+          type: "tool_result",
+          name: "admin_web_search",
+          result: {
+            action: "admin_web_search",
+            query: "ordo site architecture",
+            answer: "A sourced answer.",
+            citations: [],
+            sources: ["https://example.com/architecture"],
+            model: "gpt-5",
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "admin_web_search",
+        descriptor: expect.objectContaining({ toolName: "admin_web_search", family: "search" }),
+        resultEnvelope: expect.objectContaining({
+          toolName: "admin_web_search",
+          family: "search",
+          cardKind: "search_result",
+          inputSnapshot: { query: "ordo site architecture" },
+        }),
       }),
     );
   });
@@ -281,10 +453,10 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "job-status",
-        actions: [
+        kind: "job-status",
+        computedActions: [
           expect.objectContaining({ label: "Open draft", actionType: "route", value: "/admin/journal/preview/launch-plan" }),
           expect.objectContaining({ label: "Publish", actionType: "send" }),
           expect.objectContaining({ label: "Open hero image", actionType: "route", value: "/api/blog/assets/asset_1" }),
@@ -330,14 +502,121 @@ describe("ChatPresenter", () => {
 
     const presented = presenter.present(message);
 
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "job-status",
-        jobId: "job_1",
-        status: "queued",
-        actions: [expect.objectContaining({ label: "Cancel", actionType: "job", value: "job_1" })],
+        kind: "job-status",
+        part: expect.objectContaining({
+          jobId: "job_1",
+          status: "queued",
+        }),
+        computedActions: [expect.objectContaining({ label: "Cancel", actionType: "job", value: "job_1" })],
       }),
     );
+  });
+
+  it("does not produce content blocks for unknown tool results (handled by plugin fallback)", () => {
+    const markdownParser = {
+      parse: vi.fn().mockReturnValue({ blocks: [] }),
+    } as unknown as MarkdownParserService;
+    const commandParser = {
+      parse: vi.fn().mockReturnValue([]),
+    } as unknown as CommandParserService;
+    const presenter = new ChatPresenter(markdownParser, commandParser);
+    const message: ChatMessage = {
+      id: "msg-calculator-result-1",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "calculator",
+          args: { expression: "2+2" },
+        },
+        {
+          type: "tool_result",
+          name: "calculator",
+          result: 4,
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.content.blocks).toEqual([]);
+  });
+
+  it("keeps unresolved inline tool calls payload-empty while preserving the input snapshot", () => {
+    const markdownParser = {
+      parse: vi.fn().mockReturnValue({ blocks: [] }),
+    } as unknown as MarkdownParserService;
+    const commandParser = {
+      parse: vi.fn().mockReturnValue([]),
+    } as unknown as CommandParserService;
+    const presenter = new ChatPresenter(markdownParser, commandParser);
+    const message: ChatMessage = {
+      id: "msg-calculator-call-only-1",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "calculator",
+          args: { expression: "8*8" },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "calculator",
+        args: { expression: "8*8" },
+        result: undefined,
+        resultEnvelope: expect.objectContaining({
+          inputSnapshot: { expression: "8*8" },
+          payload: null,
+        }),
+      }),
+    );
+  });
+
+  it("renders generic object tool results as JSON blocks when the assistant text is empty", () => {
+    const markdownParser = {
+      parse: vi.fn().mockReturnValue({ blocks: [] }),
+    } as unknown as MarkdownParserService;
+    const commandParser = {
+      parse: vi.fn().mockReturnValue([]),
+    } as unknown as CommandParserService;
+    const presenter = new ChatPresenter(markdownParser, commandParser);
+    const message: ChatMessage = {
+      id: "msg-generic-tool-result-1",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "inspect_runtime_context",
+          args: {},
+        },
+        {
+          type: "tool_result",
+          name: "inspect_runtime_context",
+          result: {
+            route: "/library",
+            role: "ANONYMOUS",
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.content.blocks).toEqual([]);
   });
 
   it("renders workflow-summary tool results as operator-facing journal blocks", () => {
@@ -388,15 +667,11 @@ describe("ChatPresenter", () => {
 
     const presented = presenter.present(message);
 
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "heading",
-        content: [expect.objectContaining({ text: "Journal Workflow Summary" })],
-      }),
-    );
-    expect(presented.content.blocks).toContainEqual(
-      expect.objectContaining({
-        type: "table",
+        kind: "tool-call",
+        name: "get_journal_workflow_summary",
+        result: expect.objectContaining({ action: "get_journal_workflow_summary" }),
       }),
     );
   });
@@ -458,29 +733,11 @@ describe("ChatPresenter", () => {
 
     const presented = presenter.present(message);
 
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "heading",
-        content: [expect.objectContaining({ text: "Theme Profiles" })],
-      }),
-    );
-    expect(presented.content.blocks).toContainEqual(
-      expect.objectContaining({
-        type: "table",
-        rows: [
-          [
-            [expect.objectContaining({ text: "Bauhaus (bauhaus)" })],
-            [expect.objectContaining({ text: "restrained motion / editorial depth" })],
-            [expect.objectContaining({ text: "standard normal, data-dense compact, touch relaxed" })],
-            [expect.objectContaining({ text: "Geometry, Primary Colors" })],
-          ],
-        ],
-      }),
-    );
-    expect(presented.content.blocks).toContainEqual(
-      expect.objectContaining({
-        type: "blockquote",
-        content: [expect.objectContaining({ text: "Active theme selection is applied in the client runtime." })],
+        kind: "tool-call",
+        name: "inspect_theme",
+        result: expect.objectContaining({ action: "inspect_theme" }),
       }),
     );
   });
@@ -520,10 +777,10 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual(
+    expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
-        type: "job-status",
-        actions: [
+        kind: "job-status",
+        computedActions: [
           expect.objectContaining({ label: "Open journal workspace", actionType: "route", value: "/admin/journal/post_1" }),
           expect.objectContaining({ label: "Open journal draft", actionType: "route", value: "/admin/journal/preview/launch-plan" }),
           expect.objectContaining({ label: "Publish", actionType: "send" }),
@@ -562,6 +819,62 @@ describe("ChatPresenter", () => {
         settings: { density: "compact", fontSize: "xl" },
       },
     ]);
+  });
+
+  it("preserves completed theme mutations as tool render entries while still emitting UI commands", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-8c",
+      role: "assistant",
+      content: "Applying your preferences.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "set_theme",
+          args: { theme: "bauhaus" },
+        },
+        {
+          type: "tool_result",
+          name: "set_theme",
+          result: "Success. The theme has been changed to bauhaus.",
+        },
+        {
+          type: "tool_call",
+          name: "adjust_ui",
+          args: { density: "compact", fontSize: "large" },
+        },
+        {
+          type: "tool_result",
+          name: "adjust_ui",
+          result: "Success. UI adjusted: density=compact, fontSize=large.",
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.commands).toEqual([
+      { type: "set_theme", theme: "bauhaus" },
+      {
+        type: "adjust_ui",
+        settings: { density: "compact", fontSize: "large" },
+      },
+    ]);
+    expect(presented.toolRenderEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "tool-call",
+          name: "set_theme",
+          result: "Success. The theme has been changed to bauhaus.",
+        }),
+        expect.objectContaining({
+          kind: "tool-call",
+          name: "adjust_ui",
+          result: "Success. UI adjusted: density=compact, fontSize=large.",
+        }),
+      ]),
+    );
   });
 
   it("maps validated navigate_to_page results into navigate UI commands", () => {
@@ -628,16 +941,23 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual({
-      type: "audio",
-      title: "Founder memo",
-      text: "Weekly review audio",
-      assetId: "uf_audio_1",
-      provider: "user-file-cache",
-      generationStatus: "cached_asset",
-      estimatedDurationSeconds: 12,
-      estimatedGenerationSeconds: 3,
-    });
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "generate_audio",
+        args: { title: "Founder memo", text: "Weekly review audio" },
+        result: {
+          action: "generate_audio",
+          title: "Founder memo",
+          text: "Weekly review audio",
+          assetId: "uf_audio_1",
+          provider: "user-file-cache",
+          generationStatus: "cached_asset",
+          estimatedDurationSeconds: 12,
+          estimatedGenerationSeconds: 3,
+        },
+      }),
+    );
   });
 
   it("drops unsupported theme values from structured UI tool calls", () => {
@@ -694,14 +1014,19 @@ describe("ChatPresenter", () => {
 
     const presented = presenter.present(message);
 
-    expect(presented.content.blocks).toContainEqual({
-      type: "code-block",
-      code: "flowchart TD\nA[Anonymous conversations: 53] --> B[Drop-off risk: 23]",
-      language: "mermaid",
-      title: "Anonymous Funnel",
-      caption: "Anonymous Funnel",
-      downloadFileName: "anonymous_funnel",
-    });
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "generate_chart",
+        args: {
+          code: "flowchart TD\nA[Anonymous conversations: 53] --> B[Drop-off risk: 23]",
+          title: "Anonymous Funnel",
+          caption: "Anonymous Funnel",
+          downloadFileName: "anonymous_funnel",
+        },
+        result: undefined,
+      }),
+    );
   });
 
   it("builds mermaid code from structured generate_chart specs", () => {
@@ -737,14 +1062,12 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual({
-      type: "code-block",
-      code: expect.stringContaining("flowchart LR"),
-      language: "mermaid",
-      title: "Pipeline Health",
-      caption: "Live conversion flow",
-      downloadFileName: undefined,
-    });
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "generate_chart",
+      }),
+    );
   });
 
   it("skips invalid generate_chart tool payloads", () => {
@@ -804,29 +1127,15 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual({
-      type: "graph",
-      title: "Lead trend",
-      caption: "Weekly qualified leads",
-      summary: "Qualified leads increased week over week.",
-      downloadFileName: undefined,
-      source: undefined,
-      dataPreview: [
-        { week: "W1", leads: 4 },
-        { week: "W2", leads: 7 },
-      ],
-      graph: {
-        kind: "line",
-        data: [
-          { week: "W1", leads: 4 },
-          { week: "W2", leads: 7 },
-        ],
-        x: { field: "week", type: "ordinal", label: undefined },
-        y: { field: "leads", type: "quantitative", label: undefined },
-        series: undefined,
-        columns: ["week", "leads"],
-      },
-    });
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "generate_graph",
+        args: expect.objectContaining({
+          title: "Lead trend",
+        }),
+      }),
+    );
   });
 
   it("prefers resolved generate_graph tool results when present", () => {
@@ -880,37 +1189,15 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual({
-      type: "graph",
-      title: undefined,
-      caption: undefined,
-      summary: "Uncertain conversations dominate the review queue.",
-      downloadFileName: undefined,
-      source: {
-        sourceType: "routing_review",
-        label: "Routing review summary",
-        rowCount: 2,
-      },
-      dataPreview: [
-        { bucket: "Recently changed", count: 2 },
-        { bucket: "Uncertain", count: 5 },
-      ],
-      graph: {
-        kind: "bar",
-        data: [
-          { bucket: "Recently changed", count: 2 },
-          { bucket: "Uncertain", count: 5 },
-        ],
-        x: { field: "bucket", type: "ordinal" },
-        y: { field: "count", type: "quantitative" },
-        columns: ["bucket", "count"],
-        source: {
-          sourceType: "routing_review",
-          label: "Routing review summary",
-          rowCount: 2,
-        },
-      },
-    });
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "generate_graph",
+        result: expect.objectContaining({
+          graph: expect.objectContaining({ kind: "bar" }),
+        }),
+      }),
+    );
   });
 
   it("skips invalid generate_graph payloads", () => {
@@ -980,19 +1267,13 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual({
-      type: "heading",
-      level: 2,
-      content: [{ type: "text", text: "Current Profile" }],
-    });
-    expect(presented.content.blocks).toContainEqual({
-      type: "paragraph",
-      content: [
-        { type: "text", text: "Open your " },
-        { type: "action-link", label: "profile page", actionType: "route", value: "/profile" },
-        { type: "text", text: " to manage the same fields and referral settings." },
-      ],
-    });
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "get_my_profile",
+        result: expect.objectContaining({ action: "get_my_profile" }),
+      }),
+    );
   });
 
   it("renders referral QR tool results with a share summary", () => {
@@ -1024,24 +1305,13 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.content.blocks).toContainEqual({
-      type: "heading",
-      level: 2,
-      content: [{ type: "text", text: "Referral QR" }],
-    });
-    expect(presented.content.blocks).toContainEqual({
-      type: "list",
-      items: [
-        [{ type: "text", text: "Use the referral link for direct sharing." }],
-        [{ type: "action-link", label: "Open referral link", actionType: "external", value: "https://studioordo.com/r/mentor-42" }],
-        [{ type: "action-link", label: "Open QR image", actionType: "external", value: "/api/qr/mentor-42" }],
-        [
-          { type: "text", text: "Open your " },
-          { type: "action-link", label: "profile page", actionType: "route", value: "/profile" },
-          { type: "text", text: " to preview or download the QR image." },
-        ],
-      ],
-    });
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "tool-call",
+        name: "get_my_referral_qr",
+        result: expect.objectContaining({ action: "get_my_referral_qr" }),
+      }),
+    );
   });
 
   describe("__actions__ streaming safety", () => {

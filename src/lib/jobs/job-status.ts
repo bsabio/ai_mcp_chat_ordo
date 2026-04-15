@@ -1,7 +1,18 @@
 import type { JobEvent, JobRequest } from "@/core/entities/job";
+import type {
+  CapabilityArtifactRef,
+  CapabilityProgressPhase,
+  CapabilityResultEnvelope,
+} from "@/core/entities/capability-result";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
 
+import {
+  isCapabilityResultEnvelope,
+  projectCapabilityResultEnvelope,
+} from "@/lib/capabilities/capability-result-envelope";
 import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
+import { getJobCapability } from "@/lib/jobs/job-capability-registry";
+import { normalizeJobProgressState } from "@/lib/jobs/job-progress-state";
 
 type JobStatusProjection = Pick<
   JobRequest,
@@ -104,70 +115,98 @@ function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function buildHumanReadableIdentity(
-  job: Pick<JobStatusProjection, "toolName" | "requestPayload">,
-): Pick<JobStatusMessagePart, "title" | "subtitle"> {
-  const payload = job.requestPayload;
-  const title = readString(payload.title);
-  const brief = readString(payload.brief);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCapabilityArtifactRef(value: unknown): value is CapabilityArtifactRef {
+  return isRecord(value)
+    && typeof value.kind === "string"
+    && typeof value.label === "string"
+    && typeof value.mimeType === "string";
+}
+
+function readArtifacts(value: unknown): CapabilityArtifactRef[] | undefined {
+  return Array.isArray(value)
+    ? value.filter(isCapabilityArtifactRef)
+    : undefined;
+}
+
+function isCapabilityProgressPhase(value: unknown): value is CapabilityProgressPhase {
+  return isRecord(value)
+    && typeof value.key === "string"
+    && typeof value.label === "string"
+    && typeof value.status === "string";
+}
+
+function readPhases(value: unknown): CapabilityProgressPhase[] | undefined {
+  return Array.isArray(value)
+    ? value.filter(isCapabilityProgressPhase)
+    : undefined;
+}
+
+function readReplaySnapshot(value: unknown): Record<string, unknown> | null | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  return isRecord(value) ? value : undefined;
+}
+
+function buildEditorialContextSubtitle(payload: Record<string, unknown>): string | undefined {
   const audience = readString(payload.audience);
   const objective = readString(payload.objective);
+
+  const parts = [
+    audience ? `Audience: ${compactText(audience, 40)}` : undefined,
+    objective ? `Objective: ${compactText(objective, 40)}` : undefined,
+  ].filter((value): value is string => Boolean(value));
+
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+function buildIdentityTitle(
+  toolName: string,
+  payload: Record<string, unknown>,
+): string | undefined {
+  const title = readString(payload.title);
+  const brief = readString(payload.brief);
   const altText = readString(payload.alt_text);
   const postId = readString(payload.post_id);
 
-  switch (job.toolName) {
+  switch (toolName) {
     case "draft_content":
-      return {
-        title: title ? compactText(title) : undefined,
-        subtitle: title ? "Draft journal article" : undefined,
-      };
-    case "publish_content":
-      return {
-        title: postId ? `Publish journal draft ${postId}` : "Publish journal draft",
-        subtitle: "Make the saved article live in the journal",
-      };
-    case "compose_blog_article":
-      return {
-        title: brief ? compactText(brief) : undefined,
-        subtitle: [audience ? `Audience: ${compactText(audience, 40)}` : undefined, objective ? `Objective: ${compactText(objective, 40)}` : undefined]
-          .filter(Boolean)
-          .join(" · ") || "Compose the first article draft",
-      };
-    case "produce_blog_article":
-      return {
-        title: brief ? compactText(brief) : undefined,
-        subtitle: [audience ? `Audience: ${compactText(audience, 40)}` : undefined, objective ? `Objective: ${compactText(objective, 40)}` : undefined]
-          .filter(Boolean)
-          .join(" · ") || "Compose, QA, and prepare a publish-ready draft",
-      };
     case "qa_blog_article":
-      return {
-        title: title ? compactText(title) : undefined,
-        subtitle: "Run editorial QA on the current article draft",
-      };
     case "resolve_blog_article_qa":
-      return {
-        title: title ? compactText(title) : undefined,
-        subtitle: "Apply editorial fixes from the QA report",
-      };
     case "generate_blog_image_prompt":
-      return {
-        title: title ? compactText(title) : undefined,
-        subtitle: "Prepare the hero-image prompt for this article",
-      };
+      return title ? compactText(title) : undefined;
+    case "compose_blog_article":
+    case "produce_blog_article":
+      return brief ? compactText(brief) : undefined;
     case "generate_blog_image":
-      return {
-        title: altText ? compactText(altText) : undefined,
-        subtitle: "Generate the blog hero image asset",
-      };
+      return altText ? compactText(altText) : undefined;
+    case "publish_content":
+      return postId ? `Publish journal draft ${postId}` : "Publish journal draft";
     case "prepare_journal_post_for_publish":
-      return {
-        title: postId ? `Journal publish readiness for ${postId}` : "Journal publish readiness",
-        subtitle: "Check blockers, active work, and QA before publication",
-      };
+      return postId ? `Journal publish readiness for ${postId}` : "Journal publish readiness";
     default:
-      return {};
+      return undefined;
   }
+}
+
+function buildHumanReadableIdentity(
+  job: Pick<JobStatusProjection, "toolName" | "requestPayload">,
+): Pick<JobStatusMessagePart, "title" | "subtitle"> {
+  const capability = getJobCapability(job.toolName);
+  const contextualSubtitle =
+    job.toolName === "compose_blog_article" || job.toolName === "produce_blog_article"
+      ? buildEditorialContextSubtitle(job.requestPayload)
+      : undefined;
+
+  return {
+    title: buildIdentityTitle(job.toolName, job.requestPayload),
+    subtitle: contextualSubtitle ?? capability?.description,
+  };
 }
 
 export function buildJobStatusPart(job: JobRequest, event: JobEvent): JobStatusMessagePart {
@@ -194,35 +233,103 @@ export function buildJobStatusPartFromProjection(
               : job.status;
 
   const payload = event.payload;
+  const shouldSuppressProgress = status === "failed" || status === "canceled";
   const identity = buildHumanReadableIdentity(job);
+  const eventEnvelope = isCapabilityResultEnvelope(payload.resultEnvelope)
+    ? payload.resultEnvelope
+    : null;
+  const progressPercent =
+    shouldSuppressProgress
+      ? null
+      : typeof payload.progressPercent === "number"
+        ? payload.progressPercent
+        : job.progressPercent;
+  const progressLabel =
+    shouldSuppressProgress
+      ? null
+      : typeof payload.progressLabel === "string"
+        ? payload.progressLabel
+        : job.progressLabel;
+  const summary =
+    typeof payload.summary === "string"
+      ? payload.summary
+      : inferSummary(eventEnvelope?.payload ?? payload.result) ?? inferSummary(job.resultPayload);
+  const error =
+    typeof payload.errorMessage === "string"
+      ? payload.errorMessage
+      : job.errorMessage ?? undefined;
+  const resultPayload = payload.result ?? job.resultPayload ?? undefined;
+  const nativeEnvelope = eventEnvelope
+    ?? (isCapabilityResultEnvelope(resultPayload) ? resultPayload : null);
+  const normalizedProgress = normalizeJobProgressState({
+    toolName: job.toolName,
+    phases: shouldSuppressProgress ? undefined : readPhases(payload.phases) ?? nativeEnvelope?.progress?.phases,
+    activePhaseKey:
+      shouldSuppressProgress
+        ? null
+        : (typeof payload.activePhaseKey === "string" || payload.activePhaseKey === null
+            ? payload.activePhaseKey
+            : undefined)
+          ?? nativeEnvelope?.progress?.activePhaseKey,
+    progressPercent,
+    progressLabel,
+  });
+  const rawResultPayload = eventEnvelope?.payload ?? nativeEnvelope?.payload ?? resultPayload;
+  const resultEnvelope = projectCapabilityResultEnvelope({
+    toolName: job.toolName,
+    payload: eventEnvelope ?? resultPayload,
+    inputSnapshot: job.requestPayload,
+    executionMode: "deferred",
+    summary: {
+      title: nativeEnvelope?.summary.title === undefined ? identity.title : undefined,
+      subtitle:
+        nativeEnvelope?.summary.subtitle === undefined ? identity.subtitle : undefined,
+      statusLine:
+        nativeEnvelope?.summary.statusLine === undefined ? error : undefined,
+      message: summary,
+    },
+    progress:
+      (!shouldSuppressProgress && (
+        normalizedProgress.phases
+        || normalizedProgress.progressPercent != null
+        || normalizedProgress.progressLabel
+        || normalizedProgress.activePhaseKey !== undefined
+      ))
+        ? {
+          percent: normalizedProgress.progressPercent,
+          label: normalizedProgress.progressLabel,
+          phases: normalizedProgress.phases,
+          activePhaseKey: normalizedProgress.activePhaseKey,
+        }
+        : undefined,
+    replaySnapshot:
+      readReplaySnapshot(payload.replaySnapshot)
+      ?? eventEnvelope?.replaySnapshot
+      ?? nativeEnvelope?.replaySnapshot,
+    artifacts:
+      readArtifacts(payload.artifacts)
+      ?? eventEnvelope?.artifacts
+      ?? nativeEnvelope?.artifacts,
+  });
+  const envelopeSummary = resultEnvelope?.summary;
+  const envelopeProgress = resultEnvelope?.progress;
 
   return {
     type: "job_status",
     jobId: job.id,
     toolName: job.toolName,
     label: humanizeToolName(job.toolName),
-    title: identity.title,
-    subtitle: identity.subtitle,
+    title: envelopeSummary?.title ?? identity.title,
+    subtitle: envelopeSummary?.subtitle ?? identity.subtitle,
     status,
     sequence: event.sequence,
-    progressPercent:
-      typeof payload.progressPercent === "number"
-        ? payload.progressPercent
-        : job.progressPercent,
-    progressLabel:
-      typeof payload.progressLabel === "string"
-        ? payload.progressLabel
-        : job.progressLabel,
-    summary:
-      typeof payload.summary === "string"
-        ? payload.summary
-        : inferSummary(payload.result) ?? inferSummary(job.resultPayload),
-    error:
-      typeof payload.errorMessage === "string"
-        ? payload.errorMessage
-        : job.errorMessage ?? undefined,
+    progressPercent: envelopeProgress?.percent ?? normalizedProgress.progressPercent ?? progressPercent,
+    progressLabel: envelopeProgress?.label ?? normalizedProgress.progressLabel ?? progressLabel,
+    summary: summary ?? envelopeSummary?.message,
+    error,
     updatedAt: event.createdAt,
-    resultPayload: payload.result ?? job.resultPayload ?? undefined,
+    resultPayload: rawResultPayload,
+    resultEnvelope,
     failureClass: job.failureClass,
     recoveryMode: job.recoveryMode,
     replayedFromJobId: job.replayedFromJobId,
@@ -232,19 +339,21 @@ export function buildJobStatusPartFromProjection(
 
 export function describeJobStatus(part: JobStatusMessagePart): string {
   const subject = part.title ? `${part.label} job for ${part.title}` : `${part.label} job`;
+  const activePhaseLabel = part.progressLabel ?? part.resultEnvelope?.progress?.label;
+  const activePercent = part.progressPercent ?? part.resultEnvelope?.progress?.percent;
 
   switch (part.status) {
     case "queued":
       return `${subject} queued.`;
     case "running":
-      if (part.progressLabel && part.progressPercent != null) {
-        return `${subject} running: ${part.progressLabel} (${Math.round(part.progressPercent)}%).`;
+      if (activePhaseLabel && activePercent != null) {
+        return `${subject} running: ${activePhaseLabel} (${Math.round(activePercent)}%).`;
       }
-      if (part.progressLabel) {
-        return `${subject} running: ${part.progressLabel}.`;
+      if (activePhaseLabel) {
+        return `${subject} running: ${activePhaseLabel}.`;
       }
-      if (part.progressPercent != null) {
-        return `${subject} running (${Math.round(part.progressPercent)}%).`;
+      if (activePercent != null) {
+        return `${subject} running (${Math.round(activePercent)}%).`;
       }
       return `${subject} running.`;
     case "succeeded":

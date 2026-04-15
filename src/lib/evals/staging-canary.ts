@@ -170,7 +170,7 @@ export async function runStagingCanary(options: StagingCanaryOptions = {}): Prom
           EVAL_LIVE_ENABLED: "true",
           EVAL_TARGET_ENV: "staging",
         },
-        apiKey: options.apiKey ?? env.ANTHROPIC_API_KEY ?? env.API__ANTHROPIC_API_KEY,
+        apiKey: options.apiKey ?? env.ANTHROPIC_API_KEY,
         now: scenarioNow,
         targetEnvironmentOverride: "staging",
       });

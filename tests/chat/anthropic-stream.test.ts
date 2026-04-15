@@ -14,6 +14,59 @@ function createStreamDouble(finalMessage: () => Promise<{ stop_reason: string | 
 }
 
 describe("runClaudeAgentLoopStream", () => {
+  it("passes the provided abort signal through to the Anthropic stream request", async () => {
+    const abortController = new AbortController();
+    const stream = vi.fn().mockImplementation((_payload, options: { signal?: AbortSignal }) => {
+      expect(options.signal).toBeDefined();
+      expect(options.signal).not.toBe(abortController.signal);
+      return createStreamDouble(async () => ({ stop_reason: "end_turn", content: [] }), (emit) => emit("ok"));
+    });
+
+    const result = await runClaudeAgentLoopStream({
+      apiKey: "test-key",
+      messages: [{ role: "user", content: "hello" }],
+      callbacks: {},
+      signal: abortController.signal,
+      systemPrompt: "system",
+      tools: [],
+      toolExecutor: vi.fn(),
+      client: { messages: { stream } } as never,
+      modelCandidates: ["stable-model"],
+      retryAttempts: 1,
+      retryDelayMs: 0,
+    });
+
+    expect(result.assistantText).toBe("ok");
+    expect(stream).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws an AbortError immediately when the incoming signal is already aborted", async () => {
+    const abortController = new AbortController();
+    abortController.abort("request_disconnected");
+    const stream = vi.fn();
+
+    await expect(
+      runClaudeAgentLoopStream({
+        apiKey: "test-key",
+        messages: [{ role: "user", content: "hello" }],
+        callbacks: {},
+        signal: abortController.signal,
+        systemPrompt: "system",
+        tools: [],
+        toolExecutor: vi.fn(),
+        client: { messages: { stream } } as never,
+        modelCandidates: ["stable-model"],
+        retryAttempts: 1,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toMatchObject({
+      name: "ChatProviderError",
+      message: "Stream provider error: request_disconnected",
+    });
+
+    expect(stream).not.toHaveBeenCalled();
+  });
+
   it("falls back to the next model when the first model is not found", async () => {
     const stream = vi
       .fn()
@@ -98,9 +151,43 @@ describe("runClaudeAgentLoopStream", () => {
         retryDelayMs: 0,
         timeoutMs: 45000,
       }),
-    ).rejects.toThrow("Provider request timed out");
+    ).rejects.toThrow("Stream provider timed out after 45000ms (round 1).");
 
     // Should NOT have retried — only 2 stream calls (round 1 + round 2)
     expect(stream).toHaveBeenCalledTimes(2);
+  });
+
+  it("rethrows aborted tool execution instead of converting it to a tool_result", async () => {
+    const abortError = new Error("request_disconnected");
+    abortError.name = "AbortError";
+    const toolExecutor = vi.fn().mockRejectedValue(abortError);
+    const onToolResult = vi.fn();
+    const stream = vi.fn().mockImplementation(() => createStreamDouble(async () => ({
+      stop_reason: "tool_use",
+      content: [
+        { type: "tool_use", id: "tool_1", name: "calculator", input: { expression: "1+1" } },
+      ],
+    })));
+
+    await expect(
+      runClaudeAgentLoopStream({
+        apiKey: "test-key",
+        messages: [{ role: "user", content: "what is 1+1?" }],
+        callbacks: { onToolResult },
+        systemPrompt: "system",
+        tools: [{ name: "calculator", description: "calc", input_schema: { type: "object", properties: {} } }],
+        toolExecutor,
+        client: { messages: { stream } } as never,
+        modelCandidates: ["stable-model"],
+        retryAttempts: 1,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toMatchObject({
+      name: "ChatProviderError",
+      message: "Stream provider error: request_disconnected",
+    });
+
+    expect(toolExecutor).toHaveBeenCalledTimes(1);
+    expect(onToolResult).not.toHaveBeenCalled();
   });
 });

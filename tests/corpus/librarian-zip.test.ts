@@ -4,8 +4,8 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import AdmZip from "adm-zip";
-import type { LibrarianToolDeps } from "../../mcp/librarian-tool";
-import { librarianAddBook } from "../../mcp/librarian-tool";
+import type { LibrarianToolDeps } from "@/lib/capabilities/shared/librarian-tool";
+import { librarianAddBook } from "@/lib/capabilities/shared/librarian-tool";
 import type { VectorStore } from "@/core/search/ports/VectorStore";
 
 /**

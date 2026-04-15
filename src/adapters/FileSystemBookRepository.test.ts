@@ -12,8 +12,8 @@ describe("FileSystemCorpusRepository", () => {
   it("should return all documents", async () => {
     const repo = new FileSystemCorpusRepository();
     const documents = await repo.getAllDocuments();
-    expect(documents.length).toBe(10);
-    expect(documents[0].title).toBe("The Second Renaissance");
+    expect(documents.length).toBe(11);
+    expect(documents[0].title).toBe("Studio Ordo System Documentation");
   });
 
   it("should throw ResourceNotFoundError when getting sections for non-existent document", async () => {

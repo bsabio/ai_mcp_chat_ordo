@@ -95,8 +95,8 @@ describe("deferred blog job flow", () => {
         type: "job_status",
         jobId: job.id,
         title: "Deferred Queue Post",
-        subtitle: "Draft journal article",
-        status: "running",
+        status: "succeeded",
+        summary: expect.stringContaining("Deferred Queue Post"),
       }),
     ]);
   });

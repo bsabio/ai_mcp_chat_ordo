@@ -1,59 +1,37 @@
-# The Visual Congruence Check
+# Layer 23: The Visual Congruence Check — The Verification of Intent
 
-## What Congruence Means
+## The Doctrine of Aesthetic Integrity
 
-Congruence is the alignment between the archetype selected in the identity layer and every visual decision that follows.
+In the Second Renaissance, congruence is not a matter of stylistic preference; it is a technical requirement for **signal stability**. A presence is congruent when every visual decision—typography, color, density, and spatial distribution—aligns in a monolithic vector with the archetype manifested in the identity layer.
 
-A page is visually congruent when:
+A presence is visually congruent when the viewer’s brain experiences no friction between the face of the page and the soul of the claim. If an Outlaw page utilizes soft, round typography and a pastel palette, the signal is fragmented before the first word is read. If a Sage page manifests as chaotic, dense, and visually noisy, it undermines the very promise of methodical rigor the builder intends to manifest.
 
-- The typographic style feels like the same person described in the archetype
-- The imagery register matches the promise
-- The spacing and density signal the right relationship to the reader
-- The color palette reinforces rather than contradicts the signal
-- The visual complexity level matches what the archetype's audience expects
+## The Five Dimensions of Alignment
 
-A page is visually incongruent when these elements conflict. An Outlaw page with a soft pastel palette and round, friendly typography contradicts the archetype's promise before a word is read. A Sage page with chaotic, dense visual noise undermines the impression of methodical rigor the copy intends to establish.
+To achieve **technical congruence**, the builder must interrogate the presence across five specific dimensions:
 
-## The Five Congruence Dimensions
+1.  **Typographic Resonance**: Does the typeface selection feel like the physical embodiment of the archetype’s voice?
+    *   **Sage**: Precise, structured, and restrained. Signals an unhurried authority.
+    *   **Outlaw**: Transgressive, heavy, pattern-interrupting. Enacts the disruption it describes.
+    *   **Hero**: Direct, bold, and confident. Heavy weights for the manifesto, clean bodies for the evidence.
+2.  **Color Frequency**: Does the palette reinforce the primary frequency of the signal?
+    *   **Sage**: Restrained, low-saturation, exact. Signals a reliable calibration.
+    *   **Outlaw**: High-contrast, discordant, brutal. Signals that comfort is not the priority.
+    *   **Magician**: High-dynamic range, surprise color-pops. Signals the moment of transformation.
+3.  **Imagery Veracity**: Do the screenshots, portraits, and diagrams look like they belong to the world being built? Are the faces in a state of real work, or are they lifestyle hallucinations?
+4.  **Density of Evidence**: Is the information density calibrated for the audience's expected scanning load? High-stakes evaluators require a higher signal-to-noise ratio per viewport.
+5.  **Spatial Authority**: Does the white space signal a relationship of confidence (unhurried) or urgency?
 
-**Typography congruence.** Does the typeface selection and typographic treatment feel native to the archetype?
+## The Audit of the Masterpiece
 
-- Sage: precise sans-serif or structured serif, strong hierarchy, restrained size variation
-- Outlaw: heavy, possibly unconventional type that enacts the disruption it describes
-- Hero: bold, confident, direct — heavy weights for claims, clean bodies for explanation
-- Caregiver: warm, accessible, readable — prioritizes ease over formality
+Before any presence is deployed into the high-entropy arena of the public commons, it must pass the **congruence rubric**:
 
-**Color congruence.** Does the palette reinforce the primary emotional register?
+1.  **The Silent Identification**: Mask the copy. Does the visual layer communicate the archetype on its own?
+2.  **The Typeface Interrogation**: Look only at the font selection. Does it feel like the person described in the manifesto?
+3.  **The Image Constraint**: Review every image. Do they match the promise, or do they contradict it with generic stock-motifs?
+4.  **The 5-Second Extraction**: Does the primary signal survive the high-velocity scan?
+5.  **The Mobile Constraint**: Does the congruence hold at smaller viewport sizes, or does the signal collapse into generic blocks?
 
-- Sage: restrained, low saturation, precise — says "reliable and exact"
-- Outlaw: high contrast, possibly brutal — says "not going to make this comfortable"
-- Hero: strong, assertive — says "capable and confident"
-- Explorer: open, inviting, possible earth tones or sky blues — says "there is space to go"
+## The Necessary Condition for Trust
 
-**Imagery congruence.** Do the photographs, illustrations, or screenshots look like they belong to the archetype?
-
-- Is the face expression / environment / framing consistent with the promise?
-- Is process imagery (if used) documented at the right level of depth and detail for the archetype?
-- Does the visual atmosphere feel deliberate — shot for this purpose — or assembled from stock?
-
-**Density congruence.** Is the information density appropriate for the audience's expected reading mode?
-
-- High-stakes evaluators (employers, investors) often expect higher density — they want more signal per viewport
-- Discovery audiences (new visitors from content, social, word of mouth) often need lower density entry points first
-
-**Spatial congruence.** Does the use of whitespace signal the right relationship to the reader?
-
-- Generous white space signals confidence and unhurry — Sage and Ruler territory
-- Tighter density signals urgency and fullness — Hero and Outlaw can use this strategically
-
-## The Congruence Checklist
-
-Apply this before any page ships:
-
-1. Cover the copy. Does the visual layer communicate the archetype on its own?
-2. Read only the typography. Does the typeface selection feel like the person described?
-3. View only the images. Do they match the promise, or do they contradict it?
-4. Apply the five-second scan test. Does the primary signal come through before text is processed?
-5. Check from mobile. Do the most congruent elements still dominate at smaller viewport sizes?
-
-A page that passes all five checks is visually congruent. That is the necessary condition for the perception layer to support the trust layer. If congruence fails, trust is building on a contradictory foundation — and the reader will feel the contradiction even if they cannot name it.
+A presence that passes these five checks is visually congruent. This is the technical prerequisite for the perception layer to support the trust layer. If congruence fails, trust is building on a contradictory foundation—and the reader will feel the friction even if they cannot name its origin. In the Second Renaissance, form is the final verification of intent.

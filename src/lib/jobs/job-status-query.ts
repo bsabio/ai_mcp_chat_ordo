@@ -14,7 +14,7 @@ async function buildSnapshot(
     return null;
   }
 
-  const event = await repository.findLatestEventForJob(job.id);
+  const event = await repository.findLatestRenderableEventForJob(job.id);
   return buildJobStatusSnapshot(job, event);
 }
 
@@ -23,7 +23,7 @@ async function buildSnapshotsForJobs(
   jobs: Awaited<ReturnType<JobQueueRepository["listJobsByUser"]>>,
 ): Promise<JobStatusSnapshot[]> {
   return Promise.all(jobs.map(async (job) => {
-    const event = await repository.findLatestEventForJob(job.id);
+    const event = await repository.findLatestRenderableEventForJob(job.id);
     return buildJobStatusSnapshot(job, event);
   }));
 }
@@ -43,7 +43,7 @@ export class RepositoryBackedJobStatusQuery implements JobStatusQuery {
       return null;
     }
 
-    const event = await this.repository.findLatestEventForJob(job.id);
+    const event = await this.repository.findLatestRenderableEventForJob(job.id);
     return buildJobStatusSnapshot(job, event);
   }
 

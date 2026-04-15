@@ -14,6 +14,7 @@ export interface JobQueueRepository {
   createJob(seed: JobRequestSeed): Promise<JobRequest>;
   findJobById(id: string): Promise<JobRequest | null>;
   findLatestEventForJob(jobId: string): Promise<JobEvent | null>;
+  findLatestRenderableEventForJob(jobId: string): Promise<JobEvent | null>;
   findActiveJobByDedupeKey(conversationId: string, dedupeKey: string): Promise<JobRequest | null>;
   listJobsByConversation(
     conversationId: string,

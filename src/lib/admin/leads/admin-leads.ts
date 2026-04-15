@@ -381,6 +381,7 @@ export type AdminPipelineDetailViewModel =
 
 export async function loadAdminPipelineDetail(id: string): Promise<AdminPipelineDetailViewModel> {
   function readFollowUpAt(table: string, recordId: string): string | null {
+    // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
     const row = getDb()
       .prepare(`SELECT follow_up_at FROM ${table} WHERE id = ?`)
       .get(recordId) as { follow_up_at: string | null } | undefined;

@@ -24,6 +24,7 @@ export interface GenerateBlogImageInput {
   setAsHero?: boolean;
   variationGroupId?: string | null;
   createdByUserId: string;
+  abortSignal?: AbortSignal;
 }
 
 export interface GenerateBlogImageOutput {
@@ -90,6 +91,7 @@ export class BlogImageGenerationService {
       quality: input.quality,
       preset: input.preset,
       enhancePrompt: input.enhancePrompt,
+      abortSignal: input.abortSignal,
     });
 
     const extension = extensionForMimeType(generation.mimeType);

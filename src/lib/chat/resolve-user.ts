@@ -9,6 +9,7 @@ const ANON_SESSION_COOKIE = "lms_anon_session";
  * constraints on conversations.user_id are satisfied.
  */
 function ensureAnonUser(userId: string): void {
+  // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   db.prepare(
     `INSERT OR IGNORE INTO users (id, email, name) VALUES (?, ?, ?)`,

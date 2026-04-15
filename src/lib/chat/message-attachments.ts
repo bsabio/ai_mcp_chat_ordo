@@ -46,8 +46,20 @@ export function buildAttachmentContextText(
   }
 
   const lines = attachments.map(
-    (attachment) =>
-      `- ${attachment.fileName} (${attachment.mimeType}, ${attachment.fileSize} bytes)`,
+    (attachment) => {
+      const detailParts = [attachment.mimeType, `${attachment.fileSize} bytes`];
+      if (attachment.assetKind) {
+        detailParts.push(attachment.assetKind);
+      }
+      if (typeof attachment.durationSeconds === "number") {
+        detailParts.push(`${Math.round(attachment.durationSeconds)}s`);
+      }
+      if (typeof attachment.width === "number" && typeof attachment.height === "number") {
+        detailParts.push(`${attachment.width}x${attachment.height}`);
+      }
+
+      return `- ${attachment.fileName} (${detailParts.join(", ")})`;
+    },
   );
 
   return ["Attached files:", ...lines].join("\n");

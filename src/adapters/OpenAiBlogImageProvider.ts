@@ -5,6 +5,11 @@ import type {
   BlogImageGenerationResult,
   BlogImageProvider,
 } from "@/core/use-cases/BlogImageProvider";
+import {
+  classifyProviderError,
+  emitProviderEvent,
+  toErrorMessage,
+} from "@/lib/chat/provider-policy";
 
 function inferDimensions(size: BlogImageGenerationRequest["size"]): {
   width: number | null;
@@ -92,35 +97,66 @@ export class OpenAiBlogImageProvider implements BlogImageProvider {
       ? enhancePromptForGeneration(request.prompt)
       : request.prompt;
 
-    const response = await this.openai.images.generate({
+    const startedAt = Date.now();
+    emitProviderEvent({
+      kind: "attempt_start",
+      surface: "image_generation",
       model: this.model,
-      prompt: finalPrompt,
-      size: request.size === "auto" ? undefined : request.size,
-      quality: request.quality === "auto" ? undefined : request.quality,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any) as OpenAiImageResponse;
+      attempt: 1,
+    });
 
-    const image = response.data?.[0];
-    const b64 = image?.b64_json;
+    try {
+      const response = await this.openai.images.generate({
+        model: this.model,
+        prompt: finalPrompt,
+        size: request.size === "auto" ? undefined : request.size,
+        quality: request.quality === "auto" ? undefined : request.quality,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any, {
+        signal: request.abortSignal,
+      }) as OpenAiImageResponse;
 
-    if (!b64) {
-      throw new Error("OpenAI image generation returned no image bytes.");
+      const image = response.data?.[0];
+      const b64 = image?.b64_json;
+
+      if (!b64) {
+        throw new Error("OpenAI image generation returned no image bytes.");
+      }
+
+      const dimensions = inferDimensions(request.size);
+      const revisedPrompt = request.enhancePrompt !== false
+        ? (image?.revised_prompt?.trim() || finalPrompt)
+        : request.prompt;
+
+      emitProviderEvent({
+        kind: "attempt_success",
+        surface: "image_generation",
+        model: this.model,
+        attempt: 1,
+        durationMs: Date.now() - startedAt,
+      });
+
+      return {
+        bytes: Buffer.from(b64, "base64"),
+        mimeType: image?.mime_type?.trim() || "image/png",
+        width: dimensions.width,
+        height: dimensions.height,
+        originalPrompt: request.prompt,
+        finalPrompt: revisedPrompt,
+        provider: "openai",
+        model: this.model,
+      };
+    } catch (error) {
+      emitProviderEvent({
+        kind: "attempt_failure",
+        surface: "image_generation",
+        model: this.model,
+        attempt: 1,
+        durationMs: Date.now() - startedAt,
+        error: toErrorMessage(error),
+        errorClassification: classifyProviderError(error),
+      });
+      throw error;
     }
-
-    const dimensions = inferDimensions(request.size);
-    const revisedPrompt = request.enhancePrompt !== false
-      ? (image?.revised_prompt?.trim() || finalPrompt)
-      : request.prompt;
-
-    return {
-      bytes: Buffer.from(b64, "base64"),
-      mimeType: image?.mime_type?.trim() || "image/png",
-      width: dimensions.width,
-      height: dimensions.height,
-      originalPrompt: request.prompt,
-      finalPrompt: revisedPrompt,
-      provider: "openai",
-      model: this.model,
-    };
   }
 }

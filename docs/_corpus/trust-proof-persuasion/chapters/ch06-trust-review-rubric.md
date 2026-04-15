@@ -1,76 +1,49 @@
-# The Trust Review Rubric
+# Layer 30: The Arbiter of Veracity — The Trust Review Rubric
 
-## How to Use This Chapter
+## The Final Interrogation
 
-This chapter is the practical application layer for everything in Books IV and V. Use the rubric here to evaluate any page — your own or someone else's — for trust and persuasion effectiveness.
+In the Second Renaissance, a presence is not launched; it is **deployed** after a rigorous audit of its veracity. This chapter serves as the final **quality gate**—the mechanism for validating the alignment between the claim and the receipt before it enters the high-entropy marketplace of attention.
 
-Run this review before any page ships. Run it again after you have had real-world responses and need to diagnose why the conversion is not matching the quality of the work.
+We invoke the history of the **audit**—from the *Domesday Book*’s meticulous census to the peer-review standards of the *Royal Society*. A Sovereign Presence must endure the following interrogation across four dimensions of integrity. Do not bypass these thresholds and expect results; a structural gap in the trust layer is a guarantee of signal failure.
 
-## The Trust Review Framework
+## The Interrogation Framework
 
-### Section 1: Proof Quality
+### I. The Provenance of Proof (Epistemological Rigor)
 
-**Q1.1: Is there a proof block for each major claim on the page?**
-- Yes, adjacent to the claim → Pass
-- Yes, but in a separate section → Partial (move it)
-- No proof blocks → Fail
+1.  **Proximal Adjacency**: Is there an atomic proof-block visually adjacent to every major claim?
+    *   *Threshold*: Yes, integrated into the sequence → **Pass**. No, isolated in a "work" section → **Fail**.
+2.  **Anatomy of the Receipt**: Does every proof-block integrate the four variables: context, work, result, and attribution?
+    *   *Threshold*: All four manifested → **Pass**. Missing the context or the signature → **Fail**.
+3.  **Resolution of Outcome**: Are the results quantified, verifiable, and attributable?
+    *   *Threshold*: A high-resolution system-delta → **Pass**. Vague "success" language → **Fail**.
 
-**Q1.2: Does each proof block have all four elements (context, work, result, attribution)?**
-- All four present → Pass
-- Work and result only → Partial (add context and attribution)
-- Work only, no result → Fail
+### II. The Manifestation of Authority (The Master's Signature)
 
-**Q1.3: Are the results specific and verifiable?**
-- Quantified, attributable outcome → Pass
-- Outcome described but not quantified → Partial
-- Vague success language ("worked well," "helped a lot") → Fail
+1.  **Demonstration vs. Claim**: Is the expertise proved through a visible methodology (e.g., a reasoning-dense case study), or merely claimed through a credential?
+    *   *Threshold*: Methodology is visible → **Pass**. Only credentials listed → **Fail**.
+2.  **Resolution of Witness**: Is social proof named, specific, and tethered to a recognizable situation?
+    *   *Threshold*: Verifiable receipt from a named peer → **Pass**. Anonymous or generic gratitude → **Fail**.
 
-### Section 2: Authority and Credibility
+### III. The Invariants of Ethics (Signal Integrity)
 
-**Q2.1: Is expertise demonstrated through method, or only claimed through credential?**
-- Method shown (case study with reasoning visible) → Pass
-- Both credential and method → Pass
-- Credential only, no demonstrated method → Fail
+1.  **Protocol Violations**: Does the page utilize any of the forbidden primitives (synthetic scarcity, dark patterns, borrowed prestige, fabricated proof)?
+    *   *Threshold*: Absolute absence of manipulation → **Pass**. Any violation discovered → **Fail**.
+2.  **The Transparency Test**: Would the signal maintain its veracity if the observer understood the architecture of the influence being used?
+    *   *Threshold*: Form aligns with substance → **Pass**. Ambiguity discovered → **Review**.
 
-**Q2.2: Is social proof specific and verifiable?**
-- Named client context, specific outcome → Pass
-- Anonymous but contextually specific → Partial
-- Vague or unverifiable testimonials → Fail
+### IV. The Calibration of Agency (The Conversion Path)
 
-### Section 3: Ethical Compliance
+1.  **Singular Focus**: Is there exactly one primary Call to Agency (CTA) that defines the success of the node?
+    *   *Threshold*: One clear vector → **Pass**. Multiple competing asks → **Fail**.
+2.  **Threshold Proportionality**: Is the "ask" calibrated to the level of trust established on the page?
+    *   *Threshold*: Commitment matches the evidence → **Pass**. Large ask before proof-build → **Fail**.
 
-**Q3.1: Does this page use any of the forbidden patterns?**
-- Fake scarcity → Fail
-- Dark patterns → Fail
-- Fabricated social proof → Fail
-- Borrowed authority without real basis → Fail
-- None of the above → Pass
+## The Trust Metric: The Confidence Interval
 
-**Q3.2: Would this page still work if the reader knew the persuasion structure being used?**
-- Yes → Pass
-- Uncertain → Review carefully
-- No → Remove or redesign the element
+Audit your presence. Count the failures across the four dimensions.
 
-### Section 4: Conversion Path
+*   **Zero Failures (Confidence 1.0)**: The presence is congruent and ready for deployment.
+*   **1–2 Failures (Confidence 0.8)**: Structural defects present. These are the likely causes of past underperformance. Fix the architecture before launching.
+*   **3+ Failures (Confidence < 0.5)**: High-entropy state. The presence is a collection of fragments, not a monolithic signal. Deployment will yield noise, not agency.
 
-**Q4.1: Is there exactly one primary CTA on the page?**
-- One clear primary CTA → Pass
-- Multiple competing CTAs → Fail
-
-**Q4.2: Is the CTA proportional to the trust established by the page?**
-- Small ask, early in relationship, limited proof → small CTA (subscribe, download, brief contact)
-- Large ask requires full trust build → evaluate whether the page provides it
-
-**Q4.3: Does the CTA arrive after trust has been established?**
-- After clear proof and authority demonstration → Pass
-- Before demonstration → Fail
-
-## The Trust Score
-
-Count the number of Fails across all four sections.
-
-- 0 Fails: Ready to publish
-- 1–2 Fails: Fix before publishing; these are likely the reason past versions underperformed
-- 3+ Fails: Significant structural revision required before the page can perform
-
-Do not publish at 3+ Fails and expect results. The structural gaps will produce the same underperformance that prompted the review.
+In the Second Renaissance, **form is the final verification of intent.** If the rubric reveals a failure, the work is not yet a masterpiece. Fix the substrate of your reliance before you ask the world to rely upon you.

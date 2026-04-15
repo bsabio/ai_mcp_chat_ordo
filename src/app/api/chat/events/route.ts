@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
           limit,
         }),
         findJobById: (jobId) => repository.findJobById(jobId),
+        findLatestRenderableEventForJob: (jobId) => repository.findLatestRenderableEventForJob(jobId),
       });
     },
   });

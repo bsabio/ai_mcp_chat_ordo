@@ -1,5 +1,5 @@
 import { localEmbedder } from "@/adapters/LocalEmbedder";
-import { SQLiteVectorStore } from "@/adapters/SQLiteVectorStore";
+import { getVectorStore } from "@/adapters/RepositoryFactory";
 import { SQLiteBM25IndexStore } from "@/adapters/SQLiteBM25IndexStore";
 import { BM25Scorer } from "@/core/search/BM25Scorer";
 import { QueryProcessor } from "@/core/search/QueryProcessor";
@@ -21,9 +21,9 @@ import { getCorpusRepository } from "@/adapters/RepositoryFactory";
 import { corpusConfig } from "@/lib/corpus-vocabulary";
 
 export function getSearchHandler(): SearchHandler {
-  const db = getDb();
-  const vectorStore = new SQLiteVectorStore(db);
-  const bm25IndexStore = new SQLiteBM25IndexStore(db);
+  const vectorStore = getVectorStore();
+  // getDb() approved: search pipeline raw SQL — see data-access-canary.test.ts (Sprint 9)
+  const bm25IndexStore = new SQLiteBM25IndexStore(getDb());
   const bm25Scorer = new BM25Scorer();
 
   const vectorProcessor = new QueryProcessor([

@@ -7,6 +7,8 @@ RUN npm ci
 # ── Stage 2: build the Next.js application ──────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
+ENV ANTHROPIC_API_KEY=docker-build-placeholder
+ENV OPENAI_API_KEY=docker-build-placeholder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx next build

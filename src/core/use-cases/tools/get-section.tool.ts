@@ -6,7 +6,7 @@ export function createGetSectionTool(repo: CorpusRepository): ToolDescriptor {
   return {
     name: "get_section",
     schema: {
-      description: "Retrieve full content of a specific section.",
+      description: "Retrieve structured full content, canonical metadata, and related sections for a specific section.",
       input_schema: {
         type: "object",
         properties: {

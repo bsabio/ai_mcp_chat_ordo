@@ -48,7 +48,9 @@ export default function MentionsMenu({
           return (
             <button
               key={item.id}
+              id={`mention-option-${index}`}
               onClick={() => onSelect(item)}
+              tabIndex={-1}
               className={`focus-ring flex min-h-12 w-full items-start gap-(--space-3) rounded-lg px-(--space-3) py-(--space-3) text-left transition-all ${
                 index === activeIndex
                   ? "accent-interactive-fill shadow-lg shadow-accent-interactive/20"

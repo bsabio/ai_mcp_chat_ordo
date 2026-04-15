@@ -16,6 +16,7 @@ describe("job status summary tools", () => {
     createJob: vi.fn(),
     findJobById: vi.fn(),
     findLatestEventForJob: findLatestEventForJobMock,
+    findLatestRenderableEventForJob: findLatestEventForJobMock,
     findActiveJobByDedupeKey: vi.fn(),
     listJobsByConversation: vi.fn(),
     listJobsByUser: listJobsByUserMock,

@@ -5,22 +5,25 @@ import { describe, expect, it } from "vitest";
 
 import { corpusConfig } from "@/lib/corpus-vocabulary";
 
-const README_PATH = path.resolve(process.cwd(), "README.md");
+const README_PATH_1 = path.resolve(process.cwd(), "docs/_corpus/system-docs/chapters/01-proof-story-and-value.md");
+const README_PATH_4 = path.resolve(process.cwd(), "docs/_corpus/system-docs/chapters/04-tooling-and-mcp.md");
 
 describe("README runtime drift", () => {
-  const readme = readFileSync(README_PATH, "utf8");
+  const readme1 = readFileSync(README_PATH_1, "utf8");
+  const readme4 = readFileSync(README_PATH_4, "utf8");
 
   it("documents the current corpus counts", () => {
-    expect(readme).toContain(`${corpusConfig.documentCount} books and ${corpusConfig.sectionCount} chapters`);
+    expect(readme1).toContain(`${corpusConfig.documentCount} books and ${corpusConfig.sectionCount} chapters`);
   });
 
   it("does not preserve the stale hardcoded corpus totals", () => {
-    expect(readme).not.toContain("8 books");
-    expect(readme).not.toContain("61 chapters");
+    expect(readme1).not.toContain("8 books");
+    expect(readme1).not.toContain("61 chapters");
+    expect(readme1).not.toContain("10 books");
   });
 
   it("documents that runtime tool availability comes from the registry", () => {
-    expect(readme).toContain("The exact manifest is role-scoped and composed at runtime");
-    expect(readme).toContain("Treat the registry as the source of truth for exact tool availability.");
+    expect(readme4).toContain("The exact manifest is role-scoped and composed at runtime");
+    expect(readme4).toContain("Treat the registry as the definitive source of truth for exact tool availability.");
   });
 });

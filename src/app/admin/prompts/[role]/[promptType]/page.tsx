@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminDetailShell } from "@/components/admin/AdminDetailShell";
+import { AdminMetaBox } from "@/components/admin/AdminMetaBox";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminPromptDetail } from "@/lib/admin/prompts/admin-prompts";
 import {
@@ -22,6 +23,7 @@ const ROLE_COLORS: Record<string, string> = {
   ALL: "bg-blue-500/15 text-blue-600",
   ANONYMOUS: "bg-gray-500/15 text-gray-600",
   AUTHENTICATED: "bg-green-500/15 text-green-600",
+  APPRENTICE: "bg-violet-500/15 text-violet-600",
   STAFF: "bg-amber-500/15 text-amber-600",
   ADMIN: "bg-red-500/15 text-red-600",
 };
@@ -58,13 +60,18 @@ export default async function AdminPromptDetailPage({
     decodeURIComponent(promptType),
   );
 
-  const { slot, versions, activeContent } = detail;
+  const { slot, versions, activeContent, fallbackContent } = detail;
   const typeLabel = slot.promptType === "base" ? "Base Prompt" : "Role Directive";
+  const activeStateLabel = slot.activeVersion != null
+    ? `v${slot.activeVersion} active`
+    : slot.runtimeCoverage === "fallback"
+      ? "runtime fallback active"
+      : "no active version";
 
   return (
     <AdminSection
       title={`${typeLabel}: ${slot.role}`}
-      description={`${slot.totalVersions} version${slot.totalVersions !== 1 ? "s" : ""} — ${slot.activeVersion != null ? `v${slot.activeVersion} active` : "no active version"}`}
+      description={`${slot.totalVersions} version${slot.totalVersions !== 1 ? "s" : ""} — ${activeStateLabel}`}
     >
       <div className="px-(--space-inset-panel)">
         <AdminDetailShell
@@ -81,10 +88,20 @@ export default async function AdminPromptDetailPage({
                         v{slot.activeVersion}
                       </span>
                     )}
+                    {slot.activeVersion == null && slot.runtimeCoverage === "fallback" && (
+                      <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[0.6rem] font-bold text-sky-600">
+                        FALLBACK ACTIVE
+                      </span>
+                    )}
                   </div>
                 </div>
+                {slot.runtimeCoverage === "fallback" && fallbackContent && (
+                  <p className="mt-(--space-3) text-sm text-sky-700">
+                    Runtime is currently using fallback content for this slot. Create and activate a stored version to override it explicitly.
+                  </p>
+                )}
                 {activeContent ? (
-                  <pre className="mt-(--space-3) max-h-[60vh] overflow-auto rounded-lg border border-foreground/8 bg-foreground/[0.02] p-(--space-3) text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words font-mono">
+                  <pre className="mt-(--space-3) max-h-[60vh] overflow-auto rounded-lg border border-foreground/8 bg-foreground/2 p-(--space-3) text-sm leading-relaxed text-foreground whitespace-pre-wrap wrap-break-word font-mono">
                     {activeContent}
                   </pre>
                 ) : (
@@ -133,11 +150,14 @@ export default async function AdminPromptDetailPage({
             </div>
           }
           sidebar={
-            <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-              <h2 className="text-sm font-semibold text-foreground/60">Version History</h2>
-              <div className="mt-(--space-3) grid gap-(--space-2)">
+            <AdminMetaBox title="Version history">
+              <div className="grid gap-(--space-2)">
                 {versions.length === 0 ? (
-                  <p className="text-xs text-foreground/40">No versions yet.</p>
+                  <p className="text-xs text-foreground/40">
+                    {slot.runtimeCoverage === "fallback"
+                      ? "No stored versions yet. Runtime fallback is currently active."
+                      : "No versions yet."}
+                  </p>
                 ) : (
                   versions.map((v) => (
                     <div
@@ -182,7 +202,7 @@ export default async function AdminPromptDetailPage({
                   ))
                 )}
               </div>
-            </section>
+            </AdminMetaBox>
           }
         />
       </div>

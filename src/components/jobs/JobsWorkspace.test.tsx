@@ -505,7 +505,8 @@ describe("JobsWorkspace", () => {
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/jobs?jobId=job_active");
       expect(screen.getByRole("status")).toHaveTextContent("Equivalent work is already running. Switched to the active job.");
-      expect(screen.getByTestId("job-detail-panel")).toHaveTextContent("Replayed from job_retry");
+      expect(screen.getByTestId("job-detail-panel")).toHaveTextContent("Replayed from");
+      expect(screen.getByTestId("job-detail-panel")).toHaveTextContent("Job job_retry");
     });
   });
 });

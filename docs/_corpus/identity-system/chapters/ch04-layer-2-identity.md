@@ -1,63 +1,41 @@
-# Layer 2: Identity — The Archetype Constraint
+# Layer 2: Identity — The Narrative Mask
 
-## What This Layer Does
+## The Architecture of the Signal
 
-The identity layer has one job: decide what kind of person or builder this page presents, before the reader has processed the full argument.
+The Identity layer has a singular, technical objective: to define the **Cabinet of Character** that this page presents before the reader has processed the first paragraph of copy. 
 
-This is different from deciding who you are. It is deciding what signal you are sending in the first ten seconds. Those two things can and should overlap — the signal should be authentic — but they are not identical, and the distinction matters for design.
+This is fundamentally distinct from the ontological question of "who you are." It is a question of **Signal Engineering.** What frequency are you broadcasting in the first ten seconds of an interaction? An incoherent identity signal produces a "Hallucinated Presence"—a page that feels as if it were constructed by several different, competing minds. In the high-dimensional market of the Second Renaissance, **Subconscious Placement** is the prerequisite for trust.
 
-An incoherent identity signal produces a page that feels like multiple people built it. The reader's brain cannot place the author. Placement — even approximate, subconscious placement — is a precondition for trust.
+## The Archetype as Constraint
 
-## The Archetype as Narrative Constraint
+In the classical theater, the *persona*—the physical mask—was designed to resonate across a vast amphitheater, signaling the character’s essence through bold, invariant structural features. Similarly, an archetype in this system is not a personality label; it is a **Master Constraint.** When you select a primary archetype, you are committing to a specific pattern of alignment across four dimensions:
 
-An archetype is not a personality label. It is a constraint.
+*   **Vocal Register**: The tone, formality, and implied status of the writing.
+*   **The Master Promise**: The underlying benefit the reader is offered for their attention.
+*   **The Proof Standard**: The specific species of evidence that feel native to this identity. (A *Hero* requires a different receipt than a *Sage*).
+*   **The Visual Cadence**: The imagery, pacing, and hierarchy that are congruent with the signal.
 
-When you select a primary archetype, you are committing to a specific pattern across:
+Congruence across these dimensions is what creates **Identity Stability.** A *Sage*-coded page with a chaotic, aggressive visual hierarchy is a contradiction in terms. It triggers a "Signal Discard" in the reader’s mind.
 
-- **Voice**: the register, formality, and implied relationship the writing has with the reader
-- **Promise**: what the page is implicitly offering — the benefit the reader experiences if they engage
-- **Proof standard**: what kinds of evidence feel native vs. forced for this identity
-- **Visual register**: what imagery, pacing, and hierarchy are congruent with the signal
+## The Law of the Primary
 
-These are not decoration choices. They are load-bearing decisions. A Sage-coded page with chaotic visual hierarchy contradicts itself. A Hero-coded page with vague self-descriptions undercuts its own archetype. Congruence across all four dimensions is what makes a page feel like one coherent person.
+1.  **The Monolithic Primary**: You must select one primary archetype to create the dominant interpretive frame. Every design decision—down to the kerning of the subheads—orients to this center.
+2.  **The Nuance of the Secondary**: You may select one subtle secondary archetype to provide texture. An *Outlaw*-primary with a *Sage*-secondary creates a different frequency than an *Outlaw* with a *Jester*. The secondary must serve the primary, never compete with it.
+3.  **The Prohibition of Mixture**: The collision of three or more archetypes is not "richness"; it is noise. It prevents the reader from "placing" you, ensuring that the trust sequence never initiates.
 
-## The Rules
+## The Canonical Voice: The Sage and the Explorer
 
-**One primary archetype.**
-This creates the dominant interpretive frame. Everything orients to it.
+For reference, the identity of this curriculum is **Sage-primary with Explorer-secondary.** 
 
-**Optional: one subtle secondary archetype.**
-This adds texture without competing. It is a flavor, not a second primary.
-Outlaw-primary with Sage-secondary is different from Outlaw-primary with Jester-secondary. The secondary shapes tone but does not challenge the dominant signal.
+The *Sage* commitment ensures that the system values clarity, method, and empirical evidence above all. Claims are not inflated; they are grounded in the lineage of research. The *Explorer* commitment ensures that the system remains an active participant in the "Inference Revolution"—valuing discovery, open questions, and the willingness to publish thinking that is still being refined in the latent space. Together, they form a voice that is rigorous but not dogmatic. Exact about its knowledge, and honest about its boundaries.
 
-**Never random mixture.**
-Three archetypes colliding on one page does not feel rich. It feels confused. The reader cannot place you, and the trust sequence never begins.
+## The Checklist of the Mask
 
-## The Site's Own Archetype
+Before moving to the next layer of the pipeline, you must perform a "Congruence Audit":
 
-For reference: the teaching voice of this curriculum is **Sage-primary with Explorer-secondary**.
+*   **Vocal Alignment**: Does the headline sound like the chosen mask?
+*   **Rhythmic Stability**: Does the page rhythm match the archetype’s promise?
+*   **Evidence Native**: Does the proof selection match the identity’s standard?
+*   **Visual Coherence**: Would the imagery belong to the person described in the copy?
 
-Sage means the system values clarity, method, and evidence. Nothing overstated, no inflated claims. Every major assertion traceable to something real.
-
-Explorer means the system also values discovery in public — curiosity as a virtue, open questions treated honestly, the willingness to publish thinking that is still being refined.
-
-Together: a teaching voice that is rigorous but not closed. Systematic but not dogmatic. Exact about what it knows and honest about what it does not.
-
-## The Identity Checklist
-
-Once you have selected your primary archetype, run this check before you move to the next layer:
-
-1. Does the headline sound like that archetype?
-2. Does the page rhythm feel like that archetype?
-3. Does the proof selection match that archetype's standards?
-4. Would the imagery and visual choices belong to the same person the copy describes?
-
-If any of these is no, the identity is not stable yet. Fix it before moving forward — fragmentation here compounds through every downstream layer.
-
-## The Common Mistake
-
-Trying to sound rigorous, rebellious, warm, luxurious, and experimental all at once.
-
-This happens when the page is designed to appeal to everyone. It ends up appealing to no one in particular, because there is no legible signal for anyone to recognize themselves in.
-
-**Presence over breadth.** One clearly expressed archetype that the right audience recognizes is more valuable than broad appeal that no one connects with.
+If the answer to any of these is negative, the identity is unstable. Fragility here compounds through every downstream layer—Market Fit, Trust, and Action. In the Second Renaissance, **Presence is scarce; breadth is a commodity.** One clearly articulated archetype is more valuable than a thousand vague compromises.

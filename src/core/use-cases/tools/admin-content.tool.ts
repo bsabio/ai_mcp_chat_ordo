@@ -1,6 +1,6 @@
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
-import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
 import type { BlogAssetRepository } from "@/core/use-cases/BlogAssetRepository";
 import type { BlogPostRepository } from "@/core/use-cases/BlogPostRepository";
 import { hasStructuredMarkdown } from "@/lib/blog/normalize-markdown";
@@ -107,58 +107,34 @@ export async function executeDraftContent(
   };
 }
 
-export function parseDraftContentInput(value: Record<string, unknown>): DraftContentInput {
-  if (typeof value.title !== "string" || typeof value.content !== "string") {
+function toRecord(value: unknown, errorMessage: string): Record<string, unknown> {
+  if (!value || typeof value !== "object") {
+    throw new Error(errorMessage);
+  }
+
+  return value as Record<string, unknown>;
+}
+
+export function parseDraftContentInput(value: unknown): DraftContentInput {
+  const record = toRecord(value, "Draft content job payload is invalid.");
+
+  if (typeof record.title !== "string" || typeof record.content !== "string") {
     throw new Error("Draft content job payload is invalid.");
   }
 
   return {
-    title: value.title,
-    content: value.content,
+    title: record.title,
+    content: record.content,
   };
-}
-
-class DraftContentCommand implements ToolCommand<DraftContentInput, DraftContentOutput> {
-  constructor(private readonly blogRepo: BlogPostRepository) {}
-
-  async execute(
-    input: DraftContentInput,
-    context?: ToolExecutionContext,
-  ): Promise<DraftContentOutput> {
-    return executeDraftContent(this.blogRepo, input, context);
-  }
 }
 
 export function createDraftContentTool(
   blogRepo: BlogPostRepository,
-): ToolDescriptor<DraftContentInput, DraftContentOutput> {
-  return {
-    name: "draft_content",
-    schema: {
-      description:
-        "Draft a journal article as structured markdown. Use markdown headings, lists, links, quotes, tables, or fenced code blocks as appropriate. Do not repeat the title inside the content body. The article is saved as a draft that must be explicitly published by an admin.",
-      input_schema: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Journal article title" },
-          content: {
-            type: "string",
-            description: "Journal article body in structured markdown format with headings and other markdown elements, excluding the page title",
-          },
-        },
-        required: ["title", "content"],
-      },
-    },
-    command: new DraftContentCommand(blogRepo),
-    roles: ["ADMIN"],
-    category: "content",
-    executionMode: "deferred",
-    deferred: {
-      dedupeStrategy: "per-conversation-payload",
-      retryable: true,
-      notificationPolicy: "completion-and-failure",
-    },
-  };
+) {
+  return buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.draft_content, {
+    parse: parseDraftContentInput,
+    execute: (input, context) => executeDraftContent(blogRepo, input, context),
+  });
 }
 
 // ── publish_content tool ───────────────────────────────────────────────
@@ -212,9 +188,10 @@ export async function executePublishContent(
   };
 }
 
-export function parsePublishContentInput(value: Record<string, unknown>): PublishContentInput {
-  const post_id = typeof value.post_id === "string" && value.post_id.trim() ? value.post_id.trim() : undefined;
-  const slug = typeof value.slug === "string" && value.slug.trim() ? value.slug.trim() : undefined;
+export function parsePublishContentInput(value: unknown): PublishContentInput {
+  const record = toRecord(value, "Either post_id or slug is required.");
+  const post_id = typeof record.post_id === "string" && record.post_id.trim() ? record.post_id.trim() : undefined;
+  const slug = typeof record.slug === "string" && record.slug.trim() ? record.slug.trim() : undefined;
 
   if (!post_id && !slug) {
     throw new Error("Either post_id or slug is required.");
@@ -223,51 +200,12 @@ export function parsePublishContentInput(value: Record<string, unknown>): Publis
   return { ...(post_id ? { post_id } : {}), ...(slug ? { slug } : {}) };
 }
 
-class PublishContentCommand implements ToolCommand<PublishContentInput, PublishContentOutput> {
-  constructor(
-    private readonly blogRepo: BlogPostRepository,
-    private readonly assetRepo?: BlogAssetRepository,
-  ) {}
-
-  async execute(
-    input: PublishContentInput,
-    context?: ToolExecutionContext,
-  ): Promise<PublishContentOutput> {
-    return executePublishContent(this.blogRepo, input, context, this.assetRepo);
-  }
-}
-
 export function createPublishContentTool(
   blogRepo: BlogPostRepository,
   assetRepo?: BlogAssetRepository,
-): ToolDescriptor<PublishContentInput, PublishContentOutput> {
-  return {
-    name: "publish_content",
-    schema: {
-      description:
-        "Publish a draft journal article, making it publicly visible in the journal. Accepts either the post ID or the article slug.",
-      input_schema: {
-        type: "object",
-        properties: {
-          post_id: {
-            type: "string",
-            description: "The ID of the draft journal article to publish",
-          },
-          slug: {
-            type: "string",
-            description: "The slug of the draft journal article to publish (alternative to post_id)",
-          },
-        },
-      },
-    },
-    command: new PublishContentCommand(blogRepo, assetRepo),
-    roles: ["ADMIN"],
-    category: "content",
-    executionMode: "deferred",
-    deferred: {
-      dedupeStrategy: "per-conversation-payload",
-      retryable: true,
-      notificationPolicy: "completion-and-failure",
-    },
-  };
+) {
+  return buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.publish_content, {
+    parse: parsePublishContentInput,
+    execute: (input, context) => executePublishContent(blogRepo, input, context, assetRepo),
+  });
 }

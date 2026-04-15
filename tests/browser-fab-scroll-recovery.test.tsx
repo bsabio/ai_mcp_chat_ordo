@@ -47,7 +47,9 @@ describe("browser FAB scroll recovery", () => {
             suggestions: [],
             actions: [],
             attachments: [],
+            status: "confirmed",
             timestamp: "12:00",
+            toolRenderEntries: [],
           },
           {
             id: "assistant-1",
@@ -64,7 +66,9 @@ describe("browser FAB scroll recovery", () => {
             ],
             actions: [],
             attachments: [],
+            status: "confirmed",
             timestamp: "12:01",
+            toolRenderEntries: [],
           },
         ]}
         onLinkClick={vi.fn()}

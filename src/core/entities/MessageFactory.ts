@@ -33,7 +33,10 @@ export class MessageFactory {
   }
 
   static createHeroMessage(content: string, suggestions: string[]): ChatMessage {
+    const responseStateTag = `\n\n__response_state__:${JSON.stringify("open")}`;
     const suggestionTag = `\n\n__suggestions__:[${suggestions.map(s => `"${s}"`).join(",")}]`;
-    return this.create("assistant", content + suggestionTag);
+    return this.create("assistant", content + responseStateTag + suggestionTag, [], {
+      responseState: "open",
+    });
   }
 }

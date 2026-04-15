@@ -106,12 +106,12 @@ describe("deferred blog publish flow", () => {
 
     const messages = await messageRepo.listByConversation("conv_publish");
     expect(messages).toHaveLength(1);
-    // Terminal delivery now routes through notifications, so the chat projection stays on the live running state.
+    // Terminal publish completion should replace the existing live-progress state in place.
     expect(messages[0]?.parts).toEqual(expect.arrayContaining([
       expect.objectContaining({
         type: "job_status",
         jobId: job.id,
-        status: "running",
+        status: "succeeded",
       }),
     ]));
   });

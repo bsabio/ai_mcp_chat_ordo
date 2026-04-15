@@ -22,12 +22,17 @@ describe("OpenAiBlogImageProvider", () => {
       enhancePrompt: true,
     });
 
-    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
-      model: "gpt-image-1",
-      prompt: expect.stringContaining("Original prompt"),
-      size: "1536x1024",
-      quality: "high",
-    }));
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gpt-image-1",
+        prompt: expect.stringContaining("Original prompt"),
+        size: "1536x1024",
+        quality: "high",
+      }),
+      expect.objectContaining({
+        signal: undefined,
+      }),
+    );
     expect(result).toMatchObject({
       mimeType: "image/png",
       width: 1536,
@@ -38,6 +43,34 @@ describe("OpenAiBlogImageProvider", () => {
       model: "gpt-image-1",
     });
     expect(result.bytes.toString("utf8")).toBe("image-bytes");
+  });
+
+  it("forwards abort signals to the OpenAI image request", async () => {
+    const generate = vi.fn().mockResolvedValue({
+      data: [{
+        b64_json: Buffer.from("image-bytes").toString("base64"),
+      }],
+    });
+    const provider = new OpenAiBlogImageProvider({
+      images: { generate },
+    } as never);
+    const abortController = new AbortController();
+
+    await provider.generate({
+      prompt: "Original prompt",
+      size: "1024x1024",
+      quality: "medium",
+      abortSignal: abortController.signal,
+    });
+
+    expect(generate).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        signal: abortController.signal,
+      }),
+      expect.objectContaining({
+        signal: abortController.signal,
+      }),
+    );
   });
 
   it("preserves the original prompt and leaves dimensions null when enhancement is disabled and size is auto", async () => {
@@ -59,10 +92,15 @@ describe("OpenAiBlogImageProvider", () => {
       enhancePrompt: false,
     });
 
-    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
-      size: undefined,
-      quality: undefined,
-    }));
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        size: undefined,
+        quality: undefined,
+      }),
+      expect.objectContaining({
+        signal: undefined,
+      }),
+    );
     expect(result).toMatchObject({
       width: null,
       height: null,

@@ -451,13 +451,13 @@ export function resolveDeterministicSeedPack(scenarioId: string): DeterministicE
             title: "Auditor sends malformed UI tags",
             lane: "uncertain",
             confidence: 0.66,
-            recommendedNextStep: "Repair malformed suggestions and normalize action params.",
+            recommendedNextStep: "Suppress synthetic suggestions and normalize action params.",
             detectedNeedSummary: "Auditor is testing whether malformed chat tags break the surface.",
             messages: [
               {
                 id: "msg_eval_integrity_ui_tags_1",
                 role: "user",
-                content: "Show me the repaired suggestions and actions even if the raw tags are malformed.",
+                content: "Show me the repaired actions even if the raw tags are malformed.",
                 createdAt: "2026-03-20T13:40:00.000Z",
               },
             ],
@@ -940,6 +940,154 @@ export function resolveDeterministicSeedPack(scenarioId: string): DeterministicE
                 role: "user",
                 content: "Check whether the blog draft finished while I was away.",
                 createdAt: "2026-03-20T16:15:00.000Z",
+              },
+            ],
+          }),
+        ],
+        conversationEvents: [],
+        leads: [],
+        consultationRequests: [],
+        deals: [],
+        trainingPaths: [],
+        toolFixtures: [],
+      };
+    case "integrity-session-resolution-deterministic":
+      return {
+        scenarioId,
+        seedSetId: "seed-integrity-session-resolution-v1",
+        refs: {
+          primaryConversationId: "conv_eval_integrity_session_resolution",
+          authenticatedUserId: "usr_eval_integrity_session_resolution",
+        },
+        users: [
+          { id: "usr_eval_integrity_session_resolution", email: "integrity.session@example.com", name: "Integrity Session Auditor" },
+        ],
+        conversations: [
+          buildAuthConversation({
+            id: "conv_eval_integrity_session_resolution",
+            userId: "usr_eval_integrity_session_resolution",
+            title: "Auditor checks session resolution logic",
+            lane: "uncertain",
+            confidence: 0.66,
+            recommendedNextStep: "Resolve session status correctly from actionable vs closed state tags.",
+            detectedNeedSummary: "Auditor tests whether session resolution outputs are recognized and recorded correctly.",
+            messages: [
+              {
+                id: "msg_eval_integrity_session_resolution_1",
+                role: "user",
+                content: "Execute a test resolving a session state.",
+                createdAt: "2026-03-20T13:45:00.000Z",
+              },
+            ],
+          }),
+        ],
+        conversationEvents: [],
+        leads: [],
+        consultationRequests: [],
+        deals: [],
+        trainingPaths: [],
+        toolFixtures: [],
+      };
+    case "integrity-retrieval-quality-deterministic":
+      return {
+        scenarioId,
+        seedSetId: "seed-integrity-retrieval-quality-v1",
+        refs: {
+          primaryConversationId: "conv_eval_integrity_retrieval",
+          authenticatedUserId: "usr_eval_integrity_retrieval",
+        },
+        users: [
+          { id: "usr_eval_integrity_retrieval", email: "integrity.retrieval@example.com", name: "Integrity Retrieval Auditor" },
+        ],
+        conversations: [
+          buildAuthConversation({
+            id: "conv_eval_integrity_retrieval",
+            userId: "usr_eval_integrity_retrieval",
+            title: "Auditor checks retrieval quality levels",
+            lane: "uncertain",
+            confidence: 0.66,
+            recommendedNextStep: "Search corpus to verify retrieval qualities.",
+            detectedNeedSummary: "Auditor tests strong, partial, and none retrieval configurations.",
+            messages: [
+              {
+                id: "msg_eval_integrity_retrieval_1",
+                role: "user",
+                content: "Run retrieval tests",
+                createdAt: "2026-03-20T13:50:00.000Z",
+              },
+            ],
+          }),
+        ],
+        conversationEvents: [],
+        leads: [],
+        consultationRequests: [],
+        deals: [],
+        trainingPaths: [],
+        toolFixtures: [],
+      };
+    case "integrity-two-stage-retrieval-deterministic":
+      return {
+        scenarioId,
+        seedSetId: "seed-integrity-two-stage-retrieval-v1",
+        refs: {
+          primaryConversationId: "conv_eval_integrity_two_stage_retrieval",
+          authenticatedUserId: "usr_eval_integrity_two_stage_retrieval",
+        },
+        users: [
+          { id: "usr_eval_integrity_two_stage_retrieval", email: "integrity.twostage@example.com", name: "Integrity Two Stage Auditor" },
+        ],
+        conversations: [
+          buildAuthConversation({
+            id: "conv_eval_integrity_two_stage_retrieval",
+            userId: "usr_eval_integrity_two_stage_retrieval",
+            title: "Auditor checks locate then read retrieval behavior",
+            lane: "individual",
+            confidence: 0.72,
+            recommendedNextStep: "Confirm strong matches auto-read while partial matches stay at locate-only.",
+            detectedNeedSummary: "Auditor tests whether search_corpus behaves as locate-first retrieval.",
+            messages: [
+              {
+                id: "msg_eval_integrity_two_stage_retrieval_1",
+                role: "user",
+                content: "Validate that strong matches auto-read and partial matches stay search-only.",
+                createdAt: "2026-03-20T13:52:00.000Z",
+              },
+            ],
+          }),
+        ],
+        conversationEvents: [],
+        leads: [],
+        consultationRequests: [],
+        deals: [],
+        trainingPaths: [],
+        toolFixtures: [],
+      };
+    case "integrity-structured-get-section-deterministic":
+      return {
+        scenarioId,
+        seedSetId: "seed-integrity-structured-get-section-v1",
+        refs: {
+          primaryConversationId: "conv_eval_integrity_structured_get_section",
+          authenticatedUserId: "usr_eval_integrity_structured_get_section",
+        },
+        users: [
+          { id: "usr_eval_integrity_structured_get_section", email: "integrity.section@example.com", name: "Integrity Section Auditor" },
+        ],
+        conversations: [
+          buildAuthConversation({
+            id: "conv_eval_integrity_structured_get_section",
+            userId: "usr_eval_integrity_structured_get_section",
+            title: "Auditor checks structured get_section responses",
+            lane: "individual",
+            confidence: 0.71,
+            recommendedNextStep: "Verify alias resolution, structured metadata, and safe related links.",
+            detectedNeedSummary: "Auditor tests the structured section payload and adjacent context.",
+            messages: [
+              {
+                id: "msg_eval_integrity_structured_get_section_1",
+                role: "user",
+                content: "Return a structured section payload with safe related links.",
+                createdAt: "2026-03-20T13:53:00.000Z",
               },
             ],
           }),

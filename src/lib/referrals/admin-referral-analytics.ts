@@ -613,6 +613,7 @@ class SqliteAdminReferralAnalyticsService implements AdminReferralAnalyticsServi
   }
 }
 
+// getDb() approved: referral default parameter + raw SQL — see data-access-canary.test.ts (Sprint 9)
 export function createAdminReferralAnalyticsService(
   db: Database.Database = getDb(),
 ): AdminReferralAnalyticsService {

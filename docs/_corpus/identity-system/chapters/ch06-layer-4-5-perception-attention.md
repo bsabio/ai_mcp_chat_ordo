@@ -1,74 +1,39 @@
-# Layers 4 and 5: Perception and Attention
+# Layers 4 & 5: Perception and Attention
 
-## What Perception Actually Is
+## The Aesthetic Neurology
 
-Perception is what the page feels like before the reader has fully processed the content.
+Perception is the visceral frequency of the page, registered by the human brain long before the first line of copy is decoded. 
 
-This is not a soft observation. It has measurable, structural implications for how people read pages, what they notice first, how long they stay, and whether they continue.
+This is not a soft design choice. It is a technical intervention in the reader's neurological state. The first impression of a digital presence forms in hundreds of milliseconds. In this window, the reader’s "System 1" performs a high-speed audit: is this presence credible, is it relevant, and is it worth the cognitive surcharge of further attention? At this stage, hierarchy and visual register are the primary communication channels. Design is not the wrapper for the argument; it **is** the argument.
 
-The first impression of a web page can form in tens to hundreds of milliseconds. In that window, no one is reading your bio. They are feeling the visual register, registering the hierarchy, noticing what is visually dominant, and forming an implicit judgment about whether the page is credible, relevant, and worth more time.
+## The Two Logics of the Gaze
 
-Design is not decoration at this stage. It is the primary communication channel.
+In this system, we identify two distinct "Visual Grammars" that serve different strategic objectives. Every builder must know which grammar they are speaking at any given moment.
 
-## Two Style Logics
+**The Logic of Interruption (The Disruptive Register)**
+This grammar is designed to arrest the scroll. It utilizes Hard Contrast, Pattern Interruption, and Visual Aggression. It is the language of the *Outlaw*—the critique that demands a response. Its risk is that without an underlying structural discipline, it enters the "Forbidden State" of noise.
 
-There are two distinct visual approaches that serve different strategic purposes in this system.
+**The Logic of Credibility (The Structured Register)**
+This grammar is designed to build the "Bayesian Update" of trust. It utilizes Grid Discipline, Quiet Spacing, and Typographic Hierarchy. It is the language of the *Sage*—the presence that respects the viewer’s time and intelligence. Its risk is that without a sharp, specific claim, it can fade into a forgettable "commodity polish."
 
-**The Attention Style (Brutalist or Disruptive)**
+**The Master Rule**: Disruption captures the glance; Structure earns the look. A successful identity knows when to arrest the viewer and when to speak with technical precision.
 
-Brutalist moves interrupt the scroll. They use:
-- Tension and pattern interruption
-- Bold statements that make a claim before you've earned it
-- Hard contrast and visual aggression
-- Urgency that demands a response
+## The Science of the Search Space
 
-This style is useful when the work has edge, critique, or confrontation built into its identity. The Outlaw archetype typically reaches for this register. The risk is that it can feel chaotic or untrustworthy without a disciplined underlying structure.
+Human attention is not a random scan; it is a predictable search space governed by biological invariants:
 
-**The Trust Style (Swiss or Structured)**
+*   **The Primacy of the Face**: Humans possess specialized neural hardware for face-sensitive markers. A face on the page is a biological magnet—it buys you the glance. However, the message must still earn the second look.
+*   **Gaze Cueing**: The eyes of an image on the screen perform a reflexive orienting effect. If the subject of an image looks toward the headline or the CTA, the reader’s attention follows. This is a structural decision, not an aesthetic one.
+*   **The Scanning Cadence**: Users do not read; they inference-scan. The "F-pattern" observed in eye-tracking research proves that the first word, the first line, and the first visual anchor carry the disproportionate interpretive weight of the entire interaction.
+*   **The Filter of Saliency**: The brain is optimized to ignore "Ad-like" signals. If your hero section mimics the visual cadence of a generic advertisement, it is intellectually discounted before it is read.
 
-Swiss or highly structured moves build credibility. They use:
-- Grid discipline and predictable structure
-- Clean, legible typography with strong hierarchy
-- Quiet spacing that signals patience and care
-- Clarity that respects the reader's time
+## The Identity Check: Congruence of the Code
 
-This style is useful when the work needs calm, immediate readability. The Sage archetype typically reaches for this register. The risk is that it can feel passive or forgettable without a specific, precise claim doing the real work.
+After defining the perception and attention strategy, you must perform a "Register Audit":
 
-**The Core Rule:**
-Brutalism gets attention. Swiss earns trust. Most effective pages know which job they are doing at any given moment, and use the appropriate register for it.
+1.  **Archetype Calibration**: Does the visual logic match the Narrative Mask selected in Layer 2? (A *Sage* using chaotic brutality is a system contradiction).
+2.  **Hierarchy of Capture**: Does the dominant visual anchor lead directly to the primary claim?
+3.  **The Signal-to-Noise Test**: Can a stranger identify the signal frequency in a three-second scan?
+4.  **Artifactual Integrity**: Does the design feel like the same Sovereign Mind the copy describes?
 
-## What Attention Science Actually Says
-
-Human visual attention is not random. It is shaped by specific mechanisms.
-
-**Faces attract attention fast.** Humans have specialized neural processing for faces — face-sensitive markers appear extremely rapidly after stimulus onset (tens to hundreds of milliseconds). People with specialized face-processing regions respond more strongly to faces than to many other visual categories. This is not magic — it is biology.
-
-The practical implication: a face on the page, positioned correctly, can anchor the reader's gaze and extend the window before they decide whether to continue. The face buys the glance. The message still has to earn the second look.
-
-**Eyes can guide gaze.** Gaze cueing — where a face is looking — produces reflexive orienting effects. If a face on the page is looking toward the headline or the CTA, eye-tracking evidence shows that attention follows. This is a structural decision, not an aesthetic one.
-
-**Banner blindness is real.** Ad-like visual layouts are often ignored even when visually salient. If the page's hero section looks like an advertisement — high-contrast box, isolated image, generic headline — it may be discounted before it is read.
-
-**Scanning dominates reading.** Users frequently scan pages rather than read them word-by-word. The F-pattern and similar scanning shapes appear consistently in eye-tracking research for text-heavy pages. This means the first line, first word, and first visual anchor carry disproportionate interpretive weight.
-
-## The Attention Test for Faces
-
-If you use a face on the page, answer these questions:
-
-1. Does it humanize the page and support the signal?
-2. Are the eyes directed toward something meaningful — headline, CTA, key claim?
-3. Does the face context feel authentic to the archetype, or decorative?
-4. Does the visual not look like a stock photo or ad layout?
-
-If the answers are yes — the face is doing structural work. If the face is just filling space because it felt emotionally right — it is decoration, not strategy.
-
-## The Congruence Check
-
-After resolving perception and attention decisions, run this check:
-
-- Does the page's visual style match the archetype selected in Layer 2?
-- Does the hierarchy reveal the most important thing first?
-- Can a stranger identify the signal within one quick scan?
-- Does the design feel like the same person the copy describes?
-
-A Sage whose page is visually chaotic contradicts itself. An Outlaw whose page is polished and cautious softens the critique before it lands. Congruence between chosen archetype and visual execution is what makes the signal legible from the first second.
+Congruence is what makes the signal legible at the speed of light. In the Second Renaissance, the design must act as the technical specification for your character. If the visual is decoration, it is a failure. If the visual is strategy, it is an asset.

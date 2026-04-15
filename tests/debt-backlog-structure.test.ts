@@ -2,11 +2,20 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const REGISTRY_PATH = join(
-  __dirname,
-  "..",
-  "docs/_refactor/system_debt_cleaning/15-debt-backlog-formalization/DEBT_REGISTRY.md",
-);
+const REGISTRY_CANDIDATE_PATHS = [
+  join(
+    __dirname,
+    "..",
+    "docs/_refactor/system_debt_cleaning/15-debt-backlog-formalization/DEBT_REGISTRY.md",
+  ),
+  join(
+    __dirname,
+    "..",
+    "docs/_archive/_refactor/system_debt_cleaning/15-debt-backlog-formalization/DEBT_REGISTRY.md",
+  ),
+];
+
+const REGISTRY_PATH = REGISTRY_CANDIDATE_PATHS.find((candidate) => existsSync(candidate)) ?? REGISTRY_CANDIDATE_PATHS[0];
 
 function parseEntries(content: string) {
   const entries: { id: string; body: string }[] = [];

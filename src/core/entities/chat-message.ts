@@ -2,6 +2,8 @@ import type { MessagePart } from "./message-parts";
 
 export type MessageRole = "user" | "assistant" | "system";
 
+export type ChatResponseState = "open" | "closed" | "needs_input";
+
 export interface FailedSendMetadata {
   retryKey: string;
   failedUserMessageId: string;
@@ -9,6 +11,7 @@ export interface FailedSendMetadata {
 
 export interface ChatMessageMetadata {
   failedSend?: FailedSendMetadata;
+  responseState?: ChatResponseState;
 }
 
 export interface ChatMessage {

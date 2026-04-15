@@ -5,8 +5,13 @@ import type {
 } from "./ConversationRepository";
 import type { MessageRepository } from "./MessageRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { UserFileRepository } from "./UserFileRepository";
 import type { Conversation, ConversationSummary, Message, NewMessage } from "../entities/conversation";
+import type { MessagePart } from "../entities/message-parts";
+import type { ToolDeniedReason } from "@/core/tool-registry/ToolExecutionContext";
 import type { RoleName } from "../entities/user";
+import type { ChatResponseState } from "../entities/chat-message";
+import type { SessionResolutionKind } from "@/lib/chat/session-resolution";
 import { NotFoundError as BaseNotFoundError, ValidationError as BaseValidationError } from "../common/errors";
 import {
   createConversationRoutingSnapshot,
@@ -72,11 +77,77 @@ function bypassesPurgeWindow(reason: ConversationDeleteReason): boolean {
   return reason === "privacy_request" || reason === "retention_policy";
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function collectAssetIdsFromUnknown(value: unknown, collected: Set<string>): void {
+  if (!value) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectAssetIdsFromUnknown(entry, collected);
+    }
+    return;
+  }
+
+  if (!isRecord(value)) {
+    return;
+  }
+
+  if (typeof value.assetId === "string" && value.assetId.trim().length > 0) {
+    collected.add(value.assetId.trim());
+  }
+
+  if (typeof value.primaryAssetId === "string" && value.primaryAssetId.trim().length > 0) {
+    collected.add(value.primaryAssetId.trim());
+  }
+
+  for (const entry of Object.values(value)) {
+    collectAssetIdsFromUnknown(entry, collected);
+  }
+}
+
+function collectAssetIdsFromParts(parts: MessagePart[]): string[] {
+  const collected = new Set<string>();
+
+  for (const part of parts) {
+    if (part.type === "attachment" && part.assetId.trim().length > 0) {
+      collected.add(part.assetId.trim());
+      continue;
+    }
+
+    if (part.type === "imported_attachment" && typeof part.originalAssetId === "string" && part.originalAssetId.trim().length > 0) {
+      collected.add(part.originalAssetId.trim());
+      continue;
+    }
+
+    if (part.type === "tool_result") {
+      collectAssetIdsFromUnknown(part.result, collected);
+      continue;
+    }
+
+    if (part.type === "job_status") {
+      if (part.resultPayload !== undefined) {
+        collectAssetIdsFromUnknown(part.resultPayload, collected);
+      }
+      if (part.resultEnvelope) {
+        collectAssetIdsFromUnknown(part.resultEnvelope, collected);
+      }
+    }
+  }
+
+  return [...collected];
+}
+
 export class ConversationInteractor {
   constructor(
     private readonly conversationRepo: ConversationRepository,
     private readonly messageRepo: MessageRepository,
     private readonly eventRecorder?: ConversationEventRecorder,
+    private readonly userFileRepo?: UserFileRepository,
   ) {}
 
   async ensureActive(
@@ -219,7 +290,12 @@ export class ConversationInteractor {
     );
 
     const importedMessages: Message[] = [];
+    const referencedAssetIds = new Set<string>();
     for (const message of importedConversation.importedMessages) {
+      for (const assetId of collectAssetIdsFromParts(message.parts)) {
+        referencedAssetIds.add(assetId);
+      }
+
       const created = await this.messageRepo.create({
         conversationId: conversation.id,
         role: message.role,
@@ -229,6 +305,10 @@ export class ConversationInteractor {
       });
       importedMessages.push(created);
       await this.conversationRepo.recordMessageAppended(conversation.id, created.createdAt);
+    }
+
+    if (this.userFileRepo && referencedAssetIds.size > 0) {
+      await this.userFileRepo.assignConversation([...referencedAssetIds], userId, conversation.id);
     }
 
     const refreshedConversation = await this.conversationRepo.findById(conversation.id);
@@ -424,6 +504,25 @@ export class ConversationInteractor {
     });
   }
 
+  async recordToolDenied(
+    conversationId: string,
+    metadata: {
+      toolName: string;
+      role: RoleName;
+      reason: ToolDeniedReason;
+      lane?: string | null;
+      allowedToolCount?: number;
+    },
+  ): Promise<void> {
+    await this.eventRecorder?.record(conversationId, "tool_denied", {
+      tool_name: metadata.toolName,
+      role: metadata.role,
+      reason: metadata.reason,
+      lane: metadata.lane ?? null,
+      allowed_tool_count: metadata.allowedToolCount ?? null,
+    });
+  }
+
   async recordGenerationLifecycleEvent(
     conversationId: string,
     eventType: "generation_stopped" | "generation_interrupted",
@@ -437,6 +536,27 @@ export class ConversationInteractor {
     },
   ): Promise<void> {
     await this.eventRecorder?.record(conversationId, eventType, metadata);
+  }
+
+  async recordSessionResolution(
+    conversationId: string,
+    metadata: {
+      kind: SessionResolutionKind;
+      responseState: ChatResponseState;
+      reason: string;
+      streamId: string;
+      recordedAt: string;
+      messageId?: string;
+    },
+  ): Promise<void> {
+    await this.eventRecorder?.record(conversationId, "session_resolution", {
+      kind: metadata.kind,
+      response_state: metadata.responseState,
+      reason: metadata.reason,
+      stream_id: metadata.streamId,
+      recorded_at: metadata.recordedAt,
+      message_id: metadata.messageId ?? null,
+    });
   }
 
   async updateRoutingSnapshot(

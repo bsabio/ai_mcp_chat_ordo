@@ -1,48 +1,103 @@
-import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
+import OpenAI from "openai";
 
-interface WebSearchInput {
-  query: string;
-  allowed_domains?: string[];
-  model?: string;
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
+import {
+  emitProviderEvent,
+  classifyProviderError,
+} from "@/lib/chat/provider-policy";
+import { getOpenaiApiKey } from "@/lib/config/env";
+import {
+  sanitizeAdminWebSearchInput,
+  toAdminWebSearchPayload,
+  type AdminWebSearchPayload,
+  type WebSearchInput,
+} from "@/lib/web-search/admin-web-search-payload";
+import {
+  adminWebSearch,
+  validateAdminWebSearchArgs,
+  type WebSearchError,
+  type WebSearchToolDeps,
+} from "@/lib/capabilities/shared/web-search-tool";
+
+function createWebSearchDeps(): WebSearchToolDeps {
+  return {
+    openai: new OpenAI({ apiKey: getOpenaiApiKey() }),
+  };
 }
 
-class AdminWebSearchCommand implements ToolCommand<WebSearchInput, string> {
-  async execute(): Promise<string> {
-    return "Success. Web search results rendered in the chat UI.";
+function toWebSearchError(error: unknown): WebSearchError {
+  if (error && typeof error === "object") {
+    const message =
+      "message" in error && typeof error.message === "string"
+        ? error.message
+        : "Unknown error";
+    const code =
+      "status" in error && typeof error.status === "number"
+        ? error.status
+        : undefined;
+
+    return code === undefined
+      ? { error: message }
+      : { error: message, code };
+  }
+
+  return {
+    error: error instanceof Error ? error.message : "Unknown error",
+  };
+}
+
+export async function executeAdminWebSearch(
+  input: WebSearchInput,
+  depsFactory: () => WebSearchToolDeps = createWebSearchDeps,
+): Promise<AdminWebSearchPayload> {
+  const validationError = validateAdminWebSearchArgs(input);
+  if (validationError) {
+    return toAdminWebSearchPayload(input, validationError);
+  }
+
+  const model = input.model ?? "gpt-5";
+  const startTime = Date.now();
+
+  emitProviderEvent({
+    kind: "attempt_start",
+    surface: "web_search",
+    model,
+    attempt: 1,
+  });
+
+  try {
+    const result = await adminWebSearch(depsFactory(), input);
+
+    emitProviderEvent({
+      kind: "attempt_success",
+      surface: "web_search",
+      model,
+      attempt: 1,
+      durationMs: Date.now() - startTime,
+    });
+
+    return toAdminWebSearchPayload(input, result);
+  } catch (error) {
+    emitProviderEvent({
+      kind: "attempt_failure",
+      surface: "web_search",
+      model,
+      attempt: 1,
+      durationMs: Date.now() - startTime,
+      error: error instanceof Error ? error.message : String(error),
+      errorClassification: classifyProviderError(error),
+    });
+
+    return toAdminWebSearchPayload(input, toWebSearchError(error));
   }
 }
 
-export function createAdminWebSearchTool(): ToolDescriptor<WebSearchInput, string> {
-  return {
-    name: "admin_web_search",
-    schema: {
-      description:
-        "Search the live web using OpenAI and return a sourced answer with citations. Use allowed_domains to target specific sites (e.g. en.wikipedia.org for Wikipedia searches). Admin only.",
-      input_schema: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The search query (max 2000 characters).",
-          },
-          allowed_domains: {
-            type: "array",
-            description:
-              "Optional list of domains to restrict search results to (e.g. ['en.wikipedia.org']).",
-            items: { type: "string" },
-          },
-          model: {
-            type: "string",
-            description:
-              "OpenAI model to use (default: gpt-5). Must support the web_search tool.",
-          },
-        },
-        required: ["query"],
-      },
-    },
-    command: new AdminWebSearchCommand(),
-    roles: ["ADMIN"],
-    category: "content",
-  };
+export function createAdminWebSearchTool(
+  depsFactory: () => WebSearchToolDeps = createWebSearchDeps,
+){
+  return buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.admin_web_search, {
+    parse: sanitizeAdminWebSearchInput,
+    execute: (input) => executeAdminWebSearch(input, depsFactory),
+  });
 }

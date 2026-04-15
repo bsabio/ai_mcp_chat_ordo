@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminDetailShell } from "@/components/admin/AdminDetailShell";
 import { AdminCard } from "@/components/admin/AdminCard";
+import { AdminMetaBox } from "@/components/admin/AdminMetaBox";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminJobDetail } from "@/lib/admin/jobs/admin-jobs";
 import {
@@ -280,9 +281,7 @@ export default async function AdminJobDetailPage({
           }
           sidebar={
             <div className="grid gap-(--space-section-default)">
-              {/* Metadata */}
-              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-                <h2 className="text-sm font-semibold text-foreground/60">Metadata</h2>
+              <AdminMetaBox title="Metadata">
                 <dl className="mt-(--space-3) grid gap-(--space-2) text-sm">
                   <div className="flex justify-between">
                     <dt className="text-foreground/50">Capability</dt>
@@ -345,10 +344,9 @@ export default async function AdminJobDetailPage({
                     </div>
                   )}
                 </dl>
-              </section>
+              </AdminMetaBox>
 
-              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-                <h2 className="text-sm font-semibold text-foreground/60">Capability policy</h2>
+              <AdminMetaBox title="Capability policy" collapsible>
                 <p className="mt-(--space-2) text-xs leading-5 text-foreground/55">
                   {capabilityPolicy.description}
                 </p>
@@ -384,11 +382,9 @@ export default async function AdminJobDetailPage({
                     </dd>
                   </div>
                 </dl>
-              </section>
+              </AdminMetaBox>
 
-              {/* Timestamps */}
-              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-                <h2 className="text-sm font-semibold text-foreground/60">Timestamps</h2>
+              <AdminMetaBox title="Timestamps" collapsible>
                 <dl className="mt-(--space-3) grid gap-(--space-2) text-sm">
                   <div className="flex justify-between">
                     <dt className="text-foreground/50">Created</dt>
@@ -413,15 +409,13 @@ export default async function AdminJobDetailPage({
                     </div>
                   )}
                 </dl>
-              </section>
+              </AdminMetaBox>
 
-              {/* User info */}
-              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-                <h2 className="text-sm font-semibold text-foreground/60">User</h2>
+              <AdminMetaBox title="User" collapsible>
                 <p className="mt-(--space-2) text-xs text-foreground/60">
                   {job.userName ?? "Anonymous / system"}
                 </p>
-              </section>
+              </AdminMetaBox>
             </div>
           }
         />

@@ -1,5 +1,6 @@
 import React from "react";
 import { CodeBlock } from "./CodeBlock";
+import { JobStatusFallbackCard } from "./chat/plugins/system/JobStatusFallbackCard";
 import type {
   RichContent,
   BlockNode,
@@ -47,21 +48,6 @@ const AudioPlayer = dynamic(
   },
 );
 
-const WebSearchResultCard = dynamic(
-  () =>
-    import("../../components/WebSearchResultCard").then(
-      (mod) => mod.WebSearchResultCard,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-18 w-full max-w-2xl flex items-center justify-center text-xs opacity-50 animate-pulse bg-surface-muted rounded-theme border-theme my-(--space-2)">
-        Loading Web Search...
-      </div>
-    ),
-  },
-);
-
 interface Props {
   content: RichContent;
   onLinkClick?: (slug: string) => void;
@@ -85,8 +71,6 @@ export const RichContentRenderer: React.FC<Props> = ({
           key = `mermaid-${block.code.substring(0, 50)}`;
         else if (block.type === "graph")
           key = `graph-${block.graph.kind}-${block.title ?? block.caption ?? i}`;
-        else if (block.type === "web-search")
-          key = `websearch-${block.query.substring(0, 60)}`;
         return <BlockRenderer key={key} block={block} onLinkClick={onLinkClick} onActionClick={onActionClick} />;
       })}
     </div>
@@ -158,64 +142,26 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
       ))}
     </div>
   ),
-  "job-status": ({ block, onActionClick }) => {
-    const statusTone =
-      block.status === "failed"
-        ? "border-[color:color-mix(in_srgb,var(--danger,#b42318)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--danger,#b42318)_8%,var(--surface))]"
-        : block.status === "succeeded"
-          ? "border-[color:color-mix(in_srgb,var(--accent)_28%,transparent)] bg-[color:color-mix(in_srgb,var(--accent)_7%,var(--surface))]"
-          : "border-border/70 bg-surface-muted/55";
-
-    return (
-      <section className={`rounded-[1.2rem] border px-(--space-inset-default) py-(--space-inset-compact) shadow-[0_14px_30px_-24px_color-mix(in_srgb,var(--shadow-base)_12%,transparent)] ${statusTone}`} aria-label={`${block.label} status`}>
-        <div className="flex items-start justify-between gap-(--space-cluster-default)">
-          <div>
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-foreground/42">{block.label}</p>
-            {block.title ? (
-              <p className="mt-(--space-1) text-sm font-medium text-foreground">{block.title}</p>
-            ) : null}
-            {block.subtitle ? (
-              <p className="mt-(--space-1) text-xs text-foreground/56">{block.subtitle}</p>
-            ) : null}
-            <p className="mt-(--space-1) text-sm font-medium text-foreground">{block.status.replace(/^[a-z]/, (char) => char.toUpperCase())}</p>
-          </div>
-          {block.progressPercent != null ? (
-            <p className="text-xs font-medium tabular-nums text-foreground/48">{Math.round(block.progressPercent)}%</p>
-          ) : null}
-        </div>
-
-        {block.progressPercent != null ? (
-          <div className="mt-(--space-3) h-2 overflow-hidden rounded-full bg-background/80">
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-300"
-              style={{ width: `${Math.max(0, Math.min(100, block.progressPercent))}%` }}
-            />
-          </div>
-        ) : null}
-
-        {block.progressLabel ? (
-          <p className="mt-(--space-3) text-sm text-foreground/72">{block.progressLabel}</p>
-        ) : null}
-        {block.summary ? (
-          <p className="mt-(--space-3) text-sm text-foreground/72">{block.summary}</p>
-        ) : null}
-        {block.error ? (
-          <p className="mt-(--space-3) text-sm text-foreground/72">{block.error}</p>
-        ) : null}
-        {block.actions && block.actions.length > 0 ? (
-          <div className="mt-(--space-4) flex flex-wrap gap-(--space-2)">
-            {block.actions.map((action, index) => (
-              <InlineRenderer
-                key={`${block.jobId}-action-${index}`}
-                nodes={[action]}
-                onActionClick={onActionClick}
-              />
-            ))}
-          </div>
-        ) : null}
-      </section>
-    );
-  },
+  "job-status": ({ block, onActionClick }) => (
+    <JobStatusFallbackCard
+      part={{
+        type: "job_status",
+        jobId: block.jobId,
+        toolName: block.toolName,
+        label: block.label,
+        title: block.title,
+        subtitle: block.subtitle,
+        status: block.status,
+        progressPercent: block.progressPercent,
+        progressLabel: block.progressLabel,
+        summary: block.summary,
+        error: block.error,
+      }}
+      computedActions={block.actions}
+      isStreaming={false}
+      onActionClick={onActionClick}
+    />
+  ),
   "code-block": ({ block }) => {
     if (block.language === "mermaid") {
       return (
@@ -259,13 +205,6 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
         estimatedGenerationSeconds={block.estimatedGenerationSeconds}
       />
     </div>
-  ),
-  "web-search": ({ block }) => (
-    <WebSearchResultCard
-      query={block.query}
-      allowed_domains={block.allowed_domains}
-      model={block.model}
-    />
   ),
 };
 

@@ -64,4 +64,29 @@ describe("buildJobStatusSnapshot", () => {
     expect(snapshot.part.progressPercent).toBe(12);
     expect(snapshot.part.summary).toBeUndefined();
   });
+
+  it("preserves phased progress metadata when a renderable event is available", () => {
+    const snapshot = buildJobStatusSnapshot(
+      buildJob(),
+      buildEvent({
+        eventType: "progress",
+        payload: {
+          progressPercent: 42,
+          progressLabel: "Reviewing article",
+          phases: [
+            { key: "compose_blog_article", label: "Composing article", status: "succeeded" },
+            { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+          ],
+          activePhaseKey: "qa_blog_article",
+        },
+      }),
+    );
+
+    expect(snapshot.part.resultEnvelope?.progress).toMatchObject({
+      activePhaseKey: "qa_blog_article",
+      phases: expect.arrayContaining([
+        expect.objectContaining({ key: "qa_blog_article", status: "active", percent: 60 }),
+      ]),
+    });
+  });
 });

@@ -1,5 +1,4 @@
 #!/usr/bin/env tsx
-import { createHash } from "crypto";
 import { getDb } from "../src/lib/db";
 import { getCorpusRepository } from "../src/adapters/RepositoryFactory";
 import { localEmbedder } from "../src/adapters/LocalEmbedder";
@@ -7,16 +6,13 @@ import { SQLiteVectorStore } from "../src/adapters/SQLiteVectorStore";
 import { SQLiteBM25IndexStore } from "../src/adapters/SQLiteBM25IndexStore";
 import { EmbeddingPipelineFactory } from "../src/core/search/EmbeddingPipelineFactory";
 import { validateEmbeddingQuality } from "../src/core/search/EmbeddingValidator";
+import { buildCorpusIndexContentHash } from "../src/core/search/corpus-indexing";
 import type { BM25Index } from "../src/core/search/ports/BM25IndexStore";
 import type { DocumentChunkMetadata } from "../src/core/search/ports/Chunker";
 import { corpusConfig } from "../src/lib/corpus-vocabulary";
 
 const MODEL_VERSION = "all-MiniLM-L6-v2@1.0";
 const force = process.argv.includes("--force");
-
-function sha256(content: string): string {
-  return createHash("sha256").update(content).digest("hex");
-}
 
 /** Simple whitespace tokenizer for BM25 — lowercase, strip punctuation, split on whitespace */
 function tokenize(text: string): string[] {
@@ -62,11 +58,8 @@ async function main() {
   }
 
   // Build documents array for rebuildAll
-  const documents = sections.map((section) => ({
-    sourceId: `${section.documentSlug}/${section.sectionSlug}`,
-    content: section.content,
-    contentHash: sha256(section.content),
-    metadata: {
+  const documents = sections.map((section) => {
+    const metadata = {
       sourceType: corpusConfig.sourceType,
       documentSlug: section.documentSlug,
       sectionSlug: section.sectionSlug,
@@ -80,8 +73,15 @@ async function main() {
       bookNumber: documentIdMap.get(section.documentSlug) ?? section.documentSlug,
       chapterTitle: section.title,
       chapterFirstSentence: section.content.split(/[.!?]\s/)[0]?.slice(0, 200) ?? "",
-    } satisfies DocumentChunkMetadata,
-  }));
+    } satisfies DocumentChunkMetadata;
+
+    return {
+      sourceId: `${section.documentSlug}/${section.sectionSlug}`,
+      content: section.content,
+      contentHash: buildCorpusIndexContentHash(section.content, metadata),
+      metadata,
+    };
+  });
 
   // Run incremental rebuild
   const result = await pipeline.rebuildAll(corpusConfig.sourceType, documents);

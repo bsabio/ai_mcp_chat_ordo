@@ -65,6 +65,8 @@ describe("MermaidRenderer", () => {
     await waitFor(() => {
       expect(screen.getByText("Anonymous Funnel")).toBeInTheDocument();
       expect(screen.getByText("Live drop-off view")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
+      expect(screen.getByTestId("mermaid-viewport")).toBeInTheDocument();
     });
   });
 });

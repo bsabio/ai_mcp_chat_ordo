@@ -4,6 +4,7 @@ import { GET, POST } from "@/app/api/chat/jobs/[jobId]/route";
 
 const {
   findJobByIdMock,
+  findLatestRenderableEventForJobMock,
   cancelJobMock,
   appendEventMock,
   createJobMock,
@@ -16,6 +17,7 @@ const {
   projectMock,
 } = vi.hoisted(() => ({
   findJobByIdMock: vi.fn(),
+  findLatestRenderableEventForJobMock: vi.fn(),
   cancelJobMock: vi.fn(),
   appendEventMock: vi.fn(),
   createJobMock: vi.fn(),
@@ -31,6 +33,7 @@ const {
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getJobQueueRepository: () => ({
     findJobById: findJobByIdMock,
+    findLatestRenderableEventForJob: findLatestRenderableEventForJobMock,
     cancelJob: cancelJobMock,
     appendEvent: appendEventMock,
     createJob: createJobMock,
@@ -83,6 +86,7 @@ describe("POST /api/chat/jobs/[jobId]", () => {
     getMock.mockResolvedValue({ conversation: { id: "conv_jobs" }, messages: [] });
     appendEventMock.mockResolvedValue({ sequence: 4 });
     projectMock.mockResolvedValue(undefined);
+    findLatestRenderableEventForJobMock.mockResolvedValue(null);
     findActiveJobByDedupeKeyMock.mockResolvedValue(null);
     updateJobStatusMock.mockResolvedValue({ id: "job_2" });
     getDescriptorMock.mockReturnValue({
@@ -92,6 +96,23 @@ describe("POST /api/chat/jobs/[jobId]", () => {
   });
 
   it("cancels queued jobs and projects a canceled event", async () => {
+    findLatestRenderableEventForJobMock.mockResolvedValue({
+      id: "evt_3",
+      jobId: "job_1",
+      conversationId: "conv_jobs",
+      sequence: 3,
+      eventType: "progress",
+      payload: {
+        progressPercent: 42,
+        progressLabel: "Reviewing article",
+        phases: [
+          { key: "compose_blog_article", label: "Composing article", status: "succeeded" },
+          { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+        ],
+        activePhaseKey: "qa_blog_article",
+      },
+      createdAt: "2026-03-25T03:00:02.000Z",
+    });
     findJobByIdMock.mockResolvedValue({
       id: "job_1",
       conversationId: "conv_jobs",
@@ -115,7 +136,13 @@ describe("POST /api/chat/jobs/[jobId]", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(cancelJobMock).toHaveBeenCalled();
-    expect(appendEventMock).toHaveBeenCalledWith(expect.objectContaining({ eventType: "canceled" }));
+    expect(appendEventMock).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: "canceled",
+      payload: expect.objectContaining({
+        activePhaseKey: "qa_blog_article",
+        progressLabel: "Reviewing article",
+      }),
+    }));
     expect(projectMock).toHaveBeenCalled();
     expect(body.action).toBe("cancel");
   });

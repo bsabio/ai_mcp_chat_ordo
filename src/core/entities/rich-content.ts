@@ -22,7 +22,6 @@ export const BLOCK_TYPES = {
   DIVIDER: "divider",
   OPERATOR_BRIEF: "operator-brief",
   AUDIO: "audio",
-  WEB_SEARCH: "web-search",
 } as const;
 
 export type OperatorBriefSection = {
@@ -143,8 +142,7 @@ export type BlockNode =
       generationStatus?: string;
       estimatedDurationSeconds?: number;
       estimatedGenerationSeconds?: number;
-    }
-  | { type: typeof BLOCK_TYPES.WEB_SEARCH; query: string; allowed_domains?: string[]; model?: string };
+    };
 
 export interface RichContent {
   blocks: BlockNode[];

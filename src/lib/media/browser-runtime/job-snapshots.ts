@@ -1,0 +1,469 @@
+import type { ChatMessage } from "@/core/entities/chat-message";
+import type {
+  CapabilityArtifactRef,
+  CapabilityResultEnvelope,
+} from "@/core/entities/capability-result";
+import type {
+  MediaAssetRetentionClass,
+  MediaAssetSource,
+} from "@/core/entities/media-asset";
+import type { JobStatusMessagePart, MessagePart } from "@/core/entities/message-parts";
+import {
+  resolveGenerateChartPayload,
+  type ResolvedChartPayload,
+} from "@/core/use-cases/tools/chart-payload";
+import {
+  resolveGenerateGraphPayload,
+  type ResolvedGraphPayload,
+} from "@/core/use-cases/tools/graph-payload";
+import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/registry/capability-presentation-registry";
+import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
+import { isDeferredJobResultPayload } from "@/lib/jobs/deferred-job-result";
+import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
+import {
+  type BrowserRuntimeToolName,
+  getBrowserCapabilityDescriptor,
+  isBrowserCapabilityToolName,
+} from "./browser-capability-registry";
+
+type RuntimeStatus = "queued" | "running" | "succeeded" | "failed" | "canceled";
+
+type PairedToolCall = {
+  name: string;
+  args: Record<string, unknown>;
+};
+
+export interface BrowserRuntimeCandidate {
+  jobId: string;
+  messageId: string;
+  toolName: BrowserRuntimeToolName;
+  args: Record<string, unknown>;
+  payload: unknown;
+  resultIndex: number;
+  snapshot?: JobStatusMessagePart;
+}
+
+type GenerateAudioPayload = {
+  action: "generate_audio";
+  title: string;
+  text: string;
+  assetId: string | null;
+  assetKind?: "audio";
+  mimeType?: string;
+  assetSource?: MediaAssetSource;
+  retentionClass?: MediaAssetRetentionClass;
+  provider: string;
+  generationStatus: "client_fetch_pending" | "cached_asset";
+  estimatedDurationSeconds: number;
+  estimatedGenerationSeconds: number;
+};
+
+type BrowserRuntimeAssetFields = {
+  assetId?: string | null;
+  mimeType?: string;
+  assetSource?: MediaAssetSource;
+  retentionClass?: MediaAssetRetentionClass;
+};
+
+type ResolvedChartRuntimePayload = ResolvedChartPayload & BrowserRuntimeAssetFields;
+type ResolvedGraphRuntimePayload = ResolvedGraphPayload & BrowserRuntimeAssetFields;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isGenerateAudioPayload(value: unknown): value is GenerateAudioPayload {
+  return isRecord(value)
+    && value.action === "generate_audio"
+    && typeof value.title === "string"
+    && typeof value.text === "string"
+    && (typeof value.assetId === "string" || value.assetId === null)
+    && typeof value.provider === "string"
+    && typeof value.generationStatus === "string"
+    && typeof value.estimatedDurationSeconds === "number"
+    && typeof value.estimatedGenerationSeconds === "number";
+}
+
+function readBrowserRuntimeAssetFields(value: unknown): BrowserRuntimeAssetFields {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const assetSource = value.assetSource === "generated"
+    || value.assetSource === "uploaded"
+    || value.assetSource === "derived"
+    ? value.assetSource
+    : value.source === "generated" || value.source === "uploaded" || value.source === "derived"
+      ? value.source
+      : undefined;
+
+  return {
+    ...(typeof value.assetId === "string" || value.assetId === null
+      ? { assetId: value.assetId as string | null }
+      : {}),
+    ...(typeof value.mimeType === "string" ? { mimeType: value.mimeType } : {}),
+    ...(assetSource ? { assetSource } : {}),
+    ...(value.retentionClass === "ephemeral"
+      || value.retentionClass === "conversation"
+      || value.retentionClass === "durable"
+      ? { retentionClass: value.retentionClass }
+      : {}),
+  };
+}
+
+function withBrowserRuntimeAssetFields<T extends object>(
+  payload: T,
+  raw: unknown,
+): T & BrowserRuntimeAssetFields {
+  return {
+    ...payload,
+    ...readBrowserRuntimeAssetFields(raw),
+  };
+}
+
+function resolveAudioPayload(
+  payload: unknown,
+  conversationId: string | null,
+): GenerateAudioPayload | unknown {
+  if (!isGenerateAudioPayload(payload)) {
+    return payload;
+  }
+
+  const assetFields = readBrowserRuntimeAssetFields(payload);
+
+  return {
+    ...payload,
+    assetKind: "audio",
+    mimeType: assetFields.mimeType ?? payload.mimeType ?? "audio/mpeg",
+    assetSource: assetFields.assetSource ?? payload.assetSource ?? "generated",
+    retentionClass: assetFields.retentionClass ?? payload.retentionClass ?? (conversationId ? "conversation" : "ephemeral"),
+  };
+}
+
+function isResolvedGraphPayload(value: unknown): value is ResolvedGraphPayload {
+  return isRecord(value)
+    && isRecord(value.graph)
+    && typeof value.graph.kind === "string";
+}
+
+export function createBrowserRuntimeJobId(
+  messageId: string,
+  toolName: BrowserRuntimeToolName,
+  resultIndex: number,
+): string {
+  return `browser:${messageId}:${toolName}:${resultIndex}`;
+}
+
+export function replaceToolResultWithJobSnapshot(
+  parts: MessagePart[],
+  messageId: string,
+  resultIndex: number,
+  part: JobStatusMessagePart,
+): MessagePart[] {
+  return parts.map((entry, index) => {
+    if (index !== resultIndex || entry.type !== "tool_result") {
+      return entry;
+    }
+
+    return {
+      ...entry,
+      result: {
+        job: {
+          messageId,
+          part,
+        },
+      },
+    };
+  });
+}
+
+function resolveChartPayload(
+  payload: unknown,
+  args: Record<string, unknown>,
+): ResolvedChartRuntimePayload {
+  try {
+    const raw = isRecord(payload) ? payload : args;
+    return withBrowserRuntimeAssetFields(resolveGenerateChartPayload(raw), raw);
+  } catch {
+    try {
+      return withBrowserRuntimeAssetFields(resolveGenerateChartPayload(args), args);
+    } catch {
+      const fallback = isRecord(payload) ? payload : args;
+      return {
+        ...(fallback as ResolvedChartRuntimePayload),
+        ...readBrowserRuntimeAssetFields(fallback),
+      };
+    }
+  }
+}
+
+function resolveGraphPayload(
+  payload: unknown,
+  args: Record<string, unknown>,
+): unknown {
+  if (isResolvedGraphPayload(payload)) {
+    return withBrowserRuntimeAssetFields(payload, payload);
+  }
+
+  try {
+    const raw = isRecord(payload) ? payload : args;
+    return withBrowserRuntimeAssetFields(resolveGenerateGraphPayload(args), raw);
+  } catch {
+    return payload;
+  }
+}
+
+function buildArtifacts(
+  toolName: BrowserRuntimeToolName,
+  payload: unknown,
+  conversationId: string | null,
+): CapabilityArtifactRef[] | undefined {
+  if (toolName === "generate_audio" && isGenerateAudioPayload(payload)) {
+    return [
+      {
+        kind: "audio",
+        label: payload.title,
+        mimeType: payload.mimeType ?? "audio/mpeg",
+        ...(payload.assetId ? { assetId: payload.assetId, uri: `/api/user-files/${payload.assetId}` } : {}),
+        retentionClass: payload.retentionClass ?? (conversationId ? "conversation" : "ephemeral"),
+        durationSeconds: payload.estimatedDurationSeconds,
+        source: payload.assetSource ?? "generated",
+      },
+    ];
+  }
+
+  if (toolName === "generate_chart") {
+    const chart = resolveChartPayload(payload, {});
+    const title = typeof chart.title === "string" && chart.title.trim().length > 0
+      ? chart.title
+      : "Chart";
+    const assetId = typeof chart.assetId === "string" && chart.assetId.trim().length > 0
+      ? chart.assetId
+      : undefined;
+    return [
+      {
+        kind: "chart",
+        label: title,
+        mimeType: chart.mimeType ?? "text/vnd.mermaid",
+        ...(assetId ? { assetId, uri: `/api/user-files/${assetId}` } : {}),
+        retentionClass: chart.retentionClass ?? (conversationId ? "conversation" : "ephemeral"),
+        source: chart.assetSource ?? "derived",
+      },
+    ];
+  }
+
+  if (toolName === "generate_graph") {
+    const graph: ResolvedGraphRuntimePayload | null = isResolvedGraphPayload(payload)
+      ? withBrowserRuntimeAssetFields(payload, payload)
+      : null;
+    const assetId = typeof graph?.assetId === "string" && graph.assetId.trim().length > 0
+      ? graph.assetId
+      : undefined;
+    return [
+      {
+        kind: "graph",
+        label: graph?.title ?? "Graph",
+        mimeType: graph?.mimeType ?? "application/vnd.studioordo.graph+json",
+        ...(assetId ? { assetId, uri: `/api/user-files/${assetId}` } : {}),
+        retentionClass: graph?.retentionClass ?? (conversationId ? "conversation" : "ephemeral"),
+        source: graph?.assetSource ?? "derived",
+      },
+    ];
+  }
+
+  // compose_media: pull artifacts from the canonical CapabilityResultEnvelope payload
+  if (toolName === "compose_media" && isRecord(payload)) {
+    const primaryAssetId = typeof payload.primaryAssetId === "string" ? payload.primaryAssetId : undefined;
+    const outputFormat = typeof payload.outputFormat === "string" ? payload.outputFormat : "mp4";
+    return primaryAssetId
+      ? [
+          {
+            kind: "video",
+            label: "Composed Video",
+            mimeType: `video/${outputFormat}`,
+            assetId: primaryAssetId,
+            uri: `/api/user-files/${primaryAssetId}`,
+            retentionClass: conversationId ? "conversation" : ("ephemeral" as const),
+            source: "generated" as const,
+          },
+        ]
+      : [];
+  }
+
+  return undefined;
+}
+
+function normalizePayload(
+  toolName: BrowserRuntimeToolName,
+  payload: unknown,
+  args: Record<string, unknown>,
+  conversationId: string | null,
+): unknown {
+  if (toolName === "generate_audio") {
+    return resolveAudioPayload(payload, conversationId);
+  }
+
+  if (toolName === "generate_chart") {
+    return resolveChartPayload(payload, args);
+  }
+
+  return resolveGraphPayload(payload, args);
+}
+
+export function buildBrowserRuntimeJobStatusPart(options: {
+  candidate: Pick<BrowserRuntimeCandidate, "jobId" | "messageId" | "toolName" | "args">;
+  payload: unknown;
+  status: RuntimeStatus;
+  sequence: number;
+  updatedAt?: string;
+  progressPercent?: number | null;
+  progressLabel?: string | null;
+  error?: string;
+  conversationId: string | null;
+}): JobStatusMessagePart {
+  const descriptor = getCapabilityPresentationDescriptor(options.candidate.toolName);
+  if (!descriptor) {
+    throw new Error(`Missing capability descriptor for ${options.candidate.toolName}`);
+  }
+
+  const normalizedPayload = normalizePayload(
+    options.candidate.toolName,
+    options.payload,
+    options.candidate.args,
+    options.conversationId,
+  );
+  const artifacts = buildArtifacts(options.candidate.toolName, normalizedPayload, options.conversationId);
+  const resultEnvelope = projectCapabilityResultEnvelope({
+    toolName: options.candidate.toolName,
+    payload: normalizedPayload,
+    inputSnapshot: options.candidate.args,
+    descriptor,
+    executionMode: descriptor.executionMode,
+    progress:
+      options.status === "queued" || options.status === "running"
+        ? {
+          percent: options.progressPercent ?? undefined,
+          label: options.progressLabel ?? undefined,
+        }
+        : undefined,
+    artifacts,
+  });
+
+  const summary = resultEnvelope?.summary;
+
+  return {
+    type: "job_status",
+    jobId: options.candidate.jobId,
+    toolName: options.candidate.toolName,
+    label: descriptor.label,
+    ...(summary?.title ? { title: summary.title } : {}),
+    ...(summary?.subtitle ? { subtitle: summary.subtitle } : {}),
+    status: options.status,
+    sequence: options.sequence,
+    ...(options.progressPercent !== undefined ? { progressPercent: options.progressPercent } : {}),
+    ...(options.progressLabel !== undefined ? { progressLabel: options.progressLabel } : {}),
+    ...(summary?.message ? { summary: summary.message } : {}),
+    ...(options.error ? { error: options.error } : {}),
+    updatedAt: options.updatedAt ?? new Date().toISOString(),
+    resultPayload: normalizedPayload,
+    resultEnvelope,
+    ...(options.status === "failed" ? { failureClass: "terminal" as const } : {}),
+  };
+}
+
+export function withResolvedAudioAsset(
+  payload: GenerateAudioPayload,
+  options: { assetId: string; conversationId: string | null },
+): GenerateAudioPayload {
+  return {
+    ...payload,
+    assetId: options.assetId,
+    assetKind: "audio",
+    mimeType: payload.mimeType ?? "audio/mpeg",
+    assetSource: payload.assetSource ?? "generated",
+    retentionClass: payload.retentionClass ?? (options.conversationId ? "conversation" : "ephemeral"),
+    generationStatus: "cached_asset",
+  };
+}
+
+export function getBrowserRuntimeCandidates(messages: ChatMessage[]): BrowserRuntimeCandidate[] {
+  const candidates: BrowserRuntimeCandidate[] = [];
+
+  for (const message of messages) {
+    const pendingCalls: PairedToolCall[] = [];
+
+    for (const [partIndex, part] of (message.parts ?? []).entries()) {
+      if (part.type === "tool_call") {
+        if (isBrowserCapabilityToolName(part.name)) {
+          pendingCalls.push({
+            name: part.name,
+            args: part.args,
+          });
+        }
+        continue;
+      }
+
+      if (part.type !== "tool_result") {
+        continue;
+      }
+
+      const matchIndex = pendingCalls.findIndex((call) => call.name === part.name);
+      const match = matchIndex >= 0 ? pendingCalls[matchIndex] : undefined;
+      if (!match || !isBrowserCapabilityToolName(match.name)) {
+        continue;
+      }
+
+      pendingCalls.splice(matchIndex, 1);
+
+      const descriptor = getCapabilityPresentationDescriptor(match.name);
+      const browserCapability = getBrowserCapabilityDescriptor(match.name);
+      if (!descriptor || (descriptor.executionMode !== "browser" && descriptor.executionMode !== "hybrid")) {
+        continue;
+      }
+
+      if (!browserCapability) {
+        continue;
+      }
+
+      if (isDeferredJobResultPayload(part.result)) {
+        continue;
+      }
+
+      const snapshots = extractJobStatusSnapshots(part.result);
+      const jobId = createBrowserRuntimeJobId(message.id, match.name, partIndex);
+      const snapshot = snapshots.find((entry) => entry.part.jobId === jobId)?.part;
+      const payload = snapshot?.resultEnvelope?.payload ?? snapshot?.resultPayload ?? part.result;
+
+      candidates.push({
+        jobId,
+        messageId: message.id,
+        toolName: match.name,
+        args: match.args,
+        payload,
+        resultIndex: partIndex,
+        snapshot,
+      });
+    }
+  }
+
+  return candidates;
+}
+
+export function shouldStartBrowserRuntime(candidate: BrowserRuntimeCandidate): boolean {
+  if (!candidate.snapshot) {
+    return true;
+  }
+
+  if (candidate.snapshot.status === "queued" || candidate.snapshot.status === "running") {
+    return true;
+  }
+
+  return false;
+}
+
+export function getBrowserRuntimeEnvelopePayload(
+  envelope: CapabilityResultEnvelope | null | undefined,
+  fallback: unknown,
+): unknown {
+  return envelope?.payload ?? fallback;
+}

@@ -73,6 +73,10 @@ describe("mapJobEventPayload", () => {
         summary: "Produced draft \"Queue recovery brief\" at /blog/queue-recovery-brief.",
         slug: "queue-recovery-brief",
       },
+      part: expect.objectContaining({
+        type: "job_status",
+        status: "succeeded",
+      }),
     });
   });
 
@@ -100,6 +104,51 @@ describe("mapJobEventPayload", () => {
       sequence: 5,
       progressPercent: 48,
       progressLabel: "Awaiting sign-in recovery",
+      part: expect.objectContaining({
+        type: "job_status",
+        status: "running",
+      }),
+    });
+  });
+
+  it("uses the latest renderable event to preserve phased state for audit-only live updates", () => {
+    const payload = mapJobEventPayload(
+      buildJob({
+        status: "running",
+        progressPercent: 42,
+        progressLabel: "Reviewing article",
+        resultPayload: null,
+        completedAt: null,
+      }),
+      buildEvent({ eventType: "notification_sent", payload: { summary: "Push sent." } }),
+      {
+        id: "jobevt_renderable",
+        jobId: "job_1",
+        conversationId: "conv_1",
+        sequence: 4,
+        eventType: "progress",
+        payload: {
+          progressPercent: 42,
+          progressLabel: "Reviewing article",
+          phases: [
+            { key: "compose_blog_article", label: "Composing article", status: "succeeded" },
+            { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+          ],
+          activePhaseKey: "qa_blog_article",
+        },
+        createdAt: "2026-03-25T03:00:02.000Z",
+      },
+    );
+
+    expect(payload).toMatchObject({
+      type: "job_progress",
+      sequence: 5,
+      part: expect.objectContaining({
+        sequence: 5,
+        resultEnvelope: expect.objectContaining({
+          progress: expect.objectContaining({ activePhaseKey: "qa_blog_article" }),
+        }),
+      }),
     });
   });
 });

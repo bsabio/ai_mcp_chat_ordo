@@ -8,7 +8,32 @@ type ActiveStreamEntry = {
 
 export type ActiveStreamSnapshot = Omit<ActiveStreamEntry, "abortController">;
 
+export class ActiveStreamConflictError extends Error {
+  constructor(readonly existingStream: ActiveStreamSnapshot) {
+    super(`Active stream already exists for conversation "${existingStream.conversationId}".`);
+    this.name = "ActiveStreamConflictError";
+  }
+}
+
 const activeStreams = new Map<string, ActiveStreamEntry>();
+
+export function getActiveStreamSnapshotForOwnerConversation(
+  ownerUserId: string,
+  conversationId: string,
+): ActiveStreamSnapshot | null {
+  for (const entry of activeStreams.values()) {
+    if (entry.ownerUserId === ownerUserId && entry.conversationId === conversationId) {
+      return {
+        streamId: entry.streamId,
+        ownerUserId: entry.ownerUserId,
+        conversationId: entry.conversationId,
+        createdAt: entry.createdAt,
+      };
+    }
+  }
+
+  return null;
+}
 
 export function registerActiveStream(input: {
   ownerUserId: string;
@@ -16,6 +41,11 @@ export function registerActiveStream(input: {
   abortController: AbortController;
   streamId?: string;
 }): ActiveStreamSnapshot & { unregister: () => void } {
+  const existingStream = getActiveStreamSnapshotForOwnerConversation(input.ownerUserId, input.conversationId);
+  if (existingStream) {
+    throw new ActiveStreamConflictError(existingStream);
+  }
+
   const streamId = input.streamId ?? crypto.randomUUID();
   const entry: ActiveStreamEntry = {
     streamId,

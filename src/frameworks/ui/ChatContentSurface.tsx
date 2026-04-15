@@ -6,16 +6,18 @@ import type { PresentedMessage } from "@/adapters/ChatPresenter";
 import type { MentionItem } from "@/core/entities/mentions";
 
 import { ChatInput } from "./ChatInput";
-import { ChatConversationToolbar } from "./ChatConversationToolbar";
-import { ChatMessageViewport } from "./ChatMessageViewport";
+import { MemoizedChatMessageViewport } from "./ChatMessageViewport";
 import type { ActionLinkType } from "@/core/entities/rich-content";
+import { ToolPluginRegistryProvider } from "./chat/registry/ToolPluginContext";
+import { createDefaultToolRegistry } from "./chat/registry/default-tool-registry";
+import { ChatProgressStrip } from "./chat/plugins/system/ChatProgressStrip";
+import type { ResolvedProgressStripItem } from "./chat/plugins/system/resolve-progress-strip";
+
+const defaultToolRegistry = createDefaultToolRegistry();
 
 interface ChatContentSurfaceProps {
   activeTrigger: string | null;
   canSend: boolean;
-  canCopyTranscript?: boolean;
-  canExportConversation?: boolean;
-  canImportConversation?: boolean;
   canStopStream?: boolean;
   dynamicSuggestions: string[];
   input: string;
@@ -27,6 +29,7 @@ interface ChatContentSurfaceProps {
   isSending: boolean;
   mentionIndex: number;
   messages: PresentedMessage[];
+  onFileDrop: (event: React.DragEvent) => void;
   onFileRemove: (index: number) => void;
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onInputChange: (value: string, selectionStart: number) => void;
@@ -35,14 +38,12 @@ interface ChatContentSurfaceProps {
   onMentionIndexChange: (index: number) => void;
   onRetryClick?: (retryKey: string) => void;
   onSend: () => void;
-  onCopyTranscript?: () => void | Promise<unknown>;
-  onExportConversation?: () => void | Promise<unknown>;
-  onImportConversationFile?: (file: File) => void | Promise<unknown>;
   onSuggestionClick: (text: string) => void;
   onSuggestionSelect: (item: MentionItem) => void;
   onStopStream?: () => void | Promise<unknown>;
   pendingFiles: File[];
-  isConversationActionPending?: boolean;
+  progressStripItems: readonly ResolvedProgressStripItem[];
+  sendError?: string | null;
   scrollDependency: number;
   searchQuery: string;
   suggestions: MentionItem[];
@@ -51,9 +52,6 @@ interface ChatContentSurfaceProps {
 export function ChatContentSurface({
   activeTrigger,
   canSend,
-  canCopyTranscript,
-  canExportConversation,
-  canImportConversation,
   canStopStream,
   dynamicSuggestions,
   input,
@@ -65,6 +63,7 @@ export function ChatContentSurface({
   isSending,
   mentionIndex,
   messages,
+  onFileDrop,
   onFileRemove,
   onFileSelect,
   onInputChange,
@@ -73,28 +72,20 @@ export function ChatContentSurface({
   onMentionIndexChange,
   onRetryClick,
   onSend,
-  onCopyTranscript,
-  onExportConversation,
-  onImportConversationFile,
   onSuggestionClick,
   onSuggestionSelect,
   onStopStream,
   pendingFiles,
-  isConversationActionPending,
+  progressStripItems,
+  sendError,
   scrollDependency,
   searchQuery,
   suggestions,
 }: ChatContentSurfaceProps) {
-  const helperTextId = isEmbedded
-    ? "chat-composer-helper-embedded"
-    : isFullScreen
-      ? "chat-composer-helper-floating-fullscreen"
-      : "chat-composer-helper-floating";
-
   return (
-    <>
+    <ToolPluginRegistryProvider registry={defaultToolRegistry}>
       <div className="relative h-full min-h-0 overflow-hidden">
-        <ChatMessageViewport
+        <MemoizedChatMessageViewport
           dynamicSuggestions={dynamicSuggestions}
           isEmbedded={isEmbedded}
           isHeroState={isHeroState}
@@ -111,25 +102,20 @@ export function ChatContentSurface({
         />
       </div>
 
+      <div className="flex flex-col gap-(--space-2)" data-chat-bottom-rail="true">
+        <ChatProgressStrip
+          items={progressStripItems}
+          onActionClick={onActionClick}
+        />
+
       <div
         className={`ui-chat-composer-plane relative flex-none ${!isEmbedded && isFullScreen ? "safe-area-px safe-area-pb" : ""}`}
         data-chat-composer-row={isEmbedded ? "true" : undefined}
         data-chat-composer-plane={!isEmbedded ? "true" : undefined}
       >
-        <ChatConversationToolbar
-          canCopyTranscript={Boolean(canCopyTranscript)}
-          canExportConversation={Boolean(canExportConversation)}
-          canImportConversation={canImportConversation !== false}
-          isBusy={Boolean(isConversationActionPending)}
-          onCopyTranscript={onCopyTranscript}
-          onExportConversation={onExportConversation}
-          onImportConversationFile={onImportConversationFile}
-        />
         <div aria-hidden="true" className="ui-chat-composer-seam pointer-events-none absolute inset-x-(--space-16) top-0 h-px" />
         <div className={isFullScreen ? "mx-auto w-full max-w-4xl" : "w-full"} data-chat-composer-shell="true">
           <ChatInput
-            helperTextId={helperTextId}
-            helperMode={!isEmbedded && !isFullScreen ? "focus" : "always"}
             inputRef={inputRef}
             maxTextareaHeight={isEmbedded ? 192 : isFullScreen ? 224 : 144}
             canStopStream={canStopStream}
@@ -138,7 +124,6 @@ export function ChatContentSurface({
             onSend={onSend}
             isSending={isSending}
             canSend={canSend}
-            onArrowUp={() => {}}
             onStopStream={onStopStream}
             activeTrigger={activeTrigger}
             suggestions={suggestions}
@@ -148,9 +133,13 @@ export function ChatContentSurface({
             pendingFiles={pendingFiles}
             onFileSelect={onFileSelect}
             onFileRemove={onFileRemove}
+            onFileDrop={onFileDrop}
+            sendError={sendError}
           />
         </div>
       </div>
-    </>
+      </div>
+
+    </ToolPluginRegistryProvider>
   );
 }

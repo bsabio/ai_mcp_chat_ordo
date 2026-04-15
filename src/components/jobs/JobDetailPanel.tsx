@@ -54,31 +54,63 @@ export function JobDetailPanel({
 
   return (
     <aside className="jobs-panel-surface px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)" data-testid="job-detail-panel" data-jobs-detail-panel="true">
-      <div className="flex flex-wrap items-center gap-(--space-2)">
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(job.part.status)}`}>
-          {STATUS_LABELS[job.part.status]}
-        </span>
-        <span className="jobs-metric-pill inline-flex rounded-full px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">
-          {job.part.toolName}
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-(--space-3)">
+        <div className="flex flex-wrap items-center gap-(--space-2)">
+          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(job.part.status)}`}>
+            {STATUS_LABELS[job.part.status]}
+          </span>
+          <span className="jobs-metric-pill inline-flex rounded-full px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">
+            {job.part.toolName}
+          </span>
+        </div>
+        <span className="text-xs text-foreground/45">Updated {formatJobTimestamp(job.part.updatedAt)}</span>
       </div>
 
-      <div className="mt-(--space-4)">
+      <div className="mt-(--space-4) space-y-(--space-2)">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-        {job.part.subtitle && (
-          <p className="mt-(--space-2) text-sm text-foreground/55">{job.part.subtitle}</p>
-        )}
+        {job.part.subtitle ? (
+          <p className="text-sm text-foreground/55">{job.part.subtitle}</p>
+        ) : null}
       </div>
 
-      <div className="mt-(--space-4) grid gap-(--space-2) text-sm text-foreground/60">
-        <p>Job ID {job.part.jobId}</p>
-        <p>Updated {formatJobTimestamp(job.part.updatedAt)}</p>
-        {job.conversationId && <p>Conversation {job.conversationId}</p>}
-        {failureClass && <p>Failure class {failureClass}</p>}
-        {job.part.recoveryMode && <p>Recovery mode {job.part.recoveryMode === "rerun" ? "Replay from start" : job.part.recoveryMode}</p>}
-        {job.part.replayedFromJobId && <p>Replayed from {job.part.replayedFromJobId}</p>}
-        {job.part.supersededByJobId && <p>Superseded by {job.part.supersededByJobId}</p>}
-      </div>
+      <p className="mt-(--space-4) text-sm leading-6 text-foreground/72">{formatJobSummary(job)}</p>
+
+      <dl className="mt-(--space-4) grid gap-x-(--space-4) gap-y-(--space-2) text-sm text-foreground/60 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Job ID</dt>
+          <dd className="mt-1 break-all text-foreground/72">{job.part.jobId}</dd>
+        </div>
+        {job.conversationId ? (
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Conversation</dt>
+            <dd className="mt-1 break-all text-foreground/72">{job.conversationId}</dd>
+          </div>
+        ) : null}
+        {failureClass ? (
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Failure class</dt>
+            <dd className="mt-1 text-foreground/72">{failureClass}</dd>
+          </div>
+        ) : null}
+        {job.part.recoveryMode ? (
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Recovery mode</dt>
+            <dd className="mt-1 text-foreground/72">{job.part.recoveryMode === "rerun" ? "Replay from start" : job.part.recoveryMode}</dd>
+          </div>
+        ) : null}
+        {job.part.replayedFromJobId ? (
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Replayed from</dt>
+            <dd className="mt-1 break-all text-foreground/72">Job {job.part.replayedFromJobId}</dd>
+          </div>
+        ) : null}
+        {job.part.supersededByJobId ? (
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Superseded by</dt>
+            <dd className="mt-1 break-all text-foreground/72">Job {job.part.supersededByJobId}</dd>
+          </div>
+        ) : null}
+      </dl>
 
       <div className="mt-(--space-4) flex flex-wrap items-center gap-(--space-3) text-sm">
         {job.conversationId && (
@@ -98,8 +130,6 @@ export function JobDetailPanel({
           </Link>
         )}
       </div>
-
-      <p className="mt-(--space-4) text-sm leading-6 text-foreground/72">{formatJobSummary(job)}</p>
 
       {job.part.progressPercent != null && (
         <div className="mt-(--space-4) space-y-2">

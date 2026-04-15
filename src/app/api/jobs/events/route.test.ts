@@ -6,10 +6,11 @@ import {
   createAuthenticatedSessionUser,
 } from "../../../../../tests/helpers/workflow-route-fixture";
 
-const { getSessionUserMock, listUserEventsMock, findJobByIdMock } = vi.hoisted(() => ({
+const { getSessionUserMock, listUserEventsMock, findJobByIdMock, findLatestRenderableEventForJobMock } = vi.hoisted(() => ({
   getSessionUserMock: vi.fn(),
   listUserEventsMock: vi.fn(),
   findJobByIdMock: vi.fn(),
+  findLatestRenderableEventForJobMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
   getJobQueueRepository: () => ({
     listUserEvents: listUserEventsMock,
     findJobById: findJobByIdMock,
+    findLatestRenderableEventForJob: findLatestRenderableEventForJobMock,
   }),
 }));
 
@@ -79,6 +81,7 @@ describe("GET /api/jobs/events", () => {
       completedAt: null,
       updatedAt: "2026-03-25T03:00:02.000Z",
     });
+    findLatestRenderableEventForJobMock.mockResolvedValue(null);
 
     const response = await GET(new NextRequest("http://localhost/api/jobs/events?afterSequence=10"));
     const body = await response.text();
@@ -91,5 +94,6 @@ describe("GET /api/jobs/events", () => {
     expect(body).toContain("id: 11");
     expect(body).toContain('"type":"job_progress"');
     expect(body).toContain('"conversationId":"conv_migrated"');
+    expect(body).toContain('"part":');
   });
 });

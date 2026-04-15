@@ -38,7 +38,7 @@ const ENTITY_CONFIGS: EntitySearchConfig[] = [
     titleExpr: "COALESCE(name, email, id)",
     subtitleExpr: "'User — ' || COALESCE(email, '')",
     hrefPrefix: "/admin/users/",
-    updatedAtColumn: "updated_at",
+    updatedAtColumn: "created_at",
   },
   {
     entityType: "lead",
@@ -117,9 +117,10 @@ const ENTITY_CONFIGS: EntitySearchConfig[] = [
 
 function buildEntityQuery(
   config: EntitySearchConfig,
-  paramIndex: number,
-): { sql: string; paramCount: number } {
-  const fieldClauses = config.fields.map((f) => `${f} LIKE ?${paramIndex + 1}`);
+  patternParamName: string,
+): string {
+  const patternParam = `@${patternParamName}`;
+  const fieldClauses = config.fields.map((f) => `${f} LIKE ${patternParam}`);
   const whereClause = [
     `(${fieldClauses.join(" OR ")})`,
     ...(config.extraWhere ? [config.extraWhere] : []),
@@ -127,7 +128,7 @@ function buildEntityQuery(
 
   // Build a CASE expression that returns the first matching field name
   const matchFieldExpr = config.fields
-    .map((f) => `WHEN ${f} LIKE ?${paramIndex + 1} THEN '${f}'`)
+    .map((f) => `WHEN ${f} LIKE ${patternParam} THEN '${f}'`)
     .join(" ");
 
   const sql = `SELECT
@@ -141,7 +142,7 @@ function buildEntityQuery(
   FROM ${config.table}
   WHERE ${whereClause}`;
 
-  return { sql, paramCount: 1 };
+  return sql;
 }
 
 export async function searchAdminEntities(
@@ -151,6 +152,7 @@ export async function searchAdminEntities(
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
 
+  // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   const limit = options?.limit ?? 20;
   const pattern = `%${trimmed}%`;
@@ -165,23 +167,12 @@ export async function searchAdminEntities(
   // Build UNION ALL across all entity types, sharing a single parameter
   const unionParts: string[] = [];
   for (const config of activeConfigs) {
-    const { sql } = buildEntityQuery(config, 0);
+    const sql = buildEntityQuery(config, "pattern");
     unionParts.push(sql);
   }
 
-  // Each sub-query uses ?1 (the same pattern), final LIMIT is the extra param
-  // But better-sqlite3 doesn't support numbered params the same way — use positional
-  // Each sub-query needs its own copy of the pattern parameter
-  const positionalSql = unionParts
-    .map((part) => part.replace(/\?1/g, "?"))
-    .join("\n  UNION ALL\n") + "\n  ORDER BY updatedAt DESC\n  LIMIT ?";
+  const sql = `${unionParts.join("\n  UNION ALL\n")}\n  ORDER BY updatedAt DESC\n  LIMIT @limit`;
 
-  const params: unknown[] = [];
-  for (const _config of activeConfigs) {
-    params.push(pattern);
-  }
-  params.push(limit);
-
-  const rows = db.prepare(positionalSql).all(...params) as AdminSearchResult[];
+  const rows = db.prepare(sql).all({ pattern, limit }) as AdminSearchResult[];
   return rows;
 }

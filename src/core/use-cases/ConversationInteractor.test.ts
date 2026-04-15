@@ -7,9 +7,19 @@ import {
 } from "./ConversationInteractor";
 import type { ConversationRepository } from "./ConversationRepository";
 import type { MessageRepository } from "./MessageRepository";
+import type { UserFileRepository } from "./UserFileRepository";
 import type { Conversation, ConversationSummary, Message, NewMessage } from "../entities/conversation";
 import { createConversationRoutingSnapshot } from "../entities/conversation-routing";
-import { CONVERSATION_EXPORT_VERSION } from "@/lib/chat/conversation-portability";
+import type { UserFile } from "../entities/user-file";
+import {
+  CONVERSATION_EXPORT_VERSION,
+  parseConversationImportPayload,
+} from "@/lib/chat/conversation-portability";
+import {
+  composeMediaTool,
+  parseComposeMediaInput,
+} from "@/core/use-cases/tools/compose-media.tool";
+import { createListConversationMediaAssetsTool } from "@/core/use-cases/tools/list-conversation-media-assets.tool";
 
 function makeConversation(overrides: Partial<Conversation> = {}): Conversation {
   return {
@@ -40,6 +50,28 @@ function makeMessage(overrides: Partial<Message> = {}): Message {
     parts: [{ type: "text", text: "Hello" }],
     createdAt: "2024-01-01T00:00:00.000Z",
     tokenEstimate: 2,
+    ...overrides,
+  };
+}
+
+function createUserFile(overrides: Partial<UserFile> = {}): UserFile {
+  return {
+    id: "uf_1",
+    userId: "usr_1",
+    conversationId: "conv_1",
+    contentHash: "hash_1",
+    fileType: "audio",
+    fileName: "voiceover.mp3",
+    mimeType: "audio/mpeg",
+    fileSize: 1024,
+    metadata: {
+      assetKind: "audio",
+      source: "generated",
+      toolName: "generate_audio",
+      retentionClass: "conversation",
+      durationSeconds: 18,
+    },
+    createdAt: "2026-04-14T12:00:00.000Z",
     ...overrides,
   };
 }
@@ -75,19 +107,32 @@ function createMockRepos() {
     countByConversation: vi.fn().mockResolvedValue(0),
     update: vi.fn().mockResolvedValue(makeMessage()),
   } as MessageRepository & { createWithinConversationLimit?: ReturnType<typeof vi.fn> };
-  return { convRepo, msgRepo };
+  const userFileRepo = {
+    create: vi.fn(),
+    findById: vi.fn().mockResolvedValue(null),
+    findByHash: vi.fn().mockResolvedValue(null),
+    listByConversation: vi.fn().mockResolvedValue([]),
+    listByUser: vi.fn().mockResolvedValue([]),
+    listUnattachedCreatedBefore: vi.fn().mockResolvedValue([]),
+    assignConversation: vi.fn().mockResolvedValue(undefined),
+    deleteIfUnattached: vi.fn().mockResolvedValue(null),
+    delete: vi.fn().mockResolvedValue(undefined),
+  } as UserFileRepository;
+  return { convRepo, msgRepo, userFileRepo };
 }
 
 describe("ConversationInteractor", () => {
   let interactor: ConversationInteractor;
   let convRepo: ConversationRepository & { recordUserMessageAppendedWithEvent?: ReturnType<typeof vi.fn> };
   let msgRepo: MessageRepository & { createWithinConversationLimit?: ReturnType<typeof vi.fn> };
+  let userFileRepo: UserFileRepository;
 
   beforeEach(() => {
     const mocks = createMockRepos();
     convRepo = mocks.convRepo;
     msgRepo = mocks.msgRepo;
-    interactor = new ConversationInteractor(convRepo, msgRepo);
+    userFileRepo = mocks.userFileRepo;
+    interactor = new ConversationInteractor(convRepo, msgRepo, undefined, userFileRepo);
   });
 
   describe("ensureActive", () => {
@@ -492,6 +537,85 @@ describe("ConversationInteractor", () => {
         }),
       ]);
     });
+
+    it("normalizes media tool payloads and envelopes in exported messages", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({ id: "conv_1", userId: "usr_1", status: "archived", messageCount: 1 }),
+      );
+      (msgRepo.listByConversation as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeMessage({
+          id: "msg_media_1",
+          role: "assistant",
+          content: "Media artifacts prepared",
+          parts: [
+            {
+              type: "tool_result",
+              name: "generate_audio",
+              result: {
+                action: "generate_audio",
+                title: "Greeting",
+                text: "Hello world",
+                assetId: "uf_audio_1",
+                provider: "openai-speech",
+                generationStatus: "cached_asset",
+                estimatedDurationSeconds: 4,
+                estimatedGenerationSeconds: 2,
+              },
+            },
+            {
+              type: "job_status",
+              jobId: "job_graph_1",
+              toolName: "generate_graph",
+              label: "Graph ready",
+              status: "succeeded",
+              resultPayload: {
+                graph: {
+                  kind: "table",
+                  data: [{ label: "A", value: 1 }],
+                  columns: ["label", "value"],
+                },
+                title: "Quarterly Mix",
+                assetId: "uf_graph_1",
+              },
+            },
+          ],
+        }),
+      ]);
+
+      const result = await interactor.exportConversation("conv_1", "usr_1");
+      const exportedParts = result.messages[0]?.parts ?? [];
+      const audioPart = exportedParts[0];
+      const graphPart = exportedParts[1];
+
+      expect(audioPart).toMatchObject({
+        type: "tool_result",
+        name: "generate_audio",
+        result: {
+          assetId: "uf_audio_1",
+          assetKind: "audio",
+          mimeType: "audio/mpeg",
+          assetSource: "generated",
+          retentionClass: "conversation",
+        },
+      });
+      expect(graphPart).toMatchObject({
+        type: "job_status",
+        toolName: "generate_graph",
+        resultPayload: {
+          assetId: "uf_graph_1",
+        },
+        resultEnvelope: {
+          toolName: "generate_graph",
+          artifacts: [
+            expect.objectContaining({
+              kind: "graph",
+              assetId: "uf_graph_1",
+              retentionClass: "conversation",
+            }),
+          ],
+        },
+      });
+    });
   });
 
   describe("importConversation", () => {
@@ -580,6 +704,385 @@ describe("ConversationInteractor", () => {
       );
       expect(result.conversation.id).toBe("conv_imported");
       expect(result.messages[0]?.id).toBe("msg_imported_1");
+    });
+
+    it("restores canonical media metadata for imported media job parts", async () => {
+      const importedPayload = parseConversationImportPayload(JSON.stringify({
+        version: 1,
+        exportedAt: "2026-04-08T11:00:00.000Z",
+        conversation: {
+          id: "conv_source",
+          title: "Imported media thread",
+          status: "archived",
+          createdAt: "2026-04-08T08:00:00.000Z",
+          updatedAt: "2026-04-08T09:00:00.000Z",
+          messageCount: 1,
+          sessionSource: "authenticated",
+          promptVersion: null,
+          routingSnapshot: createConversationRoutingSnapshot(),
+          referralSource: null,
+        },
+        messages: [
+          {
+            id: "msg_source_1",
+            role: "assistant",
+            content: "Imported media",
+            parts: [
+              {
+                type: "job_status",
+                jobId: "job_audio_1",
+                toolName: "generate_audio",
+                label: "Audio ready",
+                status: "succeeded",
+                resultPayload: {
+                  action: "generate_audio",
+                  title: "Greeting",
+                  text: "Hello world",
+                  assetId: "uf_audio_1",
+                  provider: "openai-speech",
+                  generationStatus: "cached_asset",
+                  estimatedDurationSeconds: 4,
+                  estimatedGenerationSeconds: 2,
+                },
+              },
+            ],
+            createdAt: "2026-04-08T09:00:00.000Z",
+            tokenEstimate: 3,
+            attachmentManifestIds: [],
+          },
+        ],
+        attachmentManifest: [],
+        jobReferences: [],
+      }));
+
+      (convRepo.create as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_source",
+        }),
+      );
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          messageCount: 1,
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_source",
+        }),
+      );
+      (msgRepo.create as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeMessage({
+          id: "msg_imported_media_1",
+          conversationId: "conv_imported",
+          createdAt: "2026-04-08T09:00:00.000Z",
+          role: "assistant",
+          content: "Imported media",
+        }),
+      );
+
+      await interactor.importConversation("usr_1", importedPayload);
+
+      expect(msgRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+        parts: [expect.objectContaining({
+          type: "job_status",
+          toolName: "generate_audio",
+          resultPayload: expect.objectContaining({
+            assetId: "uf_audio_1",
+            assetKind: "audio",
+            mimeType: "audio/mpeg",
+            assetSource: "generated",
+            retentionClass: "conversation",
+          }),
+          resultEnvelope: expect.objectContaining({
+            toolName: "generate_audio",
+            artifacts: [expect.objectContaining({
+              kind: "audio",
+              assetId: "uf_audio_1",
+              retentionClass: "conversation",
+            })],
+          }),
+        })],
+      }));
+    });
+
+    it("supports building a valid compose_media plan from exported and imported media state", async () => {
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeConversation({ id: "conv_1", userId: "usr_1", status: "archived", messageCount: 1 }),
+      );
+      (msgRepo.listByConversation as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+        makeMessage({
+          id: "msg_media_source_1",
+          role: "assistant",
+          content: "Media ready for composition",
+          parts: [
+            {
+              type: "tool_result",
+              name: "generate_chart",
+              result: {
+                code: "flowchart TD\nA-->B",
+                title: "Launch Flow",
+                assetId: "uf_chart_1",
+              },
+            },
+            {
+              type: "job_status",
+              jobId: "job_audio_1",
+              toolName: "generate_audio",
+              label: "Audio ready",
+              status: "succeeded",
+              resultPayload: {
+                action: "generate_audio",
+                title: "Greeting",
+                text: "Hello world",
+                assetId: "uf_audio_1",
+                provider: "openai-speech",
+                generationStatus: "cached_asset",
+                estimatedDurationSeconds: 4,
+                estimatedGenerationSeconds: 2,
+              },
+            },
+          ],
+        }),
+      ]);
+
+      const exported = await interactor.exportConversation("conv_1", "usr_1");
+      const importedPayload = parseConversationImportPayload(JSON.stringify(exported));
+
+      (convRepo.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_1",
+        }),
+      );
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          messageCount: 1,
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_1",
+        }),
+      );
+      (msgRepo.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeMessage({
+          id: "msg_imported_compose_1",
+          conversationId: "conv_imported",
+          createdAt: "2026-04-08T09:00:00.000Z",
+          role: "assistant",
+          content: "Media ready for composition",
+        }),
+      );
+
+      await interactor.importConversation("usr_1", importedPayload);
+
+      const importedCreateCall = (msgRepo.create as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as Message | undefined;
+      const importedParts = importedCreateCall?.parts ?? [];
+      const importedChartPart = importedParts.find(
+        (part) => part.type === "tool_result" && part.name === "generate_chart",
+      );
+      const importedAudioPart = importedParts.find(
+        (part) => part.type === "job_status" && part.toolName === "generate_audio",
+      );
+
+      expect(importedChartPart).toBeDefined();
+      expect(importedAudioPart).toBeDefined();
+
+      const chartPayload = (importedChartPart && importedChartPart.type === "tool_result"
+        ? importedChartPart.result
+        : null) as Record<string, unknown> | null;
+      const audioPayload = (importedAudioPart && importedAudioPart.type === "job_status"
+        ? importedAudioPart.resultPayload
+        : null) as Record<string, unknown> | null;
+
+      const composeInput = parseComposeMediaInput({
+        plan: {
+          id: "plan_imported_media_1",
+          conversationId: "conv_imported",
+          visualClips: [{ assetId: String(chartPayload?.assetId ?? ""), kind: "chart" }],
+          audioClips: [{ assetId: String(audioPayload?.assetId ?? ""), kind: "audio" }],
+          subtitlePolicy: "none",
+          waveformPolicy: "generate",
+          outputFormat: "mp4",
+        },
+      });
+
+      const result = await composeMediaTool.command.execute(composeInput) as Record<string, unknown>;
+
+      expect(result).toMatchObject({
+        action: "compose_media",
+        planId: "plan_imported_media_1",
+        conversationId: "conv_imported",
+        visualClips: [{ assetId: "uf_chart_1", kind: "chart" }],
+        audioClips: [{ assetId: "uf_audio_1", kind: "audio" }],
+      });
+    });
+
+    it("rebinds imported governed assets so discovery can feed compose_media after import", async () => {
+      const persistedUserFiles: UserFile[] = [
+        createUserFile({
+          id: "uf_chart_1",
+          conversationId: "conv_1",
+          fileType: "chart",
+          fileName: "launch-flow.mmd",
+          mimeType: "text/vnd.mermaid",
+          metadata: {
+            assetKind: "chart",
+            source: "derived",
+            toolName: "generate_chart",
+            retentionClass: "conversation",
+            width: 1280,
+            height: 720,
+          },
+          createdAt: "2026-04-14T12:05:00.000Z",
+        }),
+        createUserFile({
+          id: "uf_audio_1",
+          conversationId: "conv_1",
+          fileName: "greeting.mp3",
+          mimeType: "audio/mpeg",
+          metadata: {
+            assetKind: "audio",
+            source: "generated",
+            toolName: "generate_audio",
+            retentionClass: "conversation",
+            durationSeconds: 4,
+          },
+          createdAt: "2026-04-14T12:06:00.000Z",
+        }),
+      ];
+      (userFileRepo.assignConversation as ReturnType<typeof vi.fn>).mockImplementation(
+        async (fileIds: string[], userId: string, conversationId: string) => {
+          for (const file of persistedUserFiles) {
+            if (file.userId === userId && fileIds.includes(file.id)) {
+              file.conversationId = conversationId;
+            }
+          }
+        },
+      );
+      (userFileRepo.listByConversation as ReturnType<typeof vi.fn>).mockImplementation(
+        async (conversationId: string) => persistedUserFiles.filter((file) => file.conversationId === conversationId),
+      );
+
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeConversation({ id: "conv_1", userId: "usr_1", status: "archived", messageCount: 1 }),
+      );
+      (msgRepo.listByConversation as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+        makeMessage({
+          id: "msg_media_source_2",
+          role: "assistant",
+          content: "Media ready for discovery",
+          parts: [
+            {
+              type: "tool_result",
+              name: "generate_chart",
+              result: {
+                code: "flowchart TD\nA-->B",
+                title: "Launch Flow",
+                assetId: "uf_chart_1",
+              },
+            },
+            {
+              type: "job_status",
+              jobId: "job_audio_import_1",
+              toolName: "generate_audio",
+              label: "Audio ready",
+              status: "succeeded",
+              resultPayload: {
+                action: "generate_audio",
+                title: "Greeting",
+                text: "Hello world",
+                assetId: "uf_audio_1",
+                provider: "openai-speech",
+                generationStatus: "cached_asset",
+                estimatedDurationSeconds: 4,
+                estimatedGenerationSeconds: 2,
+              },
+            },
+          ],
+        }),
+      ]);
+
+      const exported = await interactor.exportConversation("conv_1", "usr_1");
+      const importedPayload = parseConversationImportPayload(JSON.stringify(exported));
+
+      (convRepo.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_1",
+        }),
+      );
+      (convRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeConversation({
+          id: "conv_imported",
+          userId: "usr_1",
+          status: "archived",
+          messageCount: 1,
+          importedAt: "2026-04-08T12:30:00.000Z",
+          importSourceConversationId: "conv_1",
+        }),
+      );
+      (msgRepo.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        makeMessage({
+          id: "msg_imported_discovery_1",
+          conversationId: "conv_imported",
+          createdAt: "2026-04-08T09:00:00.000Z",
+          role: "assistant",
+          content: "Media ready for discovery",
+        }),
+      );
+
+      await interactor.importConversation("usr_1", importedPayload);
+
+      expect(userFileRepo.assignConversation).toHaveBeenCalledWith(
+        expect.arrayContaining(["uf_chart_1", "uf_audio_1"]),
+        "usr_1",
+        "conv_imported",
+      );
+
+      const discoveryTool = createListConversationMediaAssetsTool(userFileRepo);
+      const discovery = await discoveryTool.command.execute(
+        { kinds: ["chart", "audio"] },
+        { role: "AUTHENTICATED", userId: "usr_1", conversationId: "conv_imported" },
+      );
+
+      expect(discovery.assets).toEqual([
+        expect.objectContaining({ assetId: "uf_audio_1", assetKind: "audio" }),
+        expect.objectContaining({ assetId: "uf_chart_1", assetKind: "chart" }),
+      ]);
+
+      const chartAsset = discovery.assets.find((asset) => asset.assetKind === "chart");
+      const audioAsset = discovery.assets.find((asset) => asset.assetKind === "audio");
+      const composeInput = parseComposeMediaInput({
+        plan: {
+          id: "plan_imported_discovery_1",
+          conversationId: "conv_imported",
+          visualClips: [{ assetId: chartAsset?.assetId ?? "", kind: "chart" }],
+          audioClips: [{ assetId: audioAsset?.assetId ?? "", kind: "audio" }],
+          subtitlePolicy: "none",
+          waveformPolicy: "generate",
+          outputFormat: "mp4",
+        },
+      });
+
+      const result = await composeMediaTool.command.execute(composeInput) as Record<string, unknown>;
+      expect(result).toMatchObject({
+        action: "compose_media",
+        planId: "plan_imported_discovery_1",
+        conversationId: "conv_imported",
+        visualClips: [{ assetId: "uf_chart_1", kind: "chart" }],
+        audioClips: [{ assetId: "uf_audio_1", kind: "audio" }],
+      });
     });
   });
 
@@ -746,7 +1249,7 @@ describe("ConversationInteractor", () => {
       const mocks = createMockRepos();
       convRepo = mocks.convRepo;
       msgRepo = mocks.msgRepo;
-      interactor = new ConversationInteractor(convRepo, msgRepo, eventRecorder as never);
+      interactor = new ConversationInteractor(convRepo, msgRepo, eventRecorder as never, userFileRepo);
     });
 
     it("emits 'started' event on create via ensureActive", async () => {
@@ -787,6 +1290,30 @@ describe("ConversationInteractor", () => {
         "conv_1",
         "tool_used",
         { tool_name: "calculator", role: "AUTHENTICATED" },
+      );
+    });
+
+    it("emits 'session_resolution' with the runtime-derived outcome", async () => {
+      await interactor.recordSessionResolution("conv_1", {
+        kind: "advanced",
+        responseState: "open",
+        reason: "actionable_next_steps",
+        streamId: "stream_1",
+        recordedAt: "2026-03-18T15:00:00.000Z",
+        messageId: "msg_9",
+      });
+
+      expect(eventRecorder.record).toHaveBeenCalledWith(
+        "conv_1",
+        "session_resolution",
+        {
+          kind: "advanced",
+          response_state: "open",
+          reason: "actionable_next_steps",
+          stream_id: "stream_1",
+          recorded_at: "2026-03-18T15:00:00.000Z",
+          message_id: "msg_9",
+        },
       );
     });
 

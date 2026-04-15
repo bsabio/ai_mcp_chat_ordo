@@ -14,7 +14,11 @@ import {
   parseWorkflowForm,
 } from "@/lib/journal/admin-journal-actions";
 import { loadSinglePostAttribution } from "@/lib/admin/attribution/admin-attribution";
-import { loadAdminJournalDetail, requireAdminPageAccess } from "@/lib/journal/admin-journal";
+import {
+  loadAdminJournalDetail,
+  requireAdminPageAccess,
+  requireJournalWorkspaceAccess,
+} from "@/lib/journal/admin-journal";
 import {
   getAdminJournalDetailPath,
   getAdminJournalListPath,
@@ -91,11 +95,13 @@ export default async function AdminJournalDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdminPageAccess();
+  await requireJournalWorkspaceAccess();
   const { id } = await params;
   const detail = await loadAdminJournalDetail(id);
   const attribution = await loadSinglePostAttribution(detail.post.slug);
   const workflowActions = getWorkflowActionDescriptors(detail.post.status);
+  const isPublished = detail.post.status === "published";
+  const selectedHeroAsset = detail.heroCandidates.find((asset) => asset.selectionState.toLowerCase() === "selected") ?? detail.heroCandidates[0] ?? null;
 
   async function refreshJournalAdminPaths(slug: string) {
     "use server";
@@ -139,6 +145,20 @@ export default async function AdminJournalDetailPage({
       nextStatus: input.nextStatus,
       actorUserId: user.id,
       changeNote: input.changeNote,
+    });
+
+    await refreshJournalAdminPaths(updated.slug);
+    redirect(getAdminJournalDetailPath(id));
+  }
+
+  async function publishArticleAction() {
+    "use server";
+
+    const user = await requireAdminPageAccess();
+    const editorial = createJournalEditorialInteractor();
+    const updated = await editorial.publishPost({
+      postId: id,
+      actorUserId: user.id,
     });
 
     await refreshJournalAdminPaths(updated.slug);
@@ -203,10 +223,42 @@ export default async function AdminJournalDetailPage({
           </div>
         </header>
 
-        <div className="grid gap-(--space-stack-default) lg:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.75fr)]">
+        <div className="grid gap-(--space-stack-default) lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <section className="grid gap-(--space-stack-default)">
             <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-              <h2 className="text-lg font-semibold text-foreground">Metadata</h2>
+              <div className="flex flex-wrap items-start justify-between gap-(--space-cluster-default)">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Editor</h2>
+                  <p className="mt-(--space-2) text-sm leading-6 text-foreground/60">Edit the article first. Publishing and diagnostics stay in the sidebar like a conventional CMS.</p>
+                </div>
+              </div>
+              <form id="draft-body-form" action={saveDraftBodyAction} className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
+                <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
+                  <span className="font-medium text-foreground/72">Title</span>
+                  <input name="titlePreview" value={detail.post.title} readOnly className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-lg font-semibold text-foreground" />
+                </label>
+                <div className="sticky top-4 z-10 flex flex-wrap items-center justify-between gap-(--space-cluster-default) rounded-2xl border border-foreground/10 bg-background/95 p-(--space-inset-panel) shadow-sm backdrop-blur supports-backdrop-filter:bg-background/85">
+                  <p className="text-sm leading-6 text-foreground/60">
+                    Current state: {detail.post.statusLabel}. {isPublished ? "This version is already live." : "Publish whenever the draft is ready."}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-(--space-cluster-tight)">
+                    <button type="submit" className="rounded-full border border-foreground/16 bg-foreground px-(--space-inset-default) py-(--space-2) text-sm font-medium text-background">Save draft body</button>
+                  </div>
+                </div>
+                <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
+                  <span className="font-medium text-foreground/72">Draft body</span>
+                  <textarea name="content" aria-label="Draft body" defaultValue={detail.post.content} className="min-h-80 w-full rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) font-mono text-sm text-foreground" />
+                </label>
+                <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
+                  <span className="font-medium text-foreground/72">Draft note</span>
+                  <input name="changeNote" defaultValue="" placeholder="Optional note for why this body revision is being recorded." className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
+                </label>
+              </form>
+            </article>
+
+            <details className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)" open>
+              <summary className="cursor-pointer list-none text-lg font-semibold text-foreground">Post settings</summary>
+              <p className="mt-(--space-2) text-sm leading-6 text-foreground/60">Edit the permalink, summary, standfirst, and section without burying the main writing surface.</p>
               <form action={saveMetadataAction} className="mt-(--space-stack-default) grid gap-(--space-stack-default) sm:grid-cols-2">
                 <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
                   <span className="font-medium text-foreground/72">Title</span>
@@ -232,109 +284,158 @@ export default async function AdminJournalDetailPage({
                     <option value="briefing">Briefing</option>
                   </select>
                 </label>
-                <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
-                  <span className="font-medium text-foreground/72">Workflow</span>
-                  <input readOnly value={detail.post.statusLabel} className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
-                </label>
-                <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66 sm:col-span-2">
-                  <span className="font-medium text-foreground/72">Metadata change note</span>
-                  <input name="changeNote" defaultValue="" placeholder="Optional note describing this metadata edit." className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
-                </label>
                 <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-(--space-cluster-default) border-t border-foreground/10 pt-(--space-stack-default)">
-                  <p className="text-sm leading-6 text-foreground/60">Metadata edits record a revision before the change is applied.</p>
-                  <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">Save metadata</button>
+                  <p className="text-sm leading-6 text-foreground/60">Metadata changes use the default revision note when no explicit note is required.</p>
+                  <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">Save settings</button>
                 </div>
               </form>
-            </article>
+            </details>
 
-            <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-              <h2 className="text-lg font-semibold text-foreground">Workflow actions</h2>
-              <p className="mt-(--space-2) text-sm leading-6 text-foreground/60">Move the article through explicit editorial states using the shared journal interactor.</p>
-              <div className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
-                {workflowActions.map((action) => (
-                  <form key={action.nextStatus} action={transitionWorkflowAction} className="rounded-2xl border border-foreground/10 p-(--space-inset-panel)">
-                    <input type="hidden" name="nextStatus" value={action.nextStatus} />
-                    <div className="flex flex-wrap items-start justify-between gap-(--space-cluster-default)">
-                      <div className="grid gap-(--space-1)">
-                        <h3 className="text-sm font-semibold text-foreground">{action.label}</h3>
-                        <p className="text-sm leading-6 text-foreground/60">{action.description}</p>
-                      </div>
-                      <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">{action.label}</button>
-                    </div>
-                    <label className="mt-(--space-stack-default) grid gap-(--space-cluster-tight) text-sm text-foreground/66">
-                      <span className="font-medium text-foreground/72">Workflow change note</span>
-                      <input
-                        name="changeNote"
-                        defaultValue=""
-                        aria-label={`Workflow change note for ${action.label}`}
-                        placeholder="Optional note for the revision timeline."
-                        className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
-                      />
-                    </label>
-                  </form>
-                ))}
-              </div>
-            </article>
-
-            <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-              <h2 className="text-lg font-semibold text-foreground">Draft body</h2>
-              <p className="mt-(--space-2) text-sm leading-6 text-foreground/60">Body edits now flow through the canonical journal interactor and record a revision before the new draft content is saved.</p>
-              <form action={saveDraftBodyAction} className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
-                <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
-                  <span className="font-medium text-foreground/72">Draft body</span>
-                  <textarea name="content" aria-label="Draft body" defaultValue={detail.post.content} className="min-h-80 w-full rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) font-mono text-sm text-foreground" />
-                </label>
-                <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
-                  <span className="font-medium text-foreground/72">Draft body change note</span>
-                  <input name="changeNote" defaultValue="" placeholder="Optional note describing this draft revision." className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground" />
-                </label>
-                <div className="flex flex-wrap items-center justify-between gap-(--space-cluster-default) border-t border-foreground/10 pt-(--space-stack-default)">
-                  <p className="text-sm leading-6 text-foreground/60">Use this editor for canonical draft-body updates without bypassing revision history.</p>
-                  <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">Save draft body</button>
-                </div>
-              </form>
-            </article>
-          </section>
-
-          <aside className="grid gap-(--space-stack-default)">
-            <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-              <div className="flex items-center justify-between gap-(--space-cluster-default)">
-                <h2 className="text-lg font-semibold text-foreground">Hero images</h2>
-                <a href={detail.heroImagesApiHref} className="text-sm underline underline-offset-4">Hero API</a>
-              </div>
-              {detail.heroCandidates.length === 0 ? (
-                <p className="mt-(--space-stack-default) text-sm text-foreground/60">No hero candidates yet.</p>
+            <details className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+              <summary className="cursor-pointer list-none text-lg font-semibold text-foreground">Revision history</summary>
+              {detail.revisions.length === 0 ? (
+                <p className="mt-(--space-stack-default) text-sm text-foreground/60">No revisions recorded yet.</p>
               ) : (
                 <ol className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
-                  {detail.heroCandidates.map((asset) => (
-                    <li key={asset.id} className="rounded-2xl border border-foreground/10 p-(--space-inset-panel)">
-                      <div className="flex items-center justify-between gap-(--space-cluster-default) text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">
-                        <span>{asset.selectionState}</span>
-                        <span>{asset.visibility}</span>
-                      </div>
-                      <div className="relative mt-(--space-3) aspect-video w-full overflow-hidden rounded-xl">
-                        <Image
-                          src={asset.imageHref}
-                          alt={asset.altText}
-                          fill
-                          unoptimized
-                          sizes="(max-width: 1280px) 100vw, 33vw"
-                          className="object-cover"
-                        />
-                      </div>
-                      <p className="mt-(--space-3) text-sm text-foreground">{asset.altText}</p>
-                      <p className="mt-(--space-1) text-xs text-foreground/52">Created {asset.createdAtLabel}</p>
+                  {detail.revisions.map((revision) => (
+                    <li key={revision.id} className="rounded-2xl border border-foreground/10 p-(--space-inset-panel)">
+                      {(() => {
+                        const changedFields = getRestoreChangedFields(detail.post, revision);
+
+                        return (
+                          <>
+                            <div className="flex flex-wrap gap-x-(--space-3) gap-y-(--space-2) text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">
+                              <span>{revision.statusLabel}</span>
+                              <span>{revision.sectionLabel}</span>
+                              <span>{revision.createdAtLabel}</span>
+                              <span>By {revision.createdByUserId}</span>
+                            </div>
+                            <p className="mt-(--space-3) text-sm font-medium text-foreground">{revision.snapshot.title}</p>
+                            <p className="mt-(--space-1) text-sm leading-6 text-foreground/64">{revision.changeNoteLabel}</p>
+                            <div className="mt-(--space-stack-default) rounded-2xl border border-foreground/10 bg-foreground/2 p-(--space-inset-panel)">
+                              <div className="flex flex-wrap items-center justify-between gap-(--space-cluster-default)">
+                                <h3 className="text-sm font-semibold text-foreground">Restore preview</h3>
+                                <p className="text-xs font-medium uppercase tracking-[0.14em] text-foreground/52">
+                                  {changedFields.length === 0 ? "Matches current draft" : `Changes: ${changedFields.join(", ")}`}
+                                </p>
+                              </div>
+                              <div className="mt-(--space-stack-default) grid gap-(--space-stack-default) sm:grid-cols-2">
+                                <div className="grid gap-(--space-cluster-tight) rounded-2xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">Current draft</p>
+                                  <p className="text-sm font-medium text-foreground">{detail.post.title}</p>
+                                  <p className="text-sm leading-6 text-foreground/64">{compactPreview(detail.post.description, "No description recorded yet.")}</p>
+                                  <p className="text-xs text-foreground/52">{detail.post.statusLabel} · {detail.post.sectionLabel}</p>
+                                  <p className="rounded-xl bg-foreground/3 px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(detail.post.content, "No draft body recorded yet.")}</p>
+                                </div>
+                                <div className="grid gap-(--space-cluster-tight) rounded-2xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">Revision snapshot</p>
+                                  <p className="text-sm font-medium text-foreground">{revision.snapshot.title}</p>
+                                  <p className="text-sm leading-6 text-foreground/64">{compactPreview(revision.snapshot.description, "No description recorded yet.")}</p>
+                                  <p className="text-xs text-foreground/52">{revision.statusLabel} · {revision.sectionLabel}</p>
+                                  <p className="rounded-xl bg-foreground/3 px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(revision.snapshot.content, "No draft body recorded yet.")}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <form action={restoreRevisionAction} className="mt-(--space-stack-default) grid gap-(--space-cluster-default) sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                              <input type="hidden" name="revisionId" value={revision.id} />
+                              <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
+                                <span className="font-medium text-foreground/72">Restore note</span>
+                                <input
+                                  name="changeNote"
+                                  defaultValue=""
+                                  aria-label={`Restore note for ${revision.id}`}
+                                  placeholder="Optional note for why this revision is being restored."
+                                  className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
+                                />
+                              </label>
+                              <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">Restore revision</button>
+                            </form>
+                          </>
+                        );
+                      })()}
                     </li>
                   ))}
                 </ol>
               )}
+            </details>
+          </section>
+
+          <aside className="grid gap-(--space-stack-default) lg:sticky lg:top-4">
+            <article id="journal-publish-panel" className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+              <div className="grid gap-(--space-2)">
+                <h2 className="text-lg font-semibold text-foreground">Publish</h2>
+                <p aria-label={`Current publishing status: ${detail.post.statusLabel}`} className="text-sm text-foreground/60">Status: {detail.post.statusLabel}</p>
+                <p className="text-sm text-foreground/60">Updated {detail.post.updatedLabel}</p>
+                <p className="text-sm text-foreground/60">{detail.post.publishedLabel === "Not published" ? "Not published yet" : `Published ${detail.post.publishedLabel}`}</p>
+                <a href={detail.post.previewHref} className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-center text-sm font-medium text-foreground">Preview</a>
+                {isPublished ? (
+                  <a href={detail.post.previewHref} className="rounded-full border border-foreground/16 bg-foreground px-(--space-inset-default) py-(--space-2) text-center text-sm font-medium text-background">View published</a>
+                ) : (
+                  <form id="publish-article-form" action={publishArticleAction}>
+                    <button type="submit" className="w-full rounded-full border border-foreground/16 bg-foreground px-(--space-inset-default) py-(--space-2) text-sm font-medium text-background">Publish article</button>
+                  </form>
+                )}
+              </div>
             </article>
 
-            <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-              <div className="flex items-center justify-between gap-(--space-cluster-default)">
-                <h2 className="text-lg font-semibold text-foreground">Artifacts</h2>
-                <a href={detail.artifactsApiHref} className="text-sm underline underline-offset-4">Artifact API</a>
-              </div>
+            <details className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+              <summary className="cursor-pointer list-none text-lg font-semibold text-foreground">Featured image</summary>
+              {selectedHeroAsset ? (
+                <div className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
+                  <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-foreground/10">
+                    <Image
+                      src={selectedHeroAsset.imageHref}
+                      alt={selectedHeroAsset.altText}
+                      fill
+                      unoptimized
+                      sizes="320px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <p className="text-sm text-foreground">{selectedHeroAsset.altText}</p>
+                  <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">
+                    <span>{selectedHeroAsset.selectionState}</span>
+                    <span>{selectedHeroAsset.visibility}</span>
+                  </div>
+                  <a href={detail.heroImagesApiHref} className="text-sm underline underline-offset-4">Manage hero images</a>
+                </div>
+              ) : (
+                <p className="mt-(--space-stack-default) text-sm text-foreground/60">No hero image selected yet.</p>
+              )}
+            </details>
+
+            <details className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+              <summary className="cursor-pointer list-none text-lg font-semibold text-foreground">Advanced workflow</summary>
+              <p className="mt-(--space-3) text-sm leading-6 text-foreground/60">Use manual transitions only when you need to move backward or avoid a direct publish.</p>
+              {workflowActions.length === 0 ? (
+                <p className="mt-(--space-3) text-sm text-foreground/60">No additional manual workflow changes are available.</p>
+              ) : (
+                <form id="workflow-transition-form" action={transitionWorkflowAction} className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
+                  <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
+                    <span className="font-medium text-foreground/72">Manual status</span>
+                    <select name="nextStatus" defaultValue={workflowActions[0]?.nextStatus} className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground">
+                      {workflowActions.map((action) => (
+                        <option key={action.nextStatus} value={action.nextStatus}>{action.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
+                    <span className="font-medium text-foreground/72">Workflow note</span>
+                    <input
+                      name="changeNote"
+                      defaultValue=""
+                      aria-label="Workflow note"
+                      placeholder="Optional note for why this manual status change is being recorded."
+                      className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
+                    />
+                  </label>
+                  <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">Update status</button>
+                </form>
+              )}
+            </details>
+
+            <details className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+              <summary className="cursor-pointer list-none text-lg font-semibold text-foreground">Artifacts</summary>
               {detail.artifacts.length === 0 ? (
                 <p className="mt-(--space-stack-default) text-sm text-foreground/60">No artifacts recorded yet.</p>
               ) : (
@@ -350,81 +451,11 @@ export default async function AdminJournalDetailPage({
                   ))}
                 </ol>
               )}
-            </article>
+              <a href={detail.artifactsApiHref} className="mt-(--space-stack-default) inline-block text-sm underline underline-offset-4">Artifact API</a>
+            </details>
 
-            <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-              <h2 className="text-lg font-semibold text-foreground">Revision history</h2>
-              {detail.revisions.length === 0 ? (
-                <p className="mt-(--space-stack-default) text-sm text-foreground/60">No revisions recorded yet.</p>
-              ) : (
-                <ol className="mt-(--space-stack-default) grid gap-(--space-stack-default)">
-                  {detail.revisions.map((revision) => (
-                    <li key={revision.id} className="rounded-2xl border border-foreground/10 p-(--space-inset-panel)">
-                      {(() => {
-                        const changedFields = getRestoreChangedFields(detail.post, revision);
-
-                        return (
-                          <>
-                      <div className="flex flex-wrap gap-x-(--space-3) gap-y-(--space-2) text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">
-                        <span>{revision.statusLabel}</span>
-                        <span>{revision.sectionLabel}</span>
-                        <span>{revision.createdAtLabel}</span>
-                        <span>By {revision.createdByUserId}</span>
-                      </div>
-                      <p className="mt-(--space-3) text-sm font-medium text-foreground">{revision.snapshot.title}</p>
-                      <p className="mt-(--space-1) text-sm leading-6 text-foreground/64">{revision.changeNoteLabel}</p>
-                      <div className="mt-(--space-stack-default) rounded-2xl border border-foreground/10 bg-foreground/2 p-(--space-inset-panel)">
-                        <div className="flex flex-wrap items-center justify-between gap-(--space-cluster-default)">
-                          <h3 className="text-sm font-semibold text-foreground">Restore preview</h3>
-                          <p className="text-xs font-medium uppercase tracking-[0.14em] text-foreground/52">
-                            {changedFields.length === 0 ? "Matches current draft" : `Changes: ${changedFields.join(", ")}`}
-                          </p>
-                        </div>
-                        <div className="mt-(--space-stack-default) grid gap-(--space-stack-default) sm:grid-cols-2">
-                          <div className="grid gap-(--space-cluster-tight) rounded-2xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">Current draft</p>
-                            <p className="text-sm font-medium text-foreground">{detail.post.title}</p>
-                            <p className="text-sm leading-6 text-foreground/64">{compactPreview(detail.post.description, "No description recorded yet.")}</p>
-                            <p className="text-xs text-foreground/52">{detail.post.statusLabel} · {detail.post.sectionLabel}</p>
-                            <p className="rounded-xl bg-foreground/3 px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(detail.post.content, "No draft body recorded yet.")}</p>
-                          </div>
-                          <div className="grid gap-(--space-cluster-tight) rounded-2xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/46">Revision snapshot</p>
-                            <p className="text-sm font-medium text-foreground">{revision.snapshot.title}</p>
-                            <p className="text-sm leading-6 text-foreground/64">{compactPreview(revision.snapshot.description, "No description recorded yet.")}</p>
-                            <p className="text-xs text-foreground/52">{revision.statusLabel} · {revision.sectionLabel}</p>
-                            <p className="rounded-xl bg-foreground/3 px-(--space-inset-compact) py-(--space-2) font-mono text-xs leading-5 text-foreground/72">{compactPreview(revision.snapshot.content, "No draft body recorded yet.")}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <form action={restoreRevisionAction} className="mt-(--space-stack-default) grid gap-(--space-cluster-default) sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                        <input type="hidden" name="revisionId" value={revision.id} />
-                        <label className="grid gap-(--space-cluster-tight) text-sm text-foreground/66">
-                          <span className="font-medium text-foreground/72">Restore note</span>
-                          <input
-                            name="changeNote"
-                            defaultValue=""
-                            aria-label={`Restore note for ${revision.id}`}
-                            placeholder="Optional note for why this revision is being restored."
-                            className="rounded-2xl border border-foreground/12 bg-foreground/2 px-(--space-inset-default) py-(--space-inset-compact) text-foreground"
-                          />
-                        </label>
-                        <button type="submit" className="rounded-full border border-foreground/16 px-(--space-inset-default) py-(--space-2) text-sm font-medium text-foreground">Restore revision</button>
-                      </form>
-                          </>
-                        );
-                      })()}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </article>
-
-            <article className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
-              <div className="flex items-center justify-between gap-(--space-cluster-default)">
-                <h2 className="text-lg font-semibold text-foreground">Attribution</h2>
-                <Link href="/admin/journal/attribution" className="text-sm underline underline-offset-4">Full report</Link>
-              </div>
+            <details className="rounded-3xl border border-foreground/10 bg-background p-(--space-inset-panel)">
+              <summary className="cursor-pointer list-none text-lg font-semibold text-foreground">Attribution</summary>
               {attribution ? (
                 <dl className="mt-(--space-stack-default) grid grid-cols-2 gap-(--space-stack-default)">
                   <div>
@@ -449,7 +480,8 @@ export default async function AdminJournalDetailPage({
               ) : (
                 <p className="mt-(--space-stack-default) text-sm text-foreground/60">No attribution data for this article yet.</p>
               )}
-            </article>
+              <Link href="/admin/journal/attribution" className="mt-(--space-stack-default) inline-block text-sm underline underline-offset-4">Full report</Link>
+            </details>
           </aside>
         </div>
       </div>

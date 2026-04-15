@@ -104,7 +104,15 @@ describe("SummarizationInteractor", () => {
         conversationId: "conv_1",
         role: "system",
         content: "Summary of the conversation.",
-        parts: [expect.objectContaining({ type: "summary", coversUpToMessageId: "msg_24" })],
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: "summary", coversUpToMessageId: "msg_24" }),
+          expect.objectContaining({
+            type: "compaction_marker",
+            kind: "summary",
+            compactedCount: 25,
+            coversUpToMessageId: "msg_24",
+          }),
+        ]),
       }),
     );
   });
@@ -162,5 +170,45 @@ describe("SummarizationInteractor", () => {
 
     await Promise.all([firstRun, secondRun]);
     expect(messageRepo.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores meta summaries with a replayable compaction marker", async () => {
+    const summaryMessages = Array.from({ length: 5 }, (_, index) =>
+      makeMessage(
+        {
+          id: `summary_${index}`,
+          role: "system",
+          content: `Summary ${index}`,
+          parts: [{ type: "summary", text: `Summary ${index}`, coversUpToMessageId: `msg_${index * 2}` }],
+        },
+        50 + index,
+      ),
+    );
+    (messageRepo.listByConversation as ReturnType<typeof vi.fn>).mockResolvedValue([
+      ...makeMessages(10),
+      ...summaryMessages,
+    ]);
+
+    await interactor.summarizeIfNeeded("conv_1");
+
+    expect(messageRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conv_1",
+        role: "system",
+        parts: expect.arrayContaining([
+          expect.objectContaining({
+            type: "meta_summary",
+            coversUpToSummaryId: "summary_4",
+            summariesCompacted: 4,
+          }),
+          expect.objectContaining({
+            type: "compaction_marker",
+            kind: "meta_summary",
+            compactedCount: 4,
+            coversUpToSummaryId: "summary_4",
+          }),
+        ]),
+      }),
+    );
   });
 });

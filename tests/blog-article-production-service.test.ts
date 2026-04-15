@@ -109,12 +109,16 @@ describe("BlogArticleProductionService", () => {
       imageService as never,
     );
 
-    const progressUpdates: Array<{ label: string; percent: number }> = [];
+    const progressUpdates: Array<{ progressLabel?: string | null; progressPercent?: number | null; activePhaseKey?: string | null }> = [];
     const result = await service.produceArticle(
       { brief: "Write about AI governance in professional services." },
       { userId: "usr_admin", role: "ADMIN", conversationId: "conv_1" },
-      async (label, percent) => {
-        progressUpdates.push({ label, percent });
+      async (update) => {
+        progressUpdates.push({
+          progressLabel: update.progressLabel,
+          progressPercent: update.progressPercent,
+          activePhaseKey: update.activePhaseKey,
+        });
       },
     );
 
@@ -126,13 +130,22 @@ describe("BlogArticleProductionService", () => {
       slug: "produced-title",
       imageAssetId: generatedAsset.id,
     });
-    expect(progressUpdates.map((step) => step.label)).toEqual([
+    expect(progressUpdates.map((step) => step.progressLabel)).toEqual([
       "Composing article",
       "Reviewing article",
       "Resolving QA findings",
       "Designing hero image prompt",
       "Generating hero image",
       "Saving draft",
+    ]);
+    expect(progressUpdates.map((step) => step.progressPercent)).toEqual([10, 30, 50, 65, 80, 95]);
+    expect(progressUpdates.map((step) => step.activePhaseKey)).toEqual([
+      "compose_blog_article",
+      "qa_blog_article",
+      "resolve_blog_article_qa",
+      "generate_blog_image_prompt",
+      "generate_blog_image",
+      "draft_content",
     ]);
     expect(imageService.generate).toHaveBeenCalledWith(expect.objectContaining({
       prompt: "A clean editorial office scene.",

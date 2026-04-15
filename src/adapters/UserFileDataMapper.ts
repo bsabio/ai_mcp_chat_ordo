@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { UserFile } from "@/core/entities/user-file";
 import type { UserFileRepository } from "@/core/use-cases/UserFileRepository";
+import { buildUserFileMetadata } from "@/lib/media/media-asset-projection";
 
 interface UserFileRow {
   id: string;
@@ -11,7 +12,21 @@ interface UserFileRow {
   file_name: string;
   mime_type: string;
   file_size: number;
+  metadata_json: string;
   created_at: string;
+}
+
+function parseMetadata(metadataJson: string | null | undefined): UserFile["metadata"] {
+  if (!metadataJson || !metadataJson.trim()) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(metadataJson) as Partial<UserFile["metadata"]>;
+    return buildUserFileMetadata(parsed);
+  } catch {
+    return {};
+  }
 }
 
 function mapRow(row: UserFileRow): UserFile {
@@ -24,6 +39,7 @@ function mapRow(row: UserFileRow): UserFile {
     fileName: row.file_name,
     mimeType: row.mime_type,
     fileSize: row.file_size,
+    metadata: parseMetadata(row.metadata_json),
     createdAt: row.created_at,
   };
 }
@@ -34,8 +50,8 @@ export class UserFileDataMapper implements UserFileRepository {
   async create(file: Omit<UserFile, "createdAt">): Promise<UserFile> {
     this.db
       .prepare(
-        `INSERT INTO user_files (id, user_id, conversation_id, content_hash, file_type, file_name, mime_type, file_size)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO user_files (id, user_id, conversation_id, content_hash, file_type, file_name, mime_type, file_size, metadata_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         file.id,
@@ -46,6 +62,7 @@ export class UserFileDataMapper implements UserFileRepository {
         file.fileName,
         file.mimeType,
         file.fileSize,
+        JSON.stringify(buildUserFileMetadata(file.metadata)),
       );
 
     const row = this.db

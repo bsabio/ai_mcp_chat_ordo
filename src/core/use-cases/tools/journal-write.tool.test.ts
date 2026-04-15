@@ -9,6 +9,7 @@ import {
   UpdateJournalMetadataInteractor,
 } from "@/core/use-cases/tools/journal-write.tool";
 import type { BlogPost } from "@/core/entities/blog";
+import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
 
 function makePost(overrides: Partial<BlogPost> = {}): BlogPost {
   return {
@@ -27,6 +28,24 @@ function makePost(overrides: Partial<BlogPost> = {}): BlogPost {
     createdByUserId: "usr_admin",
     publishedByUserId: null,
     ...overrides,
+  };
+}
+
+function makeJobSnapshot(overrides: Partial<JobStatusSnapshot["part"]>): JobStatusSnapshot {
+  return {
+    messageId: `msg_${overrides.jobId ?? "job_1"}`,
+    conversationId: "conv_jobs",
+    part: {
+      type: "job_status",
+      jobId: overrides.jobId ?? "job_1",
+      toolName: overrides.toolName ?? "publish_content",
+      label: "Publish Content",
+      status: overrides.status ?? "running",
+      title: overrides.title,
+      summary: overrides.summary,
+      updatedAt: overrides.updatedAt ?? "2026-03-26T12:30:00.000Z",
+      subtitle: overrides.subtitle,
+    },
   };
 }
 
@@ -176,5 +195,57 @@ describe("journal write tools", () => {
       expect.objectContaining({ title: "Economic Statecraft" }),
       "usr_admin",
     );
+  });
+
+  it("limits active job reporting to the named post", async () => {
+    const blogRepo = {
+      findById: vi.fn().mockResolvedValue(makePost()),
+    };
+    const revisionRepo = {
+      listByPostId: vi.fn().mockResolvedValue([{ id: "rev_1" }]),
+    };
+    const jobStatusQuery = {
+      listUserJobSnapshots: vi.fn().mockResolvedValue([
+        makeJobSnapshot({
+          jobId: "job_related",
+          toolName: "publish_content",
+          title: "Publish journal draft post_1",
+          summary: "Publishing the current post.",
+        }),
+        makeJobSnapshot({
+          jobId: "job_unrelated",
+          toolName: "publish_content",
+          title: "Publish journal draft post_2",
+          summary: "Publishing a different post.",
+        }),
+        makeJobSnapshot({
+          jobId: "job_generic",
+          toolName: "produce_blog_article",
+          title: "Launch brief",
+          summary: "Generating a different draft.",
+        }),
+      ]),
+    };
+    const blogArticleService = {
+      reviewArticleForPost: vi.fn(),
+    };
+
+    const interactor = new PrepareJournalPostForPublishInteractor(
+      blogRepo as never,
+      revisionRepo as never,
+      jobStatusQuery as never,
+      blogArticleService as never,
+    );
+
+    const result = await interactor.execute({ post_id: "post_1" }, "usr_admin");
+
+    expect(result.ready).toBe(true);
+    expect(result.active_jobs).toEqual([
+      expect.objectContaining({
+        job_id: "job_related",
+        tool_name: "publish_content",
+        summary: "Publishing the current post.",
+      }),
+    ]);
   });
 });

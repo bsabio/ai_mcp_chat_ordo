@@ -12,6 +12,7 @@ import type {
   JobStatusUpdate,
 } from "@/core/entities/job";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
+import { AUDIT_ONLY_JOB_EVENT_TYPES } from "@/lib/jobs/job-renderable-event";
 
 type JobRequestRow = {
   id: string;
@@ -224,6 +225,19 @@ export class JobQueueDataMapper implements JobQueueRepository {
        ORDER BY sequence DESC
        LIMIT 1`,
     ).get(jobId) as JobEventRow | undefined;
+
+    return row ? mapJobEvent(row) : null;
+  }
+
+  async findLatestRenderableEventForJob(jobId: string): Promise<JobEvent | null> {
+    const placeholders = [...AUDIT_ONLY_JOB_EVENT_TYPES].map(() => "?").join(", ");
+    const row = this.db.prepare(
+      `SELECT * FROM job_events
+       WHERE job_id = ?
+         AND event_type NOT IN (${placeholders})
+       ORDER BY sequence DESC
+       LIMIT 1`,
+    ).get(jobId, ...AUDIT_ONLY_JOB_EVENT_TYPES) as JobEventRow | undefined;
 
     return row ? mapJobEvent(row) : null;
   }

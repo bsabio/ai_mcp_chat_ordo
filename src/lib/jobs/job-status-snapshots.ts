@@ -50,32 +50,55 @@ export function jobStatusSnapshotToStreamEvent(
   StreamEvent,
   { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
 > {
-  const { messageId, part } = snapshot;
-  const base = {
-    messageId,
-    jobId: part.jobId,
+  return jobStatusPartToStreamEvent(snapshot.part, {
+    messageId: snapshot.messageId,
     conversationId: snapshot.conversationId ?? conversationId,
-    sequence: part.sequence ?? 0,
-    toolName: part.toolName,
-    label: part.label,
-    title: part.title,
-    subtitle: part.subtitle,
-    updatedAt: part.updatedAt,
+  });
+}
+
+export function jobStatusPartToStreamEvent(
+  part: JobStatusMessagePart,
+  options: {
+    conversationId: string;
+    messageId?: string;
+    sequence?: number;
+  },
+): Extract<
+  StreamEvent,
+  { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
+> {
+  const sequencedPart = options.sequence === undefined || part.sequence === options.sequence
+    ? part
+    : {
+      ...part,
+      sequence: options.sequence,
+    };
+  const base = {
+    messageId: options.messageId,
+    jobId: sequencedPart.jobId,
+    conversationId: options.conversationId,
+    sequence: sequencedPart.sequence ?? 0,
+    toolName: sequencedPart.toolName,
+    label: sequencedPart.label,
+    title: sequencedPart.title,
+    subtitle: sequencedPart.subtitle,
+    updatedAt: sequencedPart.updatedAt,
+    part: sequencedPart,
   };
 
-  switch (part.status) {
+  switch (sequencedPart.status) {
     case "queued":
       return {
         type: "job_queued",
         ...base,
       };
     case "running":
-      if (part.progressPercent != null || part.progressLabel) {
+      if (sequencedPart.progressPercent != null || sequencedPart.progressLabel) {
         return {
           type: "job_progress",
           ...base,
-          progressPercent: part.progressPercent,
-          progressLabel: part.progressLabel,
+          progressPercent: sequencedPart.progressPercent,
+          progressLabel: sequencedPart.progressLabel,
         };
       }
       return {
@@ -86,14 +109,14 @@ export function jobStatusSnapshotToStreamEvent(
       return {
         type: "job_completed",
         ...base,
-        summary: part.summary,
-        resultPayload: part.resultPayload,
+        summary: sequencedPart.summary,
+        resultPayload: sequencedPart.resultPayload,
       };
     case "failed":
       return {
         type: "job_failed",
         ...base,
-        error: part.error ?? "Deferred job failed.",
+        error: sequencedPart.error ?? "Deferred job failed.",
       };
     case "canceled":
       return {

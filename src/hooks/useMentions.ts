@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, type RefObject } from "react";
+import { useState, useCallback } from "react";
 import type {
   MentionCategory} from "../core/entities/mentions";
 import {
@@ -23,7 +23,7 @@ export const TRIGGERS: MentionTrigger[] = [
 ];
 
 export function useMentions(
-  textareaRef: RefObject<HTMLTextAreaElement | null>,
+  _textareaRef: unknown,
   options?: {
     findCommands?: (query: string) => MentionItem[];
   },
@@ -32,84 +32,82 @@ export function useMentions(
     null,
   );
   const [query, setQuery] = useState("");
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [suggestions, setSuggestions] = useState<MentionItem[]>([]);
 
   const handleInput = useCallback(
     (text: string, cursorIndex: number) => {
-      // Look back from cursor to find a trigger
       const textBeforeCursor = text.slice(0, cursorIndex);
 
-      // Check multi-char triggers first
-      let found = false;
+      // Collect all valid trigger candidates (closest-to-cursor wins)
+      type Candidate = { trigger: MentionTrigger; lastIndex: number; segment: string };
+      const candidates: Candidate[] = [];
+
       for (const trigger of TRIGGERS) {
         const { char } = trigger;
         const lastIndex = textBeforeCursor.lastIndexOf(char);
 
         if (lastIndex !== -1) {
-          // Ensure no whitespace between trigger and cursor for active search
           const segment = textBeforeCursor.slice(lastIndex + char.length);
           if (!/\s/.test(segment)) {
-            setActiveTrigger(trigger);
-            setQuery(segment);
-
-            // Filter suggestions
-            let filtered: MentionItem[] = [];
-            
-            if (trigger.char === "/") {
-              filtered = options?.findCommands?.(segment) ?? [];
-            } else {
-              const source =
-                trigger.category === "practitioner"
-                  ? PRACTITIONERS
-                  : trigger.category === "chapter"
-                    ? CHAPTERS
-                    : FRAMEWORKS;
-
-              filtered = source.filter((item) =>
-                item.name.toLowerCase().includes(segment.toLowerCase()),
-              );
-            }
-            setSuggestions(filtered);
-
-            // Estimate menu position (simplistic approach for now)
-            if (textareaRef.current) {
-              const { offsetLeft, offsetTop } = textareaRef.current;
-              // In a production app, we'd use a library like 'textarea-caret' to get precise coords
-              setMenuPosition({ top: offsetTop - 40, left: offsetLeft + 20 });
-            }
-
-            found = true;
-            break;
+            candidates.push({ trigger, lastIndex, segment });
           }
         }
       }
 
-      if (!found) {
+      if (candidates.length === 0) {
         setActiveTrigger(null);
         setQuery("");
         setSuggestions([]);
+        return;
       }
+
+      // Pick the candidate closest to cursor; tie-break by longer trigger char
+      const winner = candidates.reduce((best, cur) =>
+        cur.lastIndex > best.lastIndex
+          ? cur
+          : cur.lastIndex === best.lastIndex && cur.trigger.char.length > best.trigger.char.length
+            ? cur
+            : best,
+      );
+
+      setActiveTrigger(winner.trigger);
+      setQuery(winner.segment);
+
+      let filtered: MentionItem[] = [];
+
+      if (winner.trigger.char === "/") {
+        filtered = options?.findCommands?.(winner.segment) ?? [];
+      } else {
+        const source =
+          winner.trigger.category === "practitioner"
+            ? PRACTITIONERS
+            : winner.trigger.category === "chapter"
+              ? CHAPTERS
+              : FRAMEWORKS;
+
+        filtered = source.filter((item) =>
+          item.name.toLowerCase().includes(winner.segment.toLowerCase()),
+        );
+      }
+      setSuggestions(filtered);
     },
-    [options, textareaRef],
+    [options],
   );
 
   const insertMention = useCallback(
-    (item: MentionItem) => {
-      if (!textareaRef.current || !activeTrigger) return "";
+    (item: MentionItem, currentText: string, cursorIndex: number) => {
+      if (!activeTrigger) return "";
 
-      const text = textareaRef.current.value;
-      const cursorIndex = textareaRef.current.selectionStart;
-      const textBeforeCursor = text.slice(0, cursorIndex);
+      const textBeforeCursor = currentText.slice(0, cursorIndex);
       const lastIndex = textBeforeCursor.lastIndexOf(activeTrigger.char);
 
       const newText =
-        text.slice(0, lastIndex) +
+        currentText.slice(0, lastIndex) +
         (activeTrigger.char === "[["
           ? `[[${item.name}]]`
           : `${activeTrigger.char}${item.name}`) +
         " " +
-        text.slice(cursorIndex);
+        currentText.slice(cursorIndex);
 
       setActiveTrigger(null);
       setQuery("");
@@ -117,14 +115,13 @@ export function useMentions(
 
       return newText;
     },
-    [activeTrigger, textareaRef],
+    [activeTrigger],
   );
 
   return {
     activeTrigger,
     query,
     suggestions,
-    menuPosition,
     handleInput,
     insertMention,
   };

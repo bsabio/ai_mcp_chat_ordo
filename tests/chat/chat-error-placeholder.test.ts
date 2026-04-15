@@ -19,6 +19,35 @@ const recordToolUsedMock = vi.fn();
 const summarizeIfNeededMock = vi.fn();
 const runAgentMock = vi.fn();
 
+function createContextWindowGuard(
+  overrides: Partial<{
+    status: "ok" | "warn" | "block";
+    reasons: string[];
+    rawMessageCount: number;
+    rawCharacterCount: number;
+    finalMessageCount: number;
+    finalCharacterCount: number;
+    warnMessageCount: number;
+    warnCharacterCount: number;
+    maxMessageCount: number;
+    maxCharacterCount: number;
+  }> = {},
+) {
+  return {
+    status: "ok" as const,
+    reasons: [],
+    rawMessageCount: 1,
+    rawCharacterCount: 5,
+    finalMessageCount: 1,
+    finalCharacterCount: 5,
+    warnMessageCount: 32,
+    warnCharacterCount: 64_000,
+    maxMessageCount: 40,
+    maxCharacterCount: 80_000,
+    ...overrides,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Module mocks                                                       */
 /* ------------------------------------------------------------------ */
@@ -67,7 +96,18 @@ vi.mock("@/lib/chat/context-window", () => ({
   buildContextWindow: vi.fn(() => ({
     contextMessages: [{ role: "user", content: "hello" }],
     summaryText: "",
+    guard: createContextWindowGuard(),
   })),
+  buildGuardedContextWindow: vi.fn((messages: Array<{ role: "user" | "assistant"; content: string }>) => ({
+    contextMessages: messages,
+    guard: createContextWindowGuard({
+      rawMessageCount: messages.length,
+      finalMessageCount: messages.length,
+      rawCharacterCount: messages.reduce((sum, message) => sum + message.content.length, 0),
+      finalCharacterCount: messages.reduce((sum, message) => sum + message.content.length, 0),
+    }),
+  })),
+  buildContextWindowGuardPrompt: vi.fn(() => null),
 }));
 
 vi.mock("@/lib/chat/chat-turn", () => ({

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { 
+  JobProgressStrategy,
   StreamProcessor, 
   TextDeltaStrategy, 
   ToolCallStrategy 
@@ -33,6 +34,59 @@ describe("StreamStrategy Processor", () => {
       index: 1,
       name: "test",
       args: { x: 1 }
+    });
+  });
+
+  it("should prefer normalized job parts when reducing job stream events", () => {
+    const dispatch = vi.fn();
+    const processor = new StreamProcessor([new JobProgressStrategy()]);
+    processor.process({
+      type: "job_progress",
+      messageId: "jobmsg_job_1",
+      jobId: "job_1",
+      conversationId: "conv_1",
+      sequence: 8,
+      toolName: "produce_blog_article",
+      label: "Produce Blog Article",
+      progressPercent: 42,
+      progressLabel: "Reviewing article",
+      part: {
+        type: "job_status",
+        jobId: "job_1",
+        toolName: "produce_blog_article",
+        label: "Produce Blog Article",
+        status: "running",
+        sequence: 8,
+        progressPercent: 42,
+        progressLabel: "Reviewing article",
+        resultEnvelope: {
+          schemaVersion: 1,
+          toolName: "produce_blog_article",
+          family: "editorial",
+          cardKind: "editorial_workflow",
+          executionMode: "deferred",
+          inputSnapshot: { brief: "Launch Plan" },
+          summary: { title: "Launch Plan" },
+          progress: {
+            percent: 42,
+            label: "Reviewing article",
+            phases: [
+              { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+            ],
+            activePhaseKey: "qa_blog_article",
+          },
+          payload: null,
+        },
+      },
+    }, { dispatch, assistantIndex: 1 });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "UPSERT_JOB_STATUS",
+      messageId: "jobmsg_job_1",
+      part: expect.objectContaining({
+        type: "job_status",
+        resultEnvelope: expect.objectContaining({ toolName: "produce_blog_article" }),
+      }),
     });
   });
 });

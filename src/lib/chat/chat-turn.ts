@@ -1,26 +1,22 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import type { RoleName, User } from "@/core/entities/user";
-import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper";
-import { getDb } from "@/lib/db";
-import {
-  getAnthropicApiKey,
-  getAnthropicRequestRetryAttempts,
-  getAnthropicRequestRetryDelayMs,
-  getAnthropicRequestTimeoutMs,
-} from "@/lib/config/env";
+import { getUserPreferencesDataMapper } from "@/adapters/RepositoryFactory";
+
+import { getAnthropicApiKey } from "@/lib/config/env";
 import { createSystemPromptBuilder } from "@/lib/chat/policy";
+import {
+  getPromptAssemblyReplayContext,
+  type PromptRuntimeReplayContext,
+  type PromptRuntimeResult,
+} from "@/lib/chat/prompt-runtime";
+import { resolveProviderPolicy } from "@/lib/chat/provider-policy";
 import { orchestrateChatTurn } from "@/lib/chat/orchestrator";
 import {
   getLatestUserMessage,
   toAnthropicMessages,
 } from "@/lib/chat/validation";
 import { createAnthropicProvider } from "@/lib/chat/anthropic-client";
-import {
-  withProviderErrorMapping,
-  withProviderTiming,
-} from "@/lib/chat/provider-decorators";
-import { logEvent } from "@/lib/observability/logger";
 import {
   getToolComposition,
 } from "@/lib/chat/tool-composition-root";
@@ -34,63 +30,59 @@ interface ExecuteDirectChatTurnOptions {
   user: ChatRequestUser;
   route: string;
   requestId: string;
+  onPromptBuilt?: (payload: {
+    promptRuntime: PromptRuntimeResult;
+    replayContext: PromptRuntimeReplayContext | null;
+  }) => void | Promise<void>;
 }
 
 export async function executeDirectChatTurn({
   incomingMessages,
   user,
-  route,
-  requestId,
+  route: _route,
+  requestId: _requestId,
+  onPromptBuilt,
 }: ExecuteDirectChatTurnOptions): Promise<string> {
   const latestUserMessage = getLatestUserMessage(incomingMessages);
   const apiKey = getAnthropicApiKey();
   const conversation = toAnthropicMessages(incomingMessages);
   const role = user.roles[0] as RoleName;
-  const builder = await createSystemPromptBuilder(role);
+  const builder = await createSystemPromptBuilder(role, { surface: "direct_turn" });
 
   if (!user.roles.includes("ANONYMOUS")) {
-    const prefRepo = new UserPreferencesDataMapper(getDb());
+    const prefRepo = getUserPreferencesDataMapper();
     const userPrefs = await prefRepo.getAll(user.id);
     builder.withUserPreferences(userPrefs);
   }
 
-  const systemPrompt = builder.build();
   const { registry, executor } = getToolComposition();
   const tools = registry.getSchemasForRole(role) as Anthropic.Tool[];
-  const resilience = {
-    timeoutMs: getAnthropicRequestTimeoutMs(),
-    retryAttempts: getAnthropicRequestRetryAttempts(),
-    retryDelayMs: getAnthropicRequestRetryDelayMs(),
-  };
+  builder.withToolManifest?.(tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description ?? "",
+  })));
+  const promptRuntime = await builder.buildResult();
+  await onPromptBuilt?.({
+    promptRuntime,
+    replayContext: getPromptAssemblyReplayContext(builder),
+  });
+  const systemPrompt = promptRuntime.text;
+  const resilience = resolveProviderPolicy();
 
   const toolContext: ToolExecutionContext = {
     role,
     userId: user.id,
+    promptRuntime,
   };
   const toolExecutor = (name: string, input: Record<string, unknown>) =>
     executor(name, input, toolContext);
 
   const client = new Anthropic({ apiKey });
-  const provider = withProviderTiming(
-    withProviderErrorMapping(
-      createAnthropicProvider(client, {
-        systemPrompt,
-        tools,
-        resilience,
-      }),
-    ),
-    ({ durationMs, isError }) => {
-      logEvent("info", "provider.call", {
-        route,
-        requestId,
-        durationMs,
-        isError,
-        timeoutMs: resilience.timeoutMs,
-        retryAttempts: resilience.retryAttempts,
-        retryDelayMs: resilience.retryDelayMs,
-      });
-    },
-  );
+  const provider = createAnthropicProvider(client, {
+    systemPrompt,
+    tools,
+    resilience,
+  });
 
   const toolChoice:
     | { type: "auto" }

@@ -238,6 +238,9 @@ describe("GenerateAudioCommand", () => {
     ).resolves.toMatchObject({
       action: "generate_audio",
       title: "Founder memo",
+      assetKind: "audio",
+      mimeType: "audio/mpeg",
+      assetSource: "generated",
       provider: "openai-speech",
       generationStatus: "client_fetch_pending",
       estimatedDurationSeconds: expect.any(Number),

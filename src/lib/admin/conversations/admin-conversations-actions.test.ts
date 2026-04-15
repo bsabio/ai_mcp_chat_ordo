@@ -40,6 +40,7 @@ vi.mock("@/lib/chat/conversation-root", () => ({
 
 import {
   exportConversationAction,
+  exportConversationTranscriptAction,
   purgeConversationAction,
 } from "./admin-conversations-actions";
 
@@ -96,6 +97,64 @@ describe("admin conversation actions", () => {
       "conv_1",
       "exported",
       expect.objectContaining({ exported_by: "admin_1", scope: "admin" }),
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/conversations/conv_1");
+  });
+
+  it("returns a downloadable transcript-only payload for admins", async () => {
+    convFindByIdMock.mockResolvedValue({
+      id: "conv_1",
+      userId: "usr_1",
+      title: "Imported ops review",
+      status: "archived",
+      createdAt: "2026-04-08T10:00:00.000Z",
+      updatedAt: "2026-04-08T11:00:00.000Z",
+      convertedFrom: null,
+      messageCount: 2,
+      firstMessageAt: null,
+      lastToolUsed: "calculator",
+      sessionSource: "authenticated",
+      promptVersion: null,
+      routingSnapshot: { lane: "organization", confidence: 0.9 },
+      referralSource: null,
+    });
+    msgListByConversationMock.mockResolvedValue([
+      {
+        id: "msg_1",
+        conversationId: "conv_1",
+        role: "assistant",
+        content: "The result is ready.",
+        parts: [{ type: "tool_result", name: "calculator", result: 42 }],
+        createdAt: "2026-04-08T10:05:00.000Z",
+        tokenEstimate: 6,
+      },
+      {
+        id: "msg_2",
+        conversationId: "conv_1",
+        role: "system",
+        content: "Compaction completed.",
+        parts: [{
+          type: "compaction_marker",
+          kind: "summary",
+          compactedCount: 2,
+          coversUpToMessageId: "msg_1",
+        }],
+        createdAt: "2026-04-08T10:06:00.000Z",
+        tokenEstimate: 0,
+      },
+    ]);
+
+    const result = await exportConversationTranscriptAction(makeFormData({ id: "conv_1" }));
+
+    expect(result.fileName).toBe("conversation-conv_1-transcript.json");
+    expect(result.mimeType).toBe("application/json");
+    expect(result.payload).toContain('"transcriptSummary"');
+    expect(result.payload).toContain('"compactionMarkerCount": 1');
+    expect(result.payload).toContain('"role": "compaction_marker"');
+    expect(eventRecordMock).toHaveBeenCalledWith(
+      "conv_1",
+      "exported",
+      expect.objectContaining({ exported_by: "admin_1", scope: "admin_transcript", transcript_entries: 4 }),
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/conversations/conv_1");
   });

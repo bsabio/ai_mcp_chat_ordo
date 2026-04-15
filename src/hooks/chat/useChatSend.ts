@@ -2,8 +2,8 @@ import { useCallback, useRef, type Dispatch } from "react";
 
 import { MessageFactory } from "@/core/entities/MessageFactory";
 import type { ChatMessage } from "@/core/entities/chat-message";
+import type { CurrentPageMemento } from "@/lib/chat/CurrentPageMemento";
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
-import { collectCurrentPageSnapshot } from "@/lib/chat/collect-current-page-snapshot";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
 import type { ChatAction } from "./chatState";
@@ -13,6 +13,7 @@ import {
 } from "./chatAttachmentApi";
 import { hydrateFailedSendRecovery, type FailedSendPayload } from "./chatFailedSendRecovery";
 import {
+  buildBackendHistory,
   type PreparedChatSend,
   prepareChatSend,
   shouldRefreshConversationAfterStream,
@@ -23,6 +24,7 @@ import { useChatStreamRuntime } from "./useChatStreamRuntime";
 interface UseChatSendOptions {
   conversationId: string | null;
   currentPathname: string;
+  memento: CurrentPageMemento;
   refreshConversation: (conversationIdOverride?: string | null) => Promise<void>;
   dispatch: Dispatch<ChatAction>;
   getFailedSend: (retryKey: string) => FailedSendPayload | undefined;
@@ -78,10 +80,7 @@ function prepareRetrySend(
   return {
     assistantIndex,
     optimisticMessages,
-    historyForBackend: optimisticMessages.slice(0, assistantIndex).map((message) => ({
-      role: message.role,
-      content: message.content,
-    })),
+    historyForBackend: buildBackendHistory(optimisticMessages.slice(0, assistantIndex)),
   };
 }
 
@@ -105,6 +104,7 @@ function markInterruptedSend(
 export function useChatSend({
   conversationId,
   currentPathname,
+  memento,
   refreshConversation,
   dispatch,
   getFailedSend,
@@ -145,7 +145,7 @@ export function useChatSend({
       let attachmentParts: AttachmentPart[] = [];
 
       try {
-        const currentPageSnapshot = collectCurrentPageSnapshot(currentPathname);
+        const currentPageSnapshot = memento.getSnapshot();
         attachmentParts = files.length
           ? await uploadChatAttachments(files, conversationId)
           : [];
@@ -157,7 +157,11 @@ export function useChatSend({
           messages: preparedSend.optimisticMessages,
         });
 
-        const { conversationId: resolvedConversationId, lifecycle } = await runStream(
+        const {
+          conversationId: resolvedConversationId,
+          lifecycle,
+          didReceiveTextDelta,
+        } = await runStream(
           preparedSend.historyForBackend,
           preparedSend.assistantIndex,
           attachmentParts,
@@ -180,7 +184,7 @@ export function useChatSend({
           return { ok: false, error: lifecycle.reason };
         }
 
-        if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId)) {
+        if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId, didReceiveTextDelta)) {
           await refreshConversation(resolvedConversationId);
         }
 
@@ -224,7 +228,7 @@ export function useChatSend({
     },
     [
       conversationId,
-      currentPathname,
+      memento,
       refreshConversation,
       dispatch,
       registerFailedSend,
@@ -257,7 +261,7 @@ export function useChatSend({
       let preparedRetry: PreparedChatSend | null = null;
 
       try {
-        const currentPageSnapshot = collectCurrentPageSnapshot(currentPathname);
+        const currentPageSnapshot = memento.getSnapshot();
         preparedRetry = prepareRetrySend(
           messages,
           failedSend.failedUserMessageId,
@@ -274,7 +278,11 @@ export function useChatSend({
           messages: preparedRetry.optimisticMessages,
         });
 
-        const { conversationId: resolvedConversationId, lifecycle } = await runStream(
+        const {
+          conversationId: resolvedConversationId,
+          lifecycle,
+          didReceiveTextDelta,
+        } = await runStream(
           preparedRetry.historyForBackend,
           preparedRetry.assistantIndex,
           failedSend.attachments,
@@ -287,7 +295,7 @@ export function useChatSend({
           return { ok: false, error: lifecycle.reason };
         }
 
-        if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId)) {
+        if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId, didReceiveTextDelta)) {
           await refreshConversation(resolvedConversationId);
         }
 
@@ -321,9 +329,9 @@ export function useChatSend({
     [
       clearFailedSend,
       conversationId,
-      currentPathname,
       dispatch,
       getFailedSend,
+      memento,
       messages,
       refreshConversation,
       registerFailedSend,

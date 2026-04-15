@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
+
 import {
   archiveActiveConversation,
   exportConversationById,
@@ -220,7 +222,7 @@ describe("chatConversationApi", () => {
         messageCount: 1,
         sessionSource: "authenticated",
         promptVersion: null,
-        routingSnapshot: { lane: "organization" },
+        routingSnapshot: createConversationRoutingSnapshot({ lane: "organization" }),
         referralSource: null,
       },
       messages: [],

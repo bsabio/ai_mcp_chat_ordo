@@ -156,6 +156,7 @@ describe("CreateTrainingPathFromWorkflowInteractor", () => {
       archiveById: vi.fn(),
       softDelete: vi.fn(),
       restoreDeleted: vi.fn(),
+      purge: vi.fn(),
       delete: vi.fn(),
       updateTitle: vi.fn(),
       touch: vi.fn(),

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminDetailShell } from "@/components/admin/AdminDetailShell";
+import { AdminMetaBox } from "@/components/admin/AdminMetaBox";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { loadAdminUserDetail } from "@/lib/admin/users/admin-users";
 import {
@@ -128,11 +129,7 @@ export default async function AdminUserDetailPage({
           }
           sidebar={
             <div className="grid gap-(--space-section-default)">
-              {/* Conversation summary */}
-              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-                <h2 className="text-sm font-semibold text-foreground/60">
-                  Conversations ({detail.conversationCount})
-                </h2>
+              <AdminMetaBox title={`Conversations (${detail.conversationCount})`}>
                 {detail.recentConversations.length === 0 ? (
                   <p className="mt-(--space-2) text-xs text-foreground/40">No conversations yet.</p>
                 ) : (
@@ -145,11 +142,9 @@ export default async function AdminUserDetailPage({
                     ))}
                   </ul>
                 )}
-              </section>
+              </AdminMetaBox>
 
-              {/* Referral history */}
-              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-                <h2 className="text-sm font-semibold text-foreground/60">Referral history</h2>
+              <AdminMetaBox title="Referral history" collapsible>
                 {detail.referrals.length === 0 ? (
                   <p className="mt-(--space-2) text-xs text-foreground/40">No referrals recorded.</p>
                 ) : (
@@ -162,11 +157,9 @@ export default async function AdminUserDetailPage({
                     ))}
                   </ul>
                 )}
-              </section>
+              </AdminMetaBox>
 
-              {/* User preferences */}
-              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-                <h2 className="text-sm font-semibold text-foreground/60">Preferences</h2>
+              <AdminMetaBox title="Preferences" collapsible>
                 {detail.preferences.length === 0 ? (
                   <p className="mt-(--space-2) text-xs text-foreground/40">No preferences set.</p>
                 ) : (
@@ -179,7 +172,7 @@ export default async function AdminUserDetailPage({
                     ))}
                   </dl>
                 )}
-              </section>
+              </AdminMetaBox>
             </div>
           }
         />

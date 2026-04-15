@@ -1,4 +1,5 @@
 import type { ContentAudience } from "@/lib/access/content-access";
+import type { SearchChunkMetadata } from "@/core/search/ports/Chunker";
 
 export interface Document {
   slug: string;
@@ -95,6 +96,7 @@ export interface CorpusSearchResult {
   vectorRank?: number | null;
   bm25Rank?: number | null;
   passageOffset?: { start: number; end: number };
+  chunkMetadata?: SearchChunkMetadata | null;
   bookTitle?: string;
   bookNumber?: string;
   bookSlug?: string;

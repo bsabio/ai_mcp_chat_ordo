@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminDetailShell } from "@/components/admin/AdminDetailShell";
 import { AdminWorkflowBar } from "@/components/admin/AdminWorkflowBar";
+import { AdminMetaBox } from "@/components/admin/AdminMetaBox";
 import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import {
   loadAdminPipelineDetail,
@@ -179,9 +180,7 @@ function LeadDetail({ detail }: { detail: Extract<AdminPipelineDetailViewModel, 
       }
       sidebar={
         <div className="grid gap-(--space-section-default)">
-          {/* Timestamps */}
-          <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-            <h2 className="text-sm font-semibold text-foreground/60">Timeline</h2>
+          <AdminMetaBox title="Timeline">
             <dl className="mt-(--space-2) grid gap-(--space-1) text-xs">
               <div className="flex justify-between text-foreground/60">
                 <dt>Created</dt>
@@ -200,11 +199,9 @@ function LeadDetail({ detail }: { detail: Extract<AdminPipelineDetailViewModel, 
                 <dd>{formatDate(r.triagedAt)}</dd>
               </div>
             </dl>
-          </section>
+          </AdminMetaBox>
 
-          {/* Linked consultation */}
-          <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-            <h2 className="text-sm font-semibold text-foreground/60">Linked Consultation</h2>
+          <AdminMetaBox title="Linked Consultation" collapsible>
             {detail.linkedConsultation ? (
               <div className="mt-(--space-2) text-xs text-foreground/60">
                 <a href={`/admin/leads/${detail.linkedConsultation.id}`} className="text-foreground underline underline-offset-4">
@@ -215,11 +212,9 @@ function LeadDetail({ detail }: { detail: Extract<AdminPipelineDetailViewModel, 
             ) : (
               <p className="mt-(--space-2) text-xs text-foreground/40">No linked consultation.</p>
             )}
-          </section>
+          </AdminMetaBox>
 
-          {/* Linked deal */}
-          <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-            <h2 className="text-sm font-semibold text-foreground/60">Linked Deal</h2>
+          <AdminMetaBox title="Linked Deal" collapsible>
             {detail.linkedDeal ? (
               <div className="mt-(--space-2) text-xs text-foreground/60">
                 <a href={`/admin/leads/${detail.linkedDeal.id}`} className="text-foreground underline underline-offset-4">
@@ -230,7 +225,7 @@ function LeadDetail({ detail }: { detail: Extract<AdminPipelineDetailViewModel, 
             ) : (
               <p className="mt-(--space-2) text-xs text-foreground/40">No linked deal.</p>
             )}
-          </section>
+          </AdminMetaBox>
         </div>
       }
     />
@@ -290,8 +285,7 @@ function ConsultationDetail({ detail }: { detail: Extract<AdminPipelineDetailVie
         </div>
       }
       sidebar={
-        <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-          <h2 className="text-sm font-semibold text-foreground/60">Timeline</h2>
+        <AdminMetaBox title="Timeline">
           <dl className="mt-(--space-2) grid gap-(--space-1) text-xs">
             <div className="flex justify-between text-foreground/60">
               <dt>Created</dt>
@@ -302,7 +296,7 @@ function ConsultationDetail({ detail }: { detail: Extract<AdminPipelineDetailVie
               <dd>{formatDate(r.updatedAt)}</dd>
             </div>
           </dl>
-        </section>
+        </AdminMetaBox>
       }
     />
   );
@@ -404,8 +398,7 @@ function DealDetail({ detail }: { detail: Extract<AdminPipelineDetailViewModel, 
         </div>
       }
       sidebar={
-        <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-          <h2 className="text-sm font-semibold text-foreground/60">Timeline</h2>
+        <AdminMetaBox title="Timeline">
           <dl className="mt-(--space-2) grid gap-(--space-1) text-xs">
             <div className="flex justify-between text-foreground/60">
               <dt>Created</dt>
@@ -416,7 +409,7 @@ function DealDetail({ detail }: { detail: Extract<AdminPipelineDetailViewModel, 
               <dd>{formatDate(r.updatedAt)}</dd>
             </div>
           </dl>
-        </section>
+        </AdminMetaBox>
       }
     />
   );
@@ -481,8 +474,7 @@ function TrainingDetail({ detail }: { detail: Extract<AdminPipelineDetailViewMod
         </div>
       }
       sidebar={
-        <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
-          <h2 className="text-sm font-semibold text-foreground/60">Timeline</h2>
+        <AdminMetaBox title="Timeline">
           <dl className="mt-(--space-2) grid gap-(--space-1) text-xs">
             <div className="flex justify-between text-foreground/60">
               <dt>Created</dt>
@@ -493,7 +485,7 @@ function TrainingDetail({ detail }: { detail: Extract<AdminPipelineDetailViewMod
               <dd>{formatDate(r.updatedAt)}</dd>
             </div>
           </dl>
-        </section>
+        </AdminMetaBox>
       }
     />
   );

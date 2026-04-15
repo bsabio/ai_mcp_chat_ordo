@@ -1,20 +1,44 @@
 import type { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
-import { createAdminWebSearchTool } from "@/core/use-cases/tools/admin-web-search.tool";
-import { createAdminPrioritizeLeadsTool } from "@/core/use-cases/tools/admin-prioritize-leads.tool";
-import { createAdminPrioritizeOfferTool } from "@/core/use-cases/tools/admin-prioritize-offer.tool";
-import { createAdminTriageRoutingRiskTool } from "@/core/use-cases/tools/admin-triage-routing-risk.tool";
+import { projectCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-binding";
 import {
-  loadOperatorLeadQueue,
-  loadOperatorFunnelRecommendations,
-  loadOperatorAnonymousOpportunities,
-  loadOperatorRoutingReview,
-} from "@/lib/operator/operator-signal-loaders";
+  createRegisteredToolBundle,
+  registerToolBundle,
+  type ToolBundleRegistration,
+} from "./bundle-registration";
+
+interface AdminToolRegistrationDeps {}
+
+const ADMIN_TOOL_REGISTRATIONS = [
+  {
+    toolName: "admin_prioritize_leads",
+    createTool: () => projectCatalogBoundToolDescriptor("admin_prioritize_leads"),
+  },
+  {
+    toolName: "admin_prioritize_offer",
+    createTool: () => projectCatalogBoundToolDescriptor("admin_prioritize_offer"),
+  },
+  {
+    toolName: "admin_triage_routing_risk",
+    createTool: () => projectCatalogBoundToolDescriptor("admin_triage_routing_risk"),
+  },
+  {
+    toolName: "admin_web_search",
+    createTool: () => projectCatalogBoundToolDescriptor("admin_web_search"),
+  },
+] as const satisfies readonly ToolBundleRegistration<
+  | "admin_prioritize_leads"
+  | "admin_prioritize_offer"
+  | "admin_triage_routing_risk"
+  | "admin_web_search",
+  AdminToolRegistrationDeps
+>[];
+
+export const ADMIN_BUNDLE = createRegisteredToolBundle(
+  "admin",
+  "Admin Tools",
+  ADMIN_TOOL_REGISTRATIONS,
+);
 
 export function registerAdminTools(registry: ToolRegistry): void {
-  registry.register(createAdminWebSearchTool());
-  registry.register(createAdminPrioritizeLeadsTool(loadOperatorLeadQueue));
-  registry.register(
-    createAdminPrioritizeOfferTool(loadOperatorFunnelRecommendations, loadOperatorAnonymousOpportunities, loadOperatorLeadQueue),
-  );
-  registry.register(createAdminTriageRoutingRiskTool(loadOperatorRoutingReview));
+  registerToolBundle(registry, ADMIN_TOOL_REGISTRATIONS, {});
 }

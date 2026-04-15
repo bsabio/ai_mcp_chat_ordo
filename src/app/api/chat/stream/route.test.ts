@@ -16,8 +16,10 @@ const {
   resolveUserIdMock,
   createConversationRuntimeServicesMock,
   runClaudeAgentLoopStreamMock,
+  executeDirectChatTurnMock,
   getReferralLedgerServiceMock,
   getJobQueueRepositoryMock,
+  getJobStatusQueryMock,
   runtimeInteractorMock,
   summarizationInteractorMock,
 } = vi.hoisted(() => ({
@@ -28,14 +30,20 @@ const {
   resolveUserIdMock: vi.fn(),
   createConversationRuntimeServicesMock: vi.fn(),
   runClaudeAgentLoopStreamMock: vi.fn(),
+  executeDirectChatTurnMock: vi.fn(),
   getReferralLedgerServiceMock: vi.fn(),
   getJobQueueRepositoryMock: vi.fn(),
+  getJobStatusQueryMock: vi.fn(),
   runtimeInteractorMock: {
+    archiveActive: vi.fn(),
     ensureActive: vi.fn(),
     appendMessage: vi.fn(),
+    get: vi.fn(),
     getForStreamingContext: vi.fn(),
     updateRoutingSnapshot: vi.fn(),
     recordToolUsed: vi.fn(),
+    recordToolDenied: vi.fn(),
+    recordSessionResolution: vi.fn(),
     recordGenerationLifecycleEvent: vi.fn(),
   },
   summarizationInteractorMock: {
@@ -71,12 +79,17 @@ vi.mock("@/lib/chat/anthropic-stream", () => ({
   runClaudeAgentLoopStream: runClaudeAgentLoopStreamMock,
 }));
 
+vi.mock("@/lib/chat/chat-turn", () => ({
+  executeDirectChatTurn: executeDirectChatTurnMock,
+}));
+
 vi.mock("@/lib/referrals/referral-ledger", () => ({
   getReferralLedgerService: getReferralLedgerServiceMock,
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getJobQueueRepository: getJobQueueRepositoryMock,
+  getJobStatusQuery: getJobStatusQueryMock,
 }));
 
 import { POST } from "@/app/api/chat/stream/route";
@@ -88,6 +101,14 @@ function createBuilder() {
     withConversationSummary: vi.fn(() => builder),
     withRoutingContext: vi.fn(() => builder),
     withSection: vi.fn(() => builder),
+    buildResult: vi.fn(async () => ({
+      surface: "chat_stream",
+      text: "system-prompt",
+      effectiveHash: "hash_chat_stream",
+      slotRefs: [],
+      sections: [],
+      warnings: [],
+    })),
     build: vi.fn(() => "system-prompt"),
   };
 
@@ -149,6 +170,7 @@ describe("POST /api/chat/stream", () => {
     clearActiveStreamsForTests();
 
     const builder = createBuilder();
+    runtimeInteractorMock.archiveActive.mockResolvedValue(false);
     runtimeInteractorMock.ensureActive.mockResolvedValue({ id: "conv_stream_1" });
     runtimeInteractorMock.appendMessage.mockImplementation(async (message: {
       conversationId: string;
@@ -164,12 +186,24 @@ describe("POST /api/chat/stream", () => {
       createdAt: "2026-03-25T10:00:00.000Z",
       tokenEstimate: 1,
     }));
+    runtimeInteractorMock.get.mockResolvedValue({
+      conversation: {
+        id: "conv_stream_1",
+        status: "active",
+        messageCount: 1,
+        lastToolUsed: null,
+        routingSnapshot: createConversationRoutingSnapshot(),
+      },
+      messages: [],
+    });
     runtimeInteractorMock.getForStreamingContext.mockResolvedValue({
       conversation: { routingSnapshot: createConversationRoutingSnapshot() },
       messages: [],
     });
     runtimeInteractorMock.updateRoutingSnapshot.mockResolvedValue(undefined);
     runtimeInteractorMock.recordToolUsed.mockResolvedValue(undefined);
+    runtimeInteractorMock.recordToolDenied.mockResolvedValue(undefined);
+    runtimeInteractorMock.recordSessionResolution.mockResolvedValue(undefined);
     runtimeInteractorMock.recordGenerationLifecycleEvent.mockResolvedValue(undefined);
     summarizationInteractorMock.summarizeIfNeeded.mockResolvedValue(undefined);
 
@@ -205,6 +239,13 @@ describe("POST /api/chat/stream", () => {
       createJob: vi.fn(),
       appendEvent: vi.fn(),
     });
+    getJobStatusQueryMock.mockReturnValue({
+      getJobSnapshot: vi.fn().mockResolvedValue(null),
+      getUserJobSnapshot: vi.fn().mockResolvedValue(null),
+      listConversationJobSnapshots: vi.fn().mockResolvedValue([]),
+      listUserJobSnapshots: vi.fn().mockResolvedValue([]),
+    });
+    executeDirectChatTurnMock.mockResolvedValue("4.");
     runClaudeAgentLoopStreamMock.mockImplementation(async ({ signal }: { signal?: AbortSignal }) => {
       await new Promise<void>((resolve, reject) => {
         signal?.addEventListener(
@@ -348,5 +389,88 @@ describe("POST /api/chat/stream", () => {
       }),
     );
     await drainReader(reader);
+  });
+
+  it("streams math short-circuit replies as SSE events", async () => {
+    const response = await POST(
+      createRouteRequest("http://localhost:3000/api/chat/stream", "POST", {
+        messages: [{ role: "user", content: "What is 2+2? Keep it short." }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("Expected a response body reader for the chat stream route test");
+    }
+
+    const payloads = await readSsePayloads(reader, 2);
+
+    expect(payloads).toEqual([
+      { conversation_id: "conv_stream_1" },
+      { delta: "4." },
+    ]);
+    expect(executeDirectChatTurnMock).toHaveBeenCalledTimes(1);
+    expect(runClaudeAgentLoopStreamMock).not.toHaveBeenCalled();
+    expect(runtimeInteractorMock.appendMessage).toHaveBeenLastCalledWith(
+      {
+        conversationId: "conv_stream_1",
+        role: "assistant",
+        content: "4.",
+        parts: [{ type: "text", text: "4." }],
+      },
+      "anon_stream_owner",
+    );
+
+    await drainReader(reader);
+  });
+
+  it("drops whitespace-only transcript messages before calling the stream provider", async () => {
+    runtimeInteractorMock.getForStreamingContext.mockResolvedValue({
+      conversation: { routingSnapshot: createConversationRoutingSnapshot() },
+      messages: [
+        {
+          id: "msg_blank_assistant",
+          conversationId: "conv_stream_1",
+          role: "assistant",
+          content: "   ",
+          parts: [],
+          createdAt: "2026-03-25T10:00:00.000Z",
+          tokenEstimate: 1,
+        },
+        {
+          id: "msg_user_real",
+          conversationId: "conv_stream_1",
+          role: "user",
+          content: "Need the queue summary",
+          parts: [{ type: "text", text: "Need the queue summary" }],
+          createdAt: "2026-03-25T10:00:01.000Z",
+          tokenEstimate: 4,
+        },
+      ],
+    });
+    runClaudeAgentLoopStreamMock.mockResolvedValue({
+      model: "test-model",
+      assistantText: "Queue summary ready",
+      stopReason: "end_turn",
+      toolRoundCount: 0,
+      toolCalls: [],
+      toolResults: [],
+    });
+
+    const response = await POST(
+      createRouteRequest("http://localhost:3000/api/chat/stream", "POST", {
+        messages: [{ role: "user", content: "Need the queue summary" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(runClaudeAgentLoopStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [{ role: "user", content: "Need the queue summary" }],
+      }),
+    );
   });
 });

@@ -44,11 +44,21 @@ export interface BlogImagePromptDesign {
 }
 
 export interface BlogArticlePipelineModel {
-  composeArticle(input: ComposeBlogArticleInput): Promise<ComposedBlogArticle>;
-  reviewArticle(article: ComposedBlogArticle): Promise<BlogQaReport>;
+  composeArticle(
+    input: ComposeBlogArticleInput,
+    options?: { abortSignal?: AbortSignal },
+  ): Promise<ComposedBlogArticle>;
+  reviewArticle(
+    article: ComposedBlogArticle,
+    options?: { abortSignal?: AbortSignal },
+  ): Promise<BlogQaReport>;
   resolveQa(
     article: ComposedBlogArticle,
     report: BlogQaReport,
+    options?: { abortSignal?: AbortSignal },
   ): Promise<ResolvedBlogArticle>;
-  designHeroImagePrompt(article: ComposedBlogArticle): Promise<BlogImagePromptDesign>;
+  designHeroImagePrompt(
+    article: ComposedBlogArticle,
+    options?: { abortSignal?: AbortSignal },
+  ): Promise<BlogImagePromptDesign>;
 }

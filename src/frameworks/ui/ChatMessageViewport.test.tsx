@@ -41,7 +41,9 @@ function makeMessage(overrides: Partial<PresentedMessage>): PresentedMessage {
     attachments: overrides.attachments ?? [],
     failedSend: overrides.failedSend,
     generationStatus: overrides.generationStatus,
+    status: overrides.status ?? "confirmed",
     timestamp: overrides.timestamp ?? "12:00",
+    toolRenderEntries: overrides.toolRenderEntries ?? [],
   };
 }
 

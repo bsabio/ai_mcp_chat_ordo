@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { collectCurrentPageSnapshot } from "@/lib/chat/collect-current-page-snapshot";
 
 describe("collectCurrentPageSnapshot", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+    document.title = "";
+  });
+
   it("captures the current page content while excluding chat surfaces", () => {
     document.title = "Register | Studio Ordo";
     document.body.innerHTML = `
@@ -34,5 +39,60 @@ describe("collectCurrentPageSnapshot", () => {
     expect(snapshot?.contentExcerpt).toContain("Save conversations, unlock richer tools");
     expect(snapshot?.contentExcerpt).not.toContain("Library page");
     expect(snapshot?.contentExcerpt).not.toContain("Floating chat says Library");
+  });
+
+  it("deduplicates section headings", () => {
+    document.title = "Test";
+    document.body.innerHTML = `
+      <main data-shell-main-surface="">
+        <h1>Title</h1>
+        <h2>Same Heading</h2>
+        <h2>Same Heading</h2>
+        <h2>Different</h2>
+      </main>
+    `;
+    const snap = collectCurrentPageSnapshot("/test");
+    expect(snap?.sectionHeadings).toEqual(["Same Heading", "Different"]);
+  });
+
+  it("falls back to document.body when no content root found", () => {
+    document.title = "Fallback";
+    document.body.innerHTML = "<p>Body fallback content</p>";
+    const snap = collectCurrentPageSnapshot("/test");
+    expect(snap?.contentExcerpt).toContain("Body fallback content");
+  });
+
+  it("returns undefined for empty pathname", () => {
+    document.title = "Page";
+    document.body.innerHTML = "<main><h1>Heading</h1></main>";
+    expect(collectCurrentPageSnapshot("")).toBeUndefined();
+  });
+
+  it("excludes nav and footer elements from excerpt", () => {
+    document.title = "Page";
+    document.body.innerHTML = `
+      <main data-shell-main-surface="">
+        <h1>Heading</h1>
+        <p>Visible content</p>
+        <nav>Nav links</nav>
+        <footer>Footer text</footer>
+      </main>
+    `;
+    const snap = collectCurrentPageSnapshot("/test");
+    expect(snap?.contentExcerpt).toContain("Visible content");
+    expect(snap?.contentExcerpt).not.toContain("Nav links");
+    expect(snap?.contentExcerpt).not.toContain("Footer text");
+  });
+
+  it("normalizes whitespace in content", () => {
+    document.title = "Page";
+    document.body.innerHTML = `
+      <main data-shell-main-surface="">
+        <h1>Heading</h1>
+        <p>  Extra   whitespace   here  </p>
+      </main>
+    `;
+    const snap = collectCurrentPageSnapshot("/test");
+    expect(snap?.contentExcerpt).toContain("Extra whitespace here");
   });
 });

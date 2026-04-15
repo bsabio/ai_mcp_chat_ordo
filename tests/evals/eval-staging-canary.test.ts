@@ -46,6 +46,7 @@ function createExecution(overrides: Partial<LiveEvalExecution> = {}): LiveEvalEx
       lane: "organization",
       recommendation: "Founder-approved estimate ready.",
       toolCalls: [],
+      promptProvenance: null,
     },
     ...overrides,
   };

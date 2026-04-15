@@ -77,7 +77,9 @@ export class ChatStreamAdapter implements ChatStreamProvider {
       try {
         while (!isCancelled) {
           const { value, done } = await reader.read();
-          if (done) break;
+          if (done) {
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
@@ -99,6 +101,24 @@ export class ChatStreamAdapter implements ChatStreamProvider {
             }
           }
         }
+
+        buffer += decoder.decode();
+        for (const line of buffer.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+
+          const dataStr = trimmed.slice(5).trim();
+          if (!dataStr) continue;
+
+          try {
+            const data = JSON.parse(dataStr);
+            const event = parser.parse(data);
+            if (event) yield event;
+          } catch {
+            logDegradation("SSE_JSON_PARSE_ERROR", "Invalid SSE JSON", { data: dataStr.slice(0, 200) });
+          }
+        }
+
         yield { type: "done" };
       } catch (error) {
         yield { type: "error", message: error instanceof Error ? error.message : "Unknown stream error" };

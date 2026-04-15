@@ -1,21 +1,21 @@
 import React, { useEffect, useRef } from "react";
 import MentionsMenu from "@/components/MentionsMenu";
 import type { MentionItem } from "@/core/entities/mentions";
+import { ComposerFilePills } from "./ComposerFilePills";
+import { ComposerSendControl } from "./ComposerSendControl";
 
 interface ChatInputProps {
-  helperTextId: string;
-  helperMode?: "always" | "focus";
   canStopStream?: boolean;
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
   maxTextareaHeight?: number;
   onStopStream?: () => void | Promise<unknown>;
   placeholderText?: string;
+  sendError?: string | null;
   value: string;
   onChange: (val: string, selectionStart: number) => void;
   onSend: () => void;
   isSending: boolean;
   canSend: boolean;
-  onArrowUp: () => void;
 
   // Mentions
   activeTrigger: string | null;
@@ -26,59 +26,56 @@ interface ChatInputProps {
 
   // Files
   pendingFiles: File[];
+  onFileDrop: (event: React.DragEvent) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFileRemove: (index: number) => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
-  helperTextId,
-  helperMode = "always",
   canStopStream = false,
   inputRef,
   maxTextareaHeight = 224,
   onStopStream,
   placeholderText = "Ask Studio Ordo...",
+  sendError = null,
   value,
   onChange,
   onSend,
   isSending,
   canSend,
-  onArrowUp,
   activeTrigger,
   suggestions,
   mentionIndex,
   onMentionIndexChange,
   onSuggestionSelect,
   pendingFiles,
+  onFileDrop,
   onFileSelect,
   onFileRemove,
 }) => {
-  const helperText = "Enter to send. Shift+Enter for line breaks.";
   const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previousHeightRef = useRef(0);
+  const dragDepthRef = useRef(0);
   const textareaRef = inputRef ?? internalTextareaRef;
-  const hasInput = value.trim().length > 0;
-  const showStopButton = canStopStream && typeof onStopStream === "function";
-  const sendButtonClassName = [
-    "ui-chat-send-button focus-ring flex min-h-11 shrink-0 items-center justify-center gap-(--space-2) self-center rounded-(--fva-shell-radius-control) px-(--chat-composer-button-padding-inline) py-(--chat-composer-button-padding-block) text-sm font-semibold transition-all duration-300 active:scale-95",
-    hasInput ? "ui-chat-send-ready" : "ui-chat-send-idle",
-    !canSend && hasInput ? "ui-chat-send-disabled" : "",
-  ].join(" ");
-  const stopButtonClassName = [
-    "ui-chat-stop-button focus-ring flex min-h-11 shrink-0 items-center justify-center gap-(--space-2) self-center rounded-(--fva-shell-radius-control) border border-[color:color-mix(in_srgb,var(--danger,#b42318)_26%,transparent)] bg-[color:color-mix(in_srgb,var(--danger,#b42318)_10%,var(--surface))] px-(--chat-composer-button-padding-inline) py-(--chat-composer-button-padding-block) text-sm font-semibold text-[color:var(--danger,#b42318)] transition-all duration-300 hover:bg-[color:color-mix(in_srgb,var(--danger,#b42318)_14%,var(--surface))] active:scale-95",
-  ].join(" ");
+  const hasContent = value.trim().length > 0 || pendingFiles.length > 0;
 
   useEffect(() => {
     const element = textareaRef.current;
-    if (!element) {
-      return;
-    }
+    if (!element) return;
+    if (isSending && value === "") return;
 
     element.style.height = "0px";
-    const nextHeight = Math.min(element.scrollHeight, maxTextareaHeight);
-    element.style.height = `${Math.max(nextHeight, 44)}px`;
-    element.style.overflowY = element.scrollHeight > maxTextareaHeight ? "auto" : "hidden";
-  }, [maxTextareaHeight, textareaRef, value]);
+    const nextHeight = Math.max(Math.min(element.scrollHeight, maxTextareaHeight), 44);
+
+    if (nextHeight !== previousHeightRef.current) {
+      element.style.height = `${nextHeight}px`;
+      element.style.overflowY = element.scrollHeight > maxTextareaHeight ? "auto" : "hidden";
+      previousHeightRef.current = nextHeight;
+    } else {
+      element.style.height = `${nextHeight}px`;
+    }
+  }, [isSending, maxTextareaHeight, textareaRef, value]);
 
   const handleMentionsNavigation = (e: React.KeyboardEvent): boolean => {
     if (!activeTrigger || suggestions.length === 0) return false;
@@ -118,53 +115,43 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return false;
   };
 
-  const handleEditLastMessage = (e: React.KeyboardEvent): boolean => {
-    if (e.key === "ArrowUp" && value === "" && !isSending) {
-      e.preventDefault();
-      onArrowUp();
-      return true;
-    }
-    return false;
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (handleMentionsNavigation(e)) return;
-    if (handleMessageSubmit(e)) return;
-    handleEditLastMessage(e);
+    handleMessageSubmit(e);
   };
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* File Previews */}
-      {pendingFiles.length > 0 && (
-        <div className="mb-(--space-3) flex flex-wrap gap-(--space-2)">
-          {pendingFiles.map((file, i) => (
-            <div
-              key={i}
-              className="ui-chat-file-pill flex items-center gap-(--space-2) rounded-full px-(--space-3) py-(--space-2) text-[11px] font-medium"
-            >
-              <span className="max-w-30 truncate">{file.name}</span>
-              <button
-                type="button"
-                onClick={() => onFileRemove(i)}
-                className="focus-ring rounded-full p-(--space-1) text-foreground/56 transition-colors hover:text-red-500"
-                aria-label={`Remove ${file.name}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <ComposerFilePills files={pendingFiles} onRemove={onFileRemove} />
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
           onSend();
         }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          dragDepthRef.current += 1;
+          e.currentTarget.setAttribute("data-chat-composer-dragover", "true");
+        }}
+        onDragLeave={() => {
+          dragDepthRef.current -= 1;
+          if (dragDepthRef.current === 0) {
+            const form = document.querySelector("[data-chat-composer-form]");
+            form?.removeAttribute("data-chat-composer-dragover");
+          }
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          dragDepthRef.current = 0;
+          e.currentTarget.removeAttribute("data-chat-composer-dragover");
+          onFileDrop(e);
+        }}
         className="ui-chat-composer-frame ui-chat-composer-frame-hover relative flex min-h-(--chat-composer-min-height) items-stretch gap-(--space-2) overflow-hidden rounded-(--chat-composer-radius) transition-all duration-300 hover:border-foreground/10 focus-within:ui-chat-composer-frame-focus"
         data-chat-composer-form="true"
-        data-chat-composer-state={hasInput ? "ready" : "idle"}
+        data-chat-composer-state={hasContent ? "ready" : "idle"}
+        data-chat-composer-error={sendError ? "true" : undefined}
       >
         {activeTrigger && suggestions.length > 0 && (
           <MentionsMenu
@@ -180,6 +167,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={onFileSelect}
           className="hidden"
           multiple
+          accept="application/pdf,text/plain,image/jpeg,image/png,image/gif,image/webp"
         />
         <button
           type="button"
@@ -202,61 +190,43 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onChange={(e) => onChange(e.target.value, e.target.selectionStart ?? 0)}
             onKeyDown={handleKeyDown}
             placeholder={placeholderText}
-            aria-describedby={helperTextId}
             rows={1}
+            enterKeyHint="send"
+            aria-label="Message"
+            role={activeTrigger && suggestions.length > 0 ? "combobox" : undefined}
+            aria-expanded={activeTrigger && suggestions.length > 0 ? true : undefined}
+            aria-haspopup={activeTrigger && suggestions.length > 0 ? "listbox" : undefined}
+            aria-activedescendant={
+              activeTrigger && suggestions.length > 0
+                ? `mention-option-${mentionIndex}`
+                : undefined
+            }
             className="theme-body max-h-56 min-h-11 flex-1 resize-none overflow-y-auto bg-transparent px-(--chat-composer-field-padding-inline) py-(--chat-composer-field-padding-block) text-[1rem] font-normal leading-normal text-foreground outline-none placeholder:text-foreground/52"
           />
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="sr-only"
+            data-chat-mention-live="true"
+          >
+            {activeTrigger && suggestions.length > 0
+              ? `${suggestions.length} suggestion${suggestions.length === 1 ? "" : "s"} available`
+              : ""}
+          </div>
         </div>
 
-        {showStopButton ? (
-          <button
-            type="button"
-            onClick={() => {
-              void onStopStream?.();
-            }}
-            className={stopButtonClassName}
-            aria-label="Stop generation"
-            data-chat-stop-state="active"
-          >
-            <span data-chat-stop-label="true">Stop</span>
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={!canSend}
-            data-chat-send-state={hasInput ? "ready" : "idle"}
-            className={sendButtonClassName}
-            aria-label={isSending ? "Sending message" : "Send"}
-          >
-            {isSending ? (
-              <span className="flex gap-(--space-1)">
-                <span className="w-(--space-2) h-(--space-2) bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-(--space-2) h-(--space-2) bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-(--space-2) h-(--space-2) bg-current rounded-full animate-bounce" />
-              </span>
-            ) : (
-              <>
-                <span data-chat-send-label="true">Send</span>
-                <span data-chat-send-icon="true" aria-hidden="true" className="hidden">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h13" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </span>
-              </>
-            )}
-          </button>
-        )}
+        <ComposerSendControl
+          canSend={canSend}
+          hasContent={hasContent}
+          isSending={isSending}
+          canStopStream={canStopStream ?? false}
+          onStopStream={onStopStream}
+        />
       </form>
-
-      <div
-        id={helperTextId}
-        className="ui-chat-helper-copy mt-(--space-1) flex flex-wrap items-center justify-start gap-x-(--space-2) gap-y-(--space-1) px-(--space-1) text-(length:--chat-composer-helper-font-size) leading-(--chat-composer-helper-line-height)"
-        data-chat-composer-helper="true"
-        data-chat-helper-mode={helperMode}
-      >
-        <span>{helperText}</span>
-      </div>
+      {sendError && (
+        <div role="alert" className="sr-only">{sendError}</div>
+      )}
     </div>
   );
 };

@@ -6,8 +6,8 @@ import { revalidatePath } from "next/cache";
 
 import { readRequiredText, readOptionalText } from "@/lib/admin/shared/admin-form-parsers";
 import { runAdminAction } from "@/lib/admin/shared/admin-action-helpers";
-import { getSystemPromptDataMapper } from "@/adapters/RepositoryFactory";
-import { getAdminPromptDetailPath } from "./admin-prompts-routes";
+import { createPromptControlPlaneService } from "@/lib/prompts/prompt-control-plane-service";
+import type { PromptSlotType } from "@/core/use-cases/PromptControlPlaneService";
 
 // ── Create new version ─────────────────────────────────────────────────
 
@@ -20,17 +20,21 @@ export async function createPromptVersionAction(formData: FormData) {
     const content = readRequiredText(formData, "content");
     const notes = readOptionalText(formData, "notes") ?? "";
 
-    const mapper = getSystemPromptDataMapper();
-    await mapper.createVersion({
+    const service = createPromptControlPlaneService({
+      revalidatePaths: (paths) => {
+        for (const path of paths) {
+          revalidatePath(path);
+        }
+      },
+    });
+
+    await service.createVersion({
       role,
-      promptType,
+      promptType: promptType as PromptSlotType,
       content,
       createdBy: admin.id,
       notes,
     });
-
-    revalidatePath("/admin/prompts");
-    revalidatePath(getAdminPromptDetailPath(role, promptType));
   });
 }
 
@@ -48,10 +52,14 @@ export async function activatePromptVersionAction(formData: FormData) {
       throw new Error(`Invalid version number: ${versionStr}`);
     }
 
-    const mapper = getSystemPromptDataMapper();
-    await mapper.activate(role, promptType, version);
+    const service = createPromptControlPlaneService({
+      revalidatePaths: (paths) => {
+        for (const path of paths) {
+          revalidatePath(path);
+        }
+      },
+    });
 
-    revalidatePath("/admin/prompts");
-    revalidatePath(getAdminPromptDetailPath(role, promptType));
+    await service.activateVersion({ role, promptType: promptType as PromptSlotType, version });
   });
 }

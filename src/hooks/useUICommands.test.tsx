@@ -97,7 +97,9 @@ describe("useUICommands", () => {
       suggestions: [],
       actions: [],
       attachments: [],
+      status: "confirmed",
       timestamp: "10:00 AM",
+      toolRenderEntries: [],
     };
   }
 

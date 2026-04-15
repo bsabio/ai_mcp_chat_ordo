@@ -21,6 +21,41 @@ export type JobsWorkspaceStreamEvent = Extract<
 
 export type JobsWorkspaceState = UserJobsWorkspaceData;
 
+function toTimestamp(value: string | undefined): number {
+  if (!value) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+function compareSnapshotFreshness(left: JobStatusSnapshot, right: JobStatusSnapshot): number {
+  const leftSequence = left.part.sequence ?? -1;
+  const rightSequence = right.part.sequence ?? -1;
+
+  if (leftSequence !== rightSequence) {
+    return leftSequence - rightSequence;
+  }
+
+  return toTimestamp(left.part.updatedAt) - toTimestamp(right.part.updatedAt);
+}
+
+function pickFresherSnapshot(
+  current: JobStatusSnapshot | null,
+  incoming: JobStatusSnapshot | null,
+): JobStatusSnapshot | null {
+  if (!current) {
+    return incoming;
+  }
+
+  if (!incoming) {
+    return current;
+  }
+
+  return compareSnapshotFreshness(current, incoming) > 0 ? current : incoming;
+}
+
 function mapStreamEventStatus(event: JobsWorkspaceStreamEvent): JobStatusSnapshot["part"]["status"] {
   switch (event.type) {
     case "job_queued":
@@ -55,6 +90,13 @@ function mapStreamEventType(event: JobsWorkspaceStreamEvent): JobHistoryEntry["e
 }
 
 function buildJobPartFromStreamEvent(event: JobsWorkspaceStreamEvent): JobStatusMessagePart {
+  if (event.part) {
+    return {
+      ...event.part,
+      sequence: event.sequence,
+    };
+  }
+
   return {
     type: "job_status",
     jobId: event.jobId,
@@ -118,6 +160,10 @@ function upsertJobSnapshot(jobs: JobStatusSnapshot[], nextSnapshot: JobStatusSna
     return sortUserJobSnapshots([nextSnapshot, ...jobs]);
   }
 
+  if (compareSnapshotFreshness(jobs[index], nextSnapshot) > 0) {
+    return sortUserJobSnapshots(jobs);
+  }
+
   const nextJobs = [...jobs];
   nextJobs[index] = nextSnapshot;
   return sortUserJobSnapshots(nextJobs);
@@ -147,10 +193,38 @@ export function createJobsWorkspaceState(data: UserJobsWorkspaceData): JobsWorks
 }
 
 export function replaceJobsWorkspaceState(
-  _currentState: JobsWorkspaceState,
+  currentState: JobsWorkspaceState,
   nextState: UserJobsWorkspaceData,
 ): JobsWorkspaceState {
-  return createJobsWorkspaceState(nextState);
+  const jobs = nextState.jobs.reduce(
+    (merged, snapshot) => upsertJobSnapshot(merged, snapshot),
+    sortUserJobSnapshots(currentState.jobs),
+  );
+
+  const selectedJobId = nextState.selectedJobId;
+  const selectedJob = selectedJobId
+    ? pickFresherSnapshot(
+      currentState.selectedJobId === selectedJobId ? currentState.selectedJob : null,
+      nextState.selectedJob,
+    )
+    : nextState.selectedJob;
+
+  const historyMap = new Map<string, JobHistoryEntry>();
+  for (const entry of currentState.selectedJobHistory) {
+    historyMap.set(`${entry.jobId}:${entry.sequence}`, entry);
+  }
+  for (const entry of nextState.selectedJobHistory) {
+    historyMap.set(`${entry.jobId}:${entry.sequence}`, entry);
+  }
+
+  return {
+    jobs,
+    selectedJobId,
+    selectedJob,
+    selectedJobHistory: Array.from(historyMap.values())
+      .filter((entry) => !selectedJobId || entry.jobId === selectedJobId)
+      .sort((left, right) => left.sequence - right.sequence),
+  };
 }
 
 export function selectJobsWorkspaceJob(
@@ -174,13 +248,27 @@ export function reconcileSelectedJobsWorkspaceJob(
   selectedJob: JobStatusSnapshot | null,
   selectedJobHistory: JobHistoryEntry[],
 ): JobsWorkspaceState {
-  const jobs = selectedJob ? upsertJobSnapshot(state.jobs, selectedJob) : state.jobs;
+  const currentSelected = state.selectedJobId === jobId ? state.selectedJob : null;
+  const freshestSelected = pickFresherSnapshot(currentSelected, selectedJob);
+  const jobs = freshestSelected ? upsertJobSnapshot(state.jobs, freshestSelected) : state.jobs;
+
+  const historyMap = new Map<string, JobHistoryEntry>();
+  for (const entry of state.selectedJobHistory) {
+    if (entry.jobId === jobId) {
+      historyMap.set(`${entry.jobId}:${entry.sequence}`, entry);
+    }
+  }
+  for (const entry of selectedJobHistory) {
+    if (entry.jobId === jobId) {
+      historyMap.set(`${entry.jobId}:${entry.sequence}`, entry);
+    }
+  }
 
   return {
     jobs,
     selectedJobId: jobId,
-    selectedJob,
-    selectedJobHistory: [...selectedJobHistory].sort((left, right) => left.sequence - right.sequence),
+    selectedJob: freshestSelected,
+    selectedJobHistory: Array.from(historyMap.values()).sort((left, right) => left.sequence - right.sequence),
   };
 }
 
@@ -201,7 +289,7 @@ export function applyJobsWorkspaceEvent(
   return {
     jobs,
     selectedJobId: state.selectedJobId,
-    selectedJob: snapshot,
+    selectedJob: pickFresherSnapshot(state.selectedJob, snapshot),
     selectedJobHistory: mergeJobHistoryEntry(
       state.selectedJobHistory,
       buildJobHistoryEntryFromStreamEvent(event),

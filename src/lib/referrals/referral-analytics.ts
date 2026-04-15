@@ -412,6 +412,7 @@ class SqliteReferralAnalyticsService implements ReferralAnalyticsService {
   }
 }
 
+// getDb() approved: referral default parameter + raw SQL — see data-access-canary.test.ts (Sprint 9)
 export function createReferralAnalyticsService(db: Database.Database = getDb()): ReferralAnalyticsService {
   return new SqliteReferralAnalyticsService(db);
 }

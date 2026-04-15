@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import {
   exportConversationAction,
+  exportConversationTranscriptAction,
   purgeConversationAction,
 } from "@/lib/admin/conversations/admin-conversations-actions";
 
@@ -19,31 +20,54 @@ export function AdminConversationRetentionActions({
   purgeBlockedReason,
 }: AdminConversationRetentionActionsProps) {
   const [isExportPending, startExportTransition] = useTransition();
+  const [pendingExportKind, setPendingExportKind] = useState<"json" | "transcript" | null>(null);
   const [confirmingPurge, setConfirmingPurge] = useState(false);
+
+  function downloadPayload(result: { fileName: string; mimeType: string; payload: string }) {
+    const blob = new Blob([result.payload], { type: result.mimeType });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = result.fileName;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  function runExport(
+    kind: "json" | "transcript",
+    action: (formData: FormData) => Promise<{ fileName: string; mimeType: string; payload: string }>,
+  ) {
+    startExportTransition(async () => {
+      setPendingExportKind(kind);
+      try {
+        const formData = new FormData();
+        formData.set("id", conversationId);
+        downloadPayload(await action(formData));
+      } finally {
+        setPendingExportKind(null);
+      }
+    });
+  }
 
   return (
     <div className="grid gap-(--space-3)">
       <div className="flex flex-wrap items-center gap-(--space-2)">
         <button
           type="button"
-          onClick={() => {
-            startExportTransition(async () => {
-              const formData = new FormData();
-              formData.set("id", conversationId);
-              const result = await exportConversationAction(formData);
-              const blob = new Blob([result.payload], { type: "application/json" });
-              const url = window.URL.createObjectURL(blob);
-              const anchor = document.createElement("a");
-              anchor.href = url;
-              anchor.download = result.fileName;
-              anchor.click();
-              window.URL.revokeObjectURL(url);
-            });
-          }}
+          onClick={() => runExport("json", exportConversationAction)}
           className="rounded-lg border border-foreground/12 px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={isExportPending}
         >
-          {isExportPending ? "Preparing export…" : "Export JSON"}
+          {pendingExportKind === "json" ? "Preparing JSON…" : "Export JSON"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => runExport("transcript", exportConversationTranscriptAction)}
+          className="rounded-lg border border-foreground/12 px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isExportPending}
+        >
+          {pendingExportKind === "transcript" ? "Preparing transcript…" : "Export transcript JSON"}
         </button>
 
         {purgeEligible ? (

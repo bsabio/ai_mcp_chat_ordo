@@ -5,18 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { ChatAction } from "@/hooks/chat/chatState";
 import { useChatSend, type FailedSendPayload } from "@/hooks/chat/useChatSend";
+import type { CurrentPageMemento } from "@/lib/chat/CurrentPageMemento";
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
 
 const {
   runStreamMock,
   uploadChatAttachmentsMock,
   cleanupChatAttachmentsMock,
-  collectCurrentPageSnapshotMock,
 } = vi.hoisted(() => ({
   runStreamMock: vi.fn(),
   uploadChatAttachmentsMock: vi.fn(),
   cleanupChatAttachmentsMock: vi.fn(),
-  collectCurrentPageSnapshotMock: vi.fn(),
 }));
 
 vi.mock("@/hooks/chat/useChatStreamRuntime", () => ({
@@ -32,9 +31,12 @@ vi.mock("@/hooks/chat/chatAttachmentApi", () => ({
   cleanupChatAttachments: cleanupChatAttachmentsMock,
 }));
 
-vi.mock("@/lib/chat/collect-current-page-snapshot", () => ({
-  collectCurrentPageSnapshot: collectCurrentPageSnapshotMock,
-}));
+const mementoMock: CurrentPageMemento = {
+  getSnapshot: vi.fn(),
+  start: vi.fn(),
+  stop: vi.fn(),
+  setPathname: vi.fn(),
+};
 
 function Harness({
   conversationId = null,
@@ -65,6 +67,7 @@ function Harness({
   const { sendMessage, retryFailedMessage } = useChatSend({
     conversationId,
     currentPathname: "/",
+    memento: mementoMock,
     refreshConversation,
     dispatch: dispatchSpy,
     getFailedSend: (retryKey) => failedSends.get(retryKey),
@@ -93,12 +96,12 @@ describe("useChatSend", () => {
     runStreamMock.mockReset();
     uploadChatAttachmentsMock.mockReset();
     cleanupChatAttachmentsMock.mockReset();
-    collectCurrentPageSnapshotMock.mockReset();
+    (mementoMock.getSnapshot as ReturnType<typeof vi.fn>).mockReset();
     uploadChatAttachmentsMock.mockResolvedValue([]);
     cleanupChatAttachmentsMock.mockResolvedValue(undefined);
-    collectCurrentPageSnapshotMock.mockReturnValue({
+    (mementoMock.getSnapshot as ReturnType<typeof vi.fn>).mockReturnValue({
       pathname: "/",
-      title: "Studio Ordo | Conversation-First AI Workspaces",
+      title: "Studio Ordo | All-in-One AI Operator System",
       mainHeading: null,
       sectionHeadings: [],
       selectedText: null,
@@ -141,6 +144,33 @@ describe("useChatSend", () => {
     });
 
     expect(refreshConversation).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the current conversation when the stream completed without live text deltas", async () => {
+    const refreshConversation = vi.fn().mockResolvedValue(undefined);
+    runStreamMock.mockResolvedValue({ conversationId: "conv_existing", didReceiveTextDelta: false });
+
+    render(
+      <Harness
+        conversationId="conv_existing"
+        messages={[
+          {
+            id: "msg_1",
+            role: "assistant",
+            content: "Welcome",
+            parts: [{ type: "text", text: "Welcome" }],
+            timestamp: new Date("2026-03-23T10:00:00.000Z"),
+          },
+        ]}
+        refreshConversation={refreshConversation}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    await waitFor(() => {
+      expect(refreshConversation).toHaveBeenCalledWith("conv_existing");
+    });
   });
 
   it("refreshes when streaming creates or resolves a different conversation id", async () => {
@@ -220,7 +250,7 @@ describe("useChatSend", () => {
       undefined,
       {
         pathname: "/",
-        title: "Studio Ordo | Conversation-First AI Workspaces",
+        title: "Studio Ordo | All-in-One AI Operator System",
         mainHeading: null,
         sectionHeadings: [],
         selectedText: null,
@@ -375,7 +405,7 @@ describe("useChatSend", () => {
       undefined,
       {
         pathname: "/",
-        title: "Studio Ordo | Conversation-First AI Workspaces",
+        title: "Studio Ordo | All-in-One AI Operator System",
         mainHeading: null,
         sectionHeadings: [],
         selectedText: null,
@@ -450,7 +480,7 @@ describe("useChatSend", () => {
       undefined,
       {
         pathname: "/",
-        title: "Studio Ordo | Conversation-First AI Workspaces",
+        title: "Studio Ordo | All-in-One AI Operator System",
         mainHeading: null,
         sectionHeadings: [],
         selectedText: null,

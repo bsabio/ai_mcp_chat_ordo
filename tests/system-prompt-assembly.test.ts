@@ -51,7 +51,28 @@ function buildPrompt(role: RoleName): string {
     .build();
 }
 
+function buildPromptWithManifestEntries(entries: Array<{ name: string; description: string }>): string {
+  return new SystemPromptBuilder()
+    .withSection({ key: "identity", content: buildCorpusBasePrompt(), priority: 10 })
+    .withToolManifest(entries)
+    .withSection({ key: "role_directive", content: ROLE_DIRECTIVES.ADMIN, priority: 20 })
+    .build();
+}
+
+function getRoleToolDescription(role: RoleName, toolName: string): string {
+  const tool = getToolComposition().registry.getSchemasForRole(role).find((schema) => schema.name === toolName);
+  if (!tool) {
+    throw new Error(`Tool ${toolName} not found for role ${role}`);
+  }
+
+  return tool.description ?? "";
+}
+
 describe("system prompt assembly", () => {
+  it("keeps the AUTHENTICATED prompt byte-stable across repeated assembly", () => {
+    expect(buildPrompt("AUTHENTICATED")).toBe(buildPrompt("AUTHENTICATED"));
+  });
+
   it("orders sections as identity, tool manifest, role directive, user preferences, summary, then routing", () => {
     const prompt = buildPrompt("AUTHENTICATED");
 
@@ -75,6 +96,18 @@ describe("system prompt assembly", () => {
 
     expect(prompt.split(TOOL_MANIFEST_HEADER)).toHaveLength(2);
     expect(prompt.split(MANIFEST_FOOTER)).toHaveLength(2);
+  });
+
+  it("renders the AUTHENTICATED manifest in alphabetical order", () => {
+    const manifestNames = extractManifestToolNames(buildPrompt("AUTHENTICATED"));
+
+    expect(manifestNames).toEqual([...manifestNames].sort((left, right) => left.localeCompare(right)));
+  });
+
+  it("renders the ADMIN manifest in alphabetical order", () => {
+    const manifestNames = extractManifestToolNames(buildPrompt("ADMIN"));
+
+    expect(manifestNames).toEqual([...manifestNames].sort((left, right) => left.localeCompare(right)));
   });
 
   it("ANONYMOUS assembled prompt contains exactly the anonymous tool set", () => {
@@ -111,9 +144,10 @@ describe("system prompt assembly", () => {
 
   it("includes graph usage guidance in the assembled manifest for member roles", () => {
     const prompt = buildPrompt("AUTHENTICATED");
+    const generateGraphDescription = getRoleToolDescription("AUTHENTICATED", "generate_graph");
 
-    expect(prompt).toContain("time-series questions, comparisons across segments or categories, distributions, outlier analysis");
-    expect(prompt).toContain("explicit requests for a graph, trend, plot, values over time, or custom visualization");
+    expect(generateGraphDescription.length).toBeGreaterThan(0);
+    expect(prompt).toContain(`**generate_graph**: ${generateGraphDescription}`);
   });
 
   it("identity section does not leak raw tool names outside the manifest block", () => {
@@ -126,5 +160,21 @@ describe("system prompt assembly", () => {
       expect(identitySection).not.toContain(`\`${toolName}\``);
       expect(identitySection).not.toMatch(new RegExp(`\\b${toolName}\\b`));
     }
+  });
+
+  it("assembles a reduced admin manifest without breaking manifest structure or ordering", () => {
+    const prompt = buildPromptWithManifestEntries([
+      { name: "admin_search", description: "" },
+      { name: "navigate_to_page", description: "" },
+      { name: "search_corpus", description: "" },
+    ]);
+
+    expect(extractManifestToolNames(prompt)).toEqual([
+      "admin_search",
+      "navigate_to_page",
+      "search_corpus",
+    ]);
+    expect(prompt.split(TOOL_MANIFEST_HEADER)).toHaveLength(2);
+    expect(prompt).not.toContain("**generate_audio**");
   });
 });

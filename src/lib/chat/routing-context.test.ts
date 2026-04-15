@@ -54,7 +54,21 @@ describe("buildRoutingContextBlock", () => {
 
     expect(block).toContain('lane=uncertain');
     expect(block).toContain('confidence=unknown');
+    expect(block).toContain('clarification_required=true');
     expect(block).toContain('routing_instruction="Ask one brief clarifying question to determine whether the need is a customer workflow, technical implementation, or training outcome before making a lane-specific recommendation."');
+  });
+
+  it("suppresses the clarifying instruction for provisional uncertain lanes above the threshold", () => {
+    const block = buildRoutingContextBlock(
+      createConversationRoutingSnapshot({
+        lane: "uncertain",
+        confidence: 0.41,
+      }),
+    );
+
+    expect(block).toContain('lane=uncertain');
+    expect(block).toContain('clarification_required=false');
+    expect(block).toContain('routing_instruction="Treat the lane as provisional, answer the direct request first, and ask at most one clarifying question only if it is required to unblock execution."');
   });
 
   it("builds a task-origin handoff block that preserves the clicked task frame", () => {

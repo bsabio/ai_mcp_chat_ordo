@@ -65,9 +65,10 @@ describe("TD-A — job visibility read-model encapsulation", () => {
     expect(chatRoute).not.toContain("MessageDataMapper");
     expect(chatRoute).not.toContain("getDb(");
 
-    expect(projectorRoot).toContain("ConversationDataMapper");
-    expect(projectorRoot).toContain("MessageDataMapper");
-    expect(projectorRoot).toContain("getDb()");
+    expect(projectorRoot).toContain("DeferredJobConversationProjector");
+    expect(projectorRoot).toContain("getConversationDataMapper()");
+    expect(projectorRoot).toContain("getMessageDataMapper()");
+    expect(projectorRoot).not.toContain("getDb(");
   });
 });
 

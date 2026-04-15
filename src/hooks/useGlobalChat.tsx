@@ -4,9 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useReducer,
-  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -19,22 +17,20 @@ import type { ChatMessage } from "@/core/entities/chat-message";
 import {
   chatReducer,
   createInitialChatMessages,
-  type ReferralContext,
 } from "@/hooks/chat/chatState";
 import { useChatJobEvents } from "@/hooks/chat/useChatJobEvents";
 import { useChatPushNotifications } from "@/hooks/useChatPushNotifications";
 import { useChatConversationSession } from "@/hooks/chat/useChatConversationSession";
+import { useCurrentPageMemento } from "@/hooks/chat/useCurrentPageMemento";
 import { useChatSend } from "@/hooks/chat/useChatSend";
 import type { RoleName } from "@/core/entities/user";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 import { useInstancePrompts } from "@/lib/config/InstanceConfigContext";
 import type { RestoredConversationPayload } from "@/hooks/chat/chatConversationApi";
-import {
-  buildReferralContext,
-  shouldRefreshBootstrapMessages,
-} from "@/hooks/chat/chatBootstrap";
-import type { FailedSendPayload } from "@/hooks/chat/useChatSend";
-import { hydrateFailedSendRecovery } from "@/hooks/chat/chatFailedSendRecovery";
+import { useReferralContext } from "@/hooks/chat/useReferralContext";
+import { useFailedSendRecovery } from "@/hooks/chat/useFailedSendRecovery";
+import { useBootstrapMessages } from "@/hooks/chat/useBootstrapMessages";
+import { useBrowserCapabilityRuntime } from "@/hooks/chat/useBrowserCapabilityRuntime";
 
 interface ChatContextType {
   messages: ChatMessage[];
@@ -67,41 +63,15 @@ export function ChatProvider({
 }) {
   const currentPathname = usePathname();
   const prompts = useInstancePrompts();
-  const [referralCtx, setReferralCtx] = useState<ReferralContext | undefined>(undefined);
-  const referralResolved = useRef(false);
   const [messages, dispatch] = useReducer(
     chatReducer,
     initialRole,
     (role) => createInitialChatMessages(role, prompts),
   );
   const [isSending, setIsSending] = useState(false);
-  const bootstrapRoleRef = useRef<RoleName>(initialRole);
-  const failedSendsRef = useRef(new Map<string, FailedSendPayload>());
 
-  const getFailedSend = useCallback((retryKey: string) => failedSendsRef.current.get(retryKey), []);
-  const registerFailedSend = useCallback((payload: FailedSendPayload) => {
-    failedSendsRef.current.set(payload.retryKey, payload);
-  }, []);
-  const clearFailedSend = useCallback((retryKey: string) => {
-    failedSendsRef.current.delete(retryKey);
-  }, []);
-
-  useEffect(() => {
-    const { failedSends } = hydrateFailedSendRecovery(messages);
-    const nextFailedSends = new Map<string, FailedSendPayload>();
-
-    for (const payload of failedSends) {
-      const existing = failedSendsRef.current.get(payload.retryKey);
-      nextFailedSends.set(payload.retryKey, {
-        ...payload,
-        ...(existing?.taskOriginHandoff
-          ? { taskOriginHandoff: existing.taskOriginHandoff }
-          : {}),
-      });
-    }
-
-    failedSendsRef.current = nextFailedSends;
-  }, [messages]);
+  const { getFailedSend, registerFailedSend, clearFailedSend } =
+    useFailedSendRecovery(messages);
 
   const {
     conversationId,
@@ -110,9 +80,7 @@ export function ChatProvider({
     refreshConversation,
     setCurrentConversation,
     setConversationId,
-  } = useChatConversationSession({
-    dispatch,
-  });
+  } = useChatConversationSession({ dispatch });
 
   const applyConversationPayload = useCallback((payload: RestoredConversationPayload) => {
     setConversationId(payload.conversationId);
@@ -120,28 +88,13 @@ export function ChatProvider({
     dispatch({ type: "REPLACE_ALL", messages: payload.messages });
   }, [dispatch, setConversationId, setCurrentConversation]);
 
-  // Fetch referral context from cookie
-  useEffect(() => {
-    if (referralResolved.current || initialRole !== "ANONYMOUS") return;
-    referralResolved.current = true;
-
-    fetch("/api/referral/visit")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        const ctx = buildReferralContext(data);
-        if (!ctx) return;
-        setReferralCtx(ctx);
-        dispatch({
-          type: "REPLACE_ALL",
-          messages: createInitialChatMessages(initialRole, prompts, ctx),
-        });
-      })
-      .catch(() => { /* fall back to default greeting */ });
-  }, [initialRole, prompts]);
+  const memento = useCurrentPageMemento(currentPathname);
+  const referralCtx = useReferralContext(initialRole, prompts, dispatch);
 
   const { activeStreamId, sendMessage, retryFailedMessage, stopStream } = useChatSend({
     conversationId,
     currentPathname,
+    memento,
     refreshConversation,
     dispatch,
     getFailedSend,
@@ -152,41 +105,21 @@ export function ChatProvider({
     clearFailedSend,
   });
 
-  useChatJobEvents({
-    conversationId,
-    dispatch,
-  });
-
+  useChatJobEvents({ conversationId, dispatch });
+  useBrowserCapabilityRuntime({ conversationId, messages, dispatch });
   useChatPushNotifications(initialRole);
 
-  useEffect(() => {
-    if (!shouldRefreshBootstrapMessages({
-      messages,
-      initialRole,
-      bootstrapRole: bootstrapRoleRef.current,
-      conversationId,
-      currentConversation,
-      isLoadingMessages,
-      isSending,
-    })) {
-      return;
-    }
-
-    bootstrapRoleRef.current = initialRole;
-    dispatch({
-      type: "REPLACE_ALL",
-      messages: createInitialChatMessages(initialRole, prompts, referralCtx),
-    });
-  }, [
+  useBootstrapMessages({
+    messages,
+    initialRole,
     conversationId,
     currentConversation,
-    initialRole,
     isLoadingMessages,
     isSending,
-    messages,
     prompts,
     referralCtx,
-  ]);
+    dispatch,
+  });
 
   return (
     <ChatContext.Provider value={{

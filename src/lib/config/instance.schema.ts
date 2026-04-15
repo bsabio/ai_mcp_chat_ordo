@@ -51,6 +51,31 @@ function checkString(
   }
 }
 
+function validateSuggestionArray(
+  value: unknown,
+  prefix: string,
+  errors: string[],
+): void {
+  if (!Array.isArray(value)) {
+    errors.push(`${prefix}: must be an array`);
+    return;
+  }
+
+  if (value.length > 6) {
+    errors.push(`${prefix}: max 6 items`);
+    return;
+  }
+
+  for (let i = 0; i < value.length; i++) {
+    const suggestion = value[i];
+    if (typeof suggestion !== "string" || suggestion.trim() === "") {
+      errors.push(`${prefix}[${i}]: must be non-empty string`);
+    } else if (suggestion.length > 100) {
+      errors.push(`${prefix}[${i}]: max 100 characters`);
+    }
+  }
+}
+
 // ── identity.json ───────────────────────────────────────────────────
 
 export function validateIdentity(raw: unknown): InstanceIdentity | string[] {
@@ -182,34 +207,41 @@ export function validatePrompts(raw: unknown): InstancePrompts | string[] {
   }
 
   if (raw.defaultSuggestions !== undefined) {
-    if (!Array.isArray(raw.defaultSuggestions)) {
-      errors.push("prompts.defaultSuggestions: must be an array");
-    } else if (raw.defaultSuggestions.length > 6) {
-      errors.push("prompts.defaultSuggestions: max 6 items");
-    } else {
-      for (let i = 0; i < raw.defaultSuggestions.length; i++) {
-        const s = raw.defaultSuggestions[i];
-        if (typeof s !== "string" || s.trim() === "") {
-          errors.push(`prompts.defaultSuggestions[${i}]: must be non-empty string`);
-        } else if (s.length > 100) {
-          errors.push(`prompts.defaultSuggestions[${i}]: max 100 characters`);
-        }
-      }
-    }
+    validateSuggestionArray(raw.defaultSuggestions, "prompts.defaultSuggestions", errors);
   }
 
   if (raw.referralSuggestions !== undefined) {
-    if (!Array.isArray(raw.referralSuggestions)) {
-      errors.push("prompts.referralSuggestions: must be an array");
-    } else if (raw.referralSuggestions.length > 6) {
-      errors.push("prompts.referralSuggestions: max 6 items");
+    validateSuggestionArray(raw.referralSuggestions, "prompts.referralSuggestions", errors);
+  }
+
+  if (raw.roleBootstraps !== undefined) {
+    if (!isObject(raw.roleBootstraps)) {
+      errors.push("prompts.roleBootstraps: must be an object");
     } else {
-      for (let i = 0; i < raw.referralSuggestions.length; i++) {
-        const s = raw.referralSuggestions[i];
-        if (typeof s !== "string" || s.trim() === "") {
-          errors.push(`prompts.referralSuggestions[${i}]: must be non-empty string`);
-        } else if (s.length > 100) {
-          errors.push(`prompts.referralSuggestions[${i}]: max 100 characters`);
+      for (const role of ["AUTHENTICATED", "APPRENTICE", "STAFF", "ADMIN"] as const) {
+        const bootstrap = raw.roleBootstraps[role];
+        if (bootstrap === undefined) {
+          continue;
+        }
+
+        if (!isObject(bootstrap)) {
+          errors.push(`prompts.roleBootstraps.${role}: must be an object`);
+          continue;
+        }
+
+        if (bootstrap.message !== undefined) {
+          checkString(bootstrap, "message", `prompts.roleBootstraps.${role}`, errors, {
+            required: false,
+            maxLength: 1000,
+          });
+        }
+
+        if (bootstrap.suggestions !== undefined) {
+          validateSuggestionArray(
+            bootstrap.suggestions,
+            `prompts.roleBootstraps.${role}.suggestions`,
+            errors,
+          );
         }
       }
     }

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import type { LibrarianToolDeps } from "../../mcp/librarian-tool";
+import type { LibrarianToolDeps } from "@/lib/capabilities/shared/librarian-tool";
 import {
   librarianList,
   librarianGetBook,
@@ -10,7 +10,7 @@ import {
   librarianAddChapter,
   librarianRemoveBook,
   librarianRemoveChapter,
-} from "../../mcp/librarian-tool";
+} from "@/lib/capabilities/shared/librarian-tool";
 import type { VectorStore } from "@/core/search/ports/VectorStore";
 
 /**

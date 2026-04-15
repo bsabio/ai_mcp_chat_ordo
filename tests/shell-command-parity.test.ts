@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { CommandRegistry } from "@/core/commands/CommandRegistry";
 import { useCommandRegistry } from "@/hooks/useCommandRegistry";
 import {
   createCommandMentions,
@@ -136,5 +137,15 @@ describe("shell command parity", () => {
     fireEvent.click(screen.getByTestId("exec-bad"));
 
     expect(setThemeSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps shell command ids compatible with slash-normalized registry lookup", () => {
+    const registry = CommandRegistry.create(createShellCommands({
+      navigate: () => undefined,
+      setTheme: () => undefined,
+    }));
+
+    expect(registry.resolveCommand("/nav-corpus")?.id).toBe("nav-corpus");
+    expect(registry.resolveCommand("/theme-bauhaus")?.id).toBe("theme-bauhaus");
   });
 });

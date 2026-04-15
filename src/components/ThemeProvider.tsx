@@ -50,11 +50,10 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function isAbortError(error: unknown): boolean {
-  return typeof error === "object"
-    && error !== null
-    && "name" in error
-    && error.name === "AbortError";
+function isTransitionAbortError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const name = (error as { name?: string }).name;
+  return name === "AbortError" || name === "InvalidStateError";
 }
 
 function skipViewTransition(transition: ViewTransition | null): void {
@@ -62,10 +61,16 @@ function skipViewTransition(transition: ViewTransition | null): void {
     return;
   }
 
+  // Drain both promises so the skip doesn't surface as an unhandled rejection.
+  // The `finished` and `ready` promises both reject with AbortError when
+  // skipTransition() is called on a still-running transition.
+  transition.finished?.catch(() => undefined);
+  transition.ready?.catch(() => undefined);
+
   try {
     transition.skipTransition();
   } catch (error) {
-    if (!isAbortError(error)) {
+    if (!isTransitionAbortError(error)) {
       throw error;
     }
   }

@@ -21,6 +21,7 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
   const isJournalRoute = pathname === "/journal"
     || pathname.startsWith("/journal/");
+  const isDocumentFlowRoute = !isHomeRoute;
   const routeSurface = isHomeRoute
     ? "home"
     : isAdminRoute
@@ -32,8 +33,9 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
     "flex min-h-(--viewport-block-size) flex-col overflow-x-hidden bg-background text-foreground transition-colors duration-300";
   const homeMainClasses = "relative flex min-h-0 flex-1 flex-col overflow-hidden";
   const contentMainClasses = "relative flex min-h-0 flex-1 flex-col";
+  const floatingChatClearance = isDocumentFlowRoute && !isAdminRoute ? "true" : undefined;
 
-  if (isAdminRoute) {
+  if (isDocumentFlowRoute) {
     return (
       <div
         className={shellClasses}
@@ -49,35 +51,7 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
         <main
           className={contentMainClasses}
           data-shell-main-surface={routeSurface}
-          data-shell-floating-chat-clearance={!isHomeRoute && !isAdminRoute ? "true" : undefined}
-        >
-          {children}
-        </main>
-
-        <div className="flex-none">
-          <SiteFooter user={user} />
-        </div>
-      </div>
-    );
-  }
-
-  if (!isHomeRoute) {
-    return (
-      <div
-        className={shellClasses}
-        data-shell-scroll-owner="document"
-        data-shell-route-mode="document-flow"
-        data-shell-route-surface={routeSurface}
-      >
-        <MigrationToast />
-        <div className="flex-none">
-          <SiteNav user={user} searchAction={searchAction} />
-        </div>
-
-        <main
-          className={contentMainClasses}
-          data-shell-main-surface={routeSurface}
-          data-shell-floating-chat-clearance={!isHomeRoute && !isAdminRoute ? "true" : undefined}
+          data-shell-floating-chat-clearance={floatingChatClearance}
         >
           {children}
         </main>

@@ -26,6 +26,7 @@ export function getActiveReferralSnapshot(code: string): ReferralSnapshot | null
     return null;
   }
 
+  // getDb() approved: referral default parameter + raw SQL — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   const row = db
     .prepare(

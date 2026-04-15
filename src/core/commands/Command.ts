@@ -9,5 +9,6 @@ export interface Command {
   readonly title: string;
   readonly category: string;
   readonly icon?: string;
-  execute(): void;
+  readonly aliases?: readonly string[];
+  execute(context?: unknown): void | Promise<unknown>;
 }

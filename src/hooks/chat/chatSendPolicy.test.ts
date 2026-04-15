@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "@/core/entities/chat-message";
 
 import {
+  buildBackendHistory,
   prepareChatSend,
   shouldRefreshConversationAfterStream,
   validateChatSend,
@@ -66,10 +67,78 @@ describe("chatSendPolicy", () => {
     ]);
   });
 
+  it("serializes structured messages with blank content into backend-safe history", () => {
+    const history = buildBackendHistory([
+      {
+        id: "assistant-job-status",
+        role: "assistant",
+        content: "",
+        parts: [{
+          type: "job_status",
+          jobId: "job_123",
+          toolName: "produce_blog_article",
+          label: "Produce Blog Article",
+          status: "running",
+          progressLabel: "Reviewing article",
+          summary: "Editorial QA is in progress.",
+        }],
+        timestamp: new Date("2026-03-23T00:00:00.000Z"),
+      },
+      {
+        id: "user-attachment-only",
+        role: "user",
+        content: "",
+        parts: [{
+          type: "attachment",
+          assetId: "asset_123",
+          fileName: "brief.pdf",
+          mimeType: "application/pdf",
+          fileSize: 1024,
+        }],
+        timestamp: new Date("2026-03-23T00:00:00.000Z"),
+      },
+    ]);
+
+    expect(history).toEqual([
+      {
+        role: "assistant",
+        content: "Job running: Produce Blog Article - Reviewing article Editorial QA is in progress.",
+      },
+      {
+        role: "user",
+        content: "Attachment: brief.pdf",
+      },
+    ]);
+  });
+
+  it("drops persisted system summaries from backend history replay", () => {
+    const history = buildBackendHistory([
+      {
+        id: "system-summary",
+        role: "system",
+        content: "Absolutely. Give me the parameters and I'll generate it.",
+        parts: [
+          {
+            type: "summary",
+            text: "Absolutely. Give me the parameters and I'll generate it.",
+            coversUpToMessageId: "msg_covered",
+          },
+        ],
+        timestamp: new Date("2026-03-23T00:00:00.000Z"),
+      },
+      createMessage("user", "continue"),
+    ]);
+
+    expect(history).toEqual([
+      { role: "user", content: "continue" },
+    ]);
+  });
+
   it("refreshes only when the stream resolves to a different or newly created conversation", () => {
     expect(shouldRefreshConversationAfterStream(null, "conv_new")).toBe(true);
     expect(shouldRefreshConversationAfterStream("conv_current", null)).toBe(false);
-    expect(shouldRefreshConversationAfterStream("conv_current", "conv_current")).toBe(false);
+    expect(shouldRefreshConversationAfterStream("conv_current", "conv_current", true)).toBe(false);
+    expect(shouldRefreshConversationAfterStream("conv_current", "conv_current", false)).toBe(true);
     expect(shouldRefreshConversationAfterStream("conv_current", "conv_other")).toBe(true);
   });
 });

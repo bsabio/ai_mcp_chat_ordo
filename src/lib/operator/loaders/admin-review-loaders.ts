@@ -1,6 +1,6 @@
 import type { User as SessionUser } from "@/core/entities/user";
 import { getDb } from "@/lib/db";
-import { conversationAnalytics } from "@mcp/analytics-tool";
+import { conversationAnalytics } from "@/lib/capabilities/shared/analytics-tool";
 
 import {
   assertAdminUser,
@@ -17,6 +17,7 @@ export async function loadRoutingReviewBlock(
   assertAdminUser(user);
 
   const review = (await conversationAnalytics(
+    // getDb() approved: operator raw SQL helpers — see data-access-canary.test.ts (Sprint 9)
     { db: getDb() },
     { metric: "routing_review", time_range: "30d", limit: 5 },
   )) as RoutingReviewAnalyticsResult;

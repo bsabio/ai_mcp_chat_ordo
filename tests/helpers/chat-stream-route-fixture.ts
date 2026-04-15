@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { vi } from "vitest";
 import { createConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
 import { SystemPromptBuilder } from "@/core/use-cases/SystemPromptBuilder";
 
@@ -37,6 +38,35 @@ type MockControl = {
   mockImplementation(fn: (...args: any[]) => unknown): unknown;
 };
 
+export function createStreamRouteContextWindowGuard(
+  overrides: Partial<{
+    status: "ok" | "warn" | "block";
+    reasons: string[];
+    rawMessageCount: number;
+    rawCharacterCount: number;
+    finalMessageCount: number;
+    finalCharacterCount: number;
+    warnMessageCount: number;
+    warnCharacterCount: number;
+    maxMessageCount: number;
+    maxCharacterCount: number;
+  }> = {},
+) {
+  return {
+    status: "ok" as const,
+    reasons: [],
+    rawMessageCount: 0,
+    rawCharacterCount: 0,
+    finalMessageCount: 0,
+    finalCharacterCount: 0,
+    warnMessageCount: 32,
+    warnCharacterCount: 64_000,
+    maxMessageCount: 40,
+    maxCharacterCount: 80_000,
+    ...overrides,
+  };
+}
+
 export type StreamRouteMockSet = {
   getSessionUserMock: MockControl;
   resolveUserIdMock: MockControl;
@@ -49,6 +79,8 @@ export type StreamRouteMockSet = {
   analyzeRoutingMock: MockControl;
   summarizeIfNeededMock: MockControl;
   buildContextWindowMock: MockControl;
+  buildGuardedContextWindowMock: MockControl;
+  buildContextWindowGuardPromptMock: MockControl;
   runClaudeAgentLoopStreamMock: MockControl;
   createSystemPromptBuilderMock: MockControl;
   looksLikeMathMock: MockControl;
@@ -136,17 +168,41 @@ export function seedChatStreamRouteMocks(mocks: StreamRouteMockSet): void {
     contextMessages: [],
     hasSummary: false,
     summaryText: null,
+    guard: createStreamRouteContextWindowGuard(),
   });
+  mocks.buildGuardedContextWindowMock.mockImplementation(
+    (messages: Array<{ role: "user" | "assistant"; content: string }>) => ({
+      contextMessages: messages,
+      guard: createStreamRouteContextWindowGuard({
+        rawMessageCount: messages.length,
+        finalMessageCount: messages.length,
+        rawCharacterCount: messages.reduce((sum, message) => sum + message.content.length, 0),
+        finalCharacterCount: messages.reduce((sum, message) => sum + message.content.length, 0),
+      }),
+    }),
+  );
+  mocks.buildContextWindowGuardPromptMock.mockReturnValue(null);
   mocks.runClaudeAgentLoopStreamMock.mockImplementation(
     async ({ callbacks }: { callbacks: { onDelta: (text: string) => void } }) => {
       callbacks.onDelta("stub reply");
     },
   );
   mocks.createSystemPromptBuilderMock.mockImplementation(async () => {
-    return new SystemPromptBuilder().withSection({
+    const builder = new SystemPromptBuilder().withSection({
       key: "identity",
       content: "base system prompt",
       priority: 10,
+    });
+
+    return Object.assign(builder, {
+      buildResult: vi.fn(async () => ({
+        surface: "chat_stream" as const,
+        text: builder.build(),
+        effectiveHash: "hash_stream_route_prompt",
+        slotRefs: [],
+        sections: [],
+        warnings: [],
+      })),
     });
   });
   mocks.looksLikeMathMock.mockImplementation(
@@ -168,9 +224,29 @@ export function seedChatStreamRouteMocks(mocks: StreamRouteMockSet): void {
   mocks.assignConversationMock.mockResolvedValue(undefined);
 }
 
-export function createStreamRouteRequest(body: unknown) {
+export function createStreamRouteRequest(
+  body: unknown,
+  options?: {
+    headers?: HeadersInit;
+    cookies?: Record<string, string>;
+  },
+) {
+  const headers = new Headers(options?.headers);
+
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
+
+  if (options?.cookies && Object.keys(options.cookies).length > 0) {
+    const cookieHeader = Object.entries(options.cookies)
+      .map(([name, value]) => `${name}=${value}`)
+      .join("; ");
+    headers.set("cookie", cookieHeader);
+  }
+
   return new NextRequest(new URL("http://localhost/api/chat/stream"), {
     method: "POST",
+    headers,
     body: JSON.stringify(body),
   });
 }

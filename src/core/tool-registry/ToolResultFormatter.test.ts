@@ -31,6 +31,17 @@ describe("RoleAwareSearchFormatter", () => {
             bookSlug: "archetype-atlas",
             canonicalPath: "/library/archetype-atlas/ch04-the-sage",
             resolverPath: "/library/section/ch04-the-sage",
+            chunkMetadata: {
+              chunkId: "archetype-atlas/ch04-the-sage#passage:0",
+              chunkLevel: "passage",
+              localChunkIndex: 0,
+              localChunkCount: 2,
+              parentChunkId: "archetype-atlas/ch04-the-sage#section:0",
+              previousChunkId: null,
+              nextChunkId: "archetype-atlas/ch04-the-sage#section:1",
+              boundarySource: "h2_heading",
+              conceptKeywords: ["sage", "clarity"],
+            },
           },
         ],
       },
@@ -48,6 +59,17 @@ describe("RoleAwareSearchFormatter", () => {
       sectionSlug: "ch04-the-sage",
       canonicalPath: "/library/archetype-atlas/ch04-the-sage",
       resolverPath: "/library/section/ch04-the-sage",
+      chunkMetadata: {
+        chunkId: "archetype-atlas/ch04-the-sage#passage:0",
+        chunkLevel: "passage",
+        localChunkIndex: 0,
+        localChunkCount: 2,
+        parentChunkId: "archetype-atlas/ch04-the-sage#section:0",
+        previousChunkId: null,
+        nextChunkId: "archetype-atlas/ch04-the-sage#section:1",
+        boundarySource: "h2_heading",
+        conceptKeywords: ["sage", "clarity"],
+      },
     });
   });
 });

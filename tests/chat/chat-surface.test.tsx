@@ -242,12 +242,12 @@ describe("ChatSurface", () => {
     const removeSpy = vi.spyOn(window, "removeEventListener");
     const { unmount } = render(<ChatSurface mode="floating" />);
     const addCalls = addSpy.mock.calls.filter(
-      (c) => c[0] === "studio-ordo:open-chat",
+      (c) => String(c[0]) === "studio-ordo:open-chat",
     );
     expect(addCalls.length).toBeGreaterThan(0);
     unmount();
     const removeCalls = removeSpy.mock.calls.filter(
-      (c) => c[0] === "studio-ordo:open-chat",
+      (c) => String(c[0]) === "studio-ordo:open-chat",
     );
     expect(removeCalls.length).toBeGreaterThan(0);
     addSpy.mockRestore();
@@ -313,11 +313,22 @@ describe("ChatSurface", () => {
 });
 
 describe("ChatSurfaceHeader", () => {
-  it("P11: returns null for embedded mode", () => {
+  it("P11: renders embedded configuration when mode is embedded", () => {
     const { container } = render(
-      <ChatSurfaceHeader mode="embedded" isFullScreen={false} />,
+      <ChatSurfaceHeader
+        mode="embedded"
+        isFullScreen={false}
+        canCopyTranscript={false}
+        canExportConversation={false}
+        canImportConversation={false}
+        onCopyTranscript={() => undefined}
+        onExportConversation={() => undefined}
+        onImportConversationFile={() => undefined}
+      />,
     );
-    expect(container.innerHTML).toBe("");
+    expect(
+      container.querySelector("[data-chat-embedded-header='true']"),
+    ).not.toBeNull();
   });
 
   it("P12: renders controls for floating mode", () => {
@@ -325,6 +336,12 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={false}
+        canCopyTranscript={false}
+        canExportConversation={false}
+        canImportConversation={false}
+        onCopyTranscript={() => undefined}
+        onExportConversation={() => undefined}
+        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,
@@ -338,6 +355,12 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={false}
+        canCopyTranscript={false}
+        canExportConversation={false}
+        canImportConversation={false}
+        onCopyTranscript={() => undefined}
+        onExportConversation={() => undefined}
+        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,
@@ -348,6 +371,12 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={true}
+        canCopyTranscript={false}
+        canExportConversation={false}
+        canImportConversation={false}
+        onCopyTranscript={() => undefined}
+        onExportConversation={() => undefined}
+        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,
@@ -360,6 +389,12 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={false}
+        canCopyTranscript={false}
+        canExportConversation={false}
+        canImportConversation={false}
+        onCopyTranscript={() => undefined}
+        onExportConversation={() => undefined}
+        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,

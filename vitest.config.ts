@@ -12,7 +12,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     clearMocks: true,
-    include: ["src/**/*.{test,spec}.{ts,tsx}", "tests/**/*.{test,spec}.{ts,tsx}"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "tests/**/*.{test,spec}.{ts,tsx}", "mcp/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["tests/browser-ui/**/*.spec.ts"],
     coverage: {
       provider: "v8",

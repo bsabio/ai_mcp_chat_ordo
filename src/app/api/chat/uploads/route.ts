@@ -1,29 +1,24 @@
 import path from "path";
 import { NextResponse } from "next/server";
 
-import { UserFileDataMapper } from "@/adapters/UserFileDataMapper";
+import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 import { getConversationInteractor } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";
 import { reapStaleChatUploads } from "@/lib/chat/upload-reaper";
-import { getDb } from "@/lib/db";
+
 import { UserFileSystem } from "@/lib/user-files";
 import { logDegradation, logFailure } from "@/lib/observability/logger";
+import { MAX_FILE_SIZE_BYTES } from "@/lib/chat/file-validation";
+import { extractUploadMediaMetadata } from "@/lib/media/media-metadata";
+import { classifyChatUpload } from "@/lib/media/media-upload-policy";
 
-function getExtension(fileName: string, mimeType: string): string {
+function getExtension(fileName: string, fallbackExtension: string): string {
   const extension = path.extname(fileName).replace(/^\./, "").trim().toLowerCase();
   if (extension) {
     return extension;
   }
 
-  if (mimeType === "application/pdf") {
-    return "pdf";
-  }
-
-  if (mimeType === "text/plain") {
-    return "txt";
-  }
-
-  return "bin";
+  return fallbackExtension;
 }
 
 export async function POST(request: Request) {
@@ -41,6 +36,24 @@ export async function POST(request: Request) {
       );
     }
 
+    for (const file of files) {
+      const classification = classifyChatUpload(file.name, file.type, {
+        allowDerivedAssets: true,
+      });
+      if (!classification) {
+        return NextResponse.json(
+          { error: `Unsupported file type: ${file.type || file.name}. Allowed: PDF, plain text, JPEG, PNG, GIF, WebP, MP3, WAV, OGG, WebM audio, MP4, WebM video, and QuickTime.` },
+          { status: 400 },
+        );
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        return NextResponse.json(
+          { error: `File "${file.name}" exceeds the 32 MB size limit.` },
+          { status: 400 },
+        );
+      }
+    }
+
     const conversationId =
       typeof rawConversationId === "string" && rawConversationId
         ? rawConversationId
@@ -55,24 +68,47 @@ export async function POST(request: Request) {
       await getConversationInteractor().get(conversationId, userId);
     }
 
-    const ufs = new UserFileSystem(new UserFileDataMapper(getDb()));
+    const ufs = new UserFileSystem(getUserFileDataMapper());
     const attachments = await Promise.all(
       files.map(async (file) => {
+        const classification = classifyChatUpload(file.name, file.type, {
+          allowDerivedAssets: true,
+        });
+        if (!classification) {
+          throw new Error(`Unsupported file type: ${file.type || file.name}`);
+        }
+
         const data = Buffer.from(await file.arrayBuffer());
+        const metadata = extractUploadMediaMetadata(classification, data);
         const storedFile = await ufs.storeBinary({
           userId,
           conversationId,
-          fileType: "document",
-          mimeType: file.type || "application/octet-stream",
-          extension: getExtension(file.name, file.type),
+          fileType: classification.fileType,
+          mimeType: file.type || classification.mimeType || "application/octet-stream",
+          extension: getExtension(file.name, classification.extension),
           data,
+          metadata: {
+            ...metadata,
+            retentionClass: conversationId ? "conversation" : "ephemeral",
+          },
         });
+        const storedMetadata = storedFile.metadata ?? {};
 
         return {
           assetId: storedFile.id,
           fileName: file.name,
           mimeType: storedFile.mimeType,
           fileSize: storedFile.fileSize,
+          ...(storedMetadata.assetKind ? { assetKind: storedMetadata.assetKind } : {}),
+          ...(typeof storedMetadata.width === "number" ? { width: storedMetadata.width } : {}),
+          ...(typeof storedMetadata.height === "number" ? { height: storedMetadata.height } : {}),
+          ...(typeof storedMetadata.durationSeconds === "number"
+            ? { durationSeconds: storedMetadata.durationSeconds }
+            : {}),
+          ...(storedMetadata.source ? { source: storedMetadata.source } : {}),
+          ...(storedMetadata.retentionClass
+            ? { retentionClass: storedMetadata.retentionClass }
+            : {}),
         };
       }),
     );
@@ -106,7 +142,7 @@ export async function DELETE(request: Request) {
     }
 
     const { userId } = await resolveUserId();
-    const ufs = new UserFileSystem(new UserFileDataMapper(getDb()));
+    const ufs = new UserFileSystem(getUserFileDataMapper());
 
     await Promise.all(
       attachmentIds.map((attachmentId) =>

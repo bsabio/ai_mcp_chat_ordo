@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 import type { PresentedMessage } from "@/adapters/ChatPresenter";
 import type { ActionLinkType } from "@/core/entities/rich-content";
@@ -115,3 +115,5 @@ export const ChatMessageViewport: React.FC<ChatMessageViewportProps> = ({
     </div>
   );
 };
+
+export const MemoizedChatMessageViewport = React.memo(ChatMessageViewport);

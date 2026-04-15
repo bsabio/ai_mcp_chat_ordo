@@ -107,6 +107,7 @@ function createMockRepos() {
     archiveById: vi.fn().mockResolvedValue(undefined),
     softDelete: vi.fn().mockResolvedValue(undefined),
     restoreDeleted: vi.fn().mockResolvedValue(undefined),
+    purge: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     updateTitle: vi.fn().mockResolvedValue(undefined),
     touch: vi.fn().mockResolvedValue(undefined),

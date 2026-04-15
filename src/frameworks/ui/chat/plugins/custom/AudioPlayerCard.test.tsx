@@ -1,0 +1,61 @@
+// @vitest-environment jsdom
+
+import React from "react";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/AudioPlayer", () => ({
+  AudioPlayer: ({ title, provider, assetId }: { title: string; provider?: string; assetId?: string }) => (
+    <div data-testid="mock-audio-player">
+      {title}:{provider ?? "no-provider"}:{assetId ?? "no-asset"}
+    </div>
+  ),
+}));
+
+import { AudioPlayerCard } from "./AudioPlayerCard";
+import type { ToolPluginProps } from "../../registry/types";
+
+function createPart(overrides: Partial<NonNullable<ToolPluginProps["part"]>> = {}) {
+  return {
+    type: "job_status" as const,
+    jobId: "job_audio_1",
+    toolName: "generate_audio",
+    label: "Generate Audio",
+    status: "succeeded" as const,
+    ...overrides,
+  };
+}
+
+describe("AudioPlayerCard", () => {
+  it("renders structured audio payloads inside the shared artifact shell", async () => {
+    render(
+      <AudioPlayerCard
+        part={createPart()}
+        toolCall={{
+          name: "generate_audio",
+          args: { title: "Founder memo", text: "Weekly review audio" },
+          result: {
+            action: "generate_audio",
+            title: "Founder memo",
+            text: "Weekly review audio",
+            assetId: "uf_audio_1",
+            provider: "user-file-cache",
+            generationStatus: "cached_asset",
+            estimatedDurationSeconds: 12,
+            estimatedGenerationSeconds: 3,
+          },
+        }}
+        isStreaming={false}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: "Generate Audio result" })).toHaveAttribute(
+      "data-capability-card",
+      "true",
+    );
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(await screen.findByTestId("mock-audio-player")).toHaveTextContent(
+      "Founder memo:user-file-cache:uf_audio_1",
+    );
+  });
+});

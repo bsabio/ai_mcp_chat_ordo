@@ -4,7 +4,8 @@ import type OpenAI from "openai";
 import {
   adminWebSearch,
   type WebSearchToolDeps,
-} from "../../mcp/web-search-tool";
+} from "@/lib/capabilities/shared/web-search-tool";
+import { getOpenaiApiKey, getAnthropicApiKey } from "@/lib/config/env";
 
 function mockOpenAI(overrides?: {
   output?: unknown[];
@@ -102,6 +103,50 @@ describe("adminWebSearch", () => {
     expect(result).toEqual({
       error: "OPENAI_API_KEY environment variable is not set",
     });
+  });
+
+  it("accepts API__OPENAI_API_KEY as the OpenAI alias", async () => {
+    delete process.env.OPENAI_API_KEY;
+    process.env.API__OPENAI_API_KEY = "sk-alias-key";
+
+    const result = await adminWebSearch(mockOpenAI({ output: MOCK_OUTPUT }), {
+      query: "test",
+    });
+
+    expect(result).toHaveProperty("answer", "The transistor was invented in 1947.");
+    delete process.env.API__OPENAI_API_KEY;
+  });
+
+  it("resolves provider aliases via shared env helpers", () => {
+    const originalAnthropic = process.env.ANTHROPIC_API_KEY;
+    const originalOpenAiAlias = process.env.API__OPENAI_API_KEY;
+    const originalAnthropicAlias = process.env.API__ANTHROPIC_API_KEY;
+
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    process.env.API__OPENAI_API_KEY = "sk-openai-alias";
+    process.env.API__ANTHROPIC_API_KEY = "sk-anthropic-alias";
+
+    expect(getOpenaiApiKey()).toBe("sk-openai-alias");
+    expect(getAnthropicApiKey()).toBe("sk-anthropic-alias");
+
+    if (originalOpenAiAlias !== undefined) {
+      process.env.API__OPENAI_API_KEY = originalOpenAiAlias;
+    } else {
+      delete process.env.API__OPENAI_API_KEY;
+    }
+
+    if (originalAnthropicAlias !== undefined) {
+      process.env.API__ANTHROPIC_API_KEY = originalAnthropicAlias;
+    } else {
+      delete process.env.API__ANTHROPIC_API_KEY;
+    }
+
+    if (originalAnthropic !== undefined) {
+      process.env.ANTHROPIC_API_KEY = originalAnthropic;
+    } else {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
   });
 
   // --- Default model ---

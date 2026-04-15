@@ -39,19 +39,20 @@ function renderLineGraph() {
 }
 
 describe("browser graph interactions", () => {
-  it("opens the expanded graph view from the thumbnail and preserves the data preview", () => {
+  it("opens the expanded graph view and preserves the data preview", () => {
     renderLineGraph();
 
     expect(screen.getByTestId("graph-data-preview")).toHaveTextContent("W1");
     expect(screen.getByTestId("graph-data-preview")).toHaveTextContent("North");
 
-    fireEvent.click(screen.getByRole("button", { name: /view diagram/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand full screen" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(within(dialog).getByText("Lead trend")).toBeInTheDocument();
     expect(within(dialog).getByTestId("graph-data-preview")).toHaveTextContent("W2");
     expect(within(dialog).getByTestId("graph-svg")).toHaveAttribute("data-graph-kind", "line");
+    expect(within(dialog).getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
   });
 
   it("downloads the rendered graph as svg from the card header", () => {

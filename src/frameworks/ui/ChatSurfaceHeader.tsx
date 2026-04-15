@@ -2,31 +2,63 @@
 
 import React from "react";
 
-interface ChatSurfaceHeaderProps {
+import {
+  ChatConversationDataMenu,
+  type ChatConversationDataMenuProps,
+} from "./ChatConversationDataMenu";
+
+interface ChatSurfaceHeaderProps extends ChatConversationDataMenuProps {
   mode: "embedded" | "floating";
   isFullScreen: boolean;
+  isConversationActionPending?: boolean;
   onMinimize?: () => void;
   onFullScreenToggle?: () => void;
 }
 
 export function ChatSurfaceHeader({
+  canCopyTranscript,
+  canExportConversation,
+  canImportConversation,
   mode,
   isFullScreen,
+  isConversationActionPending = false,
+  onCopyTranscript,
+  onExportConversation,
+  onImportConversationFile,
   onMinimize,
   onFullScreenToggle,
 }: ChatSurfaceHeaderProps) {
-  if (mode === "embedded") return null;
-
-  const headerClasses = isFullScreen
-    ? "glass-surface safe-area-pt safe-area-px relative z-10 flex shrink-0 items-start justify-between border-b border-color-theme pb-(--space-4) pt-(--space-3) transition-colors duration-500"
-    : "glass-surface relative z-10 flex shrink-0 items-start justify-between border-b border-color-theme px-(--container-padding) py-(--space-4) transition-colors duration-500";
+  const headerClasses = mode === "embedded"
+    ? "ui-chat-header-surface relative z-20 flex shrink-0 items-center justify-end border-b border-color-theme px-(--space-3) py-(--space-2)"
+    : isFullScreen
+      ? "glass-surface safe-area-pt safe-area-px relative z-20 flex shrink-0 items-start justify-between border-b border-color-theme pb-(--space-4) pt-(--space-3) transition-colors duration-500"
+      : "glass-surface relative z-20 flex shrink-0 items-start justify-between border-b border-color-theme px-(--container-padding) py-(--space-4) transition-colors duration-500";
 
   return (
-    <div className={headerClasses} data-chat-floating-header="true">
+    <div
+      className={headerClasses}
+      data-chat-embedded-header={mode === "embedded" ? "true" : undefined}
+      data-chat-floating-header={mode === "floating" ? "true" : undefined}
+      data-chat-surface-header="true"
+      data-chat-surface-header-mode={mode}
+    >
+      {mode === "floating" ? <div /> : null}
       <div
         className="shell-action-row shrink-0 ml-auto"
         data-chat-floating-header-chrome="true"
       >
+        <ChatConversationDataMenu
+          canCopyTranscript={canCopyTranscript}
+          canExportConversation={canExportConversation}
+          canImportConversation={canImportConversation}
+          isBusy={isConversationActionPending}
+          onCopyTranscript={onCopyTranscript}
+          onExportConversation={onExportConversation}
+          onImportConversationFile={onImportConversationFile}
+        />
+
+        {mode === "floating" ? (
+          <>
         <button
           onClick={onFullScreenToggle}
           className="icon-btn"
@@ -54,6 +86,8 @@ export function ChatSurfaceHeader({
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
+          </>
+        ) : null}
       </div>
     </div>
   );

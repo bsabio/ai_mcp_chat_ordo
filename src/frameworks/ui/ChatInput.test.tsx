@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { ChatInput } from "@/frameworks/ui/ChatInput";
 
 const CHAT_PLACEHOLDER = "Ask Studio Ordo...";
-const CHAT_HELPER = "Enter to send. Shift+Enter for line breaks.";
 
 describe("ChatInput", () => {
   it("submits on Enter without Shift", () => {
@@ -12,13 +11,11 @@ describe("ChatInput", () => {
 
     render(
       <ChatInput
-        helperTextId="chat-composer-helper-test"
         value="Draft a response"
         onChange={vi.fn()}
         onSend={onSend}
         isSending={false}
         canSend={true}
-        onArrowUp={vi.fn()}
         activeTrigger={null}
         suggestions={[]}
         mentionIndex={0}
@@ -27,6 +24,7 @@ describe("ChatInput", () => {
         pendingFiles={[]}
         onFileSelect={vi.fn()}
         onFileRemove={vi.fn()}
+        onFileDrop={vi.fn()}
       />,
     );
 
@@ -42,13 +40,11 @@ describe("ChatInput", () => {
 
     render(
       <ChatInput
-        helperTextId="chat-composer-helper-test"
         value="Line one"
         onChange={vi.fn()}
         onSend={onSend}
         isSending={false}
         canSend={true}
-        onArrowUp={vi.fn()}
         activeTrigger={null}
         suggestions={[]}
         mentionIndex={0}
@@ -57,6 +53,7 @@ describe("ChatInput", () => {
         pendingFiles={[]}
         onFileSelect={vi.fn()}
         onFileRemove={vi.fn()}
+        onFileDrop={vi.fn()}
       />,
     );
 
@@ -71,13 +68,11 @@ describe("ChatInput", () => {
   it("renders a textarea composer", () => {
     render(
       <ChatInput
-        helperTextId="chat-composer-helper-test"
         value=""
         onChange={vi.fn()}
         onSend={vi.fn()}
         isSending={false}
         canSend={false}
-        onArrowUp={vi.fn()}
         activeTrigger={null}
         suggestions={[]}
         mentionIndex={0}
@@ -86,46 +81,21 @@ describe("ChatInput", () => {
         pendingFiles={[]}
         onFileSelect={vi.fn()}
         onFileRemove={vi.fn()}
+        onFileDrop={vi.fn()}
       />,
     );
 
     expect(screen.getByPlaceholderText(CHAT_PLACEHOLDER).tagName).toBe("TEXTAREA");
   });
 
-  it("exposes helper guidance for send and newline shortcuts", () => {
-    render(
-      <ChatInput
-        helperTextId="chat-composer-helper-test"
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        isSending={false}
-        canSend={false}
-        onArrowUp={vi.fn()}
-        activeTrigger={null}
-        suggestions={[]}
-        mentionIndex={0}
-        onMentionIndexChange={vi.fn()}
-        onSuggestionSelect={vi.fn()}
-        pendingFiles={[]}
-        onFileSelect={vi.fn()}
-        onFileRemove={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText(CHAT_HELPER)).toBeInTheDocument();
-  });
-
   it("exposes idle composer and send semantics when the field is empty", () => {
     const { container } = render(
       <ChatInput
-        helperTextId="chat-composer-helper-test"
         value=""
         onChange={vi.fn()}
         onSend={vi.fn()}
         isSending={false}
         canSend={false}
-        onArrowUp={vi.fn()}
         activeTrigger={null}
         suggestions={[]}
         mentionIndex={0}
@@ -134,6 +104,7 @@ describe("ChatInput", () => {
         pendingFiles={[]}
         onFileSelect={vi.fn()}
         onFileRemove={vi.fn()}
+        onFileDrop={vi.fn()}
       />,
     );
 
@@ -145,13 +116,11 @@ describe("ChatInput", () => {
   it("exposes ready composer and send semantics when input exists", () => {
     const { container } = render(
       <ChatInput
-        helperTextId="chat-composer-helper-test"
         value="Audit this workflow"
         onChange={vi.fn()}
         onSend={vi.fn()}
         isSending={false}
         canSend={true}
-        onArrowUp={vi.fn()}
         activeTrigger={null}
         suggestions={[]}
         mentionIndex={0}
@@ -160,6 +129,7 @@ describe("ChatInput", () => {
         pendingFiles={[]}
         onFileSelect={vi.fn()}
         onFileRemove={vi.fn()}
+        onFileDrop={vi.fn()}
       />,
     );
 
@@ -170,13 +140,11 @@ describe("ChatInput", () => {
   it("uses semantic composer surface classes for frame and field", () => {
     const { container } = render(
       <ChatInput
-        helperTextId="chat-composer-helper-test"
         value="Audit this workflow"
         onChange={vi.fn()}
         onSend={vi.fn()}
         isSending={false}
         canSend={true}
-        onArrowUp={vi.fn()}
         activeTrigger={null}
         suggestions={[]}
         mentionIndex={0}
@@ -185,6 +153,7 @@ describe("ChatInput", () => {
         pendingFiles={[]}
         onFileSelect={vi.fn()}
         onFileRemove={vi.fn()}
+        onFileDrop={vi.fn()}
       />,
     );
 
@@ -192,40 +161,11 @@ describe("ChatInput", () => {
     expect(container.querySelector('[data-chat-composer-field="true"]')?.className).toContain("ui-chat-composer-field");
   });
 
-  it("uses the provided helper text id for aria-describedby", () => {
-    render(
-      <ChatInput
-        helperTextId="chat-composer-helper-test"
-        value=""
-        onChange={vi.fn()}
-        onSend={vi.fn()}
-        isSending={false}
-        canSend={false}
-        onArrowUp={vi.fn()}
-        activeTrigger={null}
-        suggestions={[]}
-        mentionIndex={0}
-        onMentionIndexChange={vi.fn()}
-        onSuggestionSelect={vi.fn()}
-        pendingFiles={[]}
-        onFileSelect={vi.fn()}
-        onFileRemove={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByPlaceholderText(CHAT_PLACEHOLDER)).toHaveAttribute(
-      "aria-describedby",
-      "chat-composer-helper-test",
-    );
-    expect(document.getElementById("chat-composer-helper-test")).not.toBeNull();
-  });
-
   it("renders a stop control while a stream is active", () => {
     const onStopStream = vi.fn();
 
     render(
       <ChatInput
-        helperTextId="chat-composer-helper-test"
         value="Draft a response"
         onChange={vi.fn()}
         onSend={vi.fn()}
@@ -233,7 +173,6 @@ describe("ChatInput", () => {
         canSend={false}
         canStopStream={true}
         onStopStream={onStopStream}
-        onArrowUp={vi.fn()}
         activeTrigger={null}
         suggestions={[]}
         mentionIndex={0}
@@ -242,6 +181,7 @@ describe("ChatInput", () => {
         pendingFiles={[]}
         onFileSelect={vi.fn()}
         onFileRemove={vi.fn()}
+        onFileDrop={vi.fn()}
       />,
     );
 

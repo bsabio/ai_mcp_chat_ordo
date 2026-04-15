@@ -30,9 +30,53 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
+      MEDIA_WORKER_URL: ${MEDIA_WORKER_URL:-http://media-worker:3101}
+      MEDIA_WORKER_SHARED_SECRET: ${MEDIA_WORKER_SHARED_SECRET:-}
       SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+  admin-web-search-mcp:
+    image: kaw393939/studioordo:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: studioordo-admin-web-search-mcp
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./.data:/app/.data
+      - ./config:/app/config:ro
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      NODE_ENV: production
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE: ${ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE:-}
+  media-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.media
+    container_name: studioordo-media-worker
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./.data:/app/.data
+      - ./config:/app/config:ro
+    environment:
+      NODE_ENV: production
+      MEDIA_WORKER_PORT: 3101
+      MEDIA_WORKER_SHARED_SECRET: ${MEDIA_WORKER_SHARED_SECRET:-}

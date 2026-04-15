@@ -57,12 +57,18 @@ vi.mock("@/lib/admin/jobs/admin-jobs", () => ({
   loadAdminJobList: loadAdminJobListMock,
 }));
 
-vi.mock("@/lib/operator/loaders/admin-loaders", () => ({
-  loadSystemHealthBlock: loadSystemHealthBlockMock,
+vi.mock("@/lib/admin/leads/admin-leads-attention", () => ({
   loadLeadQueueBlock: loadLeadQueueBlockMock,
   loadConsultationRequestQueueBlock: loadConsultationRequestQueueBlockMock,
   loadTrainingPathQueueBlock: loadTrainingPathQueueBlockMock,
+}));
+
+vi.mock("@/lib/admin/pipeline/admin-pipeline-attention", () => ({
   loadOverdueFollowUpsBlock: loadOverdueFollowUpsBlockMock,
+}));
+
+vi.mock("@/lib/operator/loaders/admin-loaders", () => ({
+  loadSystemHealthBlock: loadSystemHealthBlockMock,
   loadRoutingReviewBlock: loadRoutingReviewBlockMock,
 }));
 

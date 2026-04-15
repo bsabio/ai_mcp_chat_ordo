@@ -1,6 +1,6 @@
 import webpush from "web-push";
 import { getPushSubscriptionRepository } from "@/adapters/RepositoryFactory";
-import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper";
+import { getUserPreferencesDataMapper } from "@/adapters/RepositoryFactory";
 import type { JobRequest } from "@/core/entities/job";
 import type { BrowserPushSubscription } from "@/core/entities/push-subscription";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
@@ -9,7 +9,7 @@ import {
   getWebPushPublicKey,
   getWebPushSubject,
 } from "@/lib/config/env";
-import { getDb } from "@/lib/db";
+
 import {
   isPushNotificationsEnabledValue,
   PUSH_NOTIFICATIONS_PREFERENCE_KEY,
@@ -127,7 +127,7 @@ function toWebPushSubscription(record: {
 
 export function createDeferredJobNotificationDispatcher(): DeferredJobNotificationDispatcher {
   const repository = getPushSubscriptionRepository();
-  const preferencesRepository = new UserPreferencesDataMapper(getDb());
+  const preferencesRepository = getUserPreferencesDataMapper();
 
   return {
     async notify(job, eventType) {

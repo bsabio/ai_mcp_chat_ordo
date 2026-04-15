@@ -109,6 +109,7 @@ test("admin detail exposes export and clearly blocks ordinary purge before purge
 
   await expect(page.getByRole("heading", { name: "Governed retention review" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export JSON" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export transcript JSON" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Purge blocked" })).toBeVisible();
   await expect(page.getByText(/Purge is blocked until/i)).toBeVisible();
 
@@ -119,4 +120,12 @@ test("admin detail exposes export and clearly blocks ordinary purge before purge
   const downloadPath = await download.path();
   expect(downloadPath).not.toBeNull();
   expect(fs.readFileSync(downloadPath as string, "utf8")).toContain('"version": 1');
+
+  const transcriptDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export transcript JSON" }).click();
+  const transcriptDownload = await transcriptDownloadPromise;
+  expect(transcriptDownload.suggestedFilename()).toBe(`conversation-${conversationId}-transcript.json`);
+  const transcriptDownloadPath = await transcriptDownload.path();
+  expect(transcriptDownloadPath).not.toBeNull();
+  expect(fs.readFileSync(transcriptDownloadPath as string, "utf8")).toContain('"transcriptSummary"');
 });

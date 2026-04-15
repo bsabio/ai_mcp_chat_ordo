@@ -16,6 +16,11 @@ import type { BlogPostArtifactRepository } from "@/core/use-cases/BlogPostArtifa
 import type { BlogAssetRepository } from "@/core/use-cases/BlogAssetRepository";
 import type { BlogPostRepository } from "@/core/use-cases/BlogPostRepository";
 import type { BlogImageGenerationService } from "@/lib/blog/blog-image-generation-service";
+import type { CapabilityProgressPhase } from "@/core/entities/capability-result";
+import {
+  normalizeJobProgressState,
+  getJobPhaseDefinitions,
+} from "@/lib/jobs/job-progress-state";
 
 export interface ProduceBlogArticleInput extends ComposeBlogArticleInput {
   enhanceImagePrompt?: boolean;
@@ -25,6 +30,41 @@ export interface ProduceBlogArticleOutput extends DraftContentOutput {
   imageAssetId: string;
   stages: string[];
   summary: string;
+}
+
+export interface ProduceBlogArticleProgressUpdate {
+  progressPercent?: number | null;
+  progressLabel?: string | null;
+  phases?: CapabilityProgressPhase[];
+  activePhaseKey?: string | null;
+  summary?: string;
+  replaySnapshot?: Record<string, unknown> | null;
+}
+
+export type ProduceBlogArticleProgressReporter = (
+  update: ProduceBlogArticleProgressUpdate,
+) => Promise<void>;
+
+function resolveAbortReason(signal: AbortSignal, fallbackReason: string): string {
+  if (typeof signal.reason === "string" && signal.reason.trim().length > 0) {
+    return signal.reason;
+  }
+
+  if (signal.reason instanceof Error && signal.reason.message.trim().length > 0) {
+    return signal.reason.message;
+  }
+
+  return fallbackReason;
+}
+
+function throwIfAborted(signal: AbortSignal | undefined, fallbackReason = "deferred_job_canceled"): void {
+  if (!signal?.aborted) {
+    return;
+  }
+
+  const error = new Error(resolveAbortReason(signal, fallbackReason));
+  error.name = "AbortError";
+  throw error;
 }
 
 function buildArtifactSeed(
@@ -41,6 +81,32 @@ function buildArtifactSeed(
   };
 }
 
+function buildProduceBlogArticlePhaseState(
+  activePhaseKey: string,
+): ProduceBlogArticleProgressUpdate {
+  const phaseDefinitions = getJobPhaseDefinitions("produce_blog_article");
+  if (!phaseDefinitions) {
+    throw new Error("produce_blog_article progress phases are not registered.");
+  }
+
+  const activePhaseIndex = phaseDefinitions.findIndex((phase) => phase.key === activePhaseKey);
+
+  return normalizeJobProgressState({
+    toolName: "produce_blog_article",
+    activePhaseKey,
+    phases: phaseDefinitions.map((phase, index) => ({
+      key: phase.key,
+      label: phase.label,
+      status:
+        index < activePhaseIndex
+          ? "succeeded"
+          : index === activePhaseIndex
+            ? "active"
+            : "pending",
+    })),
+  });
+}
+
 export class BlogArticleProductionService {
   constructor(
     private readonly model: BlogArticlePipelineModel,
@@ -50,12 +116,18 @@ export class BlogArticleProductionService {
     private readonly imageService: BlogImageGenerationService,
   ) {}
 
-  composeArticle(input: ComposeBlogArticleInput): Promise<ComposedBlogArticle> {
-    return this.model.composeArticle(input);
+  composeArticle(
+    input: ComposeBlogArticleInput,
+    options?: { abortSignal?: AbortSignal },
+  ): Promise<ComposedBlogArticle> {
+    return this.model.composeArticle(input, options);
   }
 
-  reviewArticle(article: ComposedBlogArticle): Promise<BlogQaReport> {
-    return this.model.reviewArticle(article);
+  reviewArticle(
+    article: ComposedBlogArticle,
+    options?: { abortSignal?: AbortSignal },
+  ): Promise<BlogQaReport> {
+    return this.model.reviewArticle(article, options);
   }
 
   async reviewArticleForPost(
@@ -76,8 +148,9 @@ export class BlogArticleProductionService {
   resolveQa(
     article: ComposedBlogArticle,
     report: BlogQaReport,
+    options?: { abortSignal?: AbortSignal },
   ): Promise<ResolvedBlogArticle> {
-    return this.model.resolveQa(article, report);
+    return this.model.resolveQa(article, report, options);
   }
 
   async resolveQaForPost(
@@ -108,33 +181,53 @@ export class BlogArticleProductionService {
     return resolved;
   }
 
-  designHeroImagePrompt(article: ComposedBlogArticle): Promise<BlogImagePromptDesign> {
-    return this.model.designHeroImagePrompt(article);
+  designHeroImagePrompt(
+    article: ComposedBlogArticle,
+    options?: { abortSignal?: AbortSignal },
+  ): Promise<BlogImagePromptDesign> {
+    return this.model.designHeroImagePrompt(article, options);
   }
 
   async produceArticle(
     input: ProduceBlogArticleInput,
     context: ToolExecutionContext,
-    reportProgress?: (label: string, percent: number) => Promise<void>,
+    reportProgress?: ProduceBlogArticleProgressReporter,
   ): Promise<ProduceBlogArticleOutput> {
-    await reportProgress?.("Composing article", 10);
-    const composed = await this.composeArticle(input);
+    const contextProgressReporter = context.reportProgress
+      ? async (update: Parameters<ProduceBlogArticleProgressReporter>[0]) => {
+          await context.reportProgress?.(update);
+        }
+      : undefined;
+    const progressReporter = reportProgress ?? contextProgressReporter;
 
-    await reportProgress?.("Reviewing article", 30);
-    const qaReport = await this.reviewArticle(composed);
+    throwIfAborted(context.abortSignal);
+    await progressReporter?.(buildProduceBlogArticlePhaseState("compose_blog_article"));
+    throwIfAborted(context.abortSignal);
+    const composed = await this.composeArticle(input, { abortSignal: context.abortSignal });
 
-    await reportProgress?.("Resolving QA findings", 50);
+    throwIfAborted(context.abortSignal);
+    await progressReporter?.(buildProduceBlogArticlePhaseState("qa_blog_article"));
+    throwIfAborted(context.abortSignal);
+    const qaReport = await this.reviewArticle(composed, { abortSignal: context.abortSignal });
+
+    throwIfAborted(context.abortSignal);
+    await progressReporter?.(buildProduceBlogArticlePhaseState("resolve_blog_article_qa"));
+    throwIfAborted(context.abortSignal);
     const resolved = qaReport.findings.length > 0
-      ? await this.resolveQa(composed, qaReport)
+      ? await this.resolveQa(composed, qaReport, { abortSignal: context.abortSignal })
       : {
         ...composed,
         resolutionSummary: "No QA changes were required.",
       };
 
-    await reportProgress?.("Designing hero image prompt", 65);
-    const imagePrompt = await this.designHeroImagePrompt(resolved);
+    throwIfAborted(context.abortSignal);
+    await progressReporter?.(buildProduceBlogArticlePhaseState("generate_blog_image_prompt"));
+    throwIfAborted(context.abortSignal);
+    const imagePrompt = await this.designHeroImagePrompt(resolved, { abortSignal: context.abortSignal });
 
-    await reportProgress?.("Generating hero image", 80);
+    throwIfAborted(context.abortSignal);
+    await progressReporter?.(buildProduceBlogArticlePhaseState("generate_blog_image"));
+    throwIfAborted(context.abortSignal);
     const generatedImage = await this.imageService.generate({
       prompt: imagePrompt.prompt,
       altText: imagePrompt.altText,
@@ -142,16 +235,21 @@ export class BlogArticleProductionService {
       quality: imagePrompt.quality,
       enhancePrompt: input.enhanceImagePrompt ?? true,
       createdByUserId: context.userId,
+      abortSignal: context.abortSignal,
     });
 
-    await reportProgress?.("Saving draft", 95);
+    throwIfAborted(context.abortSignal);
+    await progressReporter?.(buildProduceBlogArticlePhaseState("draft_content"));
+    throwIfAborted(context.abortSignal);
     const draft = await executeDraftContent(
       this.blogRepo,
       { title: resolved.title, content: resolved.content },
       context,
     );
 
+    throwIfAborted(context.abortSignal);
     await this.assetRepo.attachToPost(generatedImage.assetId, draft.id);
+    throwIfAborted(context.abortSignal);
     await this.imageService.selectHeroImage(draft.id, generatedImage.assetId, context.userId);
 
     const artifacts = [
@@ -168,6 +266,7 @@ export class BlogArticleProductionService {
       buildArtifactSeed(draft.id, context.userId, "hero_image_generation_result", generatedImage),
     ];
 
+    throwIfAborted(context.abortSignal);
     await Promise.all(artifacts.map((artifact) => this.artifactRepo.create(artifact)));
 
     return {

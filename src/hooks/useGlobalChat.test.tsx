@@ -34,6 +34,28 @@ vi.mock("next/navigation", () => ({
   usePathname: usePathnameMock,
 }));
 
+vi.mock("@/hooks/chat/useCurrentPageMemento", () => {
+  let currentPathname = "/";
+  return {
+    useCurrentPageMemento: (pathname: string) => {
+      currentPathname = pathname;
+      return {
+        getSnapshot: () => ({
+          pathname: currentPathname,
+          title: "Test Page",
+          mainHeading: null,
+          sectionHeadings: [],
+          selectedText: null,
+          contentExcerpt: null,
+        }),
+        start: () => {},
+        stop: () => {},
+        setPathname: (p: string) => { currentPathname = p; },
+      };
+    },
+  };
+});
+
 import { ChatProvider, useGlobalChat } from "./useGlobalChat";
 
 function ChatProbe() {
@@ -138,7 +160,7 @@ describe("ChatProvider active conversation restore", () => {
 
     render(<RoleSwitcher />);
 
-    expect(screen.getByTestId("first-message")).toHaveTextContent("Bring me the messy workflow");
+    expect(screen.getByTestId("first-message")).toHaveTextContent("Bring me the messy workflow, half-finished idea, or customer task");
 
     fireEvent.click(screen.getByRole("button", { name: "switch-role" }));
 
@@ -1215,7 +1237,7 @@ describe("ChatProvider active conversation restore", () => {
         expect.arrayContaining([
           expect.objectContaining({
             role: "user",
-            content: "",
+            content: "Attachment: brief.txt",
           }),
         ]),
         expect.objectContaining({
@@ -1312,5 +1334,38 @@ describe("ChatProvider active conversation restore", () => {
         method: "DELETE",
       }),
     );
+  });
+});
+
+describe("ChatProvider architecture", () => {
+  it("keeps the ChatProvider module under 150 lines", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const filePath = path.resolve(__dirname, "useGlobalChat.tsx");
+    const lines = fs.readFileSync(filePath, "utf-8").split("\n").length;
+    expect(lines).toBeLessThanOrEqual(150);
+  });
+
+  it("keeps the ChatProvider function body under 100 lines", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const filePath = path.resolve(__dirname, "useGlobalChat.tsx");
+    const source = fs.readFileSync(filePath, "utf-8");
+    const lines = source.split("\n");
+    const start = lines.findIndex((l) => l.includes("export function ChatProvider"));
+    let depth = 0;
+    let end = start;
+    for (let i = start; i < lines.length; i++) {
+      for (const ch of lines[i]) {
+        if (ch === "{") depth++;
+        if (ch === "}") depth--;
+      }
+      if (depth === 0 && i > start) {
+        end = i;
+        break;
+      }
+    }
+    const functionLines = end - start + 1;
+    expect(functionLines).toBeLessThanOrEqual(100);
   });
 });

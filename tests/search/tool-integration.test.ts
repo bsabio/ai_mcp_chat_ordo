@@ -109,6 +109,7 @@ describe("Sprint 4 — Tool Integration", () => {
         query: "bauhaus",
         groundingState: "no_results",
         followUp: "refine_query",
+        retrievalQuality: "none",
         results: [],
         prefetchedSection: null,
       });

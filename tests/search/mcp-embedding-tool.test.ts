@@ -7,7 +7,7 @@ import type { EmbeddingPipelineFactory } from "@/core/search/EmbeddingPipelineFa
 import type { EmbeddingPipeline } from "@/core/search/EmbeddingPipeline";
 import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 import type { HybridSearchResult, IndexResult, RebuildResult } from "@/core/search/types";
-import type { EmbeddingToolDeps } from "../../mcp/embedding-tool";
+import type { EmbeddingToolDeps } from "@/lib/capabilities/shared/embedding-tool";
 import {
   embedText,
   embedDocument,
@@ -15,7 +15,7 @@ import {
   rebuildIndex,
   getIndexStats,
   deleteEmbeddings,
-} from "../../mcp/embedding-tool";
+} from "@/lib/capabilities/shared/embedding-tool";
 
 // --- Test doubles ---
 function createMockEmbedder(): Embedder {

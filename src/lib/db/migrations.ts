@@ -122,6 +122,26 @@ export function runMigrations(db: Database.Database): void {
     "INTEGER NOT NULL DEFAULT 0",
   );
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_provenance_records (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      user_message_id TEXT NOT NULL,
+      assistant_message_id TEXT DEFAULT NULL,
+      surface TEXT NOT NULL,
+      effective_hash TEXT NOT NULL,
+      slot_refs_json TEXT NOT NULL DEFAULT '[]',
+      sections_json TEXT NOT NULL DEFAULT '[]',
+      warnings_json TEXT NOT NULL DEFAULT '[]',
+      replay_context_json TEXT NOT NULL DEFAULT '{}',
+      recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_provenance_conversation_recorded ON prompt_provenance_records(conversation_id, recorded_at)`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_prompt_provenance_user_message ON prompt_provenance_records(user_message_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_provenance_assistant_message ON prompt_provenance_records(assistant_message_id)`);
+
   addColumnIfNotExists(db, "job_requests", "failure_class", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "job_requests", "next_retry_at", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "job_requests", "recovery_mode", "TEXT DEFAULT NULL");
@@ -130,6 +150,7 @@ export function runMigrations(db: Database.Database): void {
   addColumnIfNotExists(db, "job_requests", "superseded_by_job_id", "TEXT DEFAULT NULL");
   db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_replayed_from ON job_requests(replayed_from_job_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_superseded_by ON job_requests(superseded_by_job_id)`);
+  addColumnIfNotExists(db, "user_files", "metadata_json", "TEXT NOT NULL DEFAULT '{}'" );
 
   addColumnIfNotExists(
     db,

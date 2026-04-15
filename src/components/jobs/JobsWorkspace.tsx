@@ -376,6 +376,7 @@ export function JobsWorkspace({
               {workspace.jobs.map((snapshot) => {
                 const title = snapshot.part.title ?? snapshot.part.label;
                 const isSelected = snapshot.part.jobId === workspace.selectedJobId;
+                const summary = formatJobSummary(snapshot);
 
                 return (
                   <button
@@ -387,22 +388,49 @@ export function JobsWorkspace({
                     data-testid={`job-card-${snapshot.part.jobId}`}
                     data-jobs-card="true"
                   >
-                    <div className="flex flex-wrap items-center gap-(--space-2)">
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(snapshot.part.status)}`}>
-                        {STATUS_LABELS[snapshot.part.status]}
-                      </span>
-                      <span className="jobs-metric-pill inline-flex rounded-full px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">
-                        {snapshot.part.toolName}
-                      </span>
+                    <div className="flex flex-wrap items-start justify-between gap-(--space-3)">
+                      <div className="flex flex-wrap items-center gap-(--space-2)">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(snapshot.part.status)}`}>
+                          {STATUS_LABELS[snapshot.part.status]}
+                        </span>
+                        <span className="jobs-metric-pill inline-flex rounded-full px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">
+                          {snapshot.part.toolName}
+                        </span>
+                        {isSelected ? (
+                          <span className="inline-flex rounded-full border border-foreground/12 px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/50">
+                            Selected
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="text-xs text-foreground/45">Updated {formatJobTimestamp(snapshot.part.updatedAt)}</span>
                     </div>
                     <h2 className="mt-(--space-3) text-lg font-semibold tracking-tight text-foreground">{title}</h2>
-                    {snapshot.part.subtitle && (
+                    {!isSelected && snapshot.part.subtitle ? (
                       <p className="mt-1 text-sm text-foreground/55">{snapshot.part.subtitle}</p>
-                    )}
-                    <p className="mt-(--space-3) text-sm leading-6 text-foreground/68">{formatJobSummary(snapshot)}</p>
+                    ) : null}
+                    <p className="mt-(--space-3) text-sm leading-6 text-foreground/68">
+                      {isSelected ? "Opened in the detail panel. Use the right side for full history and actions." : summary}
+                    </p>
+                    {snapshot.part.progressPercent != null ? (
+                      <div className="mt-(--space-3) space-y-1">
+                        <div className="flex items-center justify-between text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                          <span>{snapshot.part.progressLabel ?? "Progress"}</span>
+                          <span>{Math.round(snapshot.part.progressPercent)}%</span>
+                        </div>
+                        <div className="jobs-progress-track h-1.5 overflow-hidden rounded-full">
+                          <div
+                            className="jobs-progress-fill h-full rounded-full"
+                            style={{ width: `${Math.max(0, Math.min(100, snapshot.part.progressPercent))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="mt-(--space-3) flex flex-wrap items-center gap-(--space-2) text-xs text-foreground/50">
-                      <span>Job ID {snapshot.part.jobId}</span>
-                      <span>Updated {formatJobTimestamp(snapshot.part.updatedAt)}</span>
+                      {isSelected ? (
+                        <span>Job {snapshot.part.jobId}</span>
+                      ) : (
+                        <span>{STATUS_LABELS[snapshot.part.status]} queue item</span>
+                      )}
                     </div>
                   </button>
                 );

@@ -1,4 +1,4 @@
-import type { ChunkMetadata } from "./ports/Chunker";
+import type { ChunkMetadata, SearchChunkMetadata } from "./ports/Chunker";
 
 export interface HybridSearchResult {
   documentTitle?: string;
@@ -14,6 +14,7 @@ export interface HybridSearchResult {
   matchSection: string | null;
   matchHighlight: string;
   passageOffset: { start: number; end: number };
+  chunkMetadata?: SearchChunkMetadata | null;
   bookTitle?: string;
   bookNumber?: string;
   bookSlug?: string;
@@ -64,6 +65,7 @@ export type {
   ChunkerOptions,
   ConversationMetadata,
   DocumentChunkMetadata,
+  SearchChunkMetadata,
 } from "./ports/Chunker";
 export type { BookChunkMetadata } from "./ports/Chunker";
 export type { Embedder } from "./ports/Embedder";

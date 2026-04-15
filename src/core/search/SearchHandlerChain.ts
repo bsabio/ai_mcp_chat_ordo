@@ -6,6 +6,7 @@ import type { CorpusQuery, SectionQuery } from "../use-cases/CorpusRepository";
 import type { HybridSearchEngine } from "./HybridSearchEngine";
 import type { BM25Scorer } from "./BM25Scorer";
 import type { QueryProcessor } from "./QueryProcessor";
+import { toSearchChunkMetadata } from "./chunk-metadata";
 
 abstract class BaseSearchHandler implements SearchHandler {
   private nextHandler: SearchHandler | null = null;
@@ -119,6 +120,7 @@ export class BM25SearchHandler extends BaseSearchHandler {
         matchSection: item.record.heading,
         matchHighlight: item.record.content,
         passageOffset: { start: 0, end: item.record.content.length },
+        chunkMetadata: toSearchChunkMetadata(item.record.metadata),
         bookTitle: documentTitle,
         bookNumber: documentId,
         bookSlug: documentSlug,
@@ -168,6 +170,7 @@ export class LegacyKeywordHandler extends BaseSearchHandler {
           matchSection: null,
           matchHighlight: matchContext,
           passageOffset: { start: 0, end: 0 },
+          chunkMetadata: null,
           bookTitle: document.title,
           bookNumber: document.id,
           bookSlug: document.slug,

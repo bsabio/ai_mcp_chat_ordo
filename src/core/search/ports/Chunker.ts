@@ -1,3 +1,25 @@
+export type ChunkLevel = "document" | "section" | "passage";
+
+export type ChunkBoundarySource =
+  | "document_start"
+  | "h2_heading"
+  | "h3_heading"
+  | "paragraph_break"
+  | "line_break"
+  | "inline_offset";
+
+export interface SearchChunkMetadata {
+  chunkId: string | null;
+  chunkLevel: ChunkLevel | null;
+  localChunkIndex: number | null;
+  localChunkCount: number | null;
+  parentChunkId: string | null;
+  previousChunkId: string | null;
+  nextChunkId: string | null;
+  boundarySource: ChunkBoundarySource | null;
+  conceptKeywords: string[];
+}
+
 /** Discriminated union for type-safe, source-specific chunk metadata (GB-1) */
 export interface DocumentChunkMetadata {
   sourceType: string;
@@ -17,6 +39,15 @@ export interface DocumentChunkMetadata {
   chapterFirstSentence?: string;
   practitioners?: string[];
   checklistItems?: string[];
+  chunkId?: string;
+  chunkLevel?: ChunkLevel;
+  localChunkIndex?: number;
+  localChunkCount?: number;
+  parentChunkId?: string | null;
+  previousChunkId?: string | null;
+  nextChunkId?: string | null;
+  boundarySource?: ChunkBoundarySource;
+  conceptKeywords?: string[];
 }
 
 export interface ConversationMetadata {
@@ -32,7 +63,7 @@ export type ChunkMetadata = DocumentChunkMetadata | ConversationMetadata;
 export interface Chunk {
   content: string; // the raw text (for display)
   embeddingInput: string; // the context-prefixed text (for embedding)
-  level: "document" | "section" | "passage";
+  level: ChunkLevel;
   heading: string | null; // section heading, if applicable
   startOffset: number; // char offset in source document
   endOffset: number;

@@ -87,6 +87,7 @@ export class LibrarySearchInteractor implements UseCase<SearchRequest, LibrarySe
         vectorRank: hr.vectorRank,
         bm25Rank: hr.bm25Rank,
         passageOffset: hr.passageOffset,
+        chunkMetadata: hr.chunkMetadata,
       }));
     }
 

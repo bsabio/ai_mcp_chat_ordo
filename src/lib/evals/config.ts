@@ -56,17 +56,17 @@ export function resolveEvalRuntimeConfig(options: EvalRuntimeConfigOptions = {})
     throw new Error("Live evals are not allowed in the ci target environment.");
   }
 
-  const apiKey = readEnv(env, "ANTHROPIC_API_KEY") ?? readEnv(env, "API__ANTHROPIC_API_KEY");
+  const apiKey = readEnv(env, "ANTHROPIC_API_KEY");
 
   if (!apiKey) {
-    throw new Error("Live evals require ANTHROPIC_API_KEY or API__ANTHROPIC_API_KEY.");
+    throw new Error("Live evals require ANTHROPIC_API_KEY.");
   }
 
   return {
     mode: "live",
     targetEnvironment,
     modelProvider: "anthropic",
-    modelName: readEnv(env, "ANTHROPIC_MODEL") ?? readEnv(env, "API__ANTHROPIC_MODEL") ?? "claude-haiku-4-5",
+    modelName: readEnv(env, "ANTHROPIC_MODEL") ?? "claude-haiku-4-5",
     seedSetId: readEnv(env, "EVAL_SEED_SET_ID") ?? "manual-live-run",
     startedAt,
   };

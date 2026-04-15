@@ -26,19 +26,16 @@ const EnvSchema = z.object({
 
   // API Keys
   ANTHROPIC_API_KEY: optionalNonEmptyString,
-  API__ANTHROPIC_API_KEY: optionalNonEmptyString,
   OPENAI_API_KEY: optionalNonEmptyString,
-  API__OPENAI_API_KEY: optionalNonEmptyString,
 
   // Anthropic model / retry config
   ANTHROPIC_MODEL: optionalString,
-  API__ANTHROPIC_MODEL: optionalString,
   ANTHROPIC_REQUEST_TIMEOUT_MS: optionalPositiveInt,
-  API__ANTHROPIC_REQUEST_TIMEOUT_MS: optionalPositiveInt,
   ANTHROPIC_RETRY_ATTEMPTS: optionalPositiveInt,
-  API__ANTHROPIC_RETRY_ATTEMPTS: optionalPositiveInt,
   ANTHROPIC_RETRY_DELAY_MS: optionalPositiveInt,
-  API__ANTHROPIC_RETRY_DELAY_MS: optionalPositiveInt,
+  MEDIA_WORKER_URL: optionalString,
+  MEDIA_WORKER_SHARED_SECRET: optionalString,
+  MEDIA_WORKER_PORT: optionalPositiveInt,
 
   // Database
   STUDIO_ORDO_DB_PATH: optionalString,

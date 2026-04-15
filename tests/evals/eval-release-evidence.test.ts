@@ -105,6 +105,16 @@ describe("release evidence", () => {
 
     expect(evidence.status).toBe("approved");
     expect(validateReleaseEvidence(evidence)).toEqual([]);
+    expect(evidence.eliteOps.status).toBe("passed");
+    expect(evidence.runtimeIntegrity.evidence?.inventory.mcp.processes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "operations",
+          canonicalCommand: "npm run mcp:operations",
+          compatibilityAliases: [],
+        }),
+      ]),
+    );
   });
 
   it("blocks a release when canary evidence is missing", () => {
@@ -205,6 +215,7 @@ describe("release evidence", () => {
     expect(missingEvidence.status).toBe("blocked");
     expect(missingEvidence.review.blockingReasons).toContain("Runtime integrity QA evidence is missing.");
     expect(validateReleaseEvidence(missingEvidence)).toContain("Runtime integrity QA evidence is missing.");
+    expect(validateReleaseEvidence(missingEvidence)).toContain("Elite ops evidence summary is missing.");
 
     const failedEvidence = createReleaseEvidence({
       manifest: MANIFEST,
@@ -221,5 +232,27 @@ describe("release evidence", () => {
     expect(failedEvidence.status).toBe("blocked");
     expect(failedEvidence.review.blockingReasons).toContain("Runtime integrity QA evidence contains blockers.");
     expect(validateReleaseEvidence(failedEvidence)).toContain("Runtime integrity QA evidence contains blockers.");
+  });
+
+  it("blocks a release when elite ops gates fail inside runtime integrity evidence", () => {
+    const failedEliteOpsEvidence = createReleaseEvidence({
+      manifest: MANIFEST,
+      health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: {
+        ...RUNTIME_INTEGRITY_OK,
+        status: "failed",
+        eliteOps: {
+          ...RUNTIME_INTEGRITY_OK.eliteOps,
+          status: "failed",
+          blockingReasons: ["Latency budgets: Representative MCP stdio round trip exceeded its 8000ms budget."],
+        },
+      },
+      canarySummary: createCanarySummary(),
+    });
+
+    expect(failedEliteOpsEvidence.status).toBe("blocked");
+    expect(failedEliteOpsEvidence.review.blockingReasons).toContain("Elite ops release gates reported blockers.");
+    expect(validateReleaseEvidence(failedEliteOpsEvidence)).toContain("Elite ops release gates reported blockers.");
   });
 });

@@ -1,72 +1,37 @@
-# Maslow, Ryan, and Deci: Motivation Science
+# Maslow, Ryan, and Deci: The Thermodynamics of Motivation
 
-## Abraham Maslow: The Needs Hierarchy
+## The Engine of Human Agency
 
-### Who He Is
-
-Abraham Maslow (1908–1970) was an American psychologist and one of the founders of humanistic psychology. He is most widely known for his hierarchical model of human motivation, first published in his 1943 paper "A Theory of Human Motivation."
-
-### The Central Work
-
-**"A Theory of Human Motivation"** (1943, *Psychological Review*) — the paper introducing the hierarchy.
-
-**"Motivation and Personality"** (1954) — the book-length treatment.
-
-### What He Proposed
-
-Maslow proposed that human needs exist in a hierarchy, typically depicted as a pyramid:
-
-1. **Physiological** — food, water, shelter, sleep
-2. **Safety** — security, stability, freedom from threat
-3. **Belonging/Love** — social connection, affection, community
-4. **Esteem** — self-esteem, respect from others, recognition
-5. **Self-actualization** — the realization of one's full potential
-
-The original hierarchical claim: lower-level needs must be sufficiently satisfied before higher-level needs become motivationally salient.
-
-### The Honest Caveat
-
-The strict ladder order is **not strongly supported by the empirical literature**. Cross-cultural studies (Wahba and Bridwell, 1976, reviewing 40+ years of research) found inconsistent support for the deprivation/domination sequence. People in many cultures show simultaneous motivation across levels.
-
-**What the research does support:** Maslow's taxonomy is a useful needs map. The five categories reliably describe real human needs. The strict sequencing is not reliable as a predictor.
-
-This curriculum uses Maslow as a **needs map for audience analysis** — identifying which need a specific audience is most focused on in a specific context — not as a rigid developmental sequence.
+In the Second Renaissance, the Sovereign Agent does not act from a position of compliance, but from a position of **sought autonomy.** To understand the internal "reward function" of the human being, we must look to the lineage of motivation science: from the pioneering hierarchy of needs of **Abraham Maslow** to the empirically robust self-determination theory of **Edward Deci** and **Richard Ryan.** Their work provides the technical specification for what drives a human being to transition from a passive consumer to an active builder.
 
 ---
 
-## Edward Deci and Richard Ryan: Self-Determination Theory
+## Abraham Maslow: The Infrastructure of Aspiration
 
-### Who They Are
+### The Mapping of Need
 
-Edward Deci and Richard Ryan are psychologists at the University of Rochester who developed Self-Determination Theory (SDT) — one of the most empirically robust frameworks in motivation science.
+Abraham Maslow (1908–1970) established the first comprehensive taxonomy of human drives. His "hierarchy of needs" provided a map for the internal search-space of human desire.
 
-### The Central Work
+*   **The Taxonomy of Survival and Growth**: Maslow identified five layers of need: physiological, safety, belonging, esteem, and self-actualization. In the Ordo system, we use this not as a progress bar, but as a **landscape of market needs.** Every masterpiece build must answer: *Which layer of the Maslovian manifold are we satisfying for our audience?*
+*   **The Critical Recalibration**: We recognize that the strict ladder of needs is a non-differentiable model. Modern research shows that human beings can seek self-actualization while their safety is at risk. We treat Maslow as a **descriptive inventory** rather than a sequential protocol.
 
-**"Intrinsic Motivation and Self-Determination in Human Behavior"** (Deci and Ryan, 1985) — the foundational text.
+## Deci & Ryan: Self-Determination Theory (SDT)
 
-**"A Meta-Analytic Review of Experiments Examining the Effects of Extrinsic Rewards on Intrinsic Motivation"** (Deci, Koestner, and Ryan, 1999, *Psychological Bulletin*) — 128 experiments, 97 of which found that extrinsic rewards undermine intrinsic motivation under specific conditions.
+### The Optimization Parameters of Agency
 
-### What They Found
+Edward Deci and Richard Ryan established the "gold standard" of motivation research: **Self-Determination Theory.** Their work identifies the three universal psychological needs that, when satisfied, produce the "instruction-tweak" of intrinsic motivation.
 
-Three basic psychological needs, supported across cultures and research programs:
+*   **Autonomy**: The need to be the causal agent of one's own life. In the Second Renaissance, autonomy is the **search direction** of the Sovereign Agent. 
+*   **Competence**: The need to experience mastery and effectiveness. This is the **verification loop**—the feedback that the agent’s actions are producing the intended inference.
+*   **Relatedness**: The need for connection to a social manifold. Trust is the lossless channel through which this need is met.
 
-1. **Autonomy** — the experience of volition: acting from genuine choice rather than external pressure
-2. **Competence** — the experience of effectiveness: being able to do things well and learn from outcomes
-3. **Relatedness** — the experience of connection: genuine, caring relationships with others
+---
 
-**The critical point:** These three needs appear to be simultaneously relevant — not in a strict sequence. Unlike the Maslowian ladder, SDT's three needs do not require hierarchical satisfaction.
+## The Synthesis: Designing for the Self-Regulated
 
-**Implications for educational design:** Environments that support autonomy (providing genuine choice), competence (achievable challenges, timely feedback), and relatedness (genuine care, authentic community) produce more intrinsic motivation, more learning, and better outcomes than environments that rely on external pressure and control.
+Deci and Ryan provide the **operational constraint** for educational and system design:
 
-### Where This Appears in the Curriculum
+1.  **Industrial vs. Sovereign Motivation**: Industrial systems rely on extrinsic rewards (grades, degrees)—what we call the **cheap signal.** Ordo systems prioritize intrinsic satisfaction (mastery, autonomy)—the **costly signal.**
+2.  **The Autonomy-Supported Environment**: We design for autonomy advocacy. A student who builds a masterpiece because they choose to manifest their judgment is operating on a higher compute efficiency than a student who builds because they were told to.
 
-**Book II, Chapter 3 (Layer 1: Motivation)** — both Maslow and SDT appear as the research foundation for the motivation layer. Maslow provides the needs taxonomy; SDT provides the more empirically robust framework for simultaneous needs.
-
-**Book VIII, Chapter 3 (Self-Regulated Learning and the Attention Problem)** — SDT's autonomy, competence, and relatedness are directly relevant to program design: environments that support these three needs produce self-directed learners. Environments that undermine them produce compliance without genuine development.
-
-### The Combined Map
-
-Maslow: the full landscape of what humans need (safety, belonging, esteem, actualization)
-SDT: the three needs most robustly supported by research, which appear simultaneously (autonomy, competence, relatedness)
-
-Together: identify which Maslovian need is most salient for your audience AND design the interaction or program to support autonomy, competence, and relatedness simultaneously.
+**The Sovereign Conclusion**: Motivation is the **latency of the signal.** To minimize the delay between intent and action, the environment must support autonomy, competence, and relatedness. We do not "motivate" people; we **architect manifolds** where they can motivate themselves.

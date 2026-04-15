@@ -15,11 +15,21 @@ describe("admin processes", () => {
   it("returns diagnostics with runtime metadata", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     vi.stubEnv("ANTHROPIC_MODEL", "claude-haiku-4-5");
+    vi.stubEnv("ORDO_RUNTIME_AUDIT_LOG_DIR", "/tmp/ordo-runtime-audit");
 
     const report = getDiagnosticsReport();
     expect(report.status).toBe("ok");
     expect(report.appName).toBeTruthy();
     expect(report.nodeVersion).toContain("v");
+    expect(report.runtimeAudit).toEqual({
+      directory: "/tmp/ordo-runtime-audit",
+      files: {
+        deferredJob: "/tmp/ordo-runtime-audit/deferred_job.jsonl",
+        nativeProcess: "/tmp/ordo-runtime-audit/native_process.jsonl",
+        remoteService: "/tmp/ordo-runtime-audit/remote_service.jsonl",
+        mcpProcess: "/tmp/ordo-runtime-audit/mcp_process.jsonl",
+      },
+    });
   });
 
   it("returns health sweep ok when env is valid", () => {

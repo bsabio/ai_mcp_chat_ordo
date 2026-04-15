@@ -2,6 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { ChatMessage } from "@/lib/chat/types";
 import { ValidationError } from "@/core/common/errors";
 
+export type { ChatMessage } from "@/lib/chat/types";
+
 export function parseIncomingMessages(body: unknown): ChatMessage[] {
   const maybeMessages = (body as { messages?: ChatMessage[] })?.messages ?? [];
 
@@ -12,10 +14,18 @@ export function parseIncomingMessages(body: unknown): ChatMessage[] {
   return maybeMessages;
 }
 
-export function getLatestUserMessage(messages: ChatMessage[]): string {
+export function findLatestUserMessage(messages: ChatMessage[]): string | null {
   const latestUserMessage = [...messages]
     .reverse()
-    .find((message) => message.role === "user")?.content;
+    .find((message) => message.role === "user")?.content.trim();
+
+  return latestUserMessage && latestUserMessage.length > 0
+    ? latestUserMessage
+    : null;
+}
+
+export function getLatestUserMessage(messages: ChatMessage[]): string {
+  const latestUserMessage = findLatestUserMessage(messages);
 
   if (!latestUserMessage) {
     throw new ValidationError("No user message found.");

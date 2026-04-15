@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "@/lib/calculator";
-import { executeCalculatorTool } from "../../mcp/calculator-tool";
+import { executeCalculatorTool } from "@/lib/capabilities/shared/calculator-tool";
 
 describe("calculator domain and MCP tool parity", () => {
   it("returns equivalent results for add", () => {

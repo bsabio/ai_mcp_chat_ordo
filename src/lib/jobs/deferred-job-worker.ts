@@ -1,17 +1,23 @@
 import type { JobFailureClass, JobRequest } from "@/core/entities/job";
+import type {
+  CapabilityArtifactRef,
+  CapabilityProgressPhase,
+  CapabilityResultEnvelope,
+} from "@/core/entities/capability-result";
+import type { ToolProgressUpdate } from "@/core/tool-registry/ToolExecutionContext";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
+import { isCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 import type { DeferredJobNotificationResult } from "./deferred-job-notifications";
 import type { DeferredJobConversationProjector } from "./deferred-job-conversation-projector";
 import { getJobCapability, type JobRetryPolicy } from "./job-capability-registry";
+import { getJobPhaseDefinitions, normalizeJobProgressState } from "./job-progress-state";
+import { appendRuntimeAuditLog } from "@/lib/observability/runtime-audit-log";
 
-export interface DeferredJobProgressUpdate {
-  progressPercent?: number;
-  progressLabel?: string;
-  payload?: Record<string, unknown>;
-}
+export interface DeferredJobProgressUpdate extends ToolProgressUpdate {}
 
 export interface DeferredJobHandlerContext {
   reportProgress: (update: DeferredJobProgressUpdate) => Promise<void>;
+  abortSignal: AbortSignal;
 }
 
 export type DeferredJobHandler = (
@@ -37,8 +43,30 @@ export interface DeferredJobNotificationDispatcher {
   notify(job: JobRequest, eventType: "result" | "failed" | "canceled"): Promise<DeferredJobNotificationResult>;
 }
 
+function buildLeaseExpiresAt(now: Date, leaseDurationMs: number): string {
+  return toIso(new Date(now.getTime() + leaseDurationMs));
+}
+
 function toIso(date: Date): string {
   return date.toISOString();
+}
+
+function resolveAbortReason(signal: AbortSignal, fallbackReason: string): string {
+  if (typeof signal.reason === "string" && signal.reason.trim().length > 0) {
+    return signal.reason;
+  }
+
+  if (signal.reason instanceof Error && signal.reason.message.trim().length > 0) {
+    return signal.reason.message;
+  }
+
+  return fallbackReason;
+}
+
+function createAbortSignalError(signal: AbortSignal, fallbackReason: string): Error {
+  const error = new Error(resolveAbortReason(signal, fallbackReason));
+  error.name = "AbortError";
+  return error;
 }
 
 function classifyJobFailure(error: unknown): JobFailureClass {
@@ -147,6 +175,114 @@ function buildNotificationFailedSummary(
   return `Push notification delivery failed for the ${eventType} terminal event across ${attemptsLabel}.`;
 }
 
+function normalizeProgressUpdate(
+  toolName: string,
+  update: DeferredJobProgressUpdate,
+): DeferredJobProgressUpdate {
+  const normalizedState = normalizeJobProgressState({
+    toolName,
+    phases: update.phases,
+    activePhaseKey: update.activePhaseKey,
+    progressPercent: update.progressPercent,
+    progressLabel: update.progressLabel,
+  });
+
+  return {
+    ...update,
+    ...normalizedState,
+  };
+}
+
+function buildEventPayload(update: DeferredJobProgressUpdate): Record<string, unknown> {
+  return {
+    ...(update.payload ?? {}),
+    ...(update.progressPercent !== undefined ? { progressPercent: update.progressPercent } : {}),
+    ...(update.progressLabel !== undefined ? { progressLabel: update.progressLabel } : {}),
+    ...(update.phases ? { phases: update.phases } : {}),
+    ...(update.activePhaseKey !== undefined ? { activePhaseKey: update.activePhaseKey } : {}),
+    ...(update.summary !== undefined ? { summary: update.summary } : {}),
+    ...(update.replaySnapshot !== undefined ? { replaySnapshot: update.replaySnapshot } : {}),
+    ...(update.artifacts ? { artifacts: update.artifacts } : {}),
+    ...(update.resultEnvelope !== undefined ? { resultEnvelope: update.resultEnvelope } : {}),
+  };
+}
+
+function buildCompletedProgressUpdate(
+  toolName: string,
+  update: DeferredJobProgressUpdate | null,
+): DeferredJobProgressUpdate | null {
+  const definitions = getJobPhaseDefinitions(toolName);
+  const phases = definitions && definitions.length > 0
+    ? definitions.map((definition) => ({
+        key: definition.key,
+        label: definition.label,
+        status: "succeeded" as const,
+      }))
+    : update?.phases?.map((phase) => ({
+        key: phase.key,
+        label: phase.label,
+        status: "succeeded" as const,
+      }));
+
+  if (!phases || phases.length === 0) {
+    return normalizeProgressUpdate(toolName, { progressPercent: 100 });
+  }
+
+  return normalizeProgressUpdate(toolName, {
+    ...update,
+    phases,
+    activePhaseKey: null,
+    progressPercent: 100,
+  });
+}
+
+function buildTerminalEventPayload(
+  result: unknown,
+  update: DeferredJobProgressUpdate | null,
+): Record<string, unknown> {
+  return {
+    result,
+    ...(update ? buildEventPayload({ ...update, summary: undefined }) : {}),
+    ...(isCapabilityResultEnvelope(result) ? { resultEnvelope: result } : {}),
+  };
+}
+
+function buildFailedEventPayload(
+  errorMessage: string,
+  failureClass: JobFailureClass,
+): Record<string, unknown> {
+  return {
+    progressPercent: null,
+    progressLabel: null,
+    activePhaseKey: null,
+    errorMessage,
+    failureClass,
+  };
+}
+
+function buildAuditContext(job: JobRequest, workerId: string, extra?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    jobId: job.id,
+    toolName: job.toolName,
+    conversationId: job.conversationId,
+    attemptCount: job.attemptCount,
+    workerId,
+    ...(extra ?? {}),
+  };
+}
+
+function getProgressLabel(update: DeferredJobProgressUpdate | null): string | null {
+  return update?.progressLabel ?? null;
+}
+
+function getProgressPercent(update: DeferredJobProgressUpdate | null): number | null {
+  return update?.progressPercent ?? null;
+}
+
+function getActivePhaseKey(update: DeferredJobProgressUpdate | null): string | null {
+  return update?.activePhaseKey ?? null;
+}
+
 export class DeferredJobWorker {
   constructor(
     private readonly repository: JobQueueRepository,
@@ -234,14 +370,48 @@ export class DeferredJobWorker {
     return null;
   }
 
+  private startCancellationMonitor(jobId: string, abortController: AbortController): () => void {
+    let stopped = false;
+
+    const checkForCancellation = async () => {
+      if (stopped || abortController.signal.aborted) {
+        return;
+      }
+
+      const canceledJob = await this.wasCanceled(jobId);
+      if (canceledJob && !abortController.signal.aborted) {
+        abortController.abort("deferred_job_canceled");
+      }
+    };
+
+    void checkForCancellation();
+
+    const intervalId = setInterval(() => {
+      void checkForCancellation();
+    }, 250);
+
+    return () => {
+      stopped = true;
+      clearInterval(intervalId);
+    };
+  }
+
   async runNext(options: DeferredJobWorkerOptions): Promise<DeferredJobWorkerResult> {
     const baseNow = options.now ?? new Date();
     const nowIso = toIso(baseNow);
     const leaseDurationMs = options.leaseDurationMs ?? 30_000;
-    const leaseExpiresAt = toIso(new Date(baseNow.getTime() + leaseDurationMs));
+    const leaseExpiresAt = buildLeaseExpiresAt(baseNow, leaseDurationMs);
 
     const reclaimedExpiredJobs = await this.repository.requeueExpiredRunningJobs(nowIso);
     for (const recovery of reclaimedExpiredJobs) {
+      await appendRuntimeAuditLog("deferred_job", "lease_recovered", {
+        jobId: recovery.job.id,
+        toolName: recovery.job.toolName,
+        conversationId: recovery.job.conversationId,
+        previousClaimedBy: recovery.previousClaimedBy,
+        previousLeaseExpiresAt: recovery.previousLeaseExpiresAt,
+        workerId: options.workerId,
+      });
       const recoveredEvent = await this.repository.appendEvent({
         jobId: recovery.job.id,
         conversationId: recovery.job.conversationId,
@@ -270,6 +440,11 @@ export class DeferredJobWorker {
       };
     }
 
+    await appendRuntimeAuditLog("deferred_job", "started", buildAuditContext(job, options.workerId, {
+      leaseExpiresAt,
+      recoveryMode: job.recoveryMode,
+    }));
+
     const startedEvent = await this.repository.appendEvent({
       jobId: job.id,
       conversationId: job.conversationId,
@@ -282,6 +457,9 @@ export class DeferredJobWorker {
 
     if (!handler) {
       const errorMessage = `No deferred job handler registered for tool: ${job.toolName}`;
+      await appendRuntimeAuditLog("deferred_job", "handler_missing", buildAuditContext(job, options.workerId, {
+        errorMessage,
+      }));
       const completedAt = toIso(new Date());
       await this.repository.updateJobStatus(job.id, {
         status: "failed",
@@ -309,29 +487,50 @@ export class DeferredJobWorker {
       };
     }
 
+    let lastProgressUpdate: DeferredJobProgressUpdate | null = null;
+    const abortController = new AbortController();
+    const stopCancellationMonitor = this.startCancellationMonitor(job.id, abortController);
+
     try {
+
       const result = await handler(job, {
+        abortSignal: abortController.signal,
         reportProgress: async (update) => {
-          if (await this.wasCanceled(job.id)) {
-            return;
+          if (abortController.signal.aborted) {
+            throw createAbortSignalError(abortController.signal, "deferred_job_canceled");
           }
+
+          if (await this.wasCanceled(job.id)) {
+            await appendRuntimeAuditLog("deferred_job", "progress_ignored_after_cancel", buildAuditContext(job, options.workerId));
+            abortController.abort("deferred_job_canceled");
+            throw createAbortSignalError(abortController.signal, "deferred_job_canceled");
+          }
+
+          const normalizedUpdate = normalizeProgressUpdate(job.toolName, update);
+          const progressNow = new Date();
+          const renewedLeaseExpiresAt = buildLeaseExpiresAt(progressNow, leaseDurationMs);
+          lastProgressUpdate = normalizedUpdate;
+
+          await appendRuntimeAuditLog("deferred_job", "progress", buildAuditContext(job, options.workerId, {
+            progressPercent: normalizedUpdate.progressPercent,
+            progressLabel: normalizedUpdate.progressLabel,
+            activePhaseKey: normalizedUpdate.activePhaseKey,
+            phases: normalizedUpdate.phases,
+            leaseExpiresAt: renewedLeaseExpiresAt,
+          }));
 
           await this.repository.updateJobStatus(job.id, {
             status: "running",
-            progressPercent: update.progressPercent,
-            progressLabel: update.progressLabel,
-            leaseExpiresAt,
+            progressPercent: normalizedUpdate.progressPercent,
+            progressLabel: normalizedUpdate.progressLabel,
+            leaseExpiresAt: renewedLeaseExpiresAt,
             claimedBy: options.workerId,
           });
           const progressEvent = await this.repository.appendEvent({
             jobId: job.id,
             conversationId: job.conversationId,
             eventType: "progress",
-            payload: {
-              progressPercent: update.progressPercent,
-              progressLabel: update.progressLabel,
-              ...(update.payload ?? {}),
-            },
+            payload: buildEventPayload(normalizedUpdate),
           });
           const progressJob = await this.repository.findJobById(job.id);
           if (progressJob) {
@@ -342,6 +541,9 @@ export class DeferredJobWorker {
 
       const canceledJob = await this.wasCanceled(job.id);
       if (canceledJob) {
+        await appendRuntimeAuditLog("deferred_job", "canceled", buildAuditContext(canceledJob, options.workerId, {
+          stage: "post_handler",
+        }));
         await this.recordNotification(canceledJob, "canceled");
         return {
           reclaimedExpiredCount,
@@ -365,13 +567,22 @@ export class DeferredJobWorker {
         jobId: job.id,
         conversationId: job.conversationId,
         eventType: "result",
-        payload: { result },
+        payload: buildTerminalEventPayload(
+          result,
+          buildCompletedProgressUpdate(job.toolName, lastProgressUpdate),
+        ),
       });
       const succeededJob = await this.repository.findJobById(job.id);
       if (succeededJob) {
         await this.conversationProjector?.project(succeededJob, resultEvent);
         await this.recordNotification(succeededJob, "result");
       }
+
+      await appendRuntimeAuditLog("deferred_job", "succeeded", buildAuditContext(job, options.workerId, {
+        progressPercent: 100,
+        progressLabel: getProgressLabel(lastProgressUpdate),
+        result,
+      }));
 
       return {
         reclaimedExpiredCount,
@@ -382,6 +593,9 @@ export class DeferredJobWorker {
     } catch (error) {
       const canceledJob = await this.wasCanceled(job.id);
       if (canceledJob) {
+        await appendRuntimeAuditLog("deferred_job", "canceled", buildAuditContext(canceledJob, options.workerId, {
+          stage: "error_path",
+        }));
         await this.recordNotification(canceledJob, "canceled");
         return {
           reclaimedExpiredCount,
@@ -414,6 +628,7 @@ export class DeferredJobWorker {
           conversationId: job.conversationId,
           eventType: "retry_scheduled",
           payload: {
+            ...(lastProgressUpdate ? buildEventPayload(lastProgressUpdate) : {}),
             errorMessage,
             failureClass,
             nextRetryAt,
@@ -428,6 +643,14 @@ export class DeferredJobWorker {
         });
         await this.conversationProjector?.project(scheduledJob, scheduledEvent);
 
+        await appendRuntimeAuditLog("deferred_job", "retry_scheduled", buildAuditContext(scheduledJob, options.workerId, {
+          errorMessage,
+          failureClass,
+          nextRetryAt,
+          progressPercent: getProgressPercent(lastProgressUpdate),
+          progressLabel: getProgressLabel(lastProgressUpdate),
+        }));
+
         return {
           reclaimedExpiredCount,
           job: scheduledJob,
@@ -440,6 +663,8 @@ export class DeferredJobWorker {
       await this.repository.updateJobStatus(job.id, {
         status: "failed",
         errorMessage,
+        progressPercent: null,
+        progressLabel: null,
         completedAt,
         leaseExpiresAt: null,
         claimedBy: null,
@@ -451,7 +676,7 @@ export class DeferredJobWorker {
         jobId: job.id,
         conversationId: job.conversationId,
         eventType: "failed",
-        payload: { errorMessage, failureClass },
+        payload: buildFailedEventPayload(errorMessage, failureClass),
       });
       const failedJob = await this.repository.findJobById(job.id);
       if (failedJob) {
@@ -463,6 +688,9 @@ export class DeferredJobWorker {
             conversationId: failedJob.conversationId,
             eventType: "retry_exhausted",
             payload: {
+              progressPercent: null,
+              progressLabel: null,
+              activePhaseKey: null,
               errorMessage,
               failureClass,
               attemptCount: failedJob.attemptCount,
@@ -479,12 +707,22 @@ export class DeferredJobWorker {
         await this.recordNotification(failedJob, "failed");
       }
 
+      await appendRuntimeAuditLog("deferred_job", "failed", buildAuditContext(job, options.workerId, {
+        errorMessage,
+        failureClass,
+        progressPercent: getProgressPercent(lastProgressUpdate),
+        progressLabel: getProgressLabel(lastProgressUpdate),
+        activePhaseKey: getActivePhaseKey(lastProgressUpdate),
+      }));
+
       return {
         reclaimedExpiredCount,
         job: failedJob,
         outcome: "failed",
         errorMessage,
       };
+    } finally {
+      stopCancellationMonitor();
     }
   }
 }

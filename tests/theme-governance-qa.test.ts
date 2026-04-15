@@ -55,13 +55,11 @@ describe("Sprint 4 theme governance audit", () => {
           "ui-chat-composer-frame",
           "ui-chat-composer-frame-hover",
           "ui-chat-composer-frame-focus",
-          "ui-chat-helper-copy",
         ],
         selectors: [
           ".ui-chat-composer-frame",
           ".ui-chat-composer-frame-hover",
           ".ui-chat-composer-frame-focus",
-          ".ui-chat-helper-copy",
         ],
       },
       {

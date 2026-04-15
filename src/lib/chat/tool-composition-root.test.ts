@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getToolComposition } from "./tool-composition-root";
+import { _resetToolComposition, getToolComposition } from "./tool-composition-root";
 import {
   getRuntimeToolCountsByRole,
   getRuntimeToolManifestForRole,
@@ -29,11 +29,46 @@ describe("tool composition runtime manifest", () => {
 
   it("keeps role tool counts stable", () => {
     expect(getRuntimeToolCountsByRole(registry)).toEqual({
-      ANONYMOUS: 10,
-      AUTHENTICATED: 25,
-      APPRENTICE: 25,
-      STAFF: 25,
-      ADMIN: 54,
+      ANONYMOUS: 16,
+      AUTHENTICATED: 26,
+      APPRENTICE: 26,
+      STAFF: 26,
+      ADMIN: 55,
     });
+  });
+
+  it("keeps model-visible manifests alphabetically ordered for every role", () => {
+    for (const role of RUNTIME_MANIFEST_ROLE_ORDER) {
+      const names = getRuntimeToolManifestForRole(registry, role).map((entry) => entry.name);
+      expect(names).toEqual([...names].sort((left, right) => left.localeCompare(right)));
+    }
+  });
+
+  it("keeps manifest ordering stable across fresh composition-root construction", () => {
+    const firstManifests = Object.fromEntries(
+      RUNTIME_MANIFEST_ROLE_ORDER.map((role) => [
+        role,
+        getRuntimeToolManifestForRole(registry, role).map((entry) => entry.name),
+      ]),
+    );
+
+    _resetToolComposition();
+    const rebuiltRegistry = getToolComposition().registry;
+    const rebuiltManifests = Object.fromEntries(
+      RUNTIME_MANIFEST_ROLE_ORDER.map((role) => [
+        role,
+        getRuntimeToolManifestForRole(rebuiltRegistry, role).map((entry) => entry.name),
+      ]),
+    );
+
+    expect(rebuiltManifests).toEqual(firstManifests);
+  });
+
+  it("supports request-scoped runtime manifest filtering without breaking alphabetical order", () => {
+    const names = getRuntimeToolManifestForRole(registry, "ADMIN", {
+      allowedToolNames: ["search_corpus", "navigate_to_page", "admin_search"],
+    }).map((entry) => entry.name);
+
+    expect(names).toEqual(["admin_search", "navigate_to_page", "search_corpus"]);
   });
 });

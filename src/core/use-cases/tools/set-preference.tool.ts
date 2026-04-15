@@ -1,19 +1,54 @@
-import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
+import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
 
+export const SUPPORTED_PREFERENCE_KEYS = [
+  "response_style",
+  "tone",
+  "business_context",
+  "preferred_name",
+] as const;
+
+export interface SetPreferenceInput {
+  key: (typeof SUPPORTED_PREFERENCE_KEYS)[number];
+  value: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseSetPreferenceInput(value: unknown): SetPreferenceInput {
+  if (!isRecord(value)) {
+    throw new Error("set_preference input must be an object.");
+  }
+
+  if (typeof value.key !== "string" || !SUPPORTED_PREFERENCE_KEYS.includes(value.key as SetPreferenceInput["key"])) {
+    throw new Error(`set_preference key must be one of: ${SUPPORTED_PREFERENCE_KEYS.join(", ")}.`);
+  }
+
+  if (typeof value.value !== "string") {
+    throw new Error("set_preference value must be a string.");
+  }
+
+  return {
+    key: value.key as SetPreferenceInput["key"],
+    value: value.value,
+  };
+}
+
 export class SetPreferenceCommand
-  implements ToolCommand<Record<string, unknown>, string>
+  implements ToolCommand<SetPreferenceInput, string>
 {
   constructor(private readonly repo: UserPreferencesRepository) {}
 
   async execute(
-    input: Record<string, unknown>,
+    input: SetPreferenceInput,
     context?: ToolExecutionContext,
   ): Promise<string> {
-    const key = String(input.key ?? "");
-    const value = String(input.value ?? "");
+    const { key, value } = input;
 
     if (!context || context.role === "ANONYMOUS") {
       return JSON.stringify({
@@ -32,36 +67,17 @@ export class SetPreferenceCommand
   }
 }
 
-export function createSetPreferenceTool(repo: UserPreferencesRepository): ToolDescriptor {
-  return {
-    name: "set_preference",
-    schema: {
-      description:
-        "Set a user preference that persists across sessions and devices. Use for non-UI preferences like tone, response style, business context, or preferred name. When a user says 'remember that I prefer concise answers' or 'call me Keith', use this tool.",
-      input_schema: {
-        type: "object",
-        properties: {
-          key: {
-            type: "string",
-            enum: [
-              "response_style",
-              "tone",
-              "business_context",
-              "preferred_name",
-            ],
-            description: "The preference key to set.",
-          },
-          value: {
-            type: "string",
-            description:
-              "The preference value. For response_style: concise|detailed|bullets. For tone: professional|casual|friendly. For business_context: free text (max 500 chars). For preferred_name: free text (max 100 chars).",
-          },
-        },
-        required: ["key", "value"],
-      },
-    },
-    command: new SetPreferenceCommand(repo),
-    roles: ["AUTHENTICATED", "APPRENTICE", "STAFF", "ADMIN"],
-    category: "system",
-  };
+export async function executeSetPreference(
+  repo: UserPreferencesRepository,
+  input: SetPreferenceInput,
+  context?: ToolExecutionContext,
+): Promise<string> {
+  return new SetPreferenceCommand(repo).execute(input, context);
+}
+
+export function createSetPreferenceTool(repo: UserPreferencesRepository) {
+  return buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.set_preference, {
+    parse: parseSetPreferenceInput,
+    execute: (input, context) => executeSetPreference(repo, input, context),
+  });
 }

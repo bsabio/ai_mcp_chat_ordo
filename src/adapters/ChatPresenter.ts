@@ -1,160 +1,47 @@
-import type { ChatMessage, FailedSendMetadata } from "../core/entities/chat-message";
+import type { ChatMessage, ChatResponseState, FailedSendMetadata } from "../core/entities/chat-message";
+import type { CapabilityPresentationDescriptor } from "../core/entities/capability-presentation";
+import type { CapabilityResultEnvelope } from "../core/entities/capability-result";
 import type { InlineNode, RichContent } from "../core/entities/rich-content";
 import type { UICommand } from "../core/entities/ui-command";
 import { UI_COMMAND_TYPE } from "../core/entities/ui-command";
-import { BLOCK_TYPES, VALID_ACTION_TYPES } from "../core/entities/rich-content";
+import { VALID_ACTION_TYPES } from "../core/entities/rich-content";
 import type { ActionLinkType } from "../core/entities/rich-content";
 import { getPresentedAttachments, type PresentedAttachment } from "@/lib/chat/message-attachments";
 import type { MarkdownParserService } from "./MarkdownParserService";
 import type { CommandParserService } from "./CommandParserService";
-import { resolveGenerateChartPayload } from "@/core/use-cases/tools/chart-payload";
-import { resolveGenerateGraphPayload, type ResolvedGraphPayload } from "@/core/use-cases/tools/graph-payload";
 import type {
   GenerationStatusMessagePart,
   JobStatusMessagePart,
   MessagePart,
 } from "@/core/entities/message-parts";
+import {
+  isDraftContentResultPayload,
+  isGenerateBlogImageResultPayload,
+  isProduceBlogArticleResultPayload,
+  isPublishContentResultPayload,
+} from "@/lib/blog/blog-tool-payloads";
+import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/registry/capability-presentation-registry";
+import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
 import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
 import { getSupportedTheme, isSupportedTheme } from "@/lib/theme/theme-manifest";
-import { DEFAULT_PROMPTS } from "@/lib/config/defaults";
-
 const SUGGESTIONS_MARKER = "__suggestions__:";
 const ACTIONS_MARKER = "__actions__:";
+const RESPONSE_STATE_MARKER = "__response_state__:";
 
 const TOOL_NAMES = {
   SET_THEME: "set_theme",
   NAVIGATE: "navigate",
   NAVIGATE_TO_PAGE: "navigate_to_page",
   ADJUST_UI: "adjust_ui",
-  INSPECT_THEME: "inspect_theme",
-  GENERATE_CHART: "generate_chart",
-  GENERATE_GRAPH: "generate_graph",
-  GENERATE_AUDIO: "generate_audio",
-  ADMIN_WEB_SEARCH: "admin_web_search",
-  GET_MY_PROFILE: "get_my_profile",
-  UPDATE_MY_PROFILE: "update_my_profile",
-  GET_MY_REFERRAL_QR: "get_my_referral_qr",
-  GET_JOURNAL_WORKFLOW_SUMMARY: "get_journal_workflow_summary",
   PREPARE_JOURNAL_POST_FOR_PUBLISH: "prepare_journal_post_for_publish",
 } as const;
-
-type ProfileResultPayload = {
-  action: "get_my_profile" | "update_my_profile";
-  message?: string;
-  profile: {
-    name: string;
-    email: string;
-    credential?: string | null;
-    affiliate_enabled: boolean;
-    referral_code?: string | null;
-    referral_url?: string | null;
-    qr_code_url?: string | null;
-    roles?: string[];
-  };
-};
-
-type ReferralQrResultPayload =
-  | {
-      action: "get_my_referral_qr";
-      message?: string;
-      referral_code: string;
-      referral_url: string;
-      qr_code_url: string;
-      manage_route?: string;
-    }
-  | {
-      action: "get_my_referral_qr";
-      error: string;
-      affiliate_enabled?: boolean;
-      manage_route?: string;
-    };
-
-type JournalWorkflowSummaryPayload = {
-  action: "get_journal_workflow_summary";
-  summary: string;
-  counts: {
-    draft: number;
-    review: number;
-    approved: number;
-    blocked: number;
-    ready_to_publish: number;
-    active_jobs: number;
-  };
-  blocked_posts?: Array<{
-    title: string;
-    detail_route: string;
-    blockers: string[];
-  }>;
-  ready_to_publish_posts?: Array<{
-    title: string;
-    detail_route: string;
-    preview_route: string;
-  }>;
-};
-
-type PrepareJournalPostForPublishPayload = {
-  action: "prepare_journal_post_for_publish";
-  ready: boolean;
-  summary: string;
-  blockers: string[];
-  revision_count: number;
-  post: {
-    id: string;
-    title: string;
-    detail_route: string;
-    preview_route: string;
-  };
-};
-
-type InspectThemeResultPayload = {
-  action: "inspect_theme";
-  message: string;
-  supported_theme_ids: readonly string[];
-  ordered_theme_profiles: ReadonlyArray<{
-    id: string;
-    name: string;
-    description: string;
-    yearRange: string;
-    primaryAttributes: readonly string[];
-    motionIntent: string;
-    shadowIntent: string;
-    densityDefaults: {
-      standard: string;
-      dataDense: string;
-      touch: string;
-    };
-    approvedControlAxes: readonly string[];
-  }>;
-  approved_control_axes: ReadonlyArray<{
-    id: string;
-    label: string;
-    options: readonly unknown[];
-    defaultValue: unknown;
-    mutationTools: readonly string[];
-  }>;
-  active_theme_state: {
-    available: boolean;
-    reason: string;
-  };
-};
 
 type NavigateToPageResultPayload = {
   path: string;
   label: string | null;
   description: string | null;
   __actions__: Array<{ type: "navigate"; path: string }>;
-};
-
-type GenerateAudioResultPayload = {
-  action: "generate_audio";
-  title: string;
-  text: string;
-  assetId: string | null;
-  provider: string;
-  generationStatus: "client_fetch_pending" | "cached_asset";
-  estimatedDurationSeconds: number;
-  estimatedGenerationSeconds: number;
 };
 
 export interface MessageAction {
@@ -170,23 +57,70 @@ export interface PresentedGenerationStatus {
   partialContentRetained: boolean;
 }
 
+export type ToolRenderEntry =
+  | {
+      kind: "job-status";
+      part: JobStatusMessagePart;
+      computedActions?: InlineNode[];
+      descriptor?: CapabilityPresentationDescriptor;
+      resultEnvelope?: CapabilityResultEnvelope | null;
+    }
+  | {
+      kind: "tool-call";
+      name: string;
+      args: Record<string, unknown>;
+      result?: unknown;
+      descriptor?: CapabilityPresentationDescriptor;
+      resultEnvelope?: CapabilityResultEnvelope | null;
+    };
+
+export type MessageStatus = "confirmed" | "pending" | "failed";
+
 export interface PresentedMessage {
   id: string;
   role: string;
   content: RichContent;
   rawContent: string;
+  responseState?: ChatResponseState;
   commands: UICommand[];
   suggestions: string[];
   actions: MessageAction[];
   attachments: PresentedAttachment[];
   failedSend?: FailedSendMetadata;
   generationStatus?: PresentedGenerationStatus;
+  status: MessageStatus;
   timestamp: string;
+  toolRenderEntries: ToolRenderEntry[];
 }
 
 type ExtractedTag = {
   text: string;
   payload: unknown[];
+};
+
+type ExtractedStringTag = {
+  text: string;
+  payload: string | null;
+};
+
+type TrailingArrayTagMatch = ExtractedTag & {
+  markerIndex: number;
+};
+
+type TrailingStringTagMatch = ExtractedStringTag & {
+  markerIndex: number;
+};
+
+type TrailingControlTagMatch =
+  | { kind: "suggestions"; match: TrailingArrayTagMatch }
+  | { kind: "actions"; match: TrailingArrayTagMatch }
+  | { kind: "responseState"; match: TrailingStringTagMatch };
+
+type ExtractedControlTags = {
+  text: string;
+  suggestionsPayload: unknown[];
+  actionsPayload: unknown[];
+  responseStatePayload: string | null;
 };
 
 type ToolCallWithResult = {
@@ -238,26 +172,52 @@ function findJsonArrayEnd(input: string, arrayStart: number): number {
   return -1;
 }
 
-function extractTaggedArray(text: string, marker: string): ExtractedTag {
-  const markerIndex = text.indexOf(marker);
+function findJsonStringEnd(input: string, stringStart: number): number {
+  let escaping = false;
+
+  for (let index = stringStart + 1; index < input.length; index += 1) {
+    const character = input[index];
+
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+
+    if (character === "\\") {
+      escaping = true;
+      continue;
+    }
+
+    if (character === '"') {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function extractTrailingTaggedArray(text: string, marker: string): TrailingArrayTagMatch | null {
+  const markerIndex = text.lastIndexOf(marker);
   if (markerIndex < 0) {
-    return { text, payload: [] };
+    return null;
   }
 
   const arrayStart = markerIndex + marker.length;
   if (text[arrayStart] !== "[") {
-    return {
-      text: text.slice(0, markerIndex).trimEnd(),
-      payload: [],
-    };
+    return null;
   }
 
   const arrayEnd = findJsonArrayEnd(text, arrayStart);
   if (arrayEnd < 0) {
     return {
+      markerIndex,
       text: text.slice(0, markerIndex).trimEnd(),
       payload: [],
     };
+  }
+
+  if (text.slice(arrayEnd + 1).trim().length > 0) {
+    return null;
   }
 
   let payload: unknown[] = [];
@@ -271,30 +231,198 @@ function extractTaggedArray(text: string, marker: string): ExtractedTag {
   }
 
   return {
-    text: `${text.slice(0, markerIndex)}${text.slice(arrayEnd + 1)}`.trim(),
+    markerIndex,
+    text: text.slice(0, markerIndex).trimEnd(),
     payload,
   };
 }
 
-const DEFAULT_REPAIRED_SUGGESTIONS = DEFAULT_PROMPTS.defaultSuggestions ?? [
-  "Go deeper",
-  "Show sources",
-  "Give next step",
-];
-
-function normalizeSuggestions(payload: unknown[], textContent: string): string[] {
-  const normalized = Array.from(new Set(
-    payload
-      .filter((entry): entry is string => typeof entry === "string")
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0 && entry.length <= 60),
-  )).slice(0, 4);
-
-  if (normalized.length > 0) {
-    return normalized;
+function extractTrailingTaggedString(text: string, marker: string): TrailingStringTagMatch | null {
+  const markerIndex = text.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    return null;
   }
 
-  return textContent.trim().length > 0 ? DEFAULT_REPAIRED_SUGGESTIONS.slice(0, 4) : [];
+  const stringStart = markerIndex + marker.length;
+  if (text[stringStart] !== '"') {
+    return null;
+  }
+
+  const stringEnd = findJsonStringEnd(text, stringStart);
+  if (stringEnd < 0 || text.slice(stringEnd + 1).trim().length > 0) {
+    return null;
+  }
+
+  let payload: string | null = null;
+  try {
+    const parsed = JSON.parse(text.slice(stringStart, stringEnd + 1));
+    if (typeof parsed === "string") {
+      payload = parsed;
+    }
+  } catch {
+    payload = null;
+  }
+
+  return {
+    markerIndex,
+    text: text.slice(0, markerIndex).trimEnd(),
+    payload,
+  };
+}
+
+function extractControlTags(text: string): ExtractedControlTags {
+  let remainingText = text.trimEnd();
+  let suggestionsPayload: unknown[] = [];
+  let actionsPayload: unknown[] = [];
+  let responseStatePayload: string | null = null;
+  let hasSuggestionsTag = false;
+  let hasActionsTag = false;
+  let hasResponseStateTag = false;
+
+  while (true) {
+    const candidates: TrailingControlTagMatch[] = [];
+
+    if (!hasSuggestionsTag) {
+      const match = extractTrailingTaggedArray(remainingText, SUGGESTIONS_MARKER);
+      if (match) {
+        candidates.push({ kind: "suggestions", match });
+      }
+    }
+
+    if (!hasActionsTag) {
+      const match = extractTrailingTaggedArray(remainingText, ACTIONS_MARKER);
+      if (match) {
+        candidates.push({ kind: "actions", match });
+      }
+    }
+
+    if (!hasResponseStateTag) {
+      const match = extractTrailingTaggedString(remainingText, RESPONSE_STATE_MARKER);
+      if (match) {
+        candidates.push({ kind: "responseState", match });
+      }
+    }
+
+    if (candidates.length === 0) {
+      break;
+    }
+
+    candidates.sort((left, right) => right.match.markerIndex - left.match.markerIndex);
+    const [candidate] = candidates;
+    remainingText = candidate.match.text;
+
+    switch (candidate.kind) {
+      case "suggestions":
+        hasSuggestionsTag = true;
+        suggestionsPayload = candidate.match.payload;
+        break;
+      case "actions":
+        hasActionsTag = true;
+        actionsPayload = candidate.match.payload;
+        break;
+      case "responseState":
+        hasResponseStateTag = true;
+        responseStatePayload = candidate.match.payload;
+        break;
+    }
+  }
+
+  return {
+    text: remainingText.trim(),
+    suggestionsPayload,
+    actionsPayload,
+    responseStatePayload,
+  };
+}
+
+const LOW_VALUE_SUGGESTION_PATTERNS = [
+  /^anything else\??$/i,
+  /^what else\??$/i,
+  /^need (?:anything else|more help)\??$/i,
+  /^want (?:more|another)\??$/i,
+  /^tell me more\??$/i,
+  /^continue\??$/i,
+  /^keep going\??$/i,
+];
+
+function normalizeSuggestionKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function isLowValueSuggestion(value: string): boolean {
+  return LOW_VALUE_SUGGESTION_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function normalizeSuggestions(payload: unknown[]): string[] {
+  const normalizedSuggestions: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of payload) {
+    if (typeof entry !== "string") {
+      continue;
+    }
+
+    const candidate = entry.trim();
+    if (candidate.length === 0 || candidate.length > 60 || isLowValueSuggestion(candidate)) {
+      continue;
+    }
+
+    const key = normalizeSuggestionKey(candidate);
+    if (!key || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    normalizedSuggestions.push(candidate);
+
+    if (normalizedSuggestions.length === 4) {
+      break;
+    }
+  }
+
+  return normalizedSuggestions;
+}
+
+function normalizeResponseState(payload: string | null): ChatResponseState | null {
+  if (payload === "open" || payload === "closed" || payload === "needs_input") {
+    return payload;
+  }
+
+  return null;
+}
+
+function looksLikeBlockingQuestion(textContent: string): boolean {
+  const trimmed = textContent.trim();
+  if (!trimmed.endsWith("?")) {
+    return false;
+  }
+
+  return trimmed.split("?").length - 1 === 1;
+}
+
+function deriveResponseState(
+  message: ChatMessage,
+  explicitState: ChatResponseState | null,
+  suggestions: string[],
+  textContent: string,
+): ChatResponseState | undefined {
+  if (explicitState) {
+    return explicitState;
+  }
+
+  if (message.metadata?.responseState) {
+    return message.metadata.responseState;
+  }
+
+  if (message.role !== "assistant") {
+    return undefined;
+  }
+
+  if (suggestions.length > 0) {
+    return "open";
+  }
+
+  return looksLikeBlockingQuestion(textContent) ? "needs_input" : "closed";
 }
 
 function getNormalizedString(record: Record<string, unknown>, keys: string[]): string | null {
@@ -440,45 +568,63 @@ function sanitizeUiAdjustmentSettings(args: Record<string, unknown>): Record<str
   return rest;
 }
 
-function isResolvedGraphPayload(value: unknown): value is ResolvedGraphPayload {
+type ToolCommandResolver = (call: ToolCallWithResult) => UICommand | null;
+
+const TOOL_COMMAND_RESOLVERS: Partial<Record<string, ToolCommandResolver>> = {
+  [TOOL_NAMES.SET_THEME]: (call) => {
+    if (!isSupportedTheme(call.args.theme)) {
+      return null;
+    }
+
+    return {
+      type: UI_COMMAND_TYPE.SET_THEME,
+      theme: call.args.theme,
+    };
+  },
+  [TOOL_NAMES.NAVIGATE]: (call) => ({
+    type: UI_COMMAND_TYPE.NAVIGATE,
+    path: call.args.path as string,
+  }),
+  [TOOL_NAMES.NAVIGATE_TO_PAGE]: (call) => {
+    if (!isNavigateToPageResultPayload(call.result)) {
+      return null;
+    }
+
+    return {
+      type: UI_COMMAND_TYPE.NAVIGATE,
+      path: call.result.path,
+    };
+  },
+  [TOOL_NAMES.ADJUST_UI]: (call) => ({
+    type: UI_COMMAND_TYPE.ADJUST_UI,
+    settings: sanitizeUiAdjustmentSettings(call.args as Record<string, unknown>),
+  }),
+};
+
+function resolveToolCommand(call: ToolCallWithResult): UICommand | null {
+  return TOOL_COMMAND_RESOLVERS[call.name]?.(call) ?? null;
+}
+
+function shouldPreserveToolRenderEntry(call: ToolCallWithResult): boolean {
   return (
-    typeof value === "object"
-    && value !== null
-    && "graph" in value
-    && typeof (value as { graph?: unknown }).graph === "object"
-    && (value as { graph: { kind?: unknown } }).graph !== null
-    && typeof (value as { graph: { kind?: unknown } }).graph.kind === "string"
+    call.result !== undefined
+    && (call.name === TOOL_NAMES.SET_THEME || call.name === TOOL_NAMES.ADJUST_UI)
   );
 }
 
-function isProfileResultPayload(value: unknown): value is ProfileResultPayload {
-  return (
-    typeof value === "object"
-    && value !== null
-    && ((value as { action?: unknown }).action === TOOL_NAMES.GET_MY_PROFILE
-      || (value as { action?: unknown }).action === TOOL_NAMES.UPDATE_MY_PROFILE)
-    && "profile" in value
-    && typeof (value as { profile?: unknown }).profile === "object"
-    && (value as { profile?: unknown }).profile !== null
-  );
-}
-
-function isReferralQrResultPayload(value: unknown): value is ReferralQrResultPayload {
-  return (
-    typeof value === "object"
-    && value !== null
-    && (value as { action?: unknown }).action === TOOL_NAMES.GET_MY_REFERRAL_QR
-  );
-}
-
-function isJournalWorkflowSummaryPayload(value: unknown): value is JournalWorkflowSummaryPayload {
-  return typeof value === "object"
-    && value !== null
-    && (value as { action?: unknown }).action === TOOL_NAMES.GET_JOURNAL_WORKFLOW_SUMMARY
-    && typeof (value as { summary?: unknown }).summary === "string"
-    && typeof (value as { counts?: unknown }).counts === "object"
-    && (value as { counts?: unknown }).counts !== null;
-}
+type PrepareJournalPostForPublishPayload = {
+  action: "prepare_journal_post_for_publish";
+  ready: boolean;
+  summary: string;
+  blockers: string[];
+  revision_count: number;
+  post: {
+    id: string;
+    title: string;
+    detail_route: string;
+    preview_route: string;
+  };
+};
 
 function isPrepareJournalPostForPublishPayload(value: unknown): value is PrepareJournalPostForPublishPayload {
   return typeof value === "object"
@@ -490,34 +636,11 @@ function isPrepareJournalPostForPublishPayload(value: unknown): value is Prepare
     && (value as { post?: unknown }).post !== null;
 }
 
-function isInspectThemeResultPayload(value: unknown): value is InspectThemeResultPayload {
-  return typeof value === "object"
-    && value !== null
-    && (value as { action?: unknown }).action === TOOL_NAMES.INSPECT_THEME
-    && Array.isArray((value as { supported_theme_ids?: unknown }).supported_theme_ids)
-    && Array.isArray((value as { ordered_theme_profiles?: unknown }).ordered_theme_profiles)
-    && Array.isArray((value as { approved_control_axes?: unknown }).approved_control_axes)
-    && typeof (value as { active_theme_state?: unknown }).active_theme_state === "object"
-    && (value as { active_theme_state?: unknown }).active_theme_state !== null;
-}
-
 function isNavigateToPageResultPayload(value: unknown): value is NavigateToPageResultPayload {
   return typeof value === "object"
     && value !== null
     && typeof (value as { path?: unknown }).path === "string"
     && Array.isArray((value as { __actions__?: unknown }).__actions__);
-}
-
-function isGenerateAudioResultPayload(value: unknown): value is GenerateAudioResultPayload {
-  return typeof value === "object"
-    && value !== null
-    && (value as { action?: unknown }).action === TOOL_NAMES.GENERATE_AUDIO
-    && typeof (value as { text?: unknown }).text === "string"
-    && typeof (value as { title?: unknown }).title === "string"
-    && typeof (value as { provider?: unknown }).provider === "string"
-    && typeof (value as { generationStatus?: unknown }).generationStatus === "string"
-    && typeof (value as { estimatedDurationSeconds?: unknown }).estimatedDurationSeconds === "number"
-    && typeof (value as { estimatedGenerationSeconds?: unknown }).estimatedGenerationSeconds === "number";
 }
 
 function isJobStatusMessagePart(part: MessagePart): part is JobStatusMessagePart {
@@ -543,16 +666,8 @@ function getGenerationStatusPart(parts?: MessagePart[]): GenerationStatusMessage
   return null;
 }
 
-function textNode(text: string) {
-  return { type: "text" as const, text };
-}
-
 function actionLinkNode(label: string, value: string) {
   return { type: "action-link" as const, label, actionType: "route" as const, value };
-}
-
-function externalActionLinkNode(label: string, value: string) {
-  return { type: "action-link" as const, label, actionType: "external" as const, value };
 }
 
 function jobActionLinkNode(label: string, jobId: string, operation: "cancel" | "retry") {
@@ -565,54 +680,138 @@ function jobActionLinkNode(label: string, jobId: string, operation: "cancel" | "
   };
 }
 
-function isDraftResultPayload(value: unknown): value is { id: string; slug: string; title: string; status: "draft" } {
-  return typeof value === "object"
-    && value !== null
-    && (value as { status?: unknown }).status === "draft"
-    && typeof (value as { id?: unknown }).id === "string"
-    && typeof (value as { slug?: unknown }).slug === "string"
-    && typeof (value as { title?: unknown }).title === "string";
+function getJobStatusResultPayload(part: JobStatusMessagePart): unknown {
+  return part.resultEnvelope?.payload ?? part.resultPayload;
 }
 
-function isPublishResultPayload(value: unknown): value is { id: string; slug: string; title: string; status: "published" } {
-  return typeof value === "object"
-    && value !== null
-    && (value as { status?: unknown }).status === "published"
-    && typeof (value as { id?: unknown }).id === "string"
-    && typeof (value as { slug?: unknown }).slug === "string"
-    && typeof (value as { title?: unknown }).title === "string";
+function projectJobStatusResultEnvelope(part: JobStatusMessagePart): CapabilityResultEnvelope | null {
+  const descriptor = getCapabilityPresentationDescriptor(part.toolName);
+
+  return (
+    part.resultEnvelope
+    ?? projectCapabilityResultEnvelope({
+      toolName: part.toolName,
+      payload: getJobStatusResultPayload(part),
+      descriptor,
+      executionMode: descriptor?.executionMode ?? "deferred",
+      summary: {
+        title: part.title,
+        subtitle: part.subtitle,
+        statusLine: part.error,
+        message: part.summary,
+      },
+      progress:
+        part.progressPercent != null || part.progressLabel
+          ? {
+              percent: part.progressPercent,
+              label: part.progressLabel,
+            }
+          : undefined,
+    })
+  );
 }
 
-function isGenerateBlogImageResultPayload(
-  value: unknown,
-): value is {
-  assetId: string;
-  imageUrl: string;
-  postSlug: string | null;
-} {
-  return typeof value === "object"
-    && value !== null
-    && typeof (value as { assetId?: unknown }).assetId === "string"
-    && typeof (value as { imageUrl?: unknown }).imageUrl === "string"
-    && (typeof (value as { postSlug?: unknown }).postSlug === "string"
-      || (value as { postSlug?: unknown }).postSlug === null);
+function buildDraftContentJobActions(resultPayload: unknown): InlineNode[] | undefined {
+  if (!isDraftContentResultPayload(resultPayload)) {
+    return undefined;
+  }
+
+  return [
+    {
+      type: "action-link" as const,
+      label: "Revise",
+      actionType: "send" as const,
+      value: `Revise the draft post with id ${resultPayload.id} titled "${resultPayload.title}".`,
+    },
+    {
+      type: "action-link" as const,
+      label: "Publish",
+      actionType: "send" as const,
+      value: `Publish the draft post with id ${resultPayload.id}.`,
+    },
+  ];
 }
 
-function isProduceBlogArticleResultPayload(
-  value: unknown,
-): value is {
-  id: string;
-  slug: string;
-  imageAssetId: string;
-} {
-  return typeof value === "object"
-    && value !== null
-    && typeof (value as { id?: unknown }).id === "string"
-    && typeof (value as { slug?: unknown }).slug === "string"
-    && typeof (value as { imageAssetId?: unknown }).imageAssetId === "string";
+function buildPublishContentJobActions(resultPayload: unknown): InlineNode[] | undefined {
+  if (!isPublishContentResultPayload(resultPayload)) {
+    return undefined;
+  }
+
+  return [actionLinkNode("Open published post", `/journal/${resultPayload.slug}`)];
 }
+
+function buildGenerateBlogImageJobActions(resultPayload: unknown): InlineNode[] | undefined {
+  if (!isGenerateBlogImageResultPayload(resultPayload)) {
+    return undefined;
+  }
+
+  const actions: InlineNode[] = [actionLinkNode("Open image", resultPayload.imageUrl)];
+  if (resultPayload.postSlug) {
+    actions.unshift(actionLinkNode("Open article", `/journal/${resultPayload.postSlug}`));
+  }
+
+  return actions;
+}
+
+function buildProduceBlogArticleJobActions(resultPayload: unknown): InlineNode[] | undefined {
+  if (!isProduceBlogArticleResultPayload(resultPayload)) {
+    return undefined;
+  }
+
+  return [
+    actionLinkNode("Open draft", getAdminJournalPreviewPath(resultPayload.slug)),
+    {
+      type: "action-link" as const,
+      label: "Publish",
+      actionType: "send" as const,
+      value: `Publish the draft journal article with id ${resultPayload.id}.`,
+    },
+    actionLinkNode("Open hero image", `/api/blog/assets/${resultPayload.imageAssetId}`),
+  ];
+}
+
+function buildPrepareJournalPublishJobActions(resultPayload: unknown): InlineNode[] | undefined {
+  if (!isPrepareJournalPostForPublishPayload(resultPayload)) {
+    return undefined;
+  }
+
+  const actions: InlineNode[] = [
+    actionLinkNode("Open journal workspace", resultPayload.post.detail_route),
+    actionLinkNode("Open journal draft", resultPayload.post.preview_route),
+  ];
+
+  if (resultPayload.ready) {
+    actions.push({
+      type: "action-link" as const,
+      label: "Publish",
+      actionType: "send" as const,
+      value: `Publish the approved journal article with id ${resultPayload.post.id}.`,
+    });
+  }
+
+  return actions;
+}
+
+const JOB_STATUS_ACTION_RESOLVERS: ReadonlyArray<{
+  toolName: string;
+  resolveActions: (resultPayload: unknown) => InlineNode[] | undefined;
+}> = [
+  { toolName: "draft_content", resolveActions: buildDraftContentJobActions },
+  { toolName: "publish_content", resolveActions: buildPublishContentJobActions },
+  { toolName: "generate_blog_image", resolveActions: buildGenerateBlogImageJobActions },
+  { toolName: "produce_blog_article", resolveActions: buildProduceBlogArticleJobActions },
+  {
+    toolName: TOOL_NAMES.PREPARE_JOURNAL_POST_FOR_PUBLISH,
+    resolveActions: buildPrepareJournalPublishJobActions,
+  },
+];
 
 function buildJobStatusActions(part: JobStatusMessagePart) {
+  const resultPayload = getJobStatusResultPayload(part);
+  const descriptor = getCapabilityPresentationDescriptor(part.toolName);
+  const supportsWholeJobRetry = descriptor?.supportsRetry === "whole_job";
+  const canControlServerJob = descriptor?.executionMode === "deferred" || descriptor?.executionMode === "hybrid";
+
   if (part.actions && part.actions.length > 0) {
     return part.actions.map((action) => ({
       type: "action-link" as const,
@@ -623,11 +822,11 @@ function buildJobStatusActions(part: JobStatusMessagePart) {
     }));
   }
 
-  if (part.status === "queued" || part.status === "running") {
+  if ((part.status === "queued" || part.status === "running") && canControlServerJob) {
     return [jobActionLinkNode("Cancel", part.jobId, "cancel")];
   }
 
-  if (part.status === "failed" || part.status === "canceled") {
+  if ((part.status === "failed" || part.status === "canceled") && supportsWholeJobRetry && canControlServerJob) {
     return [jobActionLinkNode("Retry", part.jobId, "retry")];
   }
 
@@ -635,330 +834,18 @@ function buildJobStatusActions(part: JobStatusMessagePart) {
     return undefined;
   }
 
-  if (part.toolName === "draft_content" && isDraftResultPayload(part.resultPayload)) {
-    return [
-      {
-        type: "action-link" as const,
-        label: "Revise",
-        actionType: "send" as const,
-        value: `Revise the draft post with id ${part.resultPayload.id} titled \"${part.resultPayload.title}\".`,
-      },
-      {
-        type: "action-link" as const,
-        label: "Publish",
-        actionType: "send" as const,
-        value: `Publish the draft post with id ${part.resultPayload.id}.`,
-      },
-    ];
-  }
-
-  if (part.toolName === "publish_content" && isPublishResultPayload(part.resultPayload)) {
-    return [actionLinkNode("Open published post", `/journal/${part.resultPayload.slug}`)];
-  }
-
-  if (part.toolName === "generate_blog_image" && isGenerateBlogImageResultPayload(part.resultPayload)) {
-    const actions = [actionLinkNode("Open image", part.resultPayload.imageUrl)];
-    if (part.resultPayload.postSlug) {
-      actions.unshift(actionLinkNode("Open article", `/journal/${part.resultPayload.postSlug}`));
-    }
-    return actions;
-  }
-
-  if (part.toolName === "produce_blog_article" && isProduceBlogArticleResultPayload(part.resultPayload)) {
-    return [
-      actionLinkNode("Open draft", getAdminJournalPreviewPath(part.resultPayload.slug)),
-      {
-        type: "action-link" as const,
-        label: "Publish",
-        actionType: "send" as const,
-        value: `Publish the draft journal article with id ${part.resultPayload.id}.`,
-      },
-      actionLinkNode("Open hero image", `/api/blog/assets/${part.resultPayload.imageAssetId}`),
-    ];
-  }
-
-  if (
-    part.toolName === TOOL_NAMES.PREPARE_JOURNAL_POST_FOR_PUBLISH
-    && isPrepareJournalPostForPublishPayload(part.resultPayload)
-  ) {
-    const actions: InlineNode[] = [
-      actionLinkNode("Open journal workspace", part.resultPayload.post.detail_route),
-      actionLinkNode("Open journal draft", part.resultPayload.post.preview_route),
-    ];
-
-    if (part.resultPayload.ready) {
-      actions.push({
-        type: "action-link" as const,
-        label: "Publish",
-        actionType: "send" as const,
-        value: `Publish the approved journal article with id ${part.resultPayload.post.id}.`,
-      });
+  for (const resolver of JOB_STATUS_ACTION_RESOLVERS) {
+    if (resolver.toolName !== part.toolName) {
+      continue;
     }
 
-    return actions;
+    const actions = resolver.resolveActions(resultPayload);
+    if (actions) {
+      return actions;
+    }
   }
 
   return undefined;
-}
-
-function appendProfileResultBlocks(
-  richContent: RichContent,
-  result: ProfileResultPayload,
-): void {
-  const rows = [
-    [textNode("Name"), textNode(result.profile.name)],
-    [textNode("Email"), textNode(result.profile.email)],
-    [textNode("Credential"), textNode(result.profile.credential?.trim() || "Not set")],
-    [textNode("Roles"), textNode((result.profile.roles ?? []).join(", ") || "None")],
-    [textNode("Referral access"), textNode(result.profile.affiliate_enabled ? "Enabled" : "Not enabled")],
-    [textNode("Referral code"), textNode(result.profile.referral_code ?? "Not assigned")],
-    [textNode("Referral link"), textNode(result.profile.referral_url ?? "Not available")],
-  ];
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.HEADING,
-    level: 2,
-    content: [textNode(result.action === TOOL_NAMES.UPDATE_MY_PROFILE ? "Profile Updated" : "Current Profile")],
-  });
-
-  if (result.message) {
-    richContent.blocks.push({
-      type: BLOCK_TYPES.PARAGRAPH,
-      content: [textNode(result.message)],
-    });
-  }
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.TABLE,
-    header: [[textNode("Field")], [textNode("Value")]],
-    rows: rows.map((row) => row.map((cell) => [cell])),
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.PARAGRAPH,
-    content: [
-      textNode("Open your "),
-      actionLinkNode("profile page", "/profile"),
-      textNode(" to manage the same fields and referral settings."),
-    ],
-  });
-}
-
-function appendReferralQrResultBlocks(
-  richContent: RichContent,
-  result: ReferralQrResultPayload,
-): void {
-  richContent.blocks.push({
-    type: BLOCK_TYPES.HEADING,
-    level: 2,
-    content: [textNode("Referral QR")],
-  });
-
-  if ("error" in result) {
-    richContent.blocks.push({
-      type: BLOCK_TYPES.BLOCKQUOTE,
-      content: [textNode(result.error)],
-    });
-
-    richContent.blocks.push({
-      type: BLOCK_TYPES.PARAGRAPH,
-      content: [
-        textNode("You can check availability from your "),
-        actionLinkNode("profile page", result.manage_route ?? "/profile"),
-        textNode(" once affiliate access is enabled."),
-      ],
-    });
-    return;
-  }
-
-  if (result.message) {
-    richContent.blocks.push({
-      type: BLOCK_TYPES.PARAGRAPH,
-      content: [textNode(result.message)],
-    });
-  }
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.TABLE,
-    header: [[textNode("Field")], [textNode("Value")]],
-    rows: [
-      [[textNode("Referral code")], [textNode(result.referral_code)]],
-      [[textNode("Referral link")], [textNode(result.referral_url)]],
-      [[textNode("QR image URL")], [textNode(result.qr_code_url)]],
-    ],
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.LIST,
-    items: [
-      [textNode("Use the referral link for direct sharing.")],
-      [externalActionLinkNode("Open referral link", result.referral_url)],
-      [externalActionLinkNode("Open QR image", result.qr_code_url)],
-      [textNode("Open your "), actionLinkNode("profile page", result.manage_route ?? "/profile"), textNode(" to preview or download the QR image.")],
-    ],
-  });
-}
-
-function appendJournalWorkflowSummaryBlocks(
-  richContent: RichContent,
-  result: JournalWorkflowSummaryPayload,
-): void {
-  richContent.blocks.push({
-    type: BLOCK_TYPES.HEADING,
-    level: 2,
-    content: [textNode("Journal Workflow Summary")],
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.PARAGRAPH,
-    content: [textNode(result.summary)],
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.TABLE,
-    header: [[textNode("Queue")], [textNode("Count")]],
-    rows: [
-      [[textNode("Draft")], [textNode(String(result.counts.draft))]],
-      [[textNode("In review")], [textNode(String(result.counts.review))]],
-      [[textNode("Approved")], [textNode(String(result.counts.approved))]],
-      [[textNode("Blocked")], [textNode(String(result.counts.blocked))]],
-      [[textNode("Ready to publish")], [textNode(String(result.counts.ready_to_publish))]],
-      [[textNode("Active jobs")], [textNode(String(result.counts.active_jobs))]],
-    ],
-  });
-
-  if (result.blocked_posts && result.blocked_posts.length > 0) {
-    richContent.blocks.push({
-      type: BLOCK_TYPES.LIST,
-      items: result.blocked_posts.slice(0, 3).map((post) => [
-        textNode(`${post.title}: ${post.blockers.join(" ")}`),
-        textNode(" "),
-        actionLinkNode("Open workspace", post.detail_route),
-      ]),
-    });
-  }
-
-  if (result.ready_to_publish_posts && result.ready_to_publish_posts.length > 0) {
-    richContent.blocks.push({
-      type: BLOCK_TYPES.LIST,
-      items: result.ready_to_publish_posts.slice(0, 3).map((post) => [
-        textNode(`${post.title} is ready to publish. `),
-        actionLinkNode("Open workspace", post.detail_route),
-        textNode(" · "),
-        actionLinkNode("Open preview", post.preview_route),
-      ]),
-    });
-  }
-}
-
-function appendPrepareJournalPostBlocks(
-  richContent: RichContent,
-  result: PrepareJournalPostForPublishPayload,
-): void {
-  richContent.blocks.push({
-    type: BLOCK_TYPES.HEADING,
-    level: 2,
-    content: [textNode(result.ready ? "Journal Publish Ready" : "Journal Publish Blocked")],
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.PARAGRAPH,
-    content: [textNode(result.summary)],
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.TABLE,
-    header: [[textNode("Field")], [textNode("Value")]],
-    rows: [
-      [[textNode("Article")], [textNode(result.post.title)]],
-      [[textNode("Ready")], [textNode(result.ready ? "Yes" : "No")]],
-      [[textNode("Revision count")], [textNode(String(result.revision_count))]],
-    ],
-  });
-
-  if (result.blockers.length > 0) {
-    richContent.blocks.push({
-      type: BLOCK_TYPES.LIST,
-      items: result.blockers.map((blocker) => [textNode(blocker)]),
-    });
-  }
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.LIST,
-    items: [
-      [actionLinkNode("Open journal workspace", result.post.detail_route)],
-      [actionLinkNode("Open journal draft", result.post.preview_route)],
-      ...(result.ready
-        ? [[{
-          type: "action-link" as const,
-          label: "Publish",
-          actionType: "send" as const,
-          value: `Publish the approved journal article with id ${result.post.id}.`,
-        }]]
-        : []),
-    ],
-  });
-}
-
-function formatThemeAxisOption(option: unknown): string {
-  if (typeof option === "string") {
-    return option;
-  }
-
-  if (typeof option === "boolean") {
-    return option ? "true" : "false";
-  }
-
-  return String(option);
-}
-
-function appendInspectThemeBlocks(
-  richContent: RichContent,
-  result: InspectThemeResultPayload,
-): void {
-  richContent.blocks.push({
-    type: BLOCK_TYPES.HEADING,
-    level: 2,
-    content: [textNode("Theme Profiles")],
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.PARAGRAPH,
-    content: [textNode(result.message)],
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.TABLE,
-    header: [[textNode("Theme")], [textNode("Intent")], [textNode("Density defaults")], [textNode("Attributes")]],
-    rows: result.ordered_theme_profiles.map((profile) => [[
-      textNode(`${profile.name} (${profile.id})`),
-    ], [
-      textNode(`${profile.motionIntent} motion / ${profile.shadowIntent} depth`),
-    ], [
-      textNode(`standard ${profile.densityDefaults.standard}, data-dense ${profile.densityDefaults.dataDense}, touch ${profile.densityDefaults.touch}`),
-    ], [
-      textNode(profile.primaryAttributes.join(", ")),
-    ]]),
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.LIST,
-    items: result.approved_control_axes.map((axis) => [
-      textNode(`${axis.label}: default ${formatThemeAxisOption(axis.defaultValue)}. Options ${axis.options.map(formatThemeAxisOption).join(", ")}. Mutated by ${axis.mutationTools.join(", ")}.`),
-    ]),
-  });
-
-  richContent.blocks.push({
-    type: BLOCK_TYPES.PARAGRAPH,
-    content: [textNode(`Supported theme ids: ${result.supported_theme_ids.join(", ")}.`)],
-  });
-
-  if (!result.active_theme_state.available) {
-    richContent.blocks.push({
-      type: BLOCK_TYPES.BLOCKQUOTE,
-      content: [textNode(result.active_theme_state.reason)],
-    });
-  }
 }
 
 export class ChatPresenter {
@@ -969,196 +856,102 @@ export class ChatPresenter {
 
   present(message: ChatMessage): PresentedMessage {
     let textContent = message.content;
-    let suggestions: string[] = [];
-    let actions: MessageAction[] = [];
+    const extractedControls = extractControlTags(textContent);
+    const suggestions = normalizeSuggestions(extractedControls.suggestionsPayload);
+    const actions = normalizeMessageActions(extractedControls.actionsPayload);
+    textContent = extractedControls.text;
 
-    const extractedSuggestions = extractTaggedArray(textContent, SUGGESTIONS_MARKER);
-    suggestions = normalizeSuggestions(extractedSuggestions.payload, extractedSuggestions.text);
-    textContent = extractedSuggestions.text;
+    const responseState = deriveResponseState(
+      message,
+      normalizeResponseState(extractedControls.responseStatePayload),
+      suggestions,
+      textContent,
+    );
 
-    const extractedActions = extractTaggedArray(textContent, ACTIONS_MARKER);
-    actions = normalizeMessageActions(extractedActions.payload);
-    textContent = extractedActions.text;
+    const visibleSuggestions = responseState === "open" ? suggestions : [];
 
     const richContent = this.markdownParser.parse(textContent);
     const commands = [...this.commandParser.parse(textContent)];
     const attachments = getPresentedAttachments(message.parts);
     const generationStatus = getGenerationStatusPart(message.parts);
     const renderedJobIds = new Set<string>();
+    const toolRenderEntries: ToolRenderEntry[] = [];
 
     for (const part of message.parts ?? []) {
       if (!isJobStatusMessagePart(part)) {
         continue;
       }
 
-      renderedJobIds.add(part.jobId);
+      const descriptor = getCapabilityPresentationDescriptor(part.toolName);
+      const resultEnvelope = projectJobStatusResultEnvelope(part);
+      const renderedPart = resultEnvelope && part.resultEnvelope !== resultEnvelope
+        ? { ...part, resultEnvelope }
+        : part;
 
-      richContent.blocks.push({
-        type: BLOCK_TYPES.JOB_STATUS,
-        jobId: part.jobId,
-        label: part.label,
-        toolName: part.toolName,
-          title: part.title,
-          subtitle: part.subtitle,
-        status: part.status,
-        progressPercent: part.progressPercent,
-        progressLabel: part.progressLabel,
-        summary: part.summary,
-        error: part.error,
-        actions: buildJobStatusActions(part),
+      renderedJobIds.add(renderedPart.jobId);
+
+      toolRenderEntries.push({
+        kind: "job-status",
+        part: renderedPart,
+        computedActions: buildJobStatusActions(renderedPart),
+        descriptor,
+        resultEnvelope,
       });
     }
 
     // Map AI tool calls to UI commands
     const toolCalls = pairToolCallsWithResults(message.parts);
     for (const call of toolCalls) {
-      switch (call.name) {
-        case TOOL_NAMES.SET_THEME:
-          if (isSupportedTheme(call.args.theme)) {
-            commands.push({
-              type: UI_COMMAND_TYPE.SET_THEME,
-              theme: call.args.theme,
-            });
-          }
-          break;
-        case TOOL_NAMES.NAVIGATE:
-          commands.push({
-            type: UI_COMMAND_TYPE.NAVIGATE,
-            path: call.args.path as string,
-          });
-          break;
-        case TOOL_NAMES.NAVIGATE_TO_PAGE:
-          if (isNavigateToPageResultPayload(call.result)) {
-            commands.push({
-              type: UI_COMMAND_TYPE.NAVIGATE,
-              path: call.result.path,
-            });
-          }
-          break;
-        case TOOL_NAMES.ADJUST_UI:
-          commands.push({
-            type: UI_COMMAND_TYPE.ADJUST_UI,
-            settings: sanitizeUiAdjustmentSettings(call.args as Record<string, unknown>),
-          });
-          break;
-        case TOOL_NAMES.INSPECT_THEME:
-          if (isInspectThemeResultPayload(call.result)) {
-            appendInspectThemeBlocks(richContent, call.result);
-          }
-          break;
-        case TOOL_NAMES.GENERATE_CHART:
-          try {
-            const chart = resolveGenerateChartPayload(call.args as Record<string, unknown>);
-            richContent.blocks.push({
-              type: BLOCK_TYPES.CODE,
-              code: chart.code,
-              language: "mermaid",
-              title: chart.title,
-              caption: chart.caption,
-              downloadFileName: chart.downloadFileName,
-            });
-          } catch {
-            // Ignore invalid chart payloads so malformed tool calls do not render broken Mermaid blocks.
-          }
-          break;
-        case TOOL_NAMES.GENERATE_GRAPH:
-          try {
-            const graph = isResolvedGraphPayload(call.result)
-              ? call.result
-              : resolveGenerateGraphPayload(call.args as Record<string, unknown>);
-            richContent.blocks.push({
-              type: BLOCK_TYPES.GRAPH,
-              graph: graph.graph,
-              title: graph.title,
-              caption: graph.caption,
-              summary: graph.summary,
-              downloadFileName: graph.downloadFileName,
-              dataPreview: graph.dataPreview,
-              source: graph.source,
-            });
-          } catch {
-            // Ignore invalid graph payloads so malformed tool calls do not render broken graph blocks.
-          }
-          break;
-        case TOOL_NAMES.GENERATE_AUDIO:
-          if (isGenerateAudioResultPayload(call.result)) {
-            richContent.blocks.push({
-              type: BLOCK_TYPES.AUDIO,
-              text: call.result.text,
-              title: call.result.title,
-              assetId: call.result.assetId ?? undefined,
-              provider: call.result.provider,
-              generationStatus: call.result.generationStatus,
-              estimatedDurationSeconds: call.result.estimatedDurationSeconds,
-              estimatedGenerationSeconds: call.result.estimatedGenerationSeconds,
-            });
-            break;
-          }
-
-          richContent.blocks.push({
-            type: BLOCK_TYPES.AUDIO,
-            text: typeof call.args.text === "string" ? call.args.text : "",
-            title: typeof call.args.title === "string" ? call.args.title : "",
-            assetId: typeof call.args.assetId === "string" ? call.args.assetId : undefined,
-          });
-          break;
-        case TOOL_NAMES.ADMIN_WEB_SEARCH:
-          richContent.blocks.push({
-            type: BLOCK_TYPES.WEB_SEARCH,
-            query: typeof call.args.query === "string" ? call.args.query : "",
-            allowed_domains: Array.isArray(call.args.allowed_domains)
-              ? (call.args.allowed_domains as string[])
-              : undefined,
-            model: typeof call.args.model === "string" ? call.args.model : undefined,
-          });
-          break;
-        case TOOL_NAMES.GET_MY_PROFILE:
-        case TOOL_NAMES.UPDATE_MY_PROFILE:
-          if (isProfileResultPayload(call.result)) {
-            appendProfileResultBlocks(richContent, call.result);
-          }
-          break;
-        case TOOL_NAMES.GET_MY_REFERRAL_QR:
-          if (isReferralQrResultPayload(call.result)) {
-            appendReferralQrResultBlocks(richContent, call.result);
-          }
-          break;
-        case TOOL_NAMES.GET_JOURNAL_WORKFLOW_SUMMARY:
-          if (isJournalWorkflowSummaryPayload(call.result)) {
-            appendJournalWorkflowSummaryBlocks(richContent, call.result);
-          }
-          break;
-        case TOOL_NAMES.PREPARE_JOURNAL_POST_FOR_PUBLISH:
-          if (isPrepareJournalPostForPublishPayload(call.result)) {
-            appendPrepareJournalPostBlocks(richContent, call.result);
-          }
-          break;
-        default: {
-          const jobSnapshots = extractJobStatusSnapshots(call.result);
-          for (const snapshot of jobSnapshots) {
-            if (renderedJobIds.has(snapshot.part.jobId)) {
-              continue;
-            }
-
-            renderedJobIds.add(snapshot.part.jobId);
-            richContent.blocks.push({
-              type: BLOCK_TYPES.JOB_STATUS,
-              jobId: snapshot.part.jobId,
-              label: snapshot.part.label,
-              toolName: snapshot.part.toolName,
-              title: snapshot.part.title,
-              subtitle: snapshot.part.subtitle,
-              status: snapshot.part.status,
-              progressPercent: snapshot.part.progressPercent,
-              progressLabel: snapshot.part.progressLabel,
-              summary: snapshot.part.summary,
-              error: snapshot.part.error,
-              actions: buildJobStatusActions(snapshot.part),
-            });
-          }
-          break;
+      const command = resolveToolCommand(call);
+      if (command) {
+        commands.push(command);
+        if (!shouldPreserveToolRenderEntry(call)) {
+          continue;
         }
       }
+
+      const jobSnapshots = extractJobStatusSnapshots(call.result);
+
+      if (jobSnapshots.length > 0) {
+        for (const snapshot of jobSnapshots) {
+          const descriptor = getCapabilityPresentationDescriptor(snapshot.part.toolName);
+          const resultEnvelope = projectJobStatusResultEnvelope(snapshot.part);
+          const renderedPart = resultEnvelope && snapshot.part.resultEnvelope !== resultEnvelope
+            ? { ...snapshot.part, resultEnvelope }
+            : snapshot.part;
+
+          if (renderedJobIds.has(renderedPart.jobId)) {
+            continue;
+          }
+
+          renderedJobIds.add(renderedPart.jobId);
+          toolRenderEntries.push({
+            kind: "job-status",
+            part: renderedPart,
+            computedActions: buildJobStatusActions(renderedPart),
+            descriptor,
+            resultEnvelope,
+          });
+        }
+        continue;
+      }
+
+      const descriptor = getCapabilityPresentationDescriptor(call.name);
+      const resultEnvelope = projectCapabilityResultEnvelope({
+        toolName: call.name,
+        payload: call.result ?? null,
+        inputSnapshot: call.args,
+        descriptor,
+      });
+
+      toolRenderEntries.push({
+        kind: "tool-call",
+        name: call.name,
+        args: call.args,
+        result: call.result,
+        descriptor,
+        resultEnvelope,
+      });
     }
 
     return {
@@ -1166,8 +959,9 @@ export class ChatPresenter {
       role: message.role,
       content: richContent,
       rawContent: textContent,
+      responseState,
       commands: commands,
-      suggestions: suggestions,
+      suggestions: visibleSuggestions,
       actions,
       attachments,
       failedSend: message.metadata?.failedSend,
@@ -1179,10 +973,12 @@ export class ChatPresenter {
           partialContentRetained: generationStatus.partialContentRetained,
         }
         : undefined,
+      status: "confirmed",
       timestamp: (message.timestamp || new Date()).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       }),
+      toolRenderEntries,
     };
   }
 

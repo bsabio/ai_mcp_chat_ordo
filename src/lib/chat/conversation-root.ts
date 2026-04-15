@@ -6,6 +6,7 @@ import { LeadRecordDataMapper } from "../../adapters/LeadRecordDataMapper";
 import { ConsultationRequestDataMapper } from "../../adapters/ConsultationRequestDataMapper";
 import { DealRecordDataMapper } from "../../adapters/DealRecordDataMapper";
 import { TrainingPathRecordDataMapper } from "../../adapters/TrainingPathRecordDataMapper";
+import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 import { ConversationInteractor } from "../../core/use-cases/ConversationInteractor";
 import { ConversationEventRecorder } from "../../core/use-cases/ConversationEventRecorder";
 import { LeadCaptureInteractor } from "../../core/use-cases/LeadCaptureInteractor";
@@ -36,6 +37,7 @@ type WorkflowRepositories = {
 
 function createConversationPersistence(): ChatPersistence {
   // These builders remain request-scoped around the shared DB handle.
+  // getDb() approved: intentional request-scoped grouping (Sprint 6) — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
 
   return {
@@ -46,6 +48,7 @@ function createConversationPersistence(): ChatPersistence {
 
 function createEventRecorder(): ConversationEventRecorder {
   // Event recording stays lightweight enough to construct per request.
+  // getDb() approved: intentional request-scoped grouping (Sprint 6) — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   const eventRepo = new ConversationEventDataMapper(db);
   return new ConversationEventRecorder(eventRepo);
@@ -53,6 +56,7 @@ function createEventRecorder(): ConversationEventRecorder {
 
 function createWorkflowRepositories(): WorkflowRepositories {
   // Workflow repositories are grouped here so getters stop rewiring them ad hoc.
+  // getDb() approved: intentional request-scoped grouping (Sprint 6) — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
 
   return {
@@ -95,6 +99,7 @@ export function createConversationRuntimeServices(): ConversationRuntimeServices
       conversationRepo,
       messageRepo,
       eventRecorder,
+      getUserFileDataMapper(),
     ),
     routingAnalyzer: new HeuristicConversationRoutingAnalyzer(),
     summarizationInteractor: new SummarizationInteractor(
@@ -108,7 +113,7 @@ export function createConversationRuntimeServices(): ConversationRuntimeServices
 export function getConversationInteractor(): ConversationInteractor {
   const { conversationRepo, messageRepo } = createConversationPersistence();
   const eventRecorder = createEventRecorder();
-  return new ConversationInteractor(conversationRepo, messageRepo, eventRecorder);
+  return new ConversationInteractor(conversationRepo, messageRepo, eventRecorder, getUserFileDataMapper());
 }
 
 export function getSummarizationInteractor(): SummarizationInteractor {

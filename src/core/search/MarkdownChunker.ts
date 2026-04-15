@@ -1,5 +1,7 @@
 import type {
   Chunk,
+  ChunkBoundarySource,
+  ChunkLevel,
   ChunkMetadata,
   DocumentChunkMetadata,
   Chunker,
@@ -10,6 +12,67 @@ const DEFAULT_OPTIONS: ChunkerOptions = {
   maxChunkWords: 400,
   minChunkWords: 50,
 };
+
+const CONCEPT_KEYWORD_STOP_WORDS = new Set([
+  "about",
+  "after",
+  "again",
+  "being",
+  "between",
+  "chapter",
+  "could",
+  "every",
+  "first",
+  "from",
+  "into",
+  "other",
+  "should",
+  "since",
+  "still",
+  "their",
+  "there",
+  "these",
+  "thing",
+  "through",
+  "using",
+  "what",
+  "when",
+  "where",
+  "which",
+  "while",
+  "with",
+]);
+
+const MAX_CONCEPT_KEYWORDS = 6;
+
+export function classifyChunkBoundarySource(
+  content: string,
+  chunk: Pick<Chunk, "level" | "startOffset">,
+): ChunkBoundarySource {
+  if (chunk.level === "document") {
+    return "document_start";
+  }
+
+  const slice = content.slice(chunk.startOffset);
+
+  if (slice.startsWith("### ")) {
+    return "h3_heading";
+  }
+
+  if (slice.startsWith("## ")) {
+    return "h2_heading";
+  }
+
+  if (content.slice(Math.max(0, chunk.startOffset - 2), chunk.startOffset) === "\n\n") {
+    return "paragraph_break";
+  }
+
+  if (content.slice(Math.max(0, chunk.startOffset - 1), chunk.startOffset) === "\n") {
+    return "line_break";
+  }
+
+  return chunk.startOffset === 0 ? "document_start" : "inline_offset";
+}
 
 /**
  * Heading-aware recursive markdown splitter (UB-1: pure Core, zero infra imports).
@@ -64,7 +127,110 @@ export class MarkdownChunker implements Chunker {
     }
 
     // Merge undersized trailing passages
-    return this.mergeUndersized(chunks, opts.minChunkWords);
+    const merged = this.mergeUndersized(chunks, opts.minChunkWords);
+
+    if (metadata.sourceType === "conversation") {
+      return merged;
+    }
+
+    return this.annotateDocumentChunks(sourceId, content, merged);
+  }
+
+  private annotateDocumentChunks(sourceId: string, content: string, chunks: Chunk[]): Chunk[] {
+    const nonDocumentChunks = chunks.filter((chunk) => chunk.level !== "document");
+    const chunkIds = nonDocumentChunks.map((chunk, index) => this.buildChunkId(sourceId, chunk.level, index));
+    const localChunkCount = nonDocumentChunks.length;
+    let nonDocumentIndex = 0;
+    let activeSectionChunkId: string | null = null;
+
+    return chunks.map((chunk) => {
+      const metadata = chunk.metadata as DocumentChunkMetadata;
+
+      if (chunk.level === "document") {
+        return {
+          ...chunk,
+          metadata: {
+            ...metadata,
+            chunkId: this.buildChunkId(sourceId, "document", 0),
+            chunkLevel: "document",
+            localChunkIndex: 0,
+            localChunkCount: 1,
+            parentChunkId: null,
+            previousChunkId: null,
+            nextChunkId: null,
+            boundarySource: "document_start",
+            conceptKeywords: this.extractConceptKeywords(chunk.content, chunk.heading, metadata),
+          },
+        };
+      }
+
+      const chunkId = chunkIds[nonDocumentIndex] ?? this.buildChunkId(sourceId, chunk.level, nonDocumentIndex);
+      const previousChunkId = nonDocumentIndex > 0 ? chunkIds[nonDocumentIndex - 1] ?? null : null;
+      const nextChunkId = nonDocumentIndex < chunkIds.length - 1 ? chunkIds[nonDocumentIndex + 1] ?? null : null;
+      const parentChunkId = chunk.level === "passage" ? activeSectionChunkId : null;
+
+      if (chunk.level === "section") {
+        activeSectionChunkId = chunkId;
+      }
+
+      const annotatedChunk = {
+        ...chunk,
+        metadata: {
+          ...metadata,
+          chunkId,
+          chunkLevel: chunk.level,
+          localChunkIndex: nonDocumentIndex,
+          localChunkCount,
+          parentChunkId,
+          previousChunkId,
+          nextChunkId,
+          boundarySource: classifyChunkBoundarySource(content, chunk),
+          conceptKeywords: this.extractConceptKeywords(chunk.content, chunk.heading, metadata),
+        },
+      };
+
+      nonDocumentIndex += 1;
+      return annotatedChunk;
+    });
+  }
+
+  private buildChunkId(sourceId: string, level: ChunkLevel, index: number): string {
+    return `${sourceId}#${level}:${index}`;
+  }
+
+  private extractConceptKeywords(
+    text: string,
+    heading: string | null,
+    metadata: DocumentChunkMetadata,
+  ): string[] {
+    const ranked = new Map<string, { count: number; firstSeen: number }>();
+    const sources = [heading, metadata.sectionTitle, metadata.chapterTitle, text]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+    let sequence = 0;
+
+    for (const source of sources) {
+      const matches = source.toLowerCase().match(/[a-z0-9][a-z0-9'-]{3,}/g) ?? [];
+
+      for (const match of matches) {
+        if (CONCEPT_KEYWORD_STOP_WORDS.has(match)) {
+          continue;
+        }
+
+        const current = ranked.get(match);
+        if (current) {
+          current.count += 1;
+          continue;
+        }
+
+        ranked.set(match, { count: 1, firstSeen: sequence });
+        sequence += 1;
+      }
+    }
+
+    return [...ranked.entries()]
+      .sort((left, right) => right[1].count - left[1].count || left[1].firstSeen - right[1].firstSeen)
+      .slice(0, MAX_CONCEPT_KEYWORDS)
+      .map(([keyword]) => keyword);
   }
 
   private buildDocumentChunk(

@@ -79,11 +79,12 @@ describe("browser graph rendering", () => {
 
     expect(screen.getByTestId("graph-source")).toHaveTextContent("Routing review summary");
 
-    fireEvent.click(screen.getByRole("button", { name: /view diagram/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand full screen" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Routing review")).toBeInTheDocument();
     expect(within(dialog).getByTestId("graph-source")).toHaveTextContent("Routing review summary");
     expect(within(dialog).getByTestId("graph-svg")).toHaveAttribute("data-graph-kind", "bar");
+    expect(within(dialog).getByRole("button", { name: "Fit to view" })).toBeInTheDocument();
   });
 });

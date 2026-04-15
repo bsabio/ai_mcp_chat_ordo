@@ -5,7 +5,7 @@ import {
   conversationAnalytics,
   conversationCohort,
   conversationInspect,
-} from "@mcp/analytics-tool";
+} from "@/lib/capabilities/shared/analytics-tool";
 import { ensureSchema } from "@/lib/db/schema";
 
 function createDb(): Database.Database {

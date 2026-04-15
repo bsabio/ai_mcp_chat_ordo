@@ -7,14 +7,11 @@ import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionCon
 import { isDealCustomerVisibleStatus } from "@/core/entities/deal-record";
 import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-path-record";
 import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
-import {
-  formatCurrentPagePromptContext,
-  resolveCurrentPageDetails,
-} from "@/lib/chat/current-page-context";
-import { buildSystemPrompt } from "@/lib/chat/policy";
-import { buildRoutingContextBlock } from "@/lib/chat/routing-context";
+import { createSystemPromptBuilder } from "@/lib/chat/policy";
+import type { PromptRuntimeResult } from "@/lib/chat/prompt-runtime";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
+import { compactProvenance } from "@/lib/prompts/prompt-provenance-store";
 import type { EvalObservation, EvalRunConfig, EvalScenario, EvalTargetEnvironment } from "./domain";
 import { resolveEvalRuntimeConfig } from "./config";
 import { getEvalScenarioById } from "./scenarios";
@@ -38,6 +35,7 @@ export interface LiveEvalExecution {
     lane: string | null;
     recommendation: string | null;
     toolCalls: string[];
+    promptProvenance: ReturnType<typeof compactProvenance> | null;
   };
 }
 
@@ -252,6 +250,7 @@ function createLiveEvalToolExecutor(options: {
   workspace: EvalWorkspace;
   conversationId: string;
   currentPageSnapshot?: LiveEvalRuntimeRequest["currentPageSnapshot"];
+  promptRuntime?: PromptRuntimeResult | null;
 }): LiveEvalRuntimeRequest["toolExecutor"] | undefined {
   const execContext: ToolExecutionContext = {
     role: options.role,
@@ -259,6 +258,7 @@ function createLiveEvalToolExecutor(options: {
     conversationId: options.conversationId,
     currentPathname: options.currentPageSnapshot?.pathname,
     currentPageSnapshot: options.currentPageSnapshot,
+    ...(options.promptRuntime ? { promptRuntime: options.promptRuntime } : {}),
   };
   const baseExecutor = getToolComposition().executor;
 
@@ -341,11 +341,20 @@ async function buildLiveEvalSystemPrompt(
   role: LiveEvalRuntimeRequest["role"],
   routingSnapshot: ConversationRoutingSnapshot,
   currentPageSnapshot?: LiveEvalRuntimeRequest["currentPageSnapshot"],
-): Promise<string> {
-  let systemPrompt = await buildSystemPrompt(role);
+): Promise<{
+  systemPrompt: string;
+  promptRuntime: PromptRuntimeResult;
+  promptProvenance: ReturnType<typeof compactProvenance>;
+}> {
+  const builder = await createSystemPromptBuilder(role, {
+    surface: "live_eval",
+    ...(currentPageSnapshot ? { currentPageSnapshot } : {}),
+  });
 
   if (isFunnelFocusedLiveScenario(scenarioId)) {
-    systemPrompt += [
+    builder.withSection({
+      key: "live_eval_funnel_directive",
+      content: [
       "",
       "[Live eval funnel directive]",
       "Treat the current conversation and seeded workflow state as the only relevant context for this response.",
@@ -353,18 +362,19 @@ async function buildLiveEvalSystemPrompt(
       "Do not use corpus-content tools unless the user explicitly asks for library or reference material.",
       "Prefer a direct answer that advances this conversation toward a founder-approved estimate, training recommendation, or scoping step.",
       "Keep the answer short and decisive.",
-    ].join("\n");
+      ].join("\n"),
+      priority: 41,
+    });
   }
 
-  systemPrompt += buildRoutingContextBlock(routingSnapshot);
+  builder.withRoutingContext(routingSnapshot);
+  const promptRuntime = await builder.buildResult();
 
-  if (currentPageSnapshot) {
-    systemPrompt += formatCurrentPagePromptContext(
-      resolveCurrentPageDetails(currentPageSnapshot.pathname, currentPageSnapshot),
-    );
-  }
-
-  return systemPrompt;
+  return {
+    systemPrompt: promptRuntime.text,
+    promptRuntime,
+    promptProvenance: compactProvenance(promptRuntime),
+  };
 }
 
 function getLiveEvalToolsForScenario(
@@ -522,7 +532,7 @@ export async function runLiveEvalScenario(
     }
 
     const promptMessages = fixture.promptMessages;
-    const systemPrompt = await buildLiveEvalSystemPrompt(
+    const { systemPrompt, promptRuntime, promptProvenance } = await buildLiveEvalSystemPrompt(
       scenarioId,
       fixture.role,
       seededConversation.routingSnapshot,
@@ -538,6 +548,7 @@ export async function runLiveEvalScenario(
         workspace,
         conversationId: primaryConversationId,
         currentPageSnapshot: fixture.currentPageSnapshot,
+        promptRuntime,
       });
     const anthropicMessages: Anthropic.MessageParam[] = seededMessages.map((message) => ({
       role: message.role as "user" | "assistant",
@@ -567,6 +578,7 @@ export async function runLiveEvalScenario(
       currentPathname: fixture.currentPageSnapshot?.pathname,
       currentPageSnapshot: fixture.currentPageSnapshot,
       systemPrompt,
+      promptRuntime,
       tools,
       toolExecutor,
       ...options.runtimeRequestOverrides,
@@ -1013,6 +1025,7 @@ export async function runLiveEvalScenario(
         model: runtimeResult.model,
         assistantText: runtimeResult.assistantText,
         toolRoundCount: runtimeResult.toolRoundCount,
+        promptProvenance,
       },
     });
 
@@ -1028,6 +1041,7 @@ export async function runLiveEvalScenario(
         lane: finalLane,
         recommendation: finalRecommendation,
         toolCalls,
+        promptProvenance,
       },
     };
   } finally {

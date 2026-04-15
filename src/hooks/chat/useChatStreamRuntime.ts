@@ -19,6 +19,7 @@ interface StopStreamResult {
 interface RunChatStreamResult {
   conversationId: string | null;
   lifecycle: GenerationStatusUpdate | null;
+  didReceiveTextDelta: boolean;
 }
 
 const streamAdapter = getChatStreamAdapter();
@@ -83,6 +84,7 @@ export function useChatStreamRuntime({
         return {
           conversationId: resolvedConversationId,
           lifecycle: streamDispatch.getResolvedTerminalState(),
+          didReceiveTextDelta: textBuffer.hasDispatchedText(),
         };
       } finally {
         updateActiveStreamId(null);

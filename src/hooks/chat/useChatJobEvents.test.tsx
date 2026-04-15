@@ -84,4 +84,103 @@ describe("useChatJobEvents", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("preserves normalized job parts from live SSE events", async () => {
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({ jobs: [] }),
+    });
+
+    render(<Harness conversationId="conv_live" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const source = MockEventSource.instances[0];
+
+    act(() => {
+      source?.onmessage?.({
+        data: JSON.stringify({
+          type: "job_progress",
+          messageId: "jobmsg_job_1",
+          jobId: "job_1",
+          conversationId: "conv_live",
+          sequence: 8,
+          toolName: "produce_blog_article",
+          label: "Produce Blog Article",
+          progressPercent: 42,
+          progressLabel: "Reviewing article",
+          part: {
+            type: "job_status",
+            jobId: "job_1",
+            toolName: "produce_blog_article",
+            label: "Produce Blog Article",
+            status: "running",
+            sequence: 8,
+            progressPercent: 42,
+            progressLabel: "Reviewing article",
+            resultEnvelope: {
+              schemaVersion: 1,
+              toolName: "produce_blog_article",
+              family: "editorial",
+              cardKind: "editorial_workflow",
+              executionMode: "deferred",
+              inputSnapshot: { brief: "Launch Plan" },
+              summary: { title: "Launch Plan" },
+              progress: {
+                percent: 42,
+                label: "Reviewing article",
+                phases: [
+                  { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+                ],
+                activePhaseKey: "qa_blog_article",
+              },
+              payload: null,
+            },
+          },
+        }),
+      } as MessageEvent<string>);
+    });
+
+    expect(dispatchMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: "UPSERT_JOB_STATUS",
+      part: expect.objectContaining({
+        resultEnvelope: expect.objectContaining({ toolName: "produce_blog_article" }),
+      }),
+    }));
+  });
+
+  it("rehydrates a larger deferred-job snapshot set for busy conversations", async () => {
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        jobs: Array.from({ length: 20 }, (_, index) => ({
+          messageId: `jobmsg_job_${index + 1}`,
+          part: {
+            type: "job_status",
+            jobId: `job_${index + 1}`,
+            toolName: "produce_blog_article",
+            label: "Produce Blog Article",
+            status: index < 3 ? "running" : "succeeded",
+            sequence: index + 1,
+          },
+        })),
+      }),
+    });
+
+    render(<Harness conversationId="conv_busy" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/chat/jobs?conversationId=conv_busy&limit=50",
+      expect.any(Object),
+    );
+    expect(dispatchMock).toHaveBeenCalledTimes(20);
+  });
 });

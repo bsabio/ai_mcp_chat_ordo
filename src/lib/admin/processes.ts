@@ -7,6 +7,10 @@ import {
 } from "@/lib/config/env";
 import { getLivenessProbe, getReadinessProbe } from "@/lib/health/probes";
 import { getMetricsSnapshot } from "@/lib/observability/metrics";
+import {
+  resolveRuntimeAuditLogDir,
+  resolveRuntimeAuditLogFilePath,
+} from "@/lib/observability/runtime-audit-log";
 import { buildReferralContextBlock } from "@/lib/chat/referral-context";
 import { resolveReferralPublicOrigin, type ReferralOriginSource } from "@/lib/referrals/referral-origin";
 
@@ -119,6 +123,7 @@ export function getDiagnosticsReport() {
   };
   const referral = getReferralOperationalDiagnostics();
   const openai = getOpenAiFeatureDiagnostics();
+  const runtimeAuditLogDir = resolveRuntimeAuditLogDir();
 
   return {
     status: "ok" as const,
@@ -130,6 +135,15 @@ export function getDiagnosticsReport() {
     anthropicModel: getAnthropicModel(),
     releaseManifestPresent: fs.existsSync(releaseManifestPath),
     metrics: getMetricsSnapshot(),
+    runtimeAudit: {
+      directory: runtimeAuditLogDir,
+      files: {
+        deferredJob: resolveRuntimeAuditLogFilePath("deferred_job"),
+        nativeProcess: resolveRuntimeAuditLogFilePath("native_process"),
+        remoteService: resolveRuntimeAuditLogFilePath("remote_service"),
+        mcpProcess: resolveRuntimeAuditLogFilePath("mcp_process"),
+      },
+    },
     integrations: {
       openai,
     },

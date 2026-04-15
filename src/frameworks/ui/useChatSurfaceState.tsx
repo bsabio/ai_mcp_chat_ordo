@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useGlobalChat } from "@/hooks/useGlobalChat";
@@ -13,6 +13,8 @@ import {
   exportConversationById,
   importConversationFromPayload,
 } from "@/hooks/chat/chatConversationApi";
+import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/registry/capability-presentation-registry";
+import { resolveProgressStrip } from "@/frameworks/ui/chat/plugins/system/resolve-progress-strip";
 
 export type ActionDispatchDeps = {
   router: ReturnType<typeof useRouter>;
@@ -119,11 +121,20 @@ export function useChatSurfaceState({
     useGlobalChat();
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   const [isConversationActionPending, setIsConversationActionPending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const sendErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSendError = useCallback((error: string) => {
+    setSendError(error);
+    if (sendErrorTimerRef.current) clearTimeout(sendErrorTimerRef.current);
+    sendErrorTimerRef.current = setTimeout(() => setSendError(null), 3000);
+  }, []);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
     activeTrigger,
     canSend,
+    handleFileDrop,
     handleFileRemove,
     handleFileSelect,
     handleInputChange,
@@ -138,6 +149,7 @@ export function useChatSurfaceState({
   } = useChatComposerController({
     isSending,
     onSendMessage: sendMessage,
+    onSendError: handleSendError,
     textareaRef,
   });
 
@@ -145,7 +157,11 @@ export function useChatSurfaceState({
     presentedMessages,
     dynamicSuggestions,
     scrollDependency,
-  } = usePresentedChatMessages(messages);
+  } = usePresentedChatMessages(messages, isSending);
+  const progressStripItems = useMemo(
+    () => resolveProgressStrip(presentedMessages, getCapabilityPresentationDescriptor),
+    [presentedMessages],
+  );
 
   useUICommands(presentedMessages, isLoadingMessages);
 
@@ -234,15 +250,23 @@ export function useChatSurfaceState({
     !sessionSearchQuery &&
     presentedMessages.length === 1 &&
     presentedMessages[0]?.role === "assistant" &&
+    presentedMessages[0]?.responseState === "open" &&
     presentedMessages[0]?.suggestions.length > 0;
+
+  const headerProps = {
+    canCopyTranscript: messages.length > 0,
+    canExportConversation: Boolean(conversationId),
+    canImportConversation: true,
+    isConversationActionPending,
+    onCopyTranscript: handleCopyTranscript,
+    onExportConversation: handleExportConversation,
+    onImportConversationFile: handleImportConversationFile,
+  };
 
   const contentProps = {
     activeTrigger: activeTrigger ? activeTrigger.char : null,
     activeStreamId,
     canSend,
-    canCopyTranscript: messages.length > 0,
-    canExportConversation: Boolean(conversationId),
-    canImportConversation: true,
     canStopStream: Boolean(activeStreamId),
     dynamicSuggestions,
     input,
@@ -252,6 +276,7 @@ export function useChatSurfaceState({
     isSending,
     mentionIndex,
     messages: presentedMessages,
+    onFileDrop: handleFileDrop,
     onFileRemove: handleFileRemove,
     onFileSelect: handleFileSelect,
     onInputChange: handleInputChange,
@@ -260,57 +285,25 @@ export function useChatSurfaceState({
     onMentionIndexChange: setMentionIndex,
     onRetryClick: handleRetryClick,
     onSend: handleSend,
-    onCopyTranscript: handleCopyTranscript,
-    onExportConversation: handleExportConversation,
-    onImportConversationFile: handleImportConversationFile,
     onSuggestionClick: handleSuggestionClick,
     onSuggestionSelect: handleSuggestionSelect,
     onStopStream: stopStream,
     pendingFiles,
-    isConversationActionPending,
+    progressStripItems,
+    sendError,
     scrollDependency,
     searchQuery: sessionSearchQuery,
     suggestions: mentionSuggestions,
   };
 
   return {
-    activeTrigger: activeTrigger ? activeTrigger.char : null,
-    activeStreamId,
-    canSend,
-    canCopyTranscript: messages.length > 0,
-    canExportConversation: Boolean(conversationId),
-    canImportConversation: true,
     canStopStream: Boolean(activeStreamId),
     contentProps,
     conversationId,
     currentConversation,
-    dynamicSuggestions,
     handleActionClick,
-    handleCopyTranscript,
-    handleExportConversation,
-    handleImportConversationFile,
-    handleFileRemove,
-    handleFileSelect,
-    handleInputChange,
-    handleLinkClick,
-    handleRetryClick,
-    handleSend,
-    handleSuggestionClick,
-    handleSuggestionSelect,
-    input,
-    isHeroState,
-    isLoadingMessages,
-    isSending,
-    isConversationActionPending,
-    mentionIndex,
-    mentionSuggestions,
-    stopStream,
-    pendingFiles,
-    presentedMessages,
-    scrollDependency,
+    headerProps,
     sessionSearchQuery,
-    setMentionIndex,
     setSessionSearchQuery,
-    textareaRef,
   };
 }

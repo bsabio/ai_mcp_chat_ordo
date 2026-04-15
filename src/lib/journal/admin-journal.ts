@@ -10,7 +10,7 @@ import type { BlogPost, BlogPostSection, BlogPostStatus } from "@/core/entities/
 import type { BlogPostArtifact } from "@/core/entities/blog-artifact";
 import type { BlogPostRevision } from "@/core/entities/blog-revision";
 import { getBlogAssetUrl } from "@/lib/blog/hero-images";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, type RoleName, type SessionUser } from "@/lib/auth";
 import {
   getAdminBlogArtifactsApiPath,
   getAdminBlogHeroImagesApiPath,
@@ -20,6 +20,7 @@ import {
 
 const VALID_STATUSES: readonly BlogPostStatus[] = ["draft", "review", "approved", "published"];
 const VALID_SECTIONS: readonly BlogPostSection[] = ["essay", "briefing"];
+const JOURNAL_WORKSPACE_ROLES: readonly RoleName[] = ["STAFF", "ADMIN"];
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -68,6 +69,14 @@ export interface AdminJournalDetailViewModel {
   artifacts: Array<BlogPostArtifact & { createdAtLabel: string; summary: string }>;
   heroImagesApiHref: string;
   artifactsApiHref: string;
+}
+
+export function canAccessJournalWorkspace(userRoles: readonly RoleName[]): boolean {
+  return userRoles.some((role) => JOURNAL_WORKSPACE_ROLES.includes(role));
+}
+
+export function canAccessAdminPage(userRoles: readonly RoleName[]): boolean {
+  return userRoles.includes("ADMIN");
 }
 
 function readSingleValue(value: string | string[] | undefined): string {
@@ -145,14 +154,28 @@ function summarizeArtifactPayload(payload: unknown): string {
   return json.length > 120 ? `${json.slice(0, 117)}...` : json;
 }
 
-export async function requireAdminPageAccess() {
+export async function requireJournalWorkspaceAccess(): Promise<SessionUser> {
   const user = await getSessionUser();
 
   if (user.roles.includes("ANONYMOUS")) {
     redirect("/login");
   }
 
-  if (!user.roles.includes("ADMIN")) {
+  if (!canAccessJournalWorkspace(user.roles)) {
+    notFound();
+  }
+
+  return user;
+}
+
+export async function requireAdminPageAccess(): Promise<SessionUser> {
+  const user = await getSessionUser();
+
+  if (user.roles.includes("ANONYMOUS")) {
+    redirect("/login");
+  }
+
+  if (!canAccessAdminPage(user.roles)) {
     notFound();
   }
 

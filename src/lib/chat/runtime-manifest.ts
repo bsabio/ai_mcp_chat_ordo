@@ -15,14 +15,22 @@ export const RUNTIME_MANIFEST_ROLE_ORDER: readonly RoleName[] = [
   "ADMIN",
 ];
 
-export function getRuntimeToolManifestForRole(registry: ToolRegistry, role: RoleName): RuntimeToolManifestEntry[] {
+export function getRuntimeToolManifestForRole(
+  registry: ToolRegistry,
+  role: RoleName,
+  options?: { allowedToolNames?: readonly string[] },
+): RuntimeToolManifestEntry[] {
+  const allowedToolNames = options?.allowedToolNames
+    ? new Set(options.allowedToolNames)
+    : null;
+
   return registry.getSchemasForRole(role)
+    .filter((schema) => !allowedToolNames || allowedToolNames.has(schema.name))
     .map((schema) => ({
       name: schema.name,
       description: schema.description,
       category: registry.getDescriptor(schema.name)?.category ?? "uncategorized",
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
+    }));
 }
 
 export function getRuntimeToolCountsByRole(registry: ToolRegistry): Record<RoleName, number> {

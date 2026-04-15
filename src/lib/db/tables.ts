@@ -63,6 +63,30 @@ export function createTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_provenance_records (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      user_message_id TEXT NOT NULL,
+      assistant_message_id TEXT DEFAULT NULL,
+      surface TEXT NOT NULL,
+      effective_hash TEXT NOT NULL,
+      slot_refs_json TEXT NOT NULL DEFAULT '[]',
+      sections_json TEXT NOT NULL DEFAULT '[]',
+      warnings_json TEXT NOT NULL DEFAULT '[]',
+      replay_context_json TEXT NOT NULL DEFAULT '{}',
+      recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_prompt_provenance_conversation_recorded
+      ON prompt_provenance_records(conversation_id, recorded_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_prompt_provenance_user_message
+      ON prompt_provenance_records(user_message_id);
+    CREATE INDEX IF NOT EXISTS idx_prompt_provenance_assistant_message
+      ON prompt_provenance_records(assistant_message_id);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS conversation_events (
       id TEXT PRIMARY KEY,
       conversation_id TEXT NOT NULL,
@@ -249,6 +273,7 @@ export function createTables(db: Database.Database): void {
       file_name TEXT NOT NULL,
       mime_type TEXT NOT NULL,
       file_size INTEGER NOT NULL DEFAULT 0,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL

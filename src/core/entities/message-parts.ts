@@ -1,5 +1,11 @@
+import type { CapabilityResultEnvelope } from "./capability-result";
 import type { ActionLinkType } from "./rich-content";
 import type { JobFailureClass, JobRecoveryMode, JobStatus } from "./job";
+import type {
+  MediaAssetKind,
+  MediaAssetRetentionClass,
+  MediaAssetSource,
+} from "./media-asset";
 
 /**
  * Domain types for message parts (tool calls, text segments, tool results).
@@ -21,6 +27,7 @@ export interface JobStatusMessagePart {
   error?: string;
   updatedAt?: string;
   resultPayload?: unknown;
+  resultEnvelope?: CapabilityResultEnvelope | null;
   failureClass?: JobFailureClass | null;
   recoveryMode?: JobRecoveryMode | null;
   replayedFromJobId?: string | null;
@@ -57,6 +64,31 @@ export interface ImportedAttachmentMessagePart {
   originalAssetId?: string | null;
 }
 
+export interface AttachmentMessagePart {
+  type: "attachment";
+  assetId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  assetKind?: MediaAssetKind;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+  source?: MediaAssetSource;
+  retentionClass?: MediaAssetRetentionClass;
+  toolName?: string;
+}
+
+export type CompactionMarkerKind = "summary" | "meta_summary";
+
+export interface CompactionMarkerMessagePart {
+  type: "compaction_marker";
+  kind: CompactionMarkerKind;
+  compactedCount: number;
+  coversUpToMessageId?: string;
+  coversUpToSummaryId?: string;
+}
+
 export type MessagePart =
   | { type: "text"; text: string }
   | { type: "error"; text: string }
@@ -64,13 +96,8 @@ export type MessagePart =
   | { type: "tool_result"; name: string; result: unknown }
   | JobStatusMessagePart
   | GenerationStatusMessagePart
-  | {
-      type: "attachment";
-      assetId: string;
-      fileName: string;
-      mimeType: string;
-      fileSize: number;
-    }
+  | AttachmentMessagePart
   | ImportedAttachmentMessagePart
+  | CompactionMarkerMessagePart
   | { type: "summary"; text: string; coversUpToMessageId: string }
   | { type: "meta_summary"; text: string; coversUpToSummaryId: string; summariesCompacted: number };

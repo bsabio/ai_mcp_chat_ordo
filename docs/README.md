@@ -36,12 +36,19 @@ If you are new to the repository, read these first:
 - `operations/process-model.md`: runtime process and concurrency model
 - `operations/admin-runbook.md`: non-interactive operational commands
 - `operations/environment-matrix.md`: required environment templates and parity rules
+- `operations/release-gates-and-evidence.md`: current public release-verification ladder, machine-readable evidence artifacts, and Sprint 0 governance baseline
+
+## Technical Audits & Deep Dives
+
+- Search, RBAC, and Memory Deep-Dive: `_archive/_audit/search-rbac-memory-deep-dive.md`
 
 ## Current Feature Artifacts
 
 - Browser UI hardening evidence: `_specs/browser-ui-hardening/artifacts/`
 - Homepage chat shell evidence: `_specs/homepage-chat-shell/artifacts/`
 - Runtime truthfulness and retrieval integrity workstream: `_refactor/agent-runtime-truthfulness-and-retrieval-integrity/`
+- Architecture unification workstream: `_refactor/unification/`
+- Architecture unification artifact set: `_refactor/unification/artifacts/`
 
 ## Archived During Cleanup
 

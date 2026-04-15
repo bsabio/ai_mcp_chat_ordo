@@ -136,7 +136,7 @@ export function AudioPlayer({
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAudioLoadRef = useRef<HTMLAudioElement | null>(null);
-  const hasStarted = useRef(false);
+  const lastStartedKeyRef = useRef<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [offScreenReady, setOffScreenReady] = useState(false);
 
@@ -333,9 +333,14 @@ export function AudioPlayer({
   /* ── #1: Auto-generate on mount (guarded) ────────────────────────── */
 
   useEffect(() => {
-    if (hasStarted.current) return;
     if (!text || text.trim().length === 0) return; // wait for text to arrive during streaming
-    hasStarted.current = true;
+
+    const runtimeKey = assetId ? `asset:${assetId}` : autoPlay ? `text:${text}` : null;
+    if (!runtimeKey || lastStartedKeyRef.current === runtimeKey) {
+      return;
+    }
+
+    lastStartedKeyRef.current = runtimeKey;
 
     if (assetId) {
       // Cached asset — always load it (lightweight, serves from disk)

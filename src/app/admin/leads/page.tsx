@@ -29,11 +29,13 @@ import {
 } from "@/lib/admin/leads/admin-leads-routes";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";
 import {
+  loadOverdueFollowUpsBlock,
+} from "@/lib/admin/pipeline/admin-pipeline-attention";
+import {
   loadConsultationRequestQueueBlock,
   loadLeadQueueBlock,
-  loadOverdueFollowUpsBlock,
   loadTrainingPathQueueBlock,
-} from "@/lib/operator/loaders/admin-loaders";
+} from "@/lib/admin/leads/admin-leads-attention";
 
 export const dynamic = "force-dynamic";
 

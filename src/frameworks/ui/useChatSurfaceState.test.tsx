@@ -77,6 +77,7 @@ vi.mock("@/hooks/chat/useChatComposerController", () => ({
   useChatComposerController: () => ({
     activeTrigger: null,
     canSend: false,
+    handleFileDrop: vi.fn(),
     handleFileRemove: vi.fn(),
     handleFileSelect: vi.fn(),
     handleInputChange: vi.fn(),
@@ -252,6 +253,19 @@ describe("handleActionClick", () => {
     expect(result.current.canStopStream).toBe(true);
     expect(result.current.contentProps.canStopStream).toBe(true);
     expect(result.current.contentProps.onStopStream).toBe(chatState.stopStream);
+  });
+
+  it("splits conversation data actions into header props and keeps strip data in content props", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    expect(result.current.headerProps.canCopyTranscript).toBe(false);
+    expect(result.current.headerProps.canExportConversation).toBe(false);
+    expect(result.current.headerProps.canImportConversation).toBe(true);
+    expect(result.current.headerProps.onCopyTranscript).toBeTypeOf("function");
+    expect("onCopyTranscript" in result.current.contentProps).toBe(false);
+    expect("onExportConversation" in result.current.contentProps).toBe(false);
+    expect("onImportConversationFile" in result.current.contentProps).toBe(false);
+    expect(result.current.contentProps.progressStripItems).toEqual([]);
   });
 
   describe("action dispatch security", () => {

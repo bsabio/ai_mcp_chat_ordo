@@ -54,6 +54,7 @@ describe("UserFileDataMapper", () => {
       fileName: "abc123def456.mp3",
       mimeType: "audio/mpeg",
       fileSize: 1024,
+      metadata: {},
     });
 
     expect(file.id).toBe("uf_001");
@@ -64,6 +65,7 @@ describe("UserFileDataMapper", () => {
     expect(file.fileName).toBe("abc123def456.mp3");
     expect(file.mimeType).toBe("audio/mpeg");
     expect(file.fileSize).toBe(1024);
+    expect(file.metadata).toEqual({});
     expect(file.createdAt).toBeTruthy();
 
     const found = requireValue(await mapper.findById("uf_001"));
@@ -86,6 +88,7 @@ describe("UserFileDataMapper", () => {
       fileName: "hashABC.mp3",
       mimeType: "audio/mpeg",
       fileSize: 512,
+      metadata: {},
     });
 
     const found = requireValue(await mapper.findByHash("usr_test", "hashABC", "audio"));
@@ -102,6 +105,7 @@ describe("UserFileDataMapper", () => {
       fileName: "sameHash.mp3",
       mimeType: "audio/mpeg",
       fileSize: 100,
+      metadata: {},
     });
 
     const audioMatch = await mapper.findByHash("usr_test", "sameHash", "audio");
@@ -122,6 +126,7 @@ describe("UserFileDataMapper", () => {
       fileName: "sharedHash.mp3",
       mimeType: "audio/mpeg",
       fileSize: 100,
+      metadata: {},
     });
 
     const ownerMatch = await mapper.findByHash("usr_test", "sharedHash", "audio");
@@ -141,6 +146,7 @@ describe("UserFileDataMapper", () => {
       fileName: "h1.mp3",
       mimeType: "audio/mpeg",
       fileSize: 100,
+      metadata: {},
     });
     await mapper.create({
       id: "uf_c2",
@@ -151,6 +157,7 @@ describe("UserFileDataMapper", () => {
       fileName: "h2.svg",
       mimeType: "image/svg+xml",
       fileSize: 200,
+      metadata: {},
     });
 
     const files = await mapper.listByConversation("conv_1");
@@ -169,6 +176,7 @@ describe("UserFileDataMapper", () => {
       fileName: "h1.mp3",
       mimeType: "audio/mpeg",
       fileSize: 100,
+      metadata: {},
     });
     // Force second file to have a later timestamp
     db.prepare(`UPDATE user_files SET created_at = '2099-01-01' WHERE id = 'uf_u1'`).run();
@@ -181,6 +189,7 @@ describe("UserFileDataMapper", () => {
       fileName: "h2.mp3",
       mimeType: "audio/mpeg",
       fileSize: 200,
+      metadata: {},
     });
 
     const files = await mapper.listByUser("usr_test");
@@ -200,6 +209,7 @@ describe("UserFileDataMapper", () => {
       fileName: "hDel.mp3",
       mimeType: "audio/mpeg",
       fileSize: 50,
+      metadata: {},
     });
 
     const before = await mapper.findById("uf_del");
@@ -221,6 +231,7 @@ describe("UserFileDataMapper", () => {
       fileName: "hNull.pdf",
       mimeType: "application/pdf",
       fileSize: 999,
+      metadata: {},
     });
 
     expect(file.conversationId).toBeNull();
@@ -239,6 +250,7 @@ describe("UserFileDataMapper", () => {
       fileName: "stale-doc.txt",
       mimeType: "text/plain",
       fileSize: 10,
+      metadata: {},
     });
     await mapper.create({
       id: "uf_recent_doc",
@@ -249,6 +261,7 @@ describe("UserFileDataMapper", () => {
       fileName: "recent-doc.txt",
       mimeType: "text/plain",
       fileSize: 10,
+      metadata: {},
     });
     await mapper.create({
       id: "uf_stale_audio",
@@ -259,6 +272,7 @@ describe("UserFileDataMapper", () => {
       fileName: "stale-audio.mp3",
       mimeType: "audio/mpeg",
       fileSize: 10,
+      metadata: {},
     });
     await mapper.create({
       id: "uf_attached_doc",
@@ -269,6 +283,7 @@ describe("UserFileDataMapper", () => {
       fileName: "attached-doc.txt",
       mimeType: "text/plain",
       fileSize: 10,
+      metadata: {},
     });
     await mapper.create({
       id: "uf_other_user",
@@ -279,6 +294,7 @@ describe("UserFileDataMapper", () => {
       fileName: "other-user.txt",
       mimeType: "text/plain",
       fileSize: 10,
+      metadata: {},
     });
 
     db.prepare(
@@ -291,5 +307,42 @@ describe("UserFileDataMapper", () => {
     );
 
     expect(staleDocs.map((file) => file.id)).toEqual(["uf_stale_doc"]);
+  });
+
+  it("round-trips typed media metadata through metadata_json", async () => {
+    const file = await mapper.create({
+      id: "uf_image_meta",
+      userId: "usr_test",
+      conversationId: "conv_1",
+      contentHash: "img-hash",
+      fileType: "image",
+      fileName: "img-hash.png",
+      mimeType: "image/png",
+      fileSize: 2048,
+      metadata: {
+        assetKind: "image",
+        source: "uploaded",
+        width: 1200,
+        height: 630,
+        retentionClass: "conversation",
+      },
+    });
+
+    expect(file.metadata).toEqual({
+      assetKind: "image",
+      source: "uploaded",
+      width: 1200,
+      height: 630,
+      retentionClass: "conversation",
+    });
+
+    const storedRow = db
+      .prepare(`SELECT metadata_json FROM user_files WHERE id = ?`)
+      .get("uf_image_meta") as { metadata_json: string };
+
+    expect(JSON.parse(storedRow.metadata_json)).toEqual(file.metadata);
+
+    const loaded = requireValue(await mapper.findById("uf_image_meta"));
+    expect(loaded.metadata).toEqual(file.metadata);
   });
 });

@@ -117,9 +117,7 @@ export function useJobsEventStream({
   onEvent,
   onReconciled,
 }: UseJobsEventStreamOptions): JobsSyncState {
-  const [syncState, setSyncState] = useState<JobsSyncState>(
-    typeof EventSource === "undefined" ? "fallback" : "reconnecting",
-  );
+  const [syncState, setSyncState] = useState<JobsSyncState>("reconnecting");
   const selectedJobIdRef = useRef(selectedJobId);
   const onEventRef = useRef(onEvent);
   const onReconciledRef = useRef(onReconciled);
@@ -173,6 +171,9 @@ export function useJobsEventStream({
     document.addEventListener("visibilitychange", reconcileOnVisibility);
 
     if (typeof EventSource === "undefined") {
+      setSyncState("fallback");
+      void reconcile();
+
       const timer = window.setInterval(() => {
         void reconcile();
       }, FALLBACK_RECONCILE_INTERVAL_MS);

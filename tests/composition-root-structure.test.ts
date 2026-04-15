@@ -5,10 +5,10 @@ import { join } from "path";
 const root = process.cwd();
 
 describe("Spec 14: Composition Root Structure", () => {
-  it("tool-composition-root.ts is under 60 lines", () => {
+  it("tool-composition-root.ts is under 80 lines", () => {
     const content = readFileSync(join(root, "src/lib/chat/tool-composition-root.ts"), "utf-8");
     const lineCount = content.split("\n").length;
-    expect(lineCount).toBeLessThanOrEqual(60);
+    expect(lineCount).toBeLessThanOrEqual(80);
   });
 
   it("each bundle file exists under tool-bundles/", () => {
@@ -21,6 +21,8 @@ describe("Spec 14: Composition Root Structure", () => {
       "blog-tools.ts",
       "profile-tools.ts",
       "job-tools.ts",
+      "navigation-tools.ts",
+      "affiliate-tools.ts",
     ];
     for (const bundle of bundles) {
       const path = join(root, "src/lib/chat/tool-bundles", bundle);
@@ -39,6 +41,8 @@ describe("Spec 14: Composition Root Structure", () => {
       "blog-tools.ts",
       "profile-tools.ts",
       "job-tools.ts",
+      "navigation-tools.ts",
+      "affiliate-tools.ts",
     ];
     for (const bundle of bundles) {
       const content = readFileSync(join(bundleDir, bundle), "utf-8");

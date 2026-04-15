@@ -19,6 +19,7 @@ const ROLE_COLORS: Record<string, string> = {
   ALL: "bg-blue-500/15 text-blue-600",
   ANONYMOUS: "bg-gray-500/15 text-gray-600",
   AUTHENTICATED: "bg-green-500/15 text-green-600",
+  APPRENTICE: "bg-violet-500/15 text-violet-600",
   STAFF: "bg-amber-500/15 text-amber-600",
   ADMIN: "bg-red-500/15 text-red-600",
 };
@@ -30,6 +31,18 @@ function RoleBadge({ role }: { role: string }) {
       {role}
     </span>
   );
+}
+
+function formatSlotUpdatedLabel(lastUpdated: string, runtimeCoverage: "db" | "fallback" | "missing"): string {
+  if (!lastUpdated) {
+    return runtimeCoverage === "fallback" ? "Runtime fallback" : "No stored versions";
+  }
+
+  return new Date(lastUpdated).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 // ── Page ───────────────────────────────────────────────────────────────
@@ -70,12 +83,16 @@ export default async function AdminPromptsPage() {
                     <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-[0.6rem] font-bold text-green-600">
                       v{slot.activeVersion}
                     </span>
+                  ) : slot.runtimeCoverage === "fallback" ? (
+                    <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[0.6rem] font-bold text-sky-600">
+                      FALLBACK ACTIVE
+                    </span>
                   ) : (
                     <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[0.6rem] font-bold text-amber-600">
                       NO ACTIVE
                     </span>
                   )}
-                  <span>Updated {new Date(slot.lastUpdated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  <span>Updated {formatSlotUpdatedLabel(slot.lastUpdated, slot.runtimeCoverage)}</span>
                 </div>
               </a>
             ))}

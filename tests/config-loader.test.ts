@@ -121,7 +121,7 @@ describe("config loader — positive tests", () => {
     const id = getInstanceIdentity();
     expect(id.name).toBe("Studio Ordo");
     expect(id.shortName).toBe("Ordo");
-    expect(id.tagline).toBe("Conversation-First AI Workspaces");
+    expect(id.tagline).toBe("All-in-One AI Operator System");
   });
 
   it("P6: falls back to hardcoded prompts when no config file exists", () => {

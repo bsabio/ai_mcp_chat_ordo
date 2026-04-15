@@ -23,10 +23,16 @@ const {
 }));
 
 vi.mock("next/image", () => ({
-  default: (props: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => {
+  default: (props: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean; unoptimized?: boolean }) => {
     const imageProps = { ...props };
     delete imageProps.priority;
-    return createElement("img", { ...imageProps, alt: props.alt ?? "" });
+    const unoptimized = Boolean(imageProps.unoptimized);
+    delete imageProps.unoptimized;
+    return createElement("img", {
+      ...imageProps,
+      alt: props.alt ?? "",
+      "data-unoptimized": unoptimized ? "true" : undefined,
+    });
   },
 }));
 
@@ -84,7 +90,7 @@ describe("/admin/journal/preview/[slug] page", () => {
 
     expect(metadata).toMatchObject({
       title: "Draft Preview | Studio Ordo",
-      description: "Admin-only draft preview for Studio Ordo.",
+      description: "Editorial draft preview for Studio Ordo.",
       robots: { index: false, follow: false },
     });
     expect(findBySlugMock).not.toHaveBeenCalled();
@@ -104,7 +110,7 @@ describe("/admin/journal/preview/[slug] page", () => {
 
     expect(metadata).toMatchObject({
       title: "Draft Preview | Studio Ordo",
-      description: "Admin-only draft preview for Studio Ordo.",
+      description: "Editorial draft preview for Studio Ordo.",
       robots: { index: false, follow: false },
     });
     expect(findBySlugMock).not.toHaveBeenCalled();
@@ -138,6 +144,49 @@ describe("/admin/journal/preview/[slug] page", () => {
       title: "Launch Plan | Published Preview | Studio Ordo",
       robots: { index: false, follow: false },
     });
+  });
+
+  it("renders a draft hero image through the direct asset URL without image optimization", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "usr_admin", email: "admin@example.com", name: "Admin", roles: ["ADMIN"] });
+    findBySlugMock.mockResolvedValue({
+      id: "post_2",
+      slug: "launch-plan",
+      title: "Launch Plan",
+      description: "Internal draft preview",
+      content: "Draft body.",
+      heroImageAssetId: "asset_hero",
+      status: "draft",
+      publishedAt: null,
+      createdAt: "2026-03-25T00:00:00.000Z",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+      createdByUserId: "usr_admin",
+      publishedByUserId: null,
+    });
+    findAssetByIdMock.mockResolvedValue({
+      id: "asset_hero",
+      postId: "post_2",
+      kind: "hero",
+      storagePath: "2026/04/post/hero.png",
+      mimeType: "image/png",
+      width: 1536,
+      height: 1024,
+      altText: "Launch hero",
+      sourcePrompt: "Prompt",
+      provider: "openai",
+      providerModel: "gpt-image-1",
+      visibility: "draft",
+      selectionState: "selected",
+      variationGroupId: null,
+      createdByUserId: "usr_admin",
+      createdAt: "2026-03-25T00:00:00.000Z",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    });
+
+    render(await AdminJournalPreviewPage({ params: Promise.resolve({ slug: "launch-plan" }) }));
+
+    const image = screen.getByRole("img", { name: "Launch hero" });
+    expect(image).toHaveAttribute("src", "/api/blog/assets/asset_hero");
+    expect(image).toHaveAttribute("data-unoptimized", "true");
   });
 
   it("returns not found when the slug does not resolve", async () => {

@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+vi.mock("@/lib/observability/logger", () => ({
+  logEvent: vi.fn(),
+  logFailure: vi.fn(),
+  logDegradation: vi.fn(),
+}));
+
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getCorpusRepository: vi.fn(() => ({
     getSections: vi.fn(() => []),
@@ -11,10 +17,10 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
   getBlogAssetRepository: vi.fn(() => ({})),
   getBlogPostRepository: vi.fn(() => ({})),
   getJobStatusQuery: vi.fn(() => ({
-    getJobStatus: vi.fn(),
-    listJobs: vi.fn(),
-    listJobsByUser: vi.fn(),
-    listJobsByConversation: vi.fn(),
+    getJobSnapshot: vi.fn(),
+    getUserJobSnapshot: vi.fn(),
+    listUserJobSnapshots: vi.fn(() => []),
+    listConversationJobSnapshots: vi.fn(() => []),
   })),
   getBlogPostRevisionRepository: vi.fn(() => ({})),
   getJournalEditorialMutationRepository: vi.fn(() => ({})),
@@ -146,9 +152,53 @@ describe("Spec 01: Registry/Executor Unification", () => {
     const canExecute = registry.canExecute(adminToolName, "ANONYMOUS");
     expect(canExecute).toBe(false);
 
-    await expect(
-      executor(adminToolName, {}, { role: "ANONYMOUS", userId: "test-user" }),
-    ).rejects.toThrow();
+    const result = await executor(adminToolName, {}, { role: "ANONYMOUS", userId: "test-user" });
+
+    expect(result).toMatchObject({
+      ok: false,
+      action: "tool_permission_denied",
+      toolName: adminToolName,
+      role: "ANONYMOUS",
+      reason: "role_denied",
+    });
+  });
+
+  it("executor short-circuits tools removed from the request-scoped manifest", async () => {
+    const { registry, executor } = getToolComposition();
+
+    if (!registry.getDescriptor("calculator")) {
+      return;
+    }
+
+    const onToolDenied = vi.fn();
+    const result = await executor(
+      "calculator",
+      { operation: "add", a: 2, b: 2 },
+      {
+        role: "ADMIN",
+        userId: "test-user",
+        conversationId: "conv_1",
+        conversationLane: "organization",
+        allowedToolNames: ["search_corpus"],
+        onToolDenied,
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      action: "tool_permission_denied",
+      toolName: "calculator",
+      role: "ADMIN",
+      reason: "manifest_prefiltered",
+      lane: "organization",
+    });
+    expect(onToolDenied).toHaveBeenCalledWith(expect.objectContaining({
+      toolName: "calculator",
+      reason: "manifest_prefiltered",
+      conversationId: "conv_1",
+      lane: "organization",
+      allowedToolCount: 1,
+    }));
   });
 
   it("composition result is frozen", () => {

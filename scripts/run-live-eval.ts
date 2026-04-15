@@ -2,6 +2,9 @@
 import { buildEvalRunReport, serializeEvalRunReport } from "../src/lib/evals/reporting";
 import { runLiveEvalScenario } from "../src/lib/evals/live-runner";
 import { scoreEvalExecution } from "../src/lib/evals/scoring";
+import { loadLocalEnv } from "./load-local-env";
+
+loadLocalEnv();
 
 function readFlag(name: string): string | undefined {
   const prefix = `${name}=`;

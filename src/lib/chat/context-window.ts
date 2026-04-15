@@ -2,7 +2,33 @@ import type { Message } from "@/core/entities/conversation";
 import { buildMessageContextText } from "@/lib/chat/message-attachments";
 import { CHAT_CONFIG } from "@/lib/chat/chat-config";
 
-type ContextMessage = { role: "user" | "assistant"; content: string };
+export type ContextMessage = { role: "user" | "assistant"; content: string };
+
+export type ContextWindowGuardStatus = "ok" | "warn" | "block";
+
+export type ContextWindowGuardReason =
+  | "message_count_near_limit"
+  | "character_count_near_limit"
+  | "messages_trimmed"
+  | "characters_trimmed"
+  | "latest_message_too_large";
+
+export interface ContextWindowGuard {
+  status: ContextWindowGuardStatus;
+  reasons: ContextWindowGuardReason[];
+  rawMessageCount: number;
+  rawCharacterCount: number;
+  finalMessageCount: number;
+  finalCharacterCount: number;
+  warnMessageCount: number;
+  warnCharacterCount: number;
+  maxMessageCount: number;
+  maxCharacterCount: number;
+}
+
+function countCharacters(messages: ContextMessage[]): number {
+  return messages.reduce((sum, message) => sum + message.content.length, 0);
+}
 
 /**
  * Merge consecutive messages with the same role into a single message.
@@ -55,6 +81,94 @@ function trimToLimits(messages: ContextMessage[]): ContextMessage[] {
   return trimmed;
 }
 
+function buildContextWindowGuard(
+  normalized: ContextMessage[],
+  trimmed: ContextMessage[],
+): ContextWindowGuard {
+  const rawMessageCount = normalized.length;
+  const rawCharacterCount = countCharacters(normalized);
+  const finalMessageCount = trimmed.length;
+  const finalCharacterCount = countCharacters(trimmed);
+  const reasons: ContextWindowGuardReason[] = [];
+
+  if (rawMessageCount >= CHAT_CONFIG.warnContextMessages) {
+    reasons.push("message_count_near_limit");
+  }
+
+  if (rawCharacterCount >= CHAT_CONFIG.warnContextCharacters) {
+    reasons.push("character_count_near_limit");
+  }
+
+  if (finalMessageCount < rawMessageCount) {
+    reasons.push("messages_trimmed");
+  }
+
+  if (finalCharacterCount < rawCharacterCount) {
+    reasons.push("characters_trimmed");
+  }
+
+  if (finalCharacterCount > CHAT_CONFIG.maxContextCharacters) {
+    reasons.push("latest_message_too_large");
+  }
+
+  const status = reasons.includes("latest_message_too_large")
+    ? "block"
+    : reasons.length > 0
+      ? "warn"
+      : "ok";
+
+  return {
+    status,
+    reasons,
+    rawMessageCount,
+    rawCharacterCount,
+    finalMessageCount,
+    finalCharacterCount,
+    warnMessageCount: CHAT_CONFIG.warnContextMessages,
+    warnCharacterCount: CHAT_CONFIG.warnContextCharacters,
+    maxMessageCount: CHAT_CONFIG.maxContextMessages,
+    maxCharacterCount: CHAT_CONFIG.maxContextCharacters,
+  };
+}
+
+export function buildContextWindowGuardPrompt(
+  guard: ContextWindowGuard,
+): string | null {
+  if (guard.status !== "warn") {
+    return null;
+  }
+
+  const lines = [
+    "",
+    "[Context window guard]",
+    "The active conversation window is near capacity. Keep the response concise and avoid re-quoting long prior passages unless they are necessary.",
+    `Window metrics: raw ${guard.rawMessageCount}/${guard.maxMessageCount} messages and ${guard.rawCharacterCount}/${guard.maxCharacterCount} chars before trimming; active ${guard.finalMessageCount} messages and ${guard.finalCharacterCount} chars after trimming.`,
+  ];
+
+  if (guard.reasons.includes("messages_trimmed") || guard.reasons.includes("characters_trimmed")) {
+    lines.push("Older turns have already been trimmed from the live prompt window. Use the supplied conversation summary when present instead of assuming the full transcript is still in view.");
+  } else {
+    lines.push("No trimming has happened yet, but the live prompt window is close enough to its budget that additional turns may trigger compaction soon.");
+  }
+
+  return lines.join("\n");
+}
+
+export function buildGuardedContextWindow(
+  rawMessages: ContextMessage[],
+): {
+  contextMessages: ContextMessage[];
+  guard: ContextWindowGuard;
+} {
+  const normalized = normalizeAlternation(rawMessages);
+  const contextMessages = trimToLimits(normalized);
+
+  return {
+    contextMessages,
+    guard: buildContextWindowGuard(normalized, contextMessages),
+  };
+}
+
 /**
  * Builds a bounded context window for LLM calls.
  *
@@ -70,12 +184,13 @@ export function buildContextWindow(messages: Message[]): {
   contextMessages: ContextMessage[];
   hasSummary: boolean;
   summaryText: string | null;
+  guard: ContextWindowGuard;
 } {
   // Find the most recent summary message (role=system with a summary part)
   let lastSummaryIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg.role === "system" && msg.parts.some((p) => p.type === "summary" || p.type === "meta_summary")) {
+    if (msg.role === "system" && (msg.parts ?? []).some((p) => p.type === "summary" || p.type === "meta_summary")) {
       lastSummaryIndex = i;
       break;
     }
@@ -109,11 +224,7 @@ export function buildContextWindow(messages: Message[]): {
     summaryText = summaryMessage.content;
   }
 
-  // Normalize alternation (merge consecutive same-role messages)
-  const normalized = normalizeAlternation(raw);
+  const { contextMessages, guard } = buildGuardedContextWindow(raw);
 
-  // Enforce size limits
-  const trimmed = trimToLimits(normalized);
-
-  return { contextMessages: trimmed, hasSummary, summaryText };
+  return { contextMessages, hasSummary, summaryText, guard };
 }

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import type { JobEvent, JobRequest } from "@/core/entities/job";
 import {
-  buildJobStatusPartFromProjection,
-  projectJobForEvent,
-} from "@/lib/jobs/job-status";
+  buildJobPublication,
+  publicationToStreamEvent,
+} from "@/lib/jobs/job-publication";
+import { isRenderableJobEventType } from "@/lib/jobs/job-renderable-event";
 
 export interface JobEventStreamOptions {
   request: Request;
@@ -14,87 +15,24 @@ export interface JobEventStreamOptions {
   batchLimit: number;
   listEvents: (afterSequence: number, limit: number) => Promise<JobEvent[]>;
   findJobById: (jobId: string) => Promise<JobRequest | null>;
+  findLatestRenderableEventForJob?: (jobId: string) => Promise<JobEvent | null>;
 }
 
 export function encodeJobEvent(sequence: number, payload: Record<string, unknown>): string {
   return `id: ${sequence}\ndata: ${JSON.stringify(payload)}\n\n`;
 }
 
-export function mapJobEventPayload(job: JobRequest, event: JobEvent): Record<string, unknown> {
-  const part = buildJobStatusPartFromProjection(projectJobForEvent(job, event), event);
-  const stablePart = buildJobStatusPartFromProjection(job, {
-    ...event,
-    payload: {},
-  });
-  const base = {
-    jobId: job.id,
-    conversationId: job.conversationId,
-    sequence: event.sequence,
-    toolName: job.toolName,
-    label: part.label,
-    title: part.title,
-    subtitle: part.subtitle,
-    updatedAt: event.createdAt,
-  };
+/**
+ * Build the SSE payload for a single job event, using the unified publication contract.
+ */
+export function mapJobEventPayload(
+  job: JobRequest,
+  event: JobEvent,
+  renderableEvent?: JobEvent | null,
+): Record<string, unknown> {
+  const publication = buildJobPublication(job, event, renderableEvent);
 
-  switch (event.eventType) {
-    case "queued":
-      return { type: "job_queued", ...base };
-    case "started":
-      return { type: "job_started", ...base };
-    case "progress":
-      return {
-        type: "job_progress",
-        ...base,
-        progressPercent: part.progressPercent,
-        progressLabel: part.progressLabel,
-      };
-    case "result":
-      return {
-        type: "job_completed",
-        ...base,
-        summary: part.summary,
-        resultPayload: part.resultPayload,
-      };
-    case "failed":
-      return {
-        type: "job_failed",
-        ...base,
-        error: part.error ?? "Deferred job failed.",
-      };
-    case "canceled":
-      return {
-        type: "job_canceled",
-        ...base,
-      };
-    default:
-      switch (job.status) {
-        case "queued":
-          return { type: "job_queued", ...base };
-        case "running":
-          return {
-            type: "job_progress",
-            ...base,
-            progressPercent: stablePart.progressPercent,
-            progressLabel: stablePart.progressLabel,
-          };
-        case "succeeded":
-          return {
-            type: "job_completed",
-            ...base,
-            summary: stablePart.summary,
-            resultPayload: stablePart.resultPayload,
-          };
-        case "failed":
-          return {
-            type: "job_failed",
-            ...base,
-            error: stablePart.error ?? "Deferred job failed.",
-          };
-        case "canceled":
-          return { type: "job_canceled", ...base };
-      }
-  }
+  return publicationToStreamEvent(publication, job, { sequence: event.sequence });
 }
 
 function sleep(ms: number): Promise<void> {
@@ -135,8 +73,12 @@ export function createJobEventStreamResponse(options: JobEventStreamOptions): Ne
             continue;
           }
 
+          const renderableEvent = isRenderableJobEventType(event.eventType)
+            ? event
+            : await options.findLatestRenderableEventForJob?.(event.jobId);
+
           controller.enqueue(
-            encoder.encode(encodeJobEvent(event.sequence, mapJobEventPayload(job, event))),
+            encoder.encode(encodeJobEvent(event.sequence, mapJobEventPayload(job, event, renderableEvent))),
           );
           afterSequence = event.sequence;
         }

@@ -15,7 +15,7 @@ describe("Sprint 3 public route cutover QA guards", () => {
     const presenter = readSource("src/adapters/ChatPresenter.ts");
     const routes = readSource("src/lib/journal/admin-journal-routes.ts");
 
-    expect(presenter).toContain('actionLinkNode("Open draft", getAdminJournalPreviewPath(part.resultPayload.slug))');
+    expect(presenter).toContain('actionLinkNode("Open draft", getAdminJournalPreviewPath(resultPayload.slug))');
     expect(presenter).not.toContain('/admin/blog/preview/${part.resultPayload.slug}');
     expect(routes).not.toContain("getLegacyAdminBlogPreviewPath");
     expect(fileExists("src/app/admin/blog/preview/[slug]/page.tsx")).toBe(false);
@@ -43,8 +43,8 @@ describe("Sprint 3 public route cutover QA guards", () => {
     const presenter = readSource("src/adapters/ChatPresenter.ts");
     const jobStatus = readSource("src/lib/jobs/job-status.ts");
 
-    expect(presenter).toContain('actionLinkNode("Open published post", `/journal/${part.resultPayload.slug}`)');
-    expect(presenter).not.toContain('actionLinkNode("Open published post", `/blog/${part.resultPayload.slug}`)');
+    expect(presenter).toContain('actionLinkNode("Open published post", `/journal/${resultPayload.slug}`)');
+    expect(presenter).not.toContain('actionLinkNode("Open published post", `/blog/${resultPayload.slug}`)');
     expect(jobStatus).toContain("/journal/${candidate.slug}");
     expect(jobStatus).not.toContain("/blog/${candidate.slug}");
     expect(jobStatus).toContain("getAdminJournalPreviewPath");

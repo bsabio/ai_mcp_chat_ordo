@@ -1,7 +1,16 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { getModelFallbacks } from "@/lib/config/env";
 import type { ToolChoice } from "@/lib/chat/types";
 import { ChatProviderError } from "@/lib/chat/provider-decorators";
+import {
+  isModelNotFoundError,
+  isTimeoutError,
+  isTransientProviderError,
+  toErrorMessage,
+} from "@/lib/chat/provider-policy";
+import {
+  createProviderRuntime,
+  type ProviderAttemptAction,
+} from "@/lib/chat/provider-runtime";
 
 export type ChatProvider = {
   createMessage(args: {
@@ -10,15 +19,13 @@ export type ChatProvider = {
   }): Promise<Anthropic.Message>;
 };
 
-const DEFAULT_TIMEOUT_MS = 12_000;
-const DEFAULT_RETRY_ATTEMPTS = 3;
-const DEFAULT_RETRY_DELAY_MS = 150;
-
 export type AnthropicResilienceOptions = {
   timeoutMs?: number;
   retryAttempts?: number;
   retryDelayMs?: number;
 };
+
+const providerRuntime = createProviderRuntime();
 
 type ErrorHandlingContext = {
   error: unknown;
@@ -35,12 +42,6 @@ type ErrorHandler = (
   context: ErrorHandlingContext,
 ) => ErrorHandlingAction | null;
 
-function delay(milliseconds: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
-}
-
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
     promise,
@@ -51,36 +52,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
       );
     }),
   ]);
-}
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unexpected provider error.";
-}
-
-function isModelNotFoundError(error: unknown): boolean {
-  const message = toErrorMessage(error).toLowerCase();
-  return message.includes("not_found_error") || message.includes("model:");
-}
-
-function isTimeoutError(error: unknown): boolean {
-  const message = toErrorMessage(error).toLowerCase();
-  return message.includes("timed out") || message.includes("timeout");
-}
-
-function isTransientProviderError(error: unknown): boolean {
-  const message = toErrorMessage(error).toLowerCase();
-  return (
-    message.includes("timed out") ||
-    message.includes("timeout") ||
-    message.includes("rate limit") ||
-    message.includes("429") ||
-    message.includes("500") ||
-    message.includes("502") ||
-    message.includes("503") ||
-    message.includes("network") ||
-    message.includes("fetch failed") ||
-    message.includes("temporarily unavailable")
-  );
 }
 
 function normalizeProviderError(error: unknown): Error {
@@ -154,57 +125,41 @@ export async function createMessageWithModelFallback({
   systemPrompt: string;
   tools: Anthropic.Tool[];
 }): Promise<Anthropic.Message> {
-  const models = getModelFallbacks();
-  let lastError: unknown;
-  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const retryAttempts = options?.retryAttempts ?? DEFAULT_RETRY_ATTEMPTS;
-  const retryDelayMs = options?.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+  const basePolicy = providerRuntime.resolvePolicy("direct_turn");
+  const resolvedPolicy = {
+    ...basePolicy,
+    timeoutMs: options?.timeoutMs ?? basePolicy.timeoutMs,
+    retryAttempts: options?.retryAttempts ?? basePolicy.retryAttempts,
+    retryDelayMs: options?.retryDelayMs ?? basePolicy.retryDelayMs,
+  };
 
-  for (const model of models) {
-    for (let attempt = 1; attempt <= retryAttempts; attempt += 1) {
-      try {
-        const response = (await withTimeout(
-          client.messages.create({
-            model,
-            max_tokens: 2048,
-            system: systemPrompt,
-            messages,
-            tools,
-            tool_choice: toolChoice,
-          }),
-          timeoutMs,
-        )) as Anthropic.Message;
-
-        return response;
-      } catch (error) {
-        const action = resolveErrorAction({
-          error,
-          attempt,
-          retryAttempts,
-        });
-
-        if (action.type === "next-model") {
-          lastError = error;
-          break;
-        }
-
-        if (action.type === "retry") {
-          await delay(retryDelayMs * attempt);
-          continue;
-        }
-
-        throw action.error;
-      }
-    }
-  }
-
-  if (lastError) {
-    throw normalizeProviderError(lastError);
-  }
-
-  throw new Error(
-    "No valid Anthropic model found. Set ANTHROPIC_MODEL/API__ANTHROPIC_MODEL to a valid model alias.",
-  );
+  return providerRuntime.runWithResilience({
+    surface: "direct_turn",
+    policy: resolvedPolicy,
+    runAttempt: async ({ model }) =>
+      (await withTimeout(
+        client.messages.create({
+          model,
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages,
+          tools,
+          tool_choice: toolChoice,
+        }),
+        resolvedPolicy.timeoutMs,
+      )) as Anthropic.Message,
+    handleError: ({ error, attempt, policy }): ProviderAttemptAction =>
+      resolveErrorAction({
+        error,
+        attempt,
+        retryAttempts: policy.retryAttempts,
+      }),
+    onExhausted: (lastError) => normalizeProviderError(lastError),
+    onNoModels: () =>
+      new Error(
+        "No valid Anthropic model found. Set ANTHROPIC_MODEL to a valid model alias.",
+      ),
+  });
 }
 
 export function createAnthropicProvider(

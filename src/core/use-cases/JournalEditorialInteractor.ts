@@ -42,6 +42,12 @@ export const JOURNAL_WORKFLOW_CONFIG: WorkflowConfig<BlogPostStatus> = {
   },
 };
 
+const PUBLISH_PROGRESS_PATH: Record<Exclude<BlogPostStatus, "published">, BlogPostStatus> = {
+  draft: "review",
+  review: "approved",
+  approved: "published",
+};
+
 export class JournalEditorialInteractor {
   constructor(
     private readonly blogRepo: BlogPostRepository,
@@ -85,6 +91,27 @@ export class JournalEditorialInteractor {
 
     await this.recordRevision(post, input.actorUserId, input.changeNote ?? `Transitioned from ${post.status} to ${input.nextStatus}.`);
     return this.blogRepo.transitionWorkflow(input.postId, input.nextStatus, input.actorUserId);
+  }
+
+  async publishPost(input: {
+    postId: string;
+    actorUserId: string;
+    changeNote?: string | null;
+  }): Promise<BlogPost> {
+    let post = await this.requirePost(input.postId);
+
+    while (post.status !== "published") {
+      const nextStatus = PUBLISH_PROGRESS_PATH[post.status];
+      const notePrefix = input.changeNote?.trim();
+      const revisionNote = notePrefix
+        ? `${notePrefix} (${post.status} -> ${nextStatus})`
+        : `Direct publish advanced from ${post.status} to ${nextStatus}.`;
+
+      await this.recordRevision(post, input.actorUserId, revisionNote);
+      post = await this.blogRepo.transitionWorkflow(post.id, nextStatus, input.actorUserId);
+    }
+
+    return post;
   }
 
   async listRevisions(postId: string) {

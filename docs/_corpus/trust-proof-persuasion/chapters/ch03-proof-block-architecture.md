@@ -1,56 +1,34 @@
-# Proof Block Architecture
+# Layer 27: Proof-Block Architecture — The Anatomy of Evidence
 
-## Why Proof Blocks Are Structural Units
+## The Literal Receipt of Reality
 
-A proof block is not a testimonial section. It is not a case study page. It is a specific unit of evidence designed to perform a targeted trust function at a specific moment in the page's conversion sequence.
+In the Second Renaissance, a proof-block is not a testimonial, nor is it a separate "work" section. It is a specific, atomic unit of evidence designed to perform a targeted function of **uncertainty reduction** at the precise moment a claim is manifested.
 
-The distinction matters because most portfolios treat proof as a separate zone — a "Work" section, a "Testimonials" section, a "Case Studies" link. The reader must navigate to the proof zone separately from the claim zone. This requires memory work and creates a structural break in the trust sequence.
+The structural failure of the traditional portfolio is the **separation of proof**. By isolating evidence in a distant "Case Studies" tab, the builder imposes a cognitive surcharge on the reader, forcing them to hold a claim in memory while navigating to its verification. We reject this fragmentation. The sovereign presence follows a monolithic sequence: **claim → proximal proof → agency (CTA)**. No gap. No memory tax. No friction.
 
-In this system, proof blocks are placed adjacent to the claims they support. The sequence is: **claim → immediately supported by proof → then CTA**. No gap. No navigation required. No memory work.
+## The Fourfold Anatomy of Veracity
 
-## The Four-Part Anatomy
+To achieve the threshold of **irrefutable competence**, every proof-block must integrate four interlocking variables:
 
-Every effective proof block contains:
+1.  **The Context (The System Baseline)**: The initial state of tension. Who was the recipient, and what was the systemic failure they faced? This is the "axiom of necessity"—it allows the reader to recognize their own failure-modes in the mirror of the evidence.
+2.  **The Work (The Technical Intervention)**: The physical concretion of capability. This is the **artifact of the Master**. It must be specific enough to be audited by a peer. If the description is vague, the authority is synthetic.
+3.  **The Result (The System Delta)**: The measurable transformation of the state. We do not document outputs (the delivery of a file); we document **outcomes** (the movement of a needle). The result is the Bayesian update.
+4.  **The Attribution (The Signature)**: The verification of provenance. Who vouches for this delta? Under what constraints did the builder operate?
 
-**1. The Context**
-What was the situation before? Who was involved, and what were they trying to do? This is the before state — and it matters because it allows the reader to recognize their own situation.
+## The Laws of Proximal Evidence
 
-A context that is too vague ("a startup") does not help the reader place themselves. A context that is too specific (naming a confidential client without permission) is inappropriate. The sweet spot: enough specificity to be recognizable, enough generality to protect appropriate confidentiality.
+The efficacy of proof is a function of its **spatial distribution**:
 
-Example: "A two-person SaaS team shipping weekly who had no systematic way to catch prompt regression between deployments."
+*   **Law of Adjacency**: Proof must reside within the immediate visual proximity of the claim it defends. If the manifesto makes a claim of speed, the proof-block for speed must be visually tied to that node.
+*   **Law of Proportionality**: The highest-stakes claims require the highest-resolution proof-blocks. A claim of architectural integrity requires a deeper concretion than a claim of aesthetic polish.
+*   **Law of Scan-Legibility**: The core delta of the proof-block must be extractable in a 5-second scan. The reader should "feel" the proof before they "read" the detail.
 
-**2. The Work**
-What was actually built, done, or delivered? This is the capability demonstration — and it must be specific enough that a reader in the same field can evaluate it.
+## Beyond the Case Study
 
-Vague: "I helped them improve their AI evaluation process."
-Specific: "I designed and implemented an evaluation harness with 47 test cases across four failure dimensions, integrated into their CI pipeline as a quality gate before any prompt change went to production."
+In a high-velocity information economy, the case study is often too heavy a primitive. We employ more agile **artifacts of proof**:
 
-**3. The Result**
-What measurably changed? Outcomes are more credible than outputs. The work produced a result — what was it, and how was it measured?
+*   **Public Repositories**: Code as a transparent receipt of logic.
+*   **Published Discourse**: Articles or papers that demonstrate an unhurried reasoning process.
+*   **Process Documentation**: Decision logs that reveal the "hidden layer" of the decision-making process.
 
-Output (weak): "Delivered a working evaluation framework."
-Outcome (stronger): "Caught 12 prompt regressions in the first 60 days that would have reached production users."
-
-**4. The Attribution**
-Who produced this result? Under what constraints? With what level of independence? This is where the author claims the work as part of their own capability — not by stating "I'm an expert" but by accurately describing their role in producing the documented outcome.
-
-## Proof Block Placement Rules
-
-**Rule 1: Place proof adjacent to the claim it supports.** The headline makes a claim. The proof block defending that claim should appear within two scrolls of the headline — not in a separate section the reader has to navigate to.
-
-**Rule 2: One proof block per major claim.** A page with five major claims needs five proof blocks. A page that makes many claims and offers one testimonials section has a structural trust gap.
-
-**Rule 3: The highest-stakes claim needs the strongest proof block.** If you are claiming you can build production-grade AI evaluation systems, the proof block for that claim needs to be more specific and more verifiable than the proof block for a claim that you are good at technical communication.
-
-**Rule 4: Proof blocks should be scannable.** Readers scan before they read. The key facts of the proof block — context, result, scale — should be legible in a five-second scan, even if the full detail requires reading.
-
-## The Alternatives to Case Studies
-
-Not every proof block needs to be a full case study. The proof requirement can also be met by:
-
-- **Code or system artifacts** — a public repository, a working demo, a documented architecture
-- **Published writing** — an article or paper that demonstrates the reasoning process
-- **Measurable public outputs** — usage metrics, citations, deployments
-- **Process documentation** — a decision log or design document that shows thinking, not just conclusions
-
-The standard is consistent: the proof must be specific, verifiable, and connected to the claim it is meant to support.
+The standard remains invariant: the proof must be **specific, verifiable, and proximal**. Without these, the claim is a ghost; with them, it is a foundation.

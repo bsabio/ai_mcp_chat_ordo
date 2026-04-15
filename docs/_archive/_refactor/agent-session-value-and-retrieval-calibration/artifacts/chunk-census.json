@@ -1,0 +1,481 @@
+{
+  "generatedAt": "2026-04-10T10:06:21.131Z",
+  "corpusSourceType": "document_chunk",
+  "documentCount": 10,
+  "sectionCount": 87,
+  "totalChunks": 574,
+  "totalOverlapPairs": 11,
+  "levelCounts": {
+    "document": 87,
+    "section": 385,
+    "passage": 102
+  },
+  "averageWordsByLevel": {
+    "document": 306.91,
+    "section": 140.99,
+    "passage": 42.21
+  },
+  "chunkMetadataCoverage": {
+    "chunkIds": 574,
+    "adjacencyLinks": 487,
+    "boundarySources": 574,
+    "conceptKeywords": 574
+  },
+  "minWordsByLevel": {
+    "document": 269,
+    "section": 50,
+    "passage": 4
+  },
+  "maxWordsByLevel": {
+    "document": 364,
+    "section": 544,
+    "passage": 422
+  },
+  "boundarySourceCounts": {
+    "document_start": 174,
+    "h2_heading": 390,
+    "inline_offset": 10
+  },
+  "overlapBreakdown": {
+    "section->passage": 11
+  },
+  "conceptSpanAudit": {
+    "sectionsWithSplitConcepts": 6,
+    "spanningConceptCount": 27,
+    "samples": [
+      {
+        "sourceId": "sources-and-lineage/ch08-erikson-anderson",
+        "sectionTitle": "Erik Erikson and Benedict Anderson: Identity Formation and Imagined Communities",
+        "keyword": "identity",
+        "chunkIds": [
+          "sources-and-lineage/ch08-erikson-anderson#passage:0",
+          "sources-and-lineage/ch08-erikson-anderson#section:1",
+          "sources-and-lineage/ch08-erikson-anderson#passage:2",
+          "sources-and-lineage/ch08-erikson-anderson#passage:3",
+          "sources-and-lineage/ch08-erikson-anderson#section:4",
+          "sources-and-lineage/ch08-erikson-anderson#passage:5",
+          "sources-and-lineage/ch08-erikson-anderson#passage:6"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch08-erikson-anderson#passage:0",
+          "sources-and-lineage/ch08-erikson-anderson#passage:2",
+          "sources-and-lineage/ch08-erikson-anderson#passage:3",
+          "sources-and-lineage/ch08-erikson-anderson#passage:5",
+          "sources-and-lineage/ch08-erikson-anderson#passage:6"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch06-jung-mark-pearson",
+        "sectionTitle": "Jung, Mark, and Pearson: The Archetype Lineage",
+        "keyword": "mark",
+        "chunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#section:1",
+          "sources-and-lineage/ch06-jung-mark-pearson#section:2",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:4",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:4",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:5"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch06-jung-mark-pearson",
+        "sectionTitle": "Jung, Mark, and Pearson: The Archetype Lineage",
+        "keyword": "pearson",
+        "chunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#section:2",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:4",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:4",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:5"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch06-jung-mark-pearson",
+        "sectionTitle": "Jung, Mark, and Pearson: The Archetype Lineage",
+        "keyword": "archetype",
+        "chunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#section:2",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:4",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:4",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:5"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch09-andreessen-pmf",
+        "sectionTitle": "Marc Andreessen and Product-Market Fit Applied to Persons",
+        "keyword": "product-market",
+        "chunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#section:1",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:3",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:3",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch09-andreessen-pmf",
+        "sectionTitle": "Marc Andreessen and Product-Market Fit Applied to Persons",
+        "keyword": "persons",
+        "chunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:3",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ],
+        "chunkLevels": [
+          "passage"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:3",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ]
+      },
+      {
+        "sourceId": "signal-and-deployment/ch03-meetup-ladder",
+        "sectionTitle": "The Meetup Ladder",
+        "keyword": "meetup",
+        "chunkIds": [
+          "signal-and-deployment/ch03-meetup-ladder#passage:0",
+          "signal-and-deployment/ch03-meetup-ladder#section:1",
+          "signal-and-deployment/ch03-meetup-ladder#passage:3",
+          "signal-and-deployment/ch03-meetup-ladder#passage:4",
+          "signal-and-deployment/ch03-meetup-ladder#section:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "signal-and-deployment/ch03-meetup-ladder#passage:0",
+          "signal-and-deployment/ch03-meetup-ladder#passage:3",
+          "signal-and-deployment/ch03-meetup-ladder#passage:4"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch08-erikson-anderson",
+        "sectionTitle": "Erik Erikson and Benedict Anderson: Identity Formation and Imagined Communities",
+        "keyword": "formation",
+        "chunkIds": [
+          "sources-and-lineage/ch08-erikson-anderson#passage:0",
+          "sources-and-lineage/ch08-erikson-anderson#section:1",
+          "sources-and-lineage/ch08-erikson-anderson#passage:3",
+          "sources-and-lineage/ch08-erikson-anderson#passage:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch08-erikson-anderson#passage:0",
+          "sources-and-lineage/ch08-erikson-anderson#passage:3",
+          "sources-and-lineage/ch08-erikson-anderson#passage:5"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch09-andreessen-pmf",
+        "sectionTitle": "Marc Andreessen and Product-Market Fit Applied to Persons",
+        "keyword": "marc",
+        "chunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ],
+        "chunkLevels": [
+          "passage"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch09-andreessen-pmf",
+        "sectionTitle": "Marc Andreessen and Product-Market Fit Applied to Persons",
+        "keyword": "andreessen",
+        "chunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#section:1",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4",
+          "sources-and-lineage/ch09-andreessen-pmf#section:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch09-andreessen-pmf",
+        "sectionTitle": "Marc Andreessen and Product-Market Fit Applied to Persons",
+        "keyword": "applied",
+        "chunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ],
+        "chunkLevels": [
+          "passage"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch09-andreessen-pmf#passage:0",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:2",
+          "sources-and-lineage/ch09-andreessen-pmf#passage:4"
+        ]
+      },
+      {
+        "sourceId": "curriculum-architecture/ch02-eight-course-spine",
+        "sectionTitle": "The Eight-Course Spine: What Each Course Does and What It Produces",
+        "keyword": "each",
+        "chunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#passage:0",
+          "curriculum-architecture/ch02-eight-course-spine#section:1",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5",
+          "curriculum-architecture/ch02-eight-course-spine#section:6"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#passage:0",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5"
+        ]
+      },
+      {
+        "sourceId": "curriculum-architecture/ch02-eight-course-spine",
+        "sectionTitle": "The Eight-Course Spine: What Each Course Does and What It Produces",
+        "keyword": "course",
+        "chunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#passage:0",
+          "curriculum-architecture/ch02-eight-course-spine#section:1",
+          "curriculum-architecture/ch02-eight-course-spine#section:2",
+          "curriculum-architecture/ch02-eight-course-spine#section:3",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5",
+          "curriculum-architecture/ch02-eight-course-spine#section:6",
+          "curriculum-architecture/ch02-eight-course-spine#section:7"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#passage:0",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5"
+        ]
+      },
+      {
+        "sourceId": "curriculum-architecture/ch02-eight-course-spine",
+        "sectionTitle": "The Eight-Course Spine: What Each Course Does and What It Produces",
+        "keyword": "produces",
+        "chunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#passage:0",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5"
+        ],
+        "chunkLevels": [
+          "passage"
+        ],
+        "passageChunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#passage:0",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5"
+        ]
+      },
+      {
+        "sourceId": "curriculum-architecture/ch02-eight-course-spine",
+        "sectionTitle": "The Eight-Course Spine: What Each Course Does and What It Produces",
+        "keyword": "artifact",
+        "chunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#section:3",
+          "curriculum-architecture/ch02-eight-course-spine#passage:4",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "curriculum-architecture/ch02-eight-course-spine#passage:4",
+          "curriculum-architecture/ch02-eight-course-spine#passage:5"
+        ]
+      },
+      {
+        "sourceId": "identity-system/ch13-archetype-design-primitives-table",
+        "sectionTitle": "The Archetype → Design Primitives Master Table",
+        "keyword": "design",
+        "chunkIds": [
+          "identity-system/ch13-archetype-design-primitives-table#passage:0",
+          "identity-system/ch13-archetype-design-primitives-table#section:1",
+          "identity-system/ch13-archetype-design-primitives-table#section:2",
+          "identity-system/ch13-archetype-design-primitives-table#section:3",
+          "identity-system/ch13-archetype-design-primitives-table#passage:4",
+          "identity-system/ch13-archetype-design-primitives-table#section:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "identity-system/ch13-archetype-design-primitives-table#passage:0",
+          "identity-system/ch13-archetype-design-primitives-table#passage:4"
+        ]
+      },
+      {
+        "sourceId": "signal-and-deployment/ch03-meetup-ladder",
+        "sectionTitle": "The Meetup Ladder",
+        "keyword": "ladder",
+        "chunkIds": [
+          "signal-and-deployment/ch03-meetup-ladder#passage:0",
+          "signal-and-deployment/ch03-meetup-ladder#section:1",
+          "signal-and-deployment/ch03-meetup-ladder#passage:4",
+          "signal-and-deployment/ch03-meetup-ladder#section:5"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "signal-and-deployment/ch03-meetup-ladder#passage:0",
+          "signal-and-deployment/ch03-meetup-ladder#passage:4"
+        ]
+      },
+      {
+        "sourceId": "signal-and-deployment/ch03-meetup-ladder",
+        "sectionTitle": "The Meetup Ladder",
+        "keyword": "that",
+        "chunkIds": [
+          "signal-and-deployment/ch03-meetup-ladder#section:2",
+          "signal-and-deployment/ch03-meetup-ladder#passage:3",
+          "signal-and-deployment/ch03-meetup-ladder#passage:4"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "signal-and-deployment/ch03-meetup-ladder#passage:3",
+          "signal-and-deployment/ch03-meetup-ladder#passage:4"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch06-jung-mark-pearson",
+        "sectionTitle": "Jung, Mark, and Pearson: The Archetype Lineage",
+        "keyword": "jung",
+        "chunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#section:1",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3"
+        ]
+      },
+      {
+        "sourceId": "sources-and-lineage/ch06-jung-mark-pearson",
+        "sectionTitle": "Jung, Mark, and Pearson: The Archetype Lineage",
+        "keyword": "lineage",
+        "chunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#section:1",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:0",
+          "sources-and-lineage/ch06-jung-mark-pearson#passage:3"
+        ]
+      }
+    ]
+  },
+  "multiChunkConceptSamples": [
+    {
+      "sourceId": "sources-and-lineage/ch08-erikson-anderson",
+      "sectionTitle": "Erik Erikson and Benedict Anderson: Identity Formation and Imagined Communities",
+      "passageCount": 5,
+      "overlappingPairs": 0
+    },
+    {
+      "sourceId": "sources-and-lineage/ch06-jung-mark-pearson",
+      "sectionTitle": "Jung, Mark, and Pearson: The Archetype Lineage",
+      "passageCount": 4,
+      "overlappingPairs": 3
+    },
+    {
+      "sourceId": "sources-and-lineage/ch09-andreessen-pmf",
+      "sectionTitle": "Marc Andreessen and Product-Market Fit Applied to Persons",
+      "passageCount": 4,
+      "overlappingPairs": 3
+    },
+    {
+      "sourceId": "signal-and-deployment/ch03-meetup-ladder",
+      "sectionTitle": "The Meetup Ladder",
+      "passageCount": 3,
+      "overlappingPairs": 2
+    },
+    {
+      "sourceId": "curriculum-architecture/ch02-eight-course-spine",
+      "sectionTitle": "The Eight-Course Spine: What Each Course Does and What It Produces",
+      "passageCount": 3,
+      "overlappingPairs": 2
+    }
+  ]
+}

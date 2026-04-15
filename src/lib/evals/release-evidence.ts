@@ -28,6 +28,17 @@ export interface ReleaseEvidence {
     artifactPath: string;
     evidence: RuntimeIntegrityQaEvidence | null;
   };
+  eliteOps: {
+    present: boolean;
+    status: "passed" | "failed" | null;
+    sourceArtifactPath: string;
+    architectureDriftStatus: "passed" | "failed" | null;
+    rbacMatrixStatus: "passed" | "failed" | null;
+    latencyBudgetStatus: "passed" | "failed" | null;
+    failureModeStatus: "passed" | "failed" | null;
+    blockingReasons: string[];
+    warnings: string[];
+  };
   canary: {
     present: boolean;
     artifactPath: string;
@@ -89,6 +100,12 @@ export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}
     blockingReasons.push("Runtime integrity QA evidence contains blockers.");
   }
 
+  if (!runtimeIntegrityEvidence?.eliteOps) {
+    blockingReasons.push("Elite ops evidence summary is missing from runtime integrity QA evidence.");
+  } else if (runtimeIntegrityEvidence.eliteOps.status !== "passed") {
+    blockingReasons.push("Elite ops release gates reported blockers.");
+  }
+
   if (!canarySummary) {
     blockingReasons.push("Staging canary summary is missing.");
   } else if (canarySummary.failedScenarioCount > 0 || canarySummary.status !== "passed") {
@@ -116,6 +133,17 @@ export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}
       present: runtimeIntegrityEvidence !== null,
       artifactPath: options.runtimeIntegrityArtifactPath ?? "release/runtime-integrity-evidence.json",
       evidence: runtimeIntegrityEvidence,
+    },
+    eliteOps: {
+      present: Boolean(runtimeIntegrityEvidence?.eliteOps),
+      status: runtimeIntegrityEvidence?.eliteOps?.status ?? null,
+      sourceArtifactPath: options.runtimeIntegrityArtifactPath ?? "release/runtime-integrity-evidence.json",
+      architectureDriftStatus: runtimeIntegrityEvidence?.eliteOps?.architectureDrift.status ?? null,
+      rbacMatrixStatus: runtimeIntegrityEvidence?.eliteOps?.rbacMatrix.status ?? null,
+      latencyBudgetStatus: runtimeIntegrityEvidence?.eliteOps?.latencyBudgets.status ?? null,
+      failureModeStatus: runtimeIntegrityEvidence?.eliteOps?.failureModes.status ?? null,
+      blockingReasons: runtimeIntegrityEvidence?.eliteOps?.blockingReasons ?? [],
+      warnings: runtimeIntegrityEvidence?.eliteOps?.warnings ?? [],
     },
     canary: {
       present: canarySummary !== null,
@@ -147,6 +175,14 @@ export function validateReleaseEvidence(evidence: ReleaseEvidence): string[] {
 
   if (evidence.runtimeIntegrity.evidence && evidence.runtimeIntegrity.evidence.status !== "passed") {
     errors.push("Runtime integrity QA evidence contains blockers.");
+  }
+
+  if (!evidence.eliteOps.present || evidence.eliteOps.status === null) {
+    errors.push("Elite ops evidence summary is missing.");
+  }
+
+  if (evidence.eliteOps.status === "failed") {
+    errors.push("Elite ops release gates reported blockers.");
   }
 
   if (!evidence.referralDiagnostics.knownReferrerPromptVerified || !evidence.referralDiagnostics.missingReferrerPromptVerified) {

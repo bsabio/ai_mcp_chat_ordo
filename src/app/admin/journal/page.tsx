@@ -5,7 +5,11 @@ import { AdminStatusCounts } from "@/components/admin/AdminStatusCounts";
 import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
-import { loadAdminJournalList, requireAdminPageAccess } from "@/lib/journal/admin-journal";
+import {
+  loadAdminJournalList,
+  requireAdminPageAccess,
+  requireJournalWorkspaceAccess,
+} from "@/lib/journal/admin-journal";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +54,7 @@ export default async function AdminJournalPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdminPageAccess();
+  await requireJournalWorkspaceAccess();
   const raw = await searchParams;
   const pagination = buildAdminPaginationParams(raw);
   const listView = await loadAdminJournalList(raw);
@@ -147,7 +151,63 @@ export default async function AdminJournalPage({
             description="No journal posts match the current filters."
           />
         ) : (
-          <div className="admin-scroll-shell" data-admin-scroll-shell="journal-list">
+          <>
+            <div className="grid gap-(--space-3) sm:hidden" data-admin-journal-mobile-list="true">
+              {listView.posts.map((post) => (
+                <article
+                  key={post.id}
+                  className="admin-panel-surface rounded-2xl p-(--space-inset-default)"
+                  data-admin-journal-card="true"
+                >
+                  <div className="grid gap-(--space-3)">
+                    <div className="grid gap-(--space-2)">
+                      <div className="flex flex-wrap items-center gap-(--space-2)">
+                        <span className="inline-flex rounded-full border border-foreground/10 px-(--space-2) py-[0.18rem] text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-foreground/62">
+                          {post.sectionLabel}
+                        </span>
+                        <span className="inline-flex rounded-full border border-foreground/10 px-(--space-2) py-[0.18rem] text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-foreground/62">
+                          {post.statusLabel}
+                        </span>
+                      </div>
+                      <div className="grid gap-(--space-1)">
+                        <h2 className="text-base font-semibold tracking-tight text-foreground">{post.title}</h2>
+                        <p className="text-sm text-foreground/52">{post.slug}</p>
+                      </div>
+                    </div>
+
+                    <dl className="grid grid-cols-2 gap-(--space-2)">
+                      <div className="rounded-xl border border-foreground/8 bg-foreground/2.5 px-(--space-2) py-(--space-2)">
+                        <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/45">Updated</dt>
+                        <dd className="mt-1 text-sm text-foreground/78">{post.updatedLabel}</dd>
+                      </div>
+                      <div className="rounded-xl border border-foreground/8 bg-foreground/2.5 px-(--space-2) py-(--space-2)">
+                        <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/45">Workflow</dt>
+                        <dd className="mt-1 text-sm text-foreground/78">{post.statusLabel}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="flex flex-wrap gap-(--space-2)">
+                      <a
+                        href={post.previewHref}
+                        aria-label="Preview"
+                        className="rounded-full border border-foreground/12 px-(--space-3) py-(--space-2) text-sm font-medium text-foreground transition hover:bg-foreground/5"
+                      >
+                        Preview<span className="sr-only"> ({post.title})</span>
+                      </a>
+                      <a
+                        href={post.detailHref}
+                        aria-label="Manage"
+                        className="rounded-full border border-foreground/12 px-(--space-3) py-(--space-2) text-sm font-medium text-foreground transition hover:bg-foreground/5"
+                      >
+                        Manage<span className="sr-only"> ({post.title})</span>
+                      </a>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="admin-scroll-shell hidden sm:block" data-admin-scroll-shell="journal-list">
             <table
               className="admin-scroll-table admin-scroll-table-wide min-w-full border-collapse text-left text-sm"
               aria-label="Journal posts"
@@ -184,7 +244,8 @@ export default async function AdminJournalPage({
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
 
         <AdminPagination

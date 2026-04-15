@@ -1,53 +1,43 @@
-# The Archetype → Design Primitives Master Table
+# Layer 14: The Archetype → Design Primitives Master Table
 
-## What This Chapter Is
+## The Grammar of Aesthetics
 
-This chapter is a reference table. It maps each primary archetype to three things you need to make consistent design decisions:
+This chapter functions as the **Lexicon of the System**. It provides the technical mapping between the abstract Narrative Mask and the concrete Design Primitives required to maintain a stable signal. This table is the structural substrate upon which every visual and copy decision in the Identiy System rests.
 
-1. **The primary need-pull** — which human need the archetype is implicitly promising to help satisfy
-2. **The design primitives** — what to standardize across typography, layout, imagery, and color to make the archetype legible fast
-3. **The persuasion emphasis** — which of Cialdini's influence principles to embed structurally (not as visible sales language)
+## The Invariants of the Compendium
 
-Use this table when selecting an archetype and making visual and copy decisions. The point is not to mechanically follow the table — it is to have a principled baseline that makes it easier to make consistent decisions and harder to make incoherent ones.
+Before consulting the table, the Operator must acknowledge these architectural constraints:
 
-## The Invariants Before the Table
+*   **Monolithic Primary**: One archetype governs the voice, the visual cadence, and the selection of artifacts. Any deviation must be a deliberate, secondary trait.
+*   **Teleological Primitives**: Every element—every grid line, every typeface, every color—must have an identifiable job: capturing attention, building trust, or resolving action.
+*   **Constraints, Not Defaults**: The table defines the **Decision Space**, not the final design. Two Sage-coded pages may appear visually distinct, but they will share the same underlying semiotic logic.
+*   **Structural Influence**: The "Persuasion Emphasis" column describes the **Architecture of the Site**, not the adjectives in the copy. "Authority" is demonstrated through receipts and methods, not through claims of expertise.
 
-These rules govern how the table is used:
+## The Taxonomy of Signal
 
-- **One primary archetype governs voice, visuals, and proof selection.** Not multiple with no hierarchy.
-- **Everything on the page has a job.** Attention, understanding, trust, or action. Not all at once. Not none.
-- **Design primitives are constraints, not defaults.** The table tells you what to standardize — it does not tell you what your page looks like. Two Hero pages built correctly look different from each other and both look different from a Sage page built correctly.
-- **The persuasion column is structural, not tactical.** "Authority" as persuasion emphasis means: build your credibility infrastructure into the page architecture. It does not mean: write "As a certified expert..." anywhere.
-
-## The Table
-
-| Primary Archetype | Primary Need-Pull | Design Primitives | Persuasion Emphasis |
+| Primary Archetype | Primary Reward Signal (Need) | Design Primitives | Persuasion Emphasis |
 |---|---|---|---|
-| **Sage** | Competence, clarity, meaning | Grid discipline, strong typographic hierarchy, restrained palette, proof blocks, precise and economical language | Authority + consistency: show method and receipts. Evidence before claims. |
-| **Explorer** | Autonomy, discovery, expansion | Journey metaphors, open loops in copy, bold headlines, "map" or trajectory layouts, dynamic imagery | Curiosity + commitment: invite small experiments. Each step expands the horizon. |
-| **Magician** | Transformation, possibility | Before/after visuals, system diagrams, transformation language, high contrast, clear mechanism visible | Reciprocity + social proof: "here's what changes" with evidence from people who went through it. |
-| **Hero** | Achievement, competence, challenge | High-contrast CTAs, goal language, milestone markers, performance metrics, clear obstacles named | Commitment + scarcity: rally to a clear outcome. Name what is at stake. |
-| **Outlaw** | Reform, disruption, freedom | Bold statements, direct language, named antagonist (the broken system), visible position-taking | Social proof + authority: evidence that the critique is correct. Cite the data. Show others who see what you see. |
-| **Caregiver** | Belonging, safety, support | Warm human imagery, accessibility-first layout, reassurance microcopy, service-forward headlines | Liking + reciprocity: genuinely give something useful first. Make care visible before asking for anything. |
-| **Creator** | Expression, craft, innovation | Portfolio-dominant layouts, visible craft in the design itself, beauty as evidence, iterative process shown | Reciprocity + authority: show the process, not just the output. The craft is the credential. |
-| **Ruler** | Order, certainty, control | Structured architecture, premium spacing, operating-model visuals, institutional language | Authority + consistency: "this is the standard." Precision and restraint signal mastery. |
-| **Innocent** | Safety, goodness, simplicity | Clean and light, natural imagery, honest language, low visual complexity | Liking + reciprocity: trustworthy because unpretentious. Warmth without performance. |
-| **Everyman** | Belonging, simplicity, inclusion | Plain language, approachable and realistic imagery, pragmatic templates | Social proof + liking: "people like you succeed here." Make the average person feel capable. |
-| **Lover** | Connection, pleasure, beauty | Rich sensory design, depth of feeling in imagery, emotional resonance in copy | Liking + scarcity: the quality of experience is the differentiator. Not for everyone — that is the point. |
-| **Jester** | Enjoyment, play, irreverence | Surprise, humor, unexpected structure, light touch, contrast between playfulness and insight | Liking + reciprocity: earn the smile before earning the click. The laugh is the relationship starter. |
+| **Sage** | Competence, Clarity, Meaning | Grid discipline, strong typographic hierarchy, restrained palette, verification blocks | **Authority + Consistency**: Show the method. Evidence precedes the claim. |
+| **Explorer** | Autonomy, Discovery, Expansion | Journey metaphors, open loops, map-based layouts, dynamic perspective | **Curiosity + Commitment**: Invite small experiments. Each step expands the horizon. |
+| **Magician** | Transformation, Possibility | Before/after visuals, system architecture diagrams, high-contrast mechanisms | **Reciprocity + Social Proof**: Demonstrate what changes, then provide the receipts of transformation. |
+| **Hero** | Achievement, Challenge | High-octane contrast, goal-oriented language, milestone markers, performance metrics | **Commitment + Scarcity**: Rally to a clear outcome. Name exactly what is at stake. |
+| **Outlaw** | Reform, Disruption, Freedom | Radical statements, pattern interruption, named antagonist (the broken system), position-taking | **Social Proof + Authority**: Provide the data that proves the critique is correct. |
+| **Caregiver** | Belonging, Safety, Support | Warm human presence, accessibility-first layout, reassurance microcopy, service-forward headlines | **Liking + Reciprocity**: Provide genuine utility first. Make the care visible and artifactual. |
+| **Creator** | Expression, Craft, Innovation | Artifact-dominant layouts, beauty as evidence, visible iterative process, "In-the-Lab" imagery | **Reciprocity + Authority**: The process is the credential. Reveal the craft behind the curtain. |
+| **Ruler** | Order, Certainty, Control | Institutional architecture, premium use of whitespace, operating-model visuals, executive restraint | **Authority + Consistency**: "This is the standard." Precision signals mastery. |
+| **Innocent** | Safety, Harmony, Simplicity | Lightness, natural imagery, unpretentious language, low visual entropy | **Liking + Reciprocity**: Trustworthy because it is uncalculated. Warmth without performance. |
+| **Everyman** | Belonging, Practicality | Plain language, approachable imagery, pragmatic templates, high-legibility layouts | **Social Proof + Liking**: "People like you succeed here." The signal of shared reality. |
+| **Lover** | Connection, Sensory Beauty | Rich sensory design, emotional resonance in copy, depth of field in imagery | **Liking + Scarcity**: Experience as differentiator. Not for every mind—only for the resonant few. |
+| **Jester** | Play, Irreverence, Joy | Surprise nodes, humor as insight, unexpected structures, light touch with high-density meaning | **Liking + Reciprocity**: Earn the smile before earning the click. The laugh is the contract. |
 
-## How to Read This Table
+## How to Execute the Mapping
 
-**The need-pull column** tells you what your audience is seeking. Design toward that need. If you are a Sage archetype, your audience is seeking competence and clarity — confirm that is the actual need your audience has before committing to the archetype.
+1.  **Select the Reward Signal**: Calibrate your archetype based on the specific need your target market is seeking to fulfill. If your audience seeks *Meaning*, the *Sage* is your mask.
+2.  **Establish the Primitives**: Utilize the design column as your **Stylistic Filter.** Every visual decision that deviates from these primitives increases the entropy of the signal.
+3.  **Architect the Influence**: Review the persuasion column before building the site hierarchy. Ensure the required influence principles are embedded in the grid and page flow.
 
-**The design primitives column** tells you what to standardize. This is the design system constraint for your archetype. Every decision that deviates from these primitives should be deliberate and defensible.
+## The Limits of the Taxonomy
 
-**The persuasion emphasis column** tells you which influence principles to embed structurally. "Embed structurally" means: these should be present in the page architecture before you write copy, not added as copy after the design is done.
+In the Second Renaissance, clarity is the only bridge between intent and opportunity. For the student or individual practitioner, **Identity Blur** is a fatal state. While established institutions may blend multiple archetypes, the Sovereign Mind must present a monolithic, legible frequency until trust is secured. 
 
-## The Important Limits
-
-**Strong brands sometimes evoke multiple archetypes.** The one-primary rule is a production constraint for clarity and signal coherence — especially for individuals and early-stage practitioners whose primary risk is identity blur. Established brands with large surface areas can maintain controlled secondary archetype traits without losing coherence. For students and practitioners building their first public signal: one primary. Secondary trait only after the primary is established and working.
-
-**This table is a baseline, not a formula.** Two practitioners with the same primary archetype should have visually and tonally distinct pages — because the archetype is a constraint, not a template. The constraint narrows the decision space; it does not make the decision.
-
-**Misapplication looks specific.** The shadow of the Sage archetype (rigidity, coldness, distance) looks different from the shadow of the Hero (arrogance, overstatement) or the Outlaw (grievance without alternative). Knowing your shadow is part of the self-assessment, not an afterthought.
+This table is not a formula for a portfolio; it is the **Technical Specification for a Mind.** Use it to ensure your signal is never a hallucination.

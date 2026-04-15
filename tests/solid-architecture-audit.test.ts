@@ -41,6 +41,64 @@ describe("TD-C — SRP extraction from tool-composition-root (F1)", () => {
     const src = readSource("src/lib/chat/tool-composition-root.ts");
     expect(src).toContain("./search-pipeline");
   });
+
+  it("P5f: tool-composition-root.ts builds executors through the hook runner", () => {
+    const src = readSource("src/lib/chat/tool-composition-root.ts");
+    expect(src).toContain("createToolExecutionHookRunner");
+    expect(src).not.toContain("composeMiddleware(");
+  });
+
+  it("P5a: stream route handler derives model-visible tools from ToolRegistry through request-scoped selection", () => {
+    const src = readSource("src/lib/chat/stream-route-handler.ts");
+    expect(src).toContain("const { registry: toolRegistry, executor: baseToolExecutor } = getToolComposition()");
+    expect(src).toContain("getRequestScopedToolSelection(");
+    expect(src).not.toContain("getRuntimeToolManifestForRole(");
+  });
+
+  it("P5d: stream route handler delegates validation and overlap guards to ChatStreamPipeline", () => {
+    const src = readSource("src/lib/chat/stream-route-handler.ts");
+    expect(src).toContain("pipeline.validateAndParse");
+    expect(src).toContain("pipeline.rejectIfActiveStreamExists");
+    expect(src).not.toContain("ChatStreamRequestSchema");
+    expect(src).not.toContain("active-stream-registry");
+  });
+
+  it("P5g: stream route handler passes request.signal into the stream pipeline response builder", () => {
+    const src = readSource("src/lib/chat/stream-route-handler.ts");
+    expect(src).toContain("requestSignal: options.request.signal");
+  });
+
+  it("P5h: stream-pipeline composes runtime lifecycle hooks through the chat hook runner", () => {
+    const src = readSource("src/lib/chat/stream-pipeline.ts");
+    expect(src).toContain("createChatRuntimeHookRunner");
+    expect(src).toContain("getChatRuntimeHooks");
+  });
+});
+
+describe("TD-C — deterministic manifest ownership (F8)", () => {
+  it("P5b: ToolRegistry owns alphabetical schema ordering", () => {
+    const src = readSource("src/core/tool-registry/ToolRegistry.ts");
+    expect(src).toMatch(/sort\(\(left,\s*right\)\s*=>\s*left\.name\.localeCompare\(right\.name\)\)/);
+  });
+
+  it("P5c: runtime-manifest.ts preserves registry ordering without re-sorting", () => {
+    const src = readSource("src/lib/chat/runtime-manifest.ts");
+    expect(src).toContain("registry.getSchemasForRole(role)");
+    expect(src).not.toContain(".sort(");
+  });
+
+  it("E8a: runtime manifest ordering matches ToolRegistry ordering for every role", async () => {
+    const { getToolComposition } = await import("@/lib/chat/tool-composition-root");
+    const { getRuntimeToolManifestForRole, RUNTIME_MANIFEST_ROLE_ORDER } = await import("@/lib/chat/runtime-manifest");
+
+    const registry = getToolComposition().registry;
+
+    for (const role of RUNTIME_MANIFEST_ROLE_ORDER) {
+      expect(getRuntimeToolManifestForRole(registry, role).map((entry) => entry.name)).toEqual(
+        registry.getSchemasForRole(role).map((schema) => schema.name),
+      );
+    }
+  });
 });
 
 describe("TD-C — OCP fixes (F3, F4)", () => {

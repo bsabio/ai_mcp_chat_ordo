@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { executeCalculatorTool } from "./calculator-tool";
+import { executeCalculatorTool } from "@/lib/capabilities/shared/calculator-tool";
 
 const server = new Server(
   {
@@ -64,5 +64,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   };
 });
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+async function main(): Promise<void> {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+main().catch((error) => {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
+});

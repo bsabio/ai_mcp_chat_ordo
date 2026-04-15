@@ -14,6 +14,7 @@ const fullResults = [
     bookSlug: "software-engineering",
     matchContext: "some context...",
     relevance: 15,
+    normalizedScore: 15,
   },
 ];
 
@@ -29,6 +30,7 @@ const hybridResults = [
     matchPassage: "A long passage about software engineering...",
     matchSection: "Introduction",
     matchHighlight: "A long passage about **software engineering**...",
+    normalizedScore: 0.85,
     rrfScore: 0.85,
     vectorRank: 1,
     bm25Rank: 3,
@@ -47,6 +49,7 @@ describe("RoleAwareSearchFormatter", () => {
     expect(result[0]).toHaveProperty("bookNumber");
     expect(result[0]).toHaveProperty("chapter");
     expect(result[0]).toHaveProperty("relevance");
+    expect(result[0]).toHaveProperty("normalizedScore", 15);
     expect(result[0]).not.toHaveProperty("matchContext");
     expect(result[0]).not.toHaveProperty("bookSlug");
     expect(result[0]).not.toHaveProperty("chapterSlug");
@@ -82,6 +85,7 @@ describe("RoleAwareSearchFormatter", () => {
     expect(result[0]).not.toHaveProperty("vectorRank");
     expect(result[0]).not.toHaveProperty("bm25Rank");
     expect(result[0]).not.toHaveProperty("passageOffset");
+    expect(result[0]).toHaveProperty("normalizedScore", 0.85);
     expect(result[0]).not.toHaveProperty("matchContext");
     expect(result[0]).not.toHaveProperty("bookSlug");
     expect(result[0]).not.toHaveProperty("chapterSlug");
@@ -92,5 +96,21 @@ describe("RoleAwareSearchFormatter", () => {
     const noSectionResults = [{ ...hybridResults[0], matchSection: undefined }];
     const result = formatter.format("search_corpus", noSectionResults, anonCtx) as Record<string, unknown>[];
     expect(result[0]).toHaveProperty("matchSection", null);
+  });
+
+  // TEST-FMT-07
+  it("ANON search payload preserves retrievalQuality and formats results", () => {
+    const payload = {
+      query: "test",
+      groundingState: "search_only",
+      followUp: "refine_query",
+      retrievalQuality: "strong",
+      results: fullResults,
+    };
+    const result = formatter.format("search_corpus", payload, anonCtx) as Record<string, unknown>;
+    expect(result).toHaveProperty("retrievalQuality", "strong");
+    expect(result).toHaveProperty("results");
+    expect(result.results).toHaveLength(1);
+    expect((result.results as Record<string, unknown>[])[0]).toHaveProperty("normalizedScore", 15);
   });
 });

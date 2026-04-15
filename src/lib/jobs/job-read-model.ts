@@ -1,13 +1,9 @@
 import type { JobEvent, JobRequest, JobStatus } from "@/core/entities/job";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
-import { buildJobStatusPart, getJobMessageId } from "@/lib/jobs/job-status";
+import { getJobMessageId } from "@/lib/jobs/job-status";
+import { buildJobPublication } from "@/lib/jobs/job-publication";
 
 const ACTIVE_JOB_STATUSES: JobStatus[] = ["queued", "running"];
-const SNAPSHOT_AUDIT_EVENT_TYPES: ReadonlySet<JobEvent["eventType"]> = new Set([
-  "notification_sent",
-  "notification_failed",
-  "ownership_transferred",
-]);
 
 function toEventType(status: JobStatus): JobEvent["eventType"] {
   switch (status) {
@@ -51,14 +47,16 @@ export function buildSyntheticJobEvent(job: JobRequest): JobEvent {
   };
 }
 
+/**
+ * Build a snapshot for a job, delegating to the unified publication contract.
+ * This is the canonical way to produce a JobStatusSnapshot for snapshot channels.
+ */
 export function buildJobStatusSnapshot(job: JobRequest, event?: JobEvent | null): JobStatusSnapshot {
-  const snapshotEvent = !event || SNAPSHOT_AUDIT_EVENT_TYPES.has(event.eventType)
-    ? buildSyntheticJobEvent(job)
-    : event;
+  const publication = buildJobPublication(job, event);
 
   return {
     messageId: getJobMessageId(job.id),
     conversationId: job.conversationId,
-    part: buildJobStatusPart(job, snapshotEvent),
+    part: publication.part,
   };
 }

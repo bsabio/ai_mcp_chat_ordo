@@ -5,10 +5,14 @@ import { resolveGenerateChartPayload, type GenerateChartInput } from "./chart-pa
 import { resolveGenerateGraphPayload, type GenerateGraphInput, type ResolvedGraphPayload } from "./graph-payload";
 import { resolveGraphDataSource } from "@/lib/graphs/graph-data-sources";
 import { estimateAudioDurationSeconds, estimateAudioGenerationSeconds } from "@/lib/audio/audio-estimates";
+import { SUPPORTED_THEME_IDS } from "@/lib/theme/theme-manifest";
 
 export class SetThemeCommand implements ToolCommand<{ theme: string }, string> {
   async execute({ theme }: { theme: string }, _context?: ToolExecutionContext) {
     if (!theme) throw new Error("Theme must be provided.");
+    if (!SUPPORTED_THEME_IDS.includes(theme as (typeof SUPPORTED_THEME_IDS)[number])) {
+      throw new Error(`Theme "${theme}" is not supported.`);
+    }
     return `Success. The theme has been changed to ${theme}.`;
   }
 }
@@ -75,6 +79,9 @@ export class GenerateAudioCommand implements ToolCommand<{ text: string; title: 
   title: string;
   text: string;
   assetId: string | null;
+  assetKind: "audio";
+  mimeType: "audio/mpeg";
+  assetSource: "generated";
   provider: string;
   generationStatus: "client_fetch_pending" | "cached_asset";
   estimatedDurationSeconds: number;
@@ -88,6 +95,9 @@ export class GenerateAudioCommand implements ToolCommand<{ text: string; title: 
     title: string;
     text: string;
     assetId: string | null;
+      assetKind: "audio";
+      mimeType: "audio/mpeg";
+      assetSource: "generated";
     provider: string;
     generationStatus: "client_fetch_pending" | "cached_asset";
     estimatedDurationSeconds: number;
@@ -98,6 +108,9 @@ export class GenerateAudioCommand implements ToolCommand<{ text: string; title: 
       title: input.title,
       text: input.text,
       assetId: input.assetId ?? null,
+      assetKind: "audio",
+      mimeType: "audio/mpeg",
+      assetSource: "generated",
       provider: input.assetId ? "user-file-cache" : "openai-speech",
       generationStatus: input.assetId ? "cached_asset" : "client_fetch_pending",
       estimatedDurationSeconds: estimateAudioDurationSeconds(input.text),

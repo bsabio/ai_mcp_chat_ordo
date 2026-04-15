@@ -15,9 +15,23 @@ describe("buildCorpusBasePrompt", () => {
     expect(prompt).toContain("__actions__:[");
   });
 
-  it("preserves existing __suggestions__ mandate", () => {
-    expect(prompt).toContain("DYNAMIC SUGGESTIONS (MANDATORY - never skip):");
-    expect(prompt).toContain('__suggestions__:["Q1?","Q2?","Q3?","Q4?"]');
+  it("advertises the response-state contract", () => {
+    expect(prompt).toContain("RESPONSE STATE (MANDATORY):");
+    expect(prompt).toContain('__response_state__:"open"');
+  });
+
+  it("keeps session_resolution out of the base prompt because it is runtime-owned", () => {
+    expect(prompt).toMatch(/response_state/i);
+    expect(prompt).not.toMatch(/session_resolution/i);
+  });
+
+  it("gates __suggestions__ on the open response state", () => {
+    expect(prompt).toContain("STATE-DEPENDENT SUGGESTIONS:");
+    expect(prompt).toContain('__suggestions__:["Q1?","Q2?"]');
+    expect(prompt).toContain("Emit 1-4 short, varied follow-ups only when they add value.");
+    expect(prompt).toContain("Quality over count. Prefer zero suggestions over filler.");
+    expect(prompt).toContain('Do NOT emit __suggestions__ for "closed".');
+    expect(prompt).toContain('Do NOT emit __suggestions__ for "needs_input".');
   });
 
   it("does not include a static hardcoded TOOLS section", () => {
@@ -27,6 +41,16 @@ describe("buildCorpusBasePrompt", () => {
   it("uses live corpus counts instead of stale hardcoded totals", () => {
     expect(prompt).toContain(`${corpusConfig.documentCount} books and ${corpusConfig.sectionCount} chapters`);
     expect(prompt).not.toContain("8 books and 61 chapters");
+  });
+
+  it("makes retrieval a locate-then-read contract", () => {
+    expect(prompt).toContain("Treat corpus retrieval as a locate-then-read flow: first locate the likely section, then read the section payload.");
+    expect(prompt).toContain("If `groundingState` is `search_only`, perform the read step before making detailed chapter-level claims.");
+    expect(prompt).toContain("If `groundingState` is `prefetched_section`, treat `prefetchedSection` as the completed read step");
+  });
+
+  it("forbids dead corpus links when canonical metadata is missing", () => {
+    expect(prompt).toContain("Never cite a corpus link unless `canonicalPath` or `resolverPath` is present.");
   });
 
   it("does not hardcode a stale numbered corpus inventory", () => {
@@ -95,20 +119,23 @@ describe("buildCorpusBasePrompt", () => {
     expect(actionFormatIdx).toBeGreaterThan(uiControlIdx);
   });
 
-  it("places INTERACTIVE ACTION FORMATTING before DYNAMIC SUGGESTIONS", () => {
+  it("places INTERACTIVE ACTION FORMATTING before RESPONSE STATE", () => {
     const actionFormatIdx = prompt.indexOf("INTERACTIVE ACTION FORMATTING:");
-    const suggestionsIdx = prompt.indexOf("DYNAMIC SUGGESTIONS");
+    const responseStateIdx = prompt.indexOf("RESPONSE STATE");
     expect(actionFormatIdx).toBeGreaterThan(-1);
-    expect(suggestionsIdx).toBeGreaterThan(-1);
-    expect(suggestionsIdx).toBeGreaterThan(actionFormatIdx);
+    expect(responseStateIdx).toBeGreaterThan(-1);
+    expect(responseStateIdx).toBeGreaterThan(actionFormatIdx);
   });
 
-  it("places __actions__ before __suggestions__ in directive order", () => {
+  it("places __actions__ before __response_state__ before __suggestions__ in directive order", () => {
     const actionsIdx = prompt.indexOf("__actions__:");
+    const responseStateIdx = prompt.indexOf("__response_state__:");
     const suggestionsIdx = prompt.indexOf("__suggestions__:");
     expect(actionsIdx).toBeGreaterThan(-1);
+    expect(responseStateIdx).toBeGreaterThan(-1);
     expect(suggestionsIdx).toBeGreaterThan(-1);
-    expect(suggestionsIdx).toBeGreaterThan(actionsIdx);
+    expect(responseStateIdx).toBeGreaterThan(actionsIdx);
+    expect(suggestionsIdx).toBeGreaterThan(responseStateIdx);
   });
 
   // --- Brevity updates ---

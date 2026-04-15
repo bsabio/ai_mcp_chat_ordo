@@ -1,11 +1,14 @@
 import type { RoleName } from "@/core/entities/user";
 import type { ToolDescriptor } from "./ToolDescriptor";
+import type { ToolBundleDescriptor } from "./ToolBundleDescriptor";
 import type { ToolExecutionContext } from "./ToolExecutionContext";
 import type { ToolResultFormatter } from "./ToolResultFormatter";
 import { ToolAccessDeniedError, UnknownToolError } from "./errors";
 
 export class ToolRegistry {
   private tools = new Map<string, ToolDescriptor>();
+  private toolToBundle = new Map<string, ToolBundleDescriptor>();
+  private bundles: readonly ToolBundleDescriptor[] = [];
 
   constructor(private readonly formatter?: ToolResultFormatter) {}
 
@@ -17,17 +20,14 @@ export class ToolRegistry {
   }
 
   getSchemasForRole(role: RoleName): { name: string; description: string; input_schema: Record<string, unknown> }[] {
-    const schemas: { name: string; description: string; input_schema: Record<string, unknown> }[] = [];
-    for (const descriptor of this.tools.values()) {
-      if (descriptor.roles === "ALL" || descriptor.roles.includes(role)) {
-        schemas.push({
-          name: descriptor.name,
-          description: descriptor.schema.description,
-          input_schema: descriptor.schema.input_schema,
-        });
-      }
-    }
-    return schemas;
+    return Array.from(this.tools.values())
+      .filter((descriptor) => descriptor.roles === "ALL" || (Array.isArray(descriptor.roles) && descriptor.roles.includes(role)))
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((descriptor) => ({
+        name: descriptor.name,
+        description: descriptor.schema?.description ?? "",
+        input_schema: descriptor.schema?.input_schema ?? { type: "object", properties: {} },
+      }));
   }
 
   async execute(
@@ -65,6 +65,31 @@ export class ToolRegistry {
   canExecute(name: string, role: RoleName): boolean {
     const descriptor = this.tools.get(name);
     if (!descriptor) return false;
-    return descriptor.roles === "ALL" || descriptor.roles.includes(role);
+    return descriptor.roles === "ALL" || (Array.isArray(descriptor.roles) && descriptor.roles.includes(role));
+  }
+
+  setBundles(descriptors: readonly ToolBundleDescriptor[]): void {
+    this.bundles = descriptors;
+    this.toolToBundle.clear();
+    for (const bundle of descriptors) {
+      for (const toolName of bundle.toolNames) {
+        this.toolToBundle.set(toolName, bundle);
+      }
+    }
+  }
+
+  getBundleForTool(toolName: string): ToolBundleDescriptor | undefined {
+    return this.toolToBundle.get(toolName);
+  }
+
+  getBundles(): readonly ToolBundleDescriptor[] {
+    return this.bundles;
+  }
+
+  expandBundleRef(ref: string): readonly string[] {
+    if (!ref.startsWith("bundle:")) return [ref];
+    const bundleId = ref.slice(7);
+    const bundle = this.bundles.find((b) => b.id === bundleId);
+    return bundle ? bundle.toolNames : [];
   }
 }

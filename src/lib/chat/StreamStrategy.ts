@@ -5,6 +5,13 @@ function toJobStatusPart(event: Extract<
   StreamEvent,
   { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
 >): JobStatusMessagePart {
+  if (event.part) {
+    return {
+      ...event.part,
+      sequence: event.sequence,
+    };
+  }
+
   switch (event.type) {
     case "job_queued":
       return {

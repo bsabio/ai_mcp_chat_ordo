@@ -41,7 +41,7 @@ describe("blog-production-root", () => {
 
   it("constructs the image-generation service without requiring the OpenAI API key eagerly", async () => {
     getOpenaiApiKey.mockImplementation(() => {
-      throw new Error("OPENAI_API_KEY/API__OPENAI_API_KEY must be set to a non-empty value.");
+      throw new Error("OPENAI_API_KEY must be set to a non-empty value.");
     });
 
     const { getBlogImageGenerationService } = await import("./blog-production-root");
@@ -52,7 +52,7 @@ describe("blog-production-root", () => {
 
   it("fails only when image generation is invoked and the OpenAI API key is missing", async () => {
     getOpenaiApiKey.mockImplementation(() => {
-      throw new Error("OPENAI_API_KEY/API__OPENAI_API_KEY must be set to a non-empty value.");
+      throw new Error("OPENAI_API_KEY must be set to a non-empty value.");
     });
 
     const { getBlogImageGenerationService } = await import("./blog-production-root");
@@ -65,6 +65,6 @@ describe("blog-production-root", () => {
       quality: "high",
       enhancePrompt: true,
       createdByUserId: "usr_admin",
-    })).rejects.toThrow(/OPENAI_API_KEY\/API__OPENAI_API_KEY must be set/i);
+    })).rejects.toThrow(/OPENAI_API_KEY must be set/i);
   });
 });

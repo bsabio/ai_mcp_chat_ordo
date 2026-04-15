@@ -12,6 +12,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   requireAdminPageAccessMock,
   revalidatePathMock,
+  createPromptControlPlaneServiceMock,
+  promptControlCreateVersionMock,
+  promptControlActivateVersionMock,
   // SystemPrompt mapper
   spListVersionsMock,
   spCreateVersionMock,
@@ -41,6 +44,9 @@ const {
 } = vi.hoisted(() => ({
   requireAdminPageAccessMock: vi.fn(),
   revalidatePathMock: vi.fn(),
+  createPromptControlPlaneServiceMock: vi.fn(),
+  promptControlCreateVersionMock: vi.fn(),
+  promptControlActivateVersionMock: vi.fn(),
   spListVersionsMock: vi.fn(),
   spCreateVersionMock: vi.fn(),
   spActivateMock: vi.fn(),
@@ -81,6 +87,10 @@ vi.mock("@/lib/journal/admin-journal", () => ({
   requireAdminPageAccess: requireAdminPageAccessMock,
 }));
 
+vi.mock("@/lib/prompts/prompt-control-plane-service", () => ({
+  createPromptControlPlaneService: createPromptControlPlaneServiceMock,
+}));
+
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getSystemPromptDataMapper: () => ({
     listVersions: spListVersionsMock,
@@ -103,6 +113,9 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
   }),
   getUserDataMapper: () => ({
     findById: userFindByIdMock,
+  }),
+  getConversationEventDataMapper: () => ({
+    listByConversation: vi.fn(),
   }),
 }));
 
@@ -162,6 +175,20 @@ function makeFormData(entries: Record<string, string>): FormData {
     fd.set(k, v);
   }
   return fd;
+}
+
+function emptyAdminTranscript() {
+  return {
+    entries: [],
+    entryCount: 0,
+    inContextCount: 0,
+    toolResultCount: 0,
+    compactionMarkerCount: 0,
+  };
+}
+
+function emptyPromptProvenance() {
+  return [];
 }
 
 const ADMIN_USER = { id: "admin_1", email: "admin@test.com", name: "Admin", roles: ["ADMIN"] as const };
@@ -287,7 +314,7 @@ describe("D4.3 — createPromptVersionAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminPageAccessMock.mockResolvedValue(ADMIN_USER);
-    spCreateVersionMock.mockResolvedValue({
+    promptControlCreateVersionMock.mockResolvedValue({
       id: "sp_1",
       role: "ALL",
       promptType: "base",
@@ -298,6 +325,14 @@ describe("D4.3 — createPromptVersionAction", () => {
       createdBy: "admin_1",
       notes: "update",
     });
+    createPromptControlPlaneServiceMock.mockImplementation((options?: { revalidatePaths?: (paths: string[]) => void }) => ({
+      createVersion: async (input: unknown) => {
+        const result = await promptControlCreateVersionMock(input);
+        options?.revalidatePaths?.(["/admin/prompts", "/admin/prompts/ALL/base"]);
+        return result;
+      },
+      activateVersion: promptControlActivateVersionMock,
+    }));
   });
 
   it("calls createVersion and revalidates paths", async () => {
@@ -310,7 +345,7 @@ describe("D4.3 — createPromptVersionAction", () => {
       }),
     );
 
-    expect(spCreateVersionMock).toHaveBeenCalledWith({
+    expect(promptControlCreateVersionMock).toHaveBeenCalledWith({
       role: "ALL",
       promptType: "base",
       content: "New content",
@@ -334,7 +369,15 @@ describe("D4.3 — activatePromptVersionAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminPageAccessMock.mockResolvedValue(ADMIN_USER);
-    spActivateMock.mockResolvedValue(undefined);
+    promptControlActivateVersionMock.mockResolvedValue(undefined);
+    createPromptControlPlaneServiceMock.mockImplementation((options?: { revalidatePaths?: (paths: string[]) => void }) => ({
+      createVersion: promptControlCreateVersionMock,
+      activateVersion: async (input: unknown) => {
+        const result = await promptControlActivateVersionMock(input);
+        options?.revalidatePaths?.(["/admin/prompts", "/admin/prompts/ALL/base"]);
+        return result;
+      },
+    }));
   });
 
   it("calls activate with parsed version and revalidates", async () => {
@@ -342,7 +385,11 @@ describe("D4.3 — activatePromptVersionAction", () => {
       makeFormData({ role: "ALL", promptType: "base", version: "3" }),
     );
 
-    expect(spActivateMock).toHaveBeenCalledWith("ALL", "base", 3);
+    expect(promptControlActivateVersionMock).toHaveBeenCalledWith({
+      role: "ALL",
+      promptType: "base",
+      version: 3,
+    });
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/prompts");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/prompts/ALL/base");
   });
@@ -573,6 +620,9 @@ describe("D4.6 — conversation detail loader", () => {
         { id: "msg_1", role: "user", content: "Hello", parts: [], tokenEstimate: 10, createdAt: "2025-06-01T00:00:00Z" },
         { id: "msg_2", role: "assistant", content: "Hi there!", parts: [], tokenEstimate: 15, createdAt: "2025-06-01T00:01:00Z" },
       ],
+      transcript: emptyAdminTranscript(),
+      promptProvenance: emptyPromptProvenance(),
+      events: [],
       totalTokens: 25,
     });
 
@@ -606,6 +656,9 @@ describe("D4.6 — conversation detail loader", () => {
         convertedFrom: "conv_0",
       },
       messages: [],
+      transcript: emptyAdminTranscript(),
+      promptProvenance: emptyPromptProvenance(),
+      events: [],
       totalTokens: 0,
     });
 
@@ -644,6 +697,9 @@ describe("D4.6 — conversation detail loader", () => {
         restoredAt: null,
       },
       messages: [],
+      transcript: emptyAdminTranscript(),
+      promptProvenance: emptyPromptProvenance(),
+      events: [],
       totalTokens: 0,
     });
 
@@ -1015,6 +1071,9 @@ describe("D4.10 — Conversation Detail page", () => {
         { id: "msg_1", role: "user", content: "Hello", parts: [], tokenEstimate: 10, createdAt: "2025-06-01T00:00:00Z" },
         { id: "msg_2", role: "assistant", content: "Hi there!", parts: [], tokenEstimate: 15, createdAt: "2025-06-01T00:01:00Z" },
       ],
+      transcript: emptyAdminTranscript(),
+      promptProvenance: emptyPromptProvenance(),
+      events: [],
       totalTokens: 25,
     });
 
@@ -1032,6 +1091,7 @@ describe("D4.10 — Conversation Detail page", () => {
     expect(screen.getByText("Routing Intelligence")).toBeInTheDocument();
     expect(screen.getByText("Needs training info")).toBeInTheDocument();
     expect(screen.getByText("Schedule consultation")).toBeInTheDocument();
+    expect(screen.getByText("Export transcript JSON")).toBeInTheDocument();
     // Take Over button (AI mode)
     expect(screen.getByText("Take Over")).toBeInTheDocument();
   });
@@ -1060,6 +1120,9 @@ describe("D4.10 — Conversation Detail page", () => {
         convertedFrom: null,
       },
       messages: [],
+      transcript: emptyAdminTranscript(),
+      promptProvenance: emptyPromptProvenance(),
+      events: [],
       totalTokens: 0,
     });
 
@@ -1070,6 +1133,89 @@ describe("D4.10 — Conversation Detail page", () => {
 
     expect(screen.getByText("You are actively managing this conversation.")).toBeInTheDocument();
     expect(screen.getByText("Return to AI")).toBeInTheDocument();
+  });
+
+  it("renders the durable transcript panel with tool results and compaction markers", async () => {
+    loadAdminConversationDetailMock.mockResolvedValue({
+      conversation: {
+        id: "conv_1",
+        userId: "user_1",
+        userName: "Alice",
+        title: "Compacted Chat",
+        status: "active",
+        lane: "development",
+        laneConfidence: 0.8,
+        messageCount: 3,
+        lastToolUsed: "calculator",
+        sessionSource: "web",
+        conversationMode: "ai",
+        createdAt: "2025-06-01T00:00:00Z",
+        updatedAt: "2025-06-01T12:00:00Z",
+        detailHref: "/admin/conversations/conv_1",
+        detectedNeedSummary: null,
+        recommendedNextStep: null,
+        promptVersion: null,
+        referralSource: null,
+        convertedFrom: null,
+      },
+      messages: [],
+      transcript: {
+        entries: [
+          {
+            turnIndex: 0,
+            timestamp: "2025-06-01T00:00:00Z",
+            role: "assistant",
+            contentSummary: "Let me calculate that.",
+            contentHash: "abc123",
+            tokenEstimate: 5,
+            inContextWindow: true,
+            sourceMessageId: "msg_1",
+          },
+          {
+            turnIndex: 1,
+            timestamp: "2025-06-01T00:00:01Z",
+            role: "tool_result",
+            contentSummary: "calculator: 42",
+            contentHash: "def456",
+            tokenEstimate: 3,
+            inContextWindow: true,
+            sourceMessageId: "msg_1",
+          },
+          {
+            turnIndex: 2,
+            timestamp: "2025-06-01T00:00:02Z",
+            role: "compaction_marker",
+            contentSummary: "Conversation messages compacted through message msg_2 (2 messages).",
+            contentHash: "ghi789",
+            tokenEstimate: 0,
+            inContextWindow: false,
+            sourceMessageId: "msg_2",
+            compactedCount: 2,
+            compactionKind: "summary",
+            coversUpToMessageId: "msg_2",
+          },
+        ],
+        entryCount: 3,
+        inContextCount: 2,
+        toolResultCount: 1,
+        compactionMarkerCount: 1,
+      },
+      promptProvenance: emptyPromptProvenance(),
+      events: [],
+      totalTokens: 8,
+    });
+
+    const jsx = await AdminConversationDetailPage({
+      params: Promise.resolve({ id: "conv_1" }),
+    });
+    render(jsx);
+
+    expect(screen.getByText("Durable Transcript")).toBeInTheDocument();
+    expect(screen.getByText("Compaction Timeline")).toBeInTheDocument();
+    expect(screen.getByText(/same structure ships in JSON export/i)).toBeInTheDocument();
+    expect(screen.getByText("calculator: 42")).toBeInTheDocument();
+    expect(screen.getAllByText(/Conversation messages compacted through message msg_2/i)).toHaveLength(2);
+    expect(screen.getByText("Compaction markers")).toBeInTheDocument();
   });
 });
 
@@ -1116,6 +1262,9 @@ describe("D4.10 — tool invocations in messages", () => {
           createdAt: "2025-06-01T00:00:00Z",
         },
       ],
+      transcript: emptyAdminTranscript(),
+      promptProvenance: emptyPromptProvenance(),
+      events: [],
       totalTokens: 20,
     });
 

@@ -202,6 +202,12 @@ describe("shell visual system", () => {
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
         isFullScreen={false}
+        canCopyTranscript={false}
+        canExportConversation={false}
+        canImportConversation={false}
+        onCopyTranscript={() => undefined}
+        onExportConversation={() => undefined}
+        onImportConversationFile={() => undefined}
       />,
     );
 
@@ -229,6 +235,12 @@ describe("shell visual system", () => {
           onMinimize={() => undefined}
           onFullScreenToggle={() => undefined}
           isFullScreen={false}
+          canCopyTranscript={false}
+          canExportConversation={false}
+          canImportConversation={false}
+          onCopyTranscript={() => undefined}
+          onExportConversation={() => undefined}
+          onImportConversationFile={() => undefined}
         />
       </div>,
     );
@@ -258,6 +270,12 @@ describe("shell visual system", () => {
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
         isFullScreen={false}
+        canCopyTranscript={false}
+        canExportConversation={false}
+        canImportConversation={false}
+        onCopyTranscript={() => undefined}
+        onExportConversation={() => undefined}
+        onImportConversationFile={() => undefined}
       />,
     );
 

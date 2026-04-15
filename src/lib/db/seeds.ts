@@ -118,6 +118,18 @@ export const SYSTEM_PROMPT_SEEDS: Array<{
     ].join("\n"),
   },
   {
+    id: "seed_directive_apprentice",
+    role: "APPRENTICE",
+    promptType: "role_directive",
+    content: [
+      "",
+      "ROLE CONTEXT — APPRENTICE (STUDENT):",
+      "The user is a student with referral and assignment capabilities.",
+      "Default to a supportive, learning-oriented tone. Help them with assignments, referral questions, and training goals.",
+      "You have access to `search_my_conversations` to recall past discussion topics. Use it when the user references something discussed previously or asks 'what did we talk about.'",
+    ].join("\n"),
+  },
+  {
     id: "seed_directive_staff",
     role: "STAFF",
     promptType: "role_directive",

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
+import fs from "node:fs";
 import { resolveUserId } from "@/lib/chat/resolve-user";
-import { getDb } from "@/lib/db";
-import { UserFileDataMapper } from "@/adapters/UserFileDataMapper";
+import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
+
 import { UserFileSystem } from "@/lib/user-files";
 import { logFailure } from "@/lib/observability/logger";
 
@@ -14,7 +14,7 @@ export async function GET(
     const { userId } = await resolveUserId();
 
     const { id } = await params;
-    const repo = new UserFileDataMapper(getDb());
+    const repo = getUserFileDataMapper();
     const ufs = new UserFileSystem(repo);
     const result = await ufs.getById(id);
 

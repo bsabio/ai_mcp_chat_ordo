@@ -93,7 +93,7 @@ describe("Bug 1 — timeout retry amplification", () => {
         retryDelayMs: 0,
         timeoutMs: 45000,
       }),
-    ).rejects.toThrow("Provider request timed out");
+    ).rejects.toThrow("Stream provider timed out after 45000ms (round 1).");
 
     // Only 2 API calls: round 1 success + round 2 timeout. No retries.
     expect(stream).toHaveBeenCalledTimes(2);

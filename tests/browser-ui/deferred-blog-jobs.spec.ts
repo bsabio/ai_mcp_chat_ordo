@@ -152,8 +152,8 @@ test.describe("Deferred blog jobs", () => {
 
   test("shows queued and completed draft state, survives reload, and reaches the published post route", async ({ page }) => {
     let activeConversationMode: ActiveConversationMode = "none";
-    const draftStatus = page.getByLabel("Draft Content status").first();
-    const publishStatus = page.getByLabel("Publish Content status").first();
+    const draftResult = page.getByRole("region", { name: "Draft Content result" }).first();
+    const publishResult = page.getByRole("region", { name: "Publish Content result" }).first();
 
     await page.route("**/api/preferences", async (route) => {
       if (route.request().method() === "GET") {
@@ -235,27 +235,26 @@ test.describe("Deferred blog jobs", () => {
 
     await page.goto("/");
 
-    const textarea = page.getByPlaceholder("Bring the messy workflow, bold idea, or handoff...");
+    const textarea = page.getByLabel("Message");
     await expect(textarea).toBeVisible();
     await textarea.fill("Draft a blog post about deferred queue reliability.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
 
-    await expect(draftStatus).toBeVisible();
-    await expect(draftStatus).toContainText("Succeeded", { timeout: 5000 });
-    await expect(draftStatus).toContainText('Draft "Deferred Queue Post" ready at /blog/deferred-queue-post.');
-    await expect(page.getByRole("button", { name: "Publish" })).toBeVisible();
+    await expect(draftResult).toBeVisible();
+    await expect(draftResult).toContainText('Draft "Deferred Queue Post" ready at /blog/deferred-queue-post.');
+    await expect(page.getByRole("button", { name: "Publish (send)" })).toBeVisible();
 
     await page.reload();
-    await expect(draftStatus).toContainText("Succeeded");
+    await expect(draftResult).toContainText('Draft "Deferred Queue Post" ready at /blog/deferred-queue-post.');
 
-    await page.getByRole("button", { name: "Publish" }).click();
+    await page.getByRole("button", { name: "Publish (send)" }).click();
     await page.getByRole("button", { name: "Send", exact: true }).click();
 
-    await expect(publishStatus).toBeVisible();
-    await expect(publishStatus).toContainText("Succeeded", { timeout: 5000 });
-    await expect(page.getByRole("button", { name: "Open published post" })).toBeVisible();
+    await expect(publishResult).toBeVisible();
+    await expect(publishResult).toContainText('Published "Deferred Queue Post" at /journal/deferred-queue-post.', { timeout: 5000 });
+    await expect(page.getByRole("button", { name: "Open published post (route)" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Open published post" }).click();
+    await page.getByRole("button", { name: "Open published post (route)" }).click();
     await expect(page).toHaveURL(/\/journal\/deferred-queue-post/);
     await page.goto("/journal/deferred-queue-post");
     await expect(page.getByRole("heading", { name: "Deferred Queue Post" })).toBeVisible();
@@ -263,7 +262,7 @@ test.describe("Deferred blog jobs", () => {
 
   test("shows queued and completed article-production state, survives reload, and opens the produced draft and hero image", async ({ page }) => {
     let activeConversationMode: ActiveConversationMode = "none";
-    const produceStatus = page.getByLabel("Produce Blog Article status").first();
+    const produceResult = page.getByRole("region", { name: "Produce Blog Article result" }).first();
 
     await page.route("**/api/preferences", async (route) => {
       if (route.request().method() === "GET") {
@@ -335,26 +334,25 @@ test.describe("Deferred blog jobs", () => {
 
     await page.goto("/");
 
-    const textarea = page.getByPlaceholder("Bring the messy workflow, bold idea, or handoff...");
+    const textarea = page.getByLabel("Message");
     await expect(textarea).toBeVisible();
     await textarea.fill("Produce a blog article about AI governance controls for enterprise teams.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
 
-    await expect(produceStatus).toBeVisible();
-    await expect(produceStatus).toContainText("Succeeded", { timeout: 5000 });
-    await expect(produceStatus).toContainText('Produced draft "AI Governance Playbook" at /blog/ai-governance-playbook with hero asset asset_hero_1.');
-    await expect(page.getByRole("button", { name: "Open draft" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Open hero image" })).toBeVisible();
+    await expect(produceResult).toBeVisible();
+    await expect(produceResult).toContainText('Produced draft "AI Governance Playbook" at /blog/ai-governance-playbook with hero asset asset_hero_1.');
+    await expect(page.getByRole("button", { name: "Open draft (route)" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open hero image (route)" })).toBeVisible();
 
     await page.reload();
-    await expect(produceStatus).toContainText("Succeeded");
+    await expect(produceResult).toContainText('Produced draft "AI Governance Playbook" at /blog/ai-governance-playbook with hero asset asset_hero_1.');
 
-    await page.getByRole("button", { name: "Open draft" }).click();
+    await page.getByRole("button", { name: "Open draft (route)" }).click();
     await expect(page).toHaveURL(/\/admin\/journal\/preview\/ai-governance-playbook/);
     await page.goto("/");
-    await expect(produceStatus).toContainText("Succeeded");
+    await expect(produceResult).toContainText('Produced draft "AI Governance Playbook" at /blog/ai-governance-playbook with hero asset asset_hero_1.');
 
-    await page.getByRole("button", { name: "Open hero image" }).click();
+    await page.getByRole("button", { name: "Open hero image (route)" }).click();
     await expect(page).toHaveURL(/\/api\/blog\/assets\/asset_hero_1/);
   });
 
@@ -455,7 +453,7 @@ test.describe("Deferred blog jobs", () => {
     await expect(produceStatus).toContainText("Generating outline");
     await expect(produceStatus).toContainText("18%");
 
-    const textarea = page.getByPlaceholder("Bring the messy workflow, bold idea, or handoff...");
+    const textarea = page.getByLabel("Message");
     await expect(textarea).toBeVisible();
     await textarea.fill("Check the status of job job_produce_running_1");
     await page.getByRole("button", { name: "Send", exact: true }).click();
