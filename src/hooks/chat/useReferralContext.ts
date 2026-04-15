@@ -15,12 +15,13 @@ export function useReferralContext(
   initialRole: RoleName,
   prompts: InstancePrompts,
   dispatch: Dispatch<ChatAction>,
+  canResolveReferralVisit = true,
 ): ReferralContext | undefined {
   const [referralCtx, setReferralCtx] = useState<ReferralContext | undefined>(undefined);
   const referralResolved = useRef(false);
 
   useEffect(() => {
-    if (referralResolved.current || initialRole !== "ANONYMOUS") return;
+    if (referralResolved.current || initialRole !== "ANONYMOUS" || !canResolveReferralVisit) return;
     referralResolved.current = true;
 
     fetch("/api/referral/visit")
@@ -35,7 +36,7 @@ export function useReferralContext(
         });
       })
       .catch(() => { /* fall back to default greeting */ });
-  }, [initialRole, prompts, dispatch]);
+  }, [canResolveReferralVisit, initialRole, prompts, dispatch]);
 
   return referralCtx;
 }

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       const result = await interactor.getActiveForUser(userId);
 
       if (!result) {
-        return errorJson(context, "No active conversation", 404);
+        return new Response(null, { status: 204 });
       }
 
       return successJson(context, {

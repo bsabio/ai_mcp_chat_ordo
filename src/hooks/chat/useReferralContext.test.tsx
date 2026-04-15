@@ -47,6 +47,17 @@ describe("useReferralContext", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it("does not fetch when the server already knows no referral visit is present", () => {
+    const dispatch = vi.fn<(action: ChatAction) => void>();
+
+    renderHook(() =>
+      useReferralContext("ANONYMOUS", prompts, dispatch, false),
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it("returns undefined when referral visit has no referrer", async () => {
     const dispatch = vi.fn<(action: ChatAction) => void>();
     fetchMock.mockResolvedValue({

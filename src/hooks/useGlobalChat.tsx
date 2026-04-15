@@ -1,5 +1,4 @@
 "use client";
-
 import {
   createContext,
   useCallback,
@@ -57,9 +56,11 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 export function ChatProvider({
   children,
   initialRole = "ANONYMOUS",
+  canResolveReferralVisit = true,
 }: {
   children: ReactNode;
   initialRole?: RoleName;
+  canResolveReferralVisit?: boolean;
 }) {
   const currentPathname = usePathname();
   const prompts = useInstancePrompts();
@@ -89,7 +90,7 @@ export function ChatProvider({
   }, [dispatch, setConversationId, setCurrentConversation]);
 
   const memento = useCurrentPageMemento(currentPathname);
-  const referralCtx = useReferralContext(initialRole, prompts, dispatch);
+  const referralCtx = useReferralContext(initialRole, prompts, dispatch, canResolveReferralVisit);
 
   const { activeStreamId, sendMessage, retryFailedMessage, stopStream } = useChatSend({
     conversationId,

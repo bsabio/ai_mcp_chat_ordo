@@ -250,6 +250,30 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.style.getPropertyValue("--letter-spacing-base")).toBe("-0.01em");
   });
 
+  it("skips preference API hydration and persistence when server sync is disabled", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <ThemeProvider enableServerPreferencesSync={false}>
+        <ThemeMutationProbe />
+        <ThemeStateProbe />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("theme-state")).toHaveAttribute("data-theme", "fluid");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch Theme" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("theme-state")).toHaveAttribute("data-theme", "swiss");
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("renders the transition overlay when switching themes", async () => {
     render(
       <ThemeProvider>

@@ -82,10 +82,12 @@ export function ThemeProvider({
   children,
   respectSystemDarkMode = true,
   initialThemeState = DEFAULT_THEME_STATE,
+  enableServerPreferencesSync = true,
 }: {
   children: React.ReactNode;
   respectSystemDarkMode?: boolean;
   initialThemeState?: ThemeStateSnapshot;
+  enableServerPreferencesSync?: boolean;
 }) {
   const resolvedInitialThemeState = mergeThemeStateSnapshots(initialThemeState);
   const [theme, setThemeState] = useState<Theme>(resolvedInitialThemeState.theme);
@@ -148,6 +150,10 @@ export function ThemeProvider({
 
   // Server hydration: fetch preferences for authenticated users (server wins)
   const hydrateFromServer = useCallback(() => {
+    if (!enableServerPreferencesSync) {
+      return Promise.resolve();
+    }
+
     fetch("/api/preferences")
       .then((r) => {
         if (!r.ok) return null;
@@ -165,7 +171,7 @@ export function ThemeProvider({
       .catch(() => {
         /* Server unavailable — localStorage values remain */
       });
-  }, [applyThemeStateOverrides]);
+  }, [applyThemeStateOverrides, enableServerPreferencesSync]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -253,7 +259,7 @@ export function ThemeProvider({
   }, [theme, isDark, accessibility, mounted, showTransitionOverlay]);
 
   useEffect(() => {
-    if (!mounted || !hydrationComplete) {
+    if (!mounted || !hydrationComplete || !enableServerPreferencesSync) {
       return;
     }
 
@@ -313,7 +319,7 @@ export function ThemeProvider({
       .catch(() => {
         // Keep local and cookie persistence even when the authenticated endpoint is unavailable.
       });
-  }, [accessibility, hydrationComplete, isDark, mounted, theme]);
+  }, [accessibility, enableServerPreferencesSync, hydrationComplete, isDark, mounted, theme]);
 
   const contextValue = useMemo(
     () => ({

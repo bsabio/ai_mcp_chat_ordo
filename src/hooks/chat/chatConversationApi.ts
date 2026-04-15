@@ -46,41 +46,50 @@ interface RestoreConversationResponse {
 }
 
 async function restoreConversationFromPath(path: string): Promise<RestoreConversationResult> {
-  const result = await requestJson<RestoreConversationResponse>(path);
+  try {
+    const response = await fetch(path, undefined);
 
-  if (result.status === "http-error") {
-    if (result.statusCode === 404) {
-      return { status: "missing", statusCode: 404 };
+    if (response.status === 204 || response.status === 404) {
+      return { status: "missing", statusCode: response.status };
     }
 
-    if (result.statusCode === 401) {
+    if (response.status === 401) {
       return { status: "unauthorized", statusCode: 401 };
     }
 
-    return { status: "error", statusCode: result.statusCode };
+    if (!response.ok) {
+      return { status: "error", statusCode: response.status };
+    }
+
+    const data = (await response.json()) as RestoreConversationResponse;
+    const restoredMessages = data.messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      parts: message.parts,
+      timestamp: new Date(message.createdAt),
+    }));
+    const { messages } = hydrateFailedSendRecovery(restoredMessages);
+
+    return {
+      status: "restored",
+      payload: {
+        conversationId: data.conversation.id,
+        conversation: data.conversation,
+        messages,
+      },
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return { status: "aborted" };
+    }
+
+    if (error instanceof TypeError) {
+      return { status: "network-error" };
+    }
+
+    return { status: "unexpected-error" };
   }
-
-  if (result.status === "network-error" || result.status === "aborted" || result.status === "unexpected-error") {
-    return { status: result.status };
-  }
-
-  const restoredMessages = result.data.messages.map((message) => ({
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    parts: message.parts,
-    timestamp: new Date(message.createdAt),
-  }));
-  const { messages } = hydrateFailedSendRecovery(restoredMessages);
-
-  return {
-    status: "restored",
-    payload: {
-      conversationId: result.data.conversation.id,
-      conversation: result.data.conversation,
-      messages,
-    },
-  };
 }
 
 export async function restoreActiveConversation(): Promise<RestoreConversationResult> {

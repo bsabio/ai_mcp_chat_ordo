@@ -36,6 +36,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getInstanceIdentity, getInstancePrompts } from "@/lib/config/instance";
 import { InstanceConfigProvider } from "@/lib/config/InstanceConfigContext";
 import { getDb } from "@/lib/db";
+import { REFERRAL_VISIT_COOKIE_NAME } from "@/lib/referrals/referral-visit";
 import { searchAction } from "@/lib/search/global-search-actions";
 import {
   DEFAULT_THEME_STATE,
@@ -93,8 +94,10 @@ export default async function RootLayout({
   const identity = getInstanceIdentity();
   const prompts = getInstancePrompts();
   const user = await getSessionUser();
+  const isAnonymousUser = user.roles.includes("ANONYMOUS");
   const respectSystemDarkMode = !user.roles.includes("ANONYMOUS");
   const cookieStore = await cookies();
+  const canResolveReferralVisit = Boolean(cookieStore.get(REFERRAL_VISIT_COOKIE_NAME)?.value);
 
   const cookieThemeState = parseThemeStateFromCookies({
     theme: cookieStore.get(THEME_COOKIE_KEYS.theme)?.value,
@@ -106,7 +109,7 @@ export default async function RootLayout({
     colorBlindMode: cookieStore.get(THEME_COOKIE_KEYS.colorBlindMode)?.value,
   });
 
-  const preferenceThemeState = user.roles.includes("ANONYMOUS")
+  const preferenceThemeState = isAnonymousUser
     ? null
     : parseThemeStateFromPreferences(
         await new UserPreferencesDataMapper(getDb()).getAll(user.id),
@@ -142,9 +145,10 @@ export default async function RootLayout({
         <ThemeProvider
           respectSystemDarkMode={respectSystemDarkMode}
           initialThemeState={initialThemeState}
+          enableServerPreferencesSync={!isAnonymousUser}
         >
           <InstanceConfigProvider identity={identity} prompts={prompts}>
-            <ChatProvider initialRole={user.roles[0]}>
+            <ChatProvider initialRole={user.roles[0]} canResolveReferralVisit={canResolveReferralVisit}>
               <AppShell user={user} searchAction={searchAction}>{children}</AppShell>
               <Suspense fallback={null}>
                 <ChatSurface mode="floating" />

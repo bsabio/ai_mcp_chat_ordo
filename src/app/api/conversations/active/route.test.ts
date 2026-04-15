@@ -53,7 +53,7 @@ describe("active conversation routes", () => {
     expect(payload.conversation.routingSnapshot.lane).toBe("organization");
   });
 
-  it("returns 404 when no active conversation exists for anonymous user", async () => {
+  it("returns 204 when no active conversation exists for anonymous user", async () => {
     resolveUserId.mockResolvedValue({ userId: "anon_123", isAnonymous: true });
     getActiveForUser.mockResolvedValue(null);
 
@@ -61,7 +61,7 @@ describe("active conversation routes", () => {
       createConversationRouteRequest("/api/conversations/active"),
     );
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(204);
   });
 
   it("archives an anonymous active conversation without embedding it", async () => {

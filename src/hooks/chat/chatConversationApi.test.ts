@@ -113,6 +113,14 @@ describe("chatConversationApi", () => {
     expect(result).toEqual({ status: "missing", statusCode: 404 });
   });
 
+  it("maps 204 active restores to missing without treating them as failures", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+
+    const result = await restoreActiveConversation();
+
+    expect(result).toEqual({ status: "missing", statusCode: 204 });
+  });
+
   it("maps aborted restores distinctly from network failures", async () => {
     vi.stubGlobal(
       "fetch",
