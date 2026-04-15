@@ -1,17 +1,17 @@
 {
   "name": "Studio Ordo",
   "shortName": "Ordo",
-  "tagline": "Conversation-First AI Workspaces",
-  "description": "A conversation-first AI workspace for teams that need trusted search, visual thinking, and QR-powered referrals in one place.",
+  "tagline": "All-in-One AI Operator System",
+  "description": "A governed all-in-one AI workspace for solopreneurs who want chat, search, workflows, and publishing in one easy-to-host system.",
   "domain": "studioordo.com",
   "linkedInUrl": "https://www.linkedin.com/in/keithwilliams5/",
   "logoPath": "/ordo-avatar.png",
   "markText": "O",
   "copyright": "© 2026 Studio Ordo. All rights reserved.",
   "serviceChips": [
-    "Conversation-First Workspaces",
-    "Trusted Library Search",
-    "QR Referrals"
+    "All-in-One AI Workspace",
+    "Local Search + Memory",
+    "Deferred AI Workflows"
   ],
   "fonts": {
     "body": "IBM Plex Sans",

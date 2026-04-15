@@ -4,6 +4,8 @@
  * identical behavior to before Sprint 0.
  */
 
+import type { RoleName } from "@/core/entities/user";
+
 // ── Type definitions ────────────────────────────────────────────────
 
 export interface InstanceIdentity {
@@ -39,6 +41,12 @@ export interface InstancePrompts {
   };
   defaultSuggestions?: string[];
   referralSuggestions?: string[];
+  roleBootstraps?: Partial<Record<Exclude<RoleName, "ANONYMOUS">, RoleBootstrapPromptConfig>>;
+}
+
+export interface RoleBootstrapPromptConfig {
+  message?: string;
+  suggestions?: string[];
 }
 
 export interface ServiceOffering {
@@ -72,17 +80,17 @@ export interface FullInstanceConfig {
 export const DEFAULT_IDENTITY: InstanceIdentity = {
   name: "Studio Ordo",
   shortName: "Ordo",
-  tagline: "Conversation-First AI Workspaces",
+  tagline: "All-in-One AI Operator System",
   description:
-    "A conversation-first AI workspace for teams that need trusted search, visual thinking, and QR-powered referrals in one place.",
+    "A governed all-in-one AI workspace for solopreneurs who want chat, search, workflows, and publishing in one easy-to-host system.",
   domain: "studioordo.com",
   logoPath: "/ordo-avatar.png",
   markText: "O",
   copyright: "© 2026 Studio Ordo. All rights reserved.",
   serviceChips: [
-    "Conversation-First Workspaces",
-    "Trusted Library Search",
-    "QR Referrals",
+    "All-in-One AI Workspace",
+    "Local Search + Memory",
+    "Deferred AI Workflows",
   ],
   fonts: {
     body: "IBM Plex Sans",
@@ -92,27 +100,69 @@ export const DEFAULT_IDENTITY: InstanceIdentity = {
 };
 
 export const DEFAULT_PROMPTS: InstancePrompts = {
-  heroHeading: "Bring the mess. We'll make it move.",
+  heroHeading: "Run the work from one AI workspace.",
   heroSubheading:
-    "Studio Ordo is a conversation-first workspace for teams working with AI. Search the library, map live workflows, generate charts and audio, and use QR-powered referrals to bring the right people in.",
+    "Studio Ordo gives solopreneurs chat, workflow automation, local search, publishing, and operator control in one easy-to-host system with no separate database, queue, or search server to manage.",
   firstMessage: {
     default:
-      "Bring me the messy workflow, bold idea, or half-finished handoff. I can help you map it, search the library, turn it into visuals, or explain the QR referral system.",
+      "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.",
     withReferral:
-      "Welcome — {{referrer.name}} sent you here for a reason. I can show you what makes {{brand.name}} different, explain the QR referral system, or jump straight into the work.",
+      "Welcome — {{referrer.name}} sent you here for a reason. I can show you how {{brand.name}} helps a solo operator run research, workflows, and publishing from one place.",
   },
   defaultSuggestions: [
-    "Audit this workflow",
-    "Search the library",
-    "Show me something visual",
-    "Explain the QR referral system",
+    "Plan this workflow",
+    "Search my library",
+    "Turn this into an asset",
+    "What makes this different?",
   ],
   referralSuggestions: [
-    "How does the QR referral system work?",
-    "What makes this different?",
+    "Why is this different?",
     "Show me the library",
+    "How do the workflows work?",
     "What unlocks after I register?",
   ],
+  roleBootstraps: {
+    AUTHENTICATED: {
+      message:
+        "Welcome back. Bring me the customer workflow, implementation question, or training decision you need help moving forward.",
+      suggestions: [
+        "Recommend my next step",
+        "Review my active workflow",
+        "Help me scope this request",
+        "Turn this into a training plan",
+      ],
+    },
+    APPRENTICE: {
+      message:
+        "Welcome back. Bring me your assignment, referral question, or training goal.",
+      suggestions: [
+        "Check my referral stats",
+        "Help me with my assignment",
+        "Review my active workflow",
+        "Recommend my next step",
+      ],
+    },
+    STAFF: {
+      message:
+        "What needs attention in the workspace right now? I can help triage service risk, review workflow quality, and prepare the next operational move.",
+      suggestions: [
+        "Triage service risk",
+        "Review routing risk",
+        "Summarize the active workflow",
+        "Prepare an operator brief",
+      ],
+    },
+    ADMIN: {
+      message:
+        "Operator console is ready. Bring me the queue, routing risk, or revenue decision that needs founder-level attention right now.",
+      suggestions: [
+        "Prioritize founder work",
+        "Triage service risk",
+        "Pick today's offer",
+        "Check live market signal",
+      ],
+    },
+  },
 };
 
 export const DEFAULT_SERVICES: InstanceServices = {

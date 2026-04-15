@@ -53,8 +53,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL(canonicalUrl),
+    applicationName: identity.name,
     title: `${identity.name} | ${identity.tagline}`,
     description: identity.description,
+    keywords: [
+      identity.name,
+      "solopreneur AI workspace",
+      "all-in-one AI operator system",
+      "governed AI workflows",
+      "SQLite AI app",
+      "deferred AI jobs",
+    ],
     alternates: { canonical: "/" },
     openGraph: {
       title: `${identity.name} | ${identity.tagline}`,
@@ -63,6 +72,12 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: identity.name,
       type: "website",
       images: [{ url: identity.logoPath }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${identity.name} | ${identity.tagline}`,
+      description: identity.description,
+      images: [identity.logoPath],
     },
   };
 }

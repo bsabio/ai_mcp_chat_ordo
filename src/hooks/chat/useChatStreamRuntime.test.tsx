@@ -39,7 +39,7 @@ describe("useChatStreamRuntime", () => {
       setConversationId,
     }));
 
-    await result.current.runStream([], 2, []);
+    const resolved = await result.current.runStream([], 2, []);
 
     expect(fetchStreamMock).toHaveBeenCalledWith([], {
       conversationId: "conv_1",
@@ -62,6 +62,7 @@ describe("useChatStreamRuntime", () => {
     expect(dispatch).toHaveBeenCalledTimes(2);
     expect(setConversationId).not.toHaveBeenCalled();
     expect(result.current.activeStreamId).toBeNull();
+    expect(resolved.didReceiveTextDelta).toBe(true);
   });
 
   it("flushes pending text at stream completion and preserves conversation id updates", async () => {
@@ -94,6 +95,42 @@ describe("useChatStreamRuntime", () => {
       delta: "Hi",
     });
     expect(resolvedStream.conversationId).toBe("conv_new");
+    expect(resolvedStream.didReceiveTextDelta).toBe(true);
+  });
+
+  it("reports when a completed stream produced no live text deltas", async () => {
+    fetchStreamMock.mockResolvedValue({
+      async *events() {
+        yield { type: "tool_call", name: "calculator", args: { expression: "3+3" } };
+        yield { type: "tool_result", name: "calculator", result: 6 };
+        yield { type: "done" };
+      },
+    });
+
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const { result } = renderHook(() => useChatStreamRuntime({
+      conversationId: "conv_3",
+      currentPathname: "/",
+      dispatch,
+      setConversationId,
+    }));
+
+    const resolved = await result.current.runStream([], 1, []);
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "APPEND_TOOL_CALL",
+      index: 1,
+      name: "calculator",
+      args: { expression: "3+3" },
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "APPEND_TOOL_RESULT",
+      index: 1,
+      name: "calculator",
+      result: 6,
+    });
+    expect(resolved.didReceiveTextDelta).toBe(false);
   });
 
   it("does not dispatch half-finished action-link syntax during streaming", async () => {
@@ -156,10 +193,10 @@ describe("useChatStreamRuntime", () => {
       {
         pathname: "/library",
         title: "Library — 10 Books, 104 Chapters | Studio Ordo",
-        mainHeading: "Books, chapters, and reusable reference material.",
+        mainHeading: "Structured reference for the operator system.",
         sectionHeadings: [],
         selectedText: null,
-        contentExcerpt: "The library is organized as books.",
+        contentExcerpt: "The library packages system docs, books, and reusable reference material into chapter-level routes.",
       },
     );
 
@@ -171,10 +208,10 @@ describe("useChatStreamRuntime", () => {
         currentPageSnapshot: {
           pathname: "/library",
           title: "Library — 10 Books, 104 Chapters | Studio Ordo",
-          mainHeading: "Books, chapters, and reusable reference material.",
+          mainHeading: "Structured reference for the operator system.",
           sectionHeadings: [],
           selectedText: null,
-          contentExcerpt: "The library is organized as books.",
+          contentExcerpt: "The library packages system docs, books, and reusable reference material into chapter-level routes.",
         },
         attachments: [],
         taskOriginHandoff: undefined,

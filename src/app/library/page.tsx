@@ -45,9 +45,9 @@ export default async function LibraryIndexPage() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-(--space-section-default) px-(--container-padding) py-(--space-section-default) sm:gap-(--space-10) sm:py-(--space-16)">
         <header className="flex flex-col gap-(--space-4) sm:gap-(--space-6)" data-library-route-header="true">
           <span className="library-kicker">{identity.name} Library</span>
-          <h1 className="library-title max-w-4xl">Books, chapters, and reusable reference material.</h1>
+          <h1 className="library-title max-w-4xl">Structured reference for the operator system.</h1>
           <p className="library-dek">
-            The library is organized as books with chapter-level routes so readers can move through the collection deliberately instead of landing in isolated markdown pages.
+            The library packages system docs, books, and reusable reference material into chapter-level routes so solopreneurs can move through the operating model deliberately instead of landing in isolated markdown files.
           </p>
           <div className="library-meta-row">
             <span className="library-meta-pill">{books.length} books</span>

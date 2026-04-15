@@ -62,7 +62,7 @@ function normalizeOpenerText(value: string | null | undefined) {
 export async function generatePublicJournalIndexMetadata(): Promise<Metadata> {
   const identity = getInstanceIdentity();
   const title = `Journal | ${identity.name}`;
-  const description = `Latest journal articles and insights from ${identity.name}.`;
+  const description = `Essays and operational briefings from ${identity.name} on building and running a compact, governed AI operator system.`;
   const url = getJournalIndexUrl(identity.domain);
   const blogRepo = getBlogPostRepository();
   const posts = await blogRepo.listPublished();
@@ -109,8 +109,8 @@ export async function renderPublicJournalIndexPage() {
     <JournalPageShell>
       <JournalIntroCard
         kicker={`${identity.name} Journal`}
-        title="Clear writing about systems and operations."
-        dek="Published work from Studio Ordo. Essays carry longer arguments. Briefings carry procedures, audits, and release notes."
+        title="Field notes from a compact AI operator system."
+        dek="Published work from Studio Ordo. Essays carry longer arguments. Briefings carry procedures, audits, release notes, and implementation notes from the live system."
         meta={[
           { label: "Latest", value: latestPublished },
           { label: "Posts", value: String(posts.length) },
@@ -147,8 +147,8 @@ export async function renderPublicJournalIndexPage() {
             <div data-journal-region="essays" className="flex flex-col gap-(--space-section-tight)">
               <JournalSectionHeader
                 eyebrow="Latest essays"
-                title="Longer arguments"
-                description="Slower pieces. More context. Less scanning."
+                title="Long-form arguments"
+                description="Product, architecture, and operating-model pieces with enough context to survive contact with reality."
               />
               {publication.latestEssays.length > 0 ? (
                 <div className="grid gap-(--space-section-tight) xl:grid-cols-1">
@@ -176,8 +176,8 @@ export async function renderPublicJournalIndexPage() {
             <div data-journal-region="briefings" className="flex flex-col gap-(--space-section-tight)">
               <JournalSectionHeader
                 eyebrow="Practical briefings"
-                title="Operational work"
-                description="Procedures, audits, release notes, and implementation details."
+                title="Operational briefings"
+                description="Procedures, audits, release notes, and implementation details from the working system."
               />
               {publication.practicalBriefings.length > 0 ? (
                 <div className="grid gap-(--space-3)">

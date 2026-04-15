@@ -91,8 +91,8 @@ test.describe("Chat page context forwarding", () => {
       if (streamCallCount === 1) {
         expect(requestBody.currentPathname).toBe("/library");
         expect(requestBody.currentPageSnapshot?.pathname).toBe("/library");
-        expect(requestBody.currentPageSnapshot?.mainHeading).toBe("Books, chapters, and reusable reference material.");
-        expect(requestBody.currentPageSnapshot?.contentExcerpt).toContain("The library is organized as books");
+        expect(requestBody.currentPageSnapshot?.mainHeading).toBe("Structured reference for the operator system.");
+        expect(requestBody.currentPageSnapshot?.contentExcerpt).toContain("The library packages system docs, books, and reusable reference material");
         expect(userMessage).toContain("What page am I on");
 
         persistedMessages.push(

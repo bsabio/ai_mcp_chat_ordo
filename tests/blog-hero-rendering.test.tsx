@@ -244,14 +244,14 @@ describe("journal public rendering", () => {
 
     const { container } = render(await JournalIndexPage());
 
-    expect(screen.getByRole("heading", { name: "Clear writing about systems and operations." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Field notes from a compact AI operator system." })).toBeInTheDocument();
     expect(screen.getByText("Latest")).toBeInTheDocument();
     expect(screen.getByText("Latest entry")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Systems Essay" })).toBeInTheDocument();
     expect(screen.queryByText(/editorial theater/i)).toBeNull();
     expect(screen.queryByText("Lead")).toBeNull();
     expect(screen.getByText("Latest essays")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Operational work" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Operational briefings" })).toBeInTheDocument();
     expect(screen.getByText("Browse by year")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Back issues" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "2024" })).toBeInTheDocument();

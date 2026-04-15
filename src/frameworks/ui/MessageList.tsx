@@ -4,6 +4,7 @@ import React from "react";
 import type { PresentedMessage } from "../../adapters/ChatPresenter";
 import type { MessageAction } from "../../adapters/ChatPresenter";
 import { RichContentRenderer } from "./RichContentRenderer";
+import { ToolPluginPartRenderer } from "./chat/ToolPluginPartRenderer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { ActionLinkType, BlockNode, InlineNode, RichContent } from "@/core/entities/rich-content";
 import { useInstanceIdentity, useInstancePrompts } from "@/lib/config/InstanceConfigContext";
@@ -22,6 +23,21 @@ interface MessageListProps {
   searchQuery: string;
   isEmbedded?: boolean;
 }
+
+const HERO_PROOF_POINTS = [
+  {
+    title: "One compact system",
+    body: "Chat, search, jobs, and publishing stay inside one app footprint.",
+  },
+  {
+    title: "Background AI workflows",
+    body: "Deferred jobs keep long-running work visible, retryable, and under control.",
+  },
+  {
+    title: "Governed by default",
+    body: "Role-aware tools, prompts, and workflow actions stay aligned with the operator model.",
+  },
+] as const;
 
 const BrandHeader = ({ isEmbedded = false, serviceChips, heroHeading, heroSubheading }: { isEmbedded?: boolean; serviceChips: readonly string[]; heroHeading: string; heroSubheading: string }) => (
   <div
@@ -63,6 +79,26 @@ const BrandHeader = ({ isEmbedded = false, serviceChips, heroHeading, heroSubhea
     >
       {heroSubheading}
     </p>
+
+    <div
+      className="grid w-full max-w-5xl gap-3 pt-(--phi-2) text-left sm:grid-cols-3"
+      data-homepage-proof-strip="true"
+    >
+      {HERO_PROOF_POINTS.map((item) => (
+        <div
+          key={item.title}
+          className="rounded-3xl border border-foreground/10 bg-background/75 px-4 py-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.28)] backdrop-blur-sm"
+          data-homepage-proof-card="true"
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/46">
+            {item.title}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-foreground/74">
+            {item.body}
+          </p>
+        </div>
+      ))}
+    </div>
   </div>
 );
 
@@ -101,8 +137,6 @@ function extractBlockText(block: BlockNode): string {
       ].join(" ");
     case "audio":
       return `${block.title} ${block.text}`;
-    case "web-search":
-      return `${block.query} ${(block.allowed_domains ?? []).join(" ")}`;
     case "operator-brief":
       return block.sections
         .map((section) => `${section.label} ${extractInlineText(section.summary)} ${(section.items ?? []).map((item) => extractInlineText(item)).join(" ")}`)
@@ -143,6 +177,18 @@ function getLastAssistantMessageId(messages: PresentedMessage[]): string | undef
   }
 
   return undefined;
+}
+
+function isOpenSuggestionSurface(message: PresentedMessage | undefined): boolean {
+  if (!message || message.role !== "assistant") {
+    return false;
+  }
+
+  if (message.responseState) {
+    return message.responseState === "open";
+  }
+
+  return message.suggestions.length > 0;
 }
 
 export const MessageList: React.FC<MessageListProps> = React.memo(({
@@ -196,13 +242,18 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
     () => getLastAssistantMessageId(messages),
     [messages],
   );
+  const lastAssistantMessage = React.useMemo(
+    () => messages.find((message) => message.id === lastAssistantMessageId),
+    [lastAssistantMessageId, messages],
+  );
   const hasVisibleSuggestionChips = React.useMemo(
     () =>
       !isSending &&
+      isOpenSuggestionSurface(lastAssistantMessage) &&
       dynamicSuggestions.length > 0 &&
       lastAssistantMessageId != null &&
       lastAssistantMessageId === lastVisibleMessageId,
-    [dynamicSuggestions.length, isSending, lastAssistantMessageId, lastVisibleMessageId],
+    [dynamicSuggestions.length, isSending, lastAssistantMessage, lastAssistantMessageId, lastVisibleMessageId],
   );
 
   if (filteredMessages.length === 0 && searchQuery) {
@@ -245,10 +296,11 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
 
           {message.role === "assistant" &&
             !isSending &&
+            isOpenSuggestionSurface(message) &&
             message.id === lastAssistantMessageId &&
             message.id === lastVisibleMessageId &&
             dynamicSuggestions.length > 0 && (
-              <div className={`${isHeroState ? "mt-(--space-stack-tight) flex justify-center pb-(--space-1)" : "ui-chat-suggestion-band-promoted mt-(--space-stack-tight) pb-(--space-1)"} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+              <div className={`ui-chat-suggestion-band-entry ${isHeroState ? "mt-(--space-stack-tight) flex justify-center pb-(--space-1)" : "ui-chat-suggestion-band-promoted mt-(--space-stack-tight) pb-(--space-1)"} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
                 <SuggestionChips
                   suggestions={dynamicSuggestions}
                   onSend={onSuggestionClick}
@@ -260,8 +312,8 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({
         </div>
       ))}
 
-      {hideHeroTranscript && dynamicSuggestions.length > 0 && (
-        <div className="mt-(--space-stack-tight) flex justify-center pb-(--space-1) animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {hideHeroTranscript && isOpenSuggestionSurface(messages[0]) && dynamicSuggestions.length > 0 && (
+        <div className="ui-chat-suggestion-band-entry mt-(--space-stack-tight) flex justify-center pb-(--space-1) animate-in fade-in slide-in-from-bottom-2 duration-500">
           <SuggestionChips
             suggestions={dynamicSuggestions}
             onSend={onSuggestionClick}
@@ -283,7 +335,7 @@ MessageList.displayName = "MessageList";
 
 const UserBubble = React.memo<{ content: PresentedMessage }>(({ content }) => {
   return (
-    <div className="flex w-full flex-col items-end gap-(--chat-message-meta-gap) px-(--space-1) sm:px-(--space-2) md:px-(--space-0)" data-chat-message-role="user" data-chat-message-emphasis="supporting">
+    <div className="flex w-full flex-col items-end gap-(--chat-message-meta-gap) px-(--space-1) sm:px-(--space-2) md:px-(--space-0)" data-chat-message-role="user" data-chat-message-emphasis="supporting" data-chat-message-status={content.status}>
       <div className="theme-label tier-micro pe-(--space-inset-default) font-medium text-foreground/48" data-chat-message-meta="true">
         <span>You</span>
         {content.timestamp ? <span className="ms-(--space-2) tabular-nums text-foreground/36">{content.timestamp}</span> : null}
@@ -349,6 +401,17 @@ const MessageAttachments = React.memo<{
               <span className="block truncate text-sm font-medium normal-case tracking-normal text-foreground">
                 {attachment.fileName}
               </span>
+              {(attachment.assetKind || typeof attachment.durationSeconds === "number" || (typeof attachment.width === "number" && typeof attachment.height === "number")) ? (
+                <span className="block truncate text-[11px] text-foreground/56">
+                  {[
+                    attachment.assetKind,
+                    typeof attachment.durationSeconds === "number" ? `${Math.round(attachment.durationSeconds)}s` : null,
+                    typeof attachment.width === "number" && typeof attachment.height === "number"
+                      ? `${attachment.width}x${attachment.height}`
+                      : null,
+                  ].filter(Boolean).join(" · ")}
+                </span>
+              ) : null}
             </span>
             <span className="shrink-0 text-[11px] text-foreground/64">
               {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
@@ -372,6 +435,168 @@ function getGenerationStatusLabel(message: PresentedMessage): string | null {
     : "Response interrupted";
 }
 
+interface AssistantBubbleSharedProps {
+  message: PresentedMessage;
+  isStreaming: boolean;
+  onLinkClick: (slug: string) => void;
+  onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
+  isInitialGreeting?: boolean;
+}
+
+const AssistantBubbleContent: React.FC<AssistantBubbleSharedProps & {
+  displayText: string;
+  isTyping: boolean;
+}> = ({
+  message,
+  isStreaming,
+  onLinkClick,
+  onActionClick,
+  isInitialGreeting,
+  displayText,
+  isTyping,
+}) => (
+  <>
+    <ErrorBoundary name="AssistantBubble">
+      {isInitialGreeting ? (
+        <div className="relative ps-(--space-stack-tight)">
+          <div className="invisible pointer-events-none" aria-hidden="true">
+            <RichContentRenderer content={message.content} />
+          </div>
+          <div className="absolute inset-x-0 top-0">
+            {isTyping ? (
+              <div className="inline whitespace-pre-wrap">
+                {displayText}
+                <span className="inline-block w-1.5 h-4 ms-1 bg-accent animate-pulse align-middle" />
+              </div>
+            ) : (
+              <div className="animate-in fade-in duration-500">
+                <RichContentRenderer content={message.content} onLinkClick={onLinkClick} onActionClick={onActionClick} />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="ps-(--space-stack-tight)">
+          <RichContentRenderer
+            content={message.content}
+            onLinkClick={onLinkClick}
+            onActionClick={onActionClick}
+          />
+        </div>
+      )}
+    </ErrorBoundary>
+
+    {(message.toolRenderEntries?.length ?? 0) > 0 && (!isInitialGreeting || !isTyping) && (
+      <div className="mt-(--space-stack-tight) flex flex-col gap-(--space-stack-tight) ps-(--space-stack-tight)">
+        {message.toolRenderEntries?.map((entry, idx) =>
+          entry.kind === "job-status" ? (
+            <ToolPluginPartRenderer
+              key={`job-${entry.part.jobId}`}
+              part={entry.part}
+              computedActions={entry.computedActions}
+              descriptor={entry.descriptor}
+              resultEnvelope={entry.resultEnvelope}
+              isStreaming={isStreaming}
+              onActionClick={onActionClick}
+            />
+          ) : (
+            <ToolPluginPartRenderer
+              key={`tool-${entry.name}-${idx}`}
+              toolCall={entry}
+              descriptor={entry.descriptor}
+              resultEnvelope={entry.resultEnvelope}
+              isStreaming={isStreaming}
+              onActionClick={onActionClick}
+            />
+          ),
+        )}
+      </div>
+    )}
+
+    {(!isInitialGreeting || !isTyping) && (
+      <MessageAttachments attachments={message.attachments} rawContent={message.rawContent} />
+    )}
+
+    {isStreaming && !isInitialGreeting && (
+      <span className="inline-block w-(--space-1) h-(--space-4) bg-accent animate-pulse align-middle ms-(--space-1) rounded-sm relative" />
+    )}
+  </>
+);
+
+AssistantBubbleContent.displayName = "AssistantBubbleContent";
+
+const AssistantBubbleFooter: React.FC<{
+  message: PresentedMessage;
+  generationStatusLabel: string | null;
+  isStreaming: boolean;
+  onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
+  onRetryClick?: (retryKey: string) => void;
+}> = ({
+  message,
+  generationStatusLabel,
+  isStreaming,
+  onActionClick,
+  onRetryClick,
+}) => {
+  const hasStatusFooter = Boolean(generationStatusLabel || message.failedSend);
+
+  return (
+    <>
+      {message.actions.length > 0 && (
+        <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
+          <MessageActionChips
+            actions={message.actions}
+            onActionClick={onActionClick}
+            disabled={isStreaming}
+          />
+        </div>
+      )}
+
+      {hasStatusFooter && (
+        <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
+          {generationStatusLabel ? (
+            <div
+              className="flex flex-wrap items-center gap-(--space-2) text-[0.8rem] text-foreground/68"
+              data-chat-generation-status={message.generationStatus?.status}
+            >
+              <span
+                className="ui-chat-action-chip inline-flex items-center rounded-full px-(--space-inset-compact) py-(--space-1) font-semibold"
+                aria-live="polite"
+              >
+                {generationStatusLabel}
+              </span>
+              {message.generationStatus?.reason ? (
+                <span className="text-[0.78rem] text-foreground/52">{message.generationStatus.reason}</span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {message.failedSend ? (
+            <div className={generationStatusLabel ? "mt-(--space-3)" : undefined}>
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() => {
+                  if (!message.failedSend) {
+                    return;
+                  }
+                  onRetryClick?.(message.failedSend.retryKey);
+                }}
+                className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${isStreaming ? "cursor-wait opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
+                data-chat-retry-key={message.failedSend.retryKey}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </>
+  );
+};
+
+AssistantBubbleFooter.displayName = "AssistantBubbleFooter";
+
 const AssistantBubble = React.memo<{
   message: PresentedMessage;
   isStreaming: boolean;
@@ -386,31 +611,30 @@ const AssistantBubble = React.memo<{
   const [displayText, setDisplayText] = React.useState("");
   const [isTyping, setIsTyping] = React.useState(!!isInitialGreeting);
   const generationStatusLabel = getGenerationStatusLabel(message);
-  const hasStatusFooter = Boolean(generationStatusLabel || message.failedSend);
   
   React.useEffect(() => {
     if (!isInitialGreeting) return;
-    let current = "";
-    let index = 0;
-    const speed = 10;
     const fullText = message.rawContent || "";
+    let charIndex = 0;
+    let frameId: number;
 
-    const interval = setInterval(() => {
-      if (index < fullText.length) {
-        current += fullText[index];
-        setDisplayText(current);
-        index++;
-      } else {
+    function step() {
+      charIndex += 2;
+      const end = Math.min(charIndex, fullText.length);
+      setDisplayText(fullText.slice(0, end));
+      if (end >= fullText.length) {
         setIsTyping(false);
-        clearInterval(interval);
+      } else {
+        frameId = requestAnimationFrame(step);
       }
-    }, speed);
+    }
 
-    return () => clearInterval(interval);
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
   }, [message.rawContent, isInitialGreeting]);
 
   return (
-    <div className="group flex w-full items-start justify-start gap-(--space-stack-tight) px-(--space-1) transition-all duration-300 sm:gap-(--space-stack-default) sm:px-(--space-2) md:px-(--space-0)" data-chat-message-role="assistant" data-chat-message-emphasis={isAnchor ? "anchor" : "supporting"}>
+    <div className="group flex w-full items-start justify-start gap-(--space-stack-tight) px-(--space-1) transition-all duration-300 sm:gap-(--space-stack-default) sm:px-(--space-2) md:px-(--space-0)" data-chat-message-role="assistant" data-chat-message-emphasis={isAnchor ? "anchor" : "supporting"} data-chat-message-status={message.status} data-chat-response-state={message.responseState}>
       <div className="mt-(--space-1) flex h-(--chat-avatar-size) w-(--chat-avatar-size) shrink-0 items-center justify-center overflow-hidden rounded-full shadow-[0_8px_20px_-20px_color-mix(in_srgb,var(--shadow-base)_8%,transparent)]">
         <Image src={brandLogoPath} alt="" width={32} height={32} className="object-cover" style={{ width: "100%", height: "100%" }} />
       </div>
@@ -428,93 +652,23 @@ const AssistantBubble = React.memo<{
         </div>
         <div className="ui-chat-message-assistant theme-body tier-body relative overflow-hidden rounded-[calc(var(--chat-suggestion-frame-radius)-var(--space-2))] rounded-bl-[calc(var(--space-6)+var(--space-2))] rounded-tl-[calc(var(--space-6)+var(--space-1))] px-(--space-inset-default) py-(--chat-bubble-padding-block-prominent)" data-chat-bubble-surface="true">
           <div className="ui-chat-inline-rail pointer-events-none absolute inset-y-[calc(var(--space-inset-compact)+var(--space-1))] left-(--space-inset-default) w-0.5 rounded-full" aria-hidden="true" />
-          <ErrorBoundary name="AssistantBubble">
-            {isInitialGreeting ? (
-              <div className="relative ps-(--space-stack-tight)">
-                <div className="invisible pointer-events-none" aria-hidden="true">
-                  <RichContentRenderer content={message.content} />
-                </div>
-                <div className="absolute inset-x-0 top-0">
-                  {isTyping ? (
-                    <div className="inline whitespace-pre-wrap">
-                      {displayText}
-                      <span className="inline-block w-1.5 h-4 ms-1 bg-accent animate-pulse align-middle" />
-                    </div>
-                  ) : (
-                    <div className="animate-in fade-in duration-500">
-                      <RichContentRenderer content={message.content} onLinkClick={onLinkClick} onActionClick={onActionClick} />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="ps-(--space-stack-tight)">
-                <RichContentRenderer
-                  content={message.content}
-                  onLinkClick={onLinkClick}
-                  onActionClick={onActionClick}
-                />
-              </div>
-            )}
-          </ErrorBoundary>
+          <AssistantBubbleContent
+            message={message}
+            isStreaming={isStreaming}
+            onLinkClick={onLinkClick}
+            onActionClick={onActionClick}
+            isInitialGreeting={isInitialGreeting}
+            displayText={displayText}
+            isTyping={isTyping}
+          />
 
-          {(!isInitialGreeting || !isTyping) && (
-            <MessageAttachments attachments={message.attachments} rawContent={message.rawContent} />
-          )}
-
-          {message.actions.length > 0 && (
-            <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
-              <MessageActionChips
-                actions={message.actions}
-                onActionClick={onActionClick}
-                disabled={isStreaming}
-              />
-            </div>
-          )}
-
-          {hasStatusFooter && (
-            <div className="mt-(--space-3) border-t border-border/40 pt-(--space-3)">
-              {generationStatusLabel ? (
-                <div
-                  className="flex flex-wrap items-center gap-(--space-2) text-[0.8rem] text-foreground/68"
-                  data-chat-generation-status={message.generationStatus?.status}
-                >
-                  <span
-                    className="ui-chat-action-chip inline-flex items-center rounded-full px-(--space-inset-compact) py-(--space-1) font-semibold"
-                    aria-live="polite"
-                  >
-                    {generationStatusLabel}
-                  </span>
-                  {message.generationStatus?.reason ? (
-                    <span className="text-[0.78rem] text-foreground/52">{message.generationStatus.reason}</span>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {message.failedSend ? (
-                <div className={generationStatusLabel ? "mt-(--space-3)" : undefined}>
-                  <button
-                    type="button"
-                    disabled={isStreaming}
-                    onClick={() => {
-                      if (!message.failedSend) {
-                        return;
-                      }
-                      onRetryClick?.(message.failedSend.retryKey);
-                    }}
-                    className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${isStreaming ? "cursor-wait opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
-                    data-chat-retry-key={message.failedSend.retryKey}
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
-
-          {isStreaming && !isInitialGreeting && (
-            <span className="inline-block w-(--space-1) h-(--space-4) bg-accent animate-pulse align-middle ms-(--space-1) rounded-sm relative" />
-          )}
+          <AssistantBubbleFooter
+            message={message}
+            generationStatusLabel={generationStatusLabel}
+            isStreaming={isStreaming}
+            onActionClick={onActionClick}
+            onRetryClick={onRetryClick}
+          />
         </div>
 
         {!isStreaming && !isInitialGreeting && (
@@ -603,7 +757,7 @@ const MessageActionChips: React.FC<{
 };
 
 const TypingIndicator = () => (
-  <div className="mt-(--space-stack-tight) flex items-center justify-start gap-(--space-cluster-default) ms-(--chat-message-indent)">
+  <div className="ui-chat-typing-indicator mt-(--space-stack-tight) flex items-center justify-start gap-(--space-cluster-default) ms-(--chat-message-indent)">
     <div className="flex items-center gap-(--space-2) px-(--space-inset-compact) py-(--space-2)">
       <span className="w-(--space-2) h-(--space-2) rounded-full bg-accent opacity-60 animate-bounce [animation-delay:0ms]" />
       <span className="w-(--space-2) h-(--space-2) rounded-full bg-accent opacity-60 animate-bounce [animation-delay:120ms]" />

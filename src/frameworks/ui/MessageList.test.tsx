@@ -13,6 +13,7 @@ function makeMessage(overrides: Partial<PresentedMessage>): PresentedMessage {
     id: overrides.id ?? "msg-1",
     role: overrides.role ?? "assistant",
     rawContent: overrides.rawContent ?? "",
+    responseState: overrides.responseState,
     content: overrides.content ?? {
       blocks: [
         {
@@ -27,11 +28,66 @@ function makeMessage(overrides: Partial<PresentedMessage>): PresentedMessage {
     attachments: overrides.attachments ?? [],
     failedSend: overrides.failedSend,
     generationStatus: overrides.generationStatus,
+    status: overrides.status ?? "confirmed",
     timestamp: overrides.timestamp ?? "12:00",
+    toolRenderEntries: overrides.toolRenderEntries ?? [],
   };
 }
 
 describe("MessageList", () => {
+  it("does not render suggestion chips for closed assistant messages", () => {
+    const messages = [
+      makeMessage({
+        id: "assistant-closed",
+        role: "assistant",
+        rawContent: "That resolves it.",
+        responseState: "closed",
+      }),
+    ];
+
+    render(
+      <MessageList
+        messages={messages}
+        isSending={false}
+        dynamicSuggestions={["This should stay hidden"]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "This should stay hidden" })).not.toBeInTheDocument();
+  });
+
+  it("does not render suggestion chips for needs-input assistant messages", () => {
+    const messages = [
+      makeMessage({
+        id: "assistant-needs-input",
+        role: "assistant",
+        rawContent: "Which workflow do you want audited?",
+        responseState: "needs_input",
+      }),
+    ];
+
+    render(
+      <MessageList
+        messages={messages}
+        isSending={false}
+        dynamicSuggestions={["Should not appear"]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    expect(screen.getByText("Which workflow do you want audited?")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Should not appear" })).not.toBeInTheDocument();
+  });
+
   it("does not render latest assistant chips when filtering hides the true latest message", () => {
     const messages = [
       makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Alpha strategy" }),
@@ -182,7 +238,7 @@ describe("MessageList", () => {
       />,
     );
 
-      const list = screen.getByText("Bring the mess. We'll make it move.").closest("[data-message-list-mode]");
+      const list = screen.getByText("Run the work from one AI workspace.").closest("[data-message-list-mode]");
     expect(list).toHaveAttribute("data-chat-fold-buffer", "true");
     expect(list).toHaveAttribute("data-message-list-state", "hero");
     expect(list?.className).toContain("ui-chat-message-stack");
@@ -191,7 +247,7 @@ describe("MessageList", () => {
 
   it("hides the seeded assistant bubble on the first-screen hero state", () => {
     const messages = [
-      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Bring me the messy workflow, bold idea, or half-finished handoff. I can help you map it, search the library, turn it into visuals, or explain the QR referral system.", suggestions: ["Fix a bottleneck"] }),
+      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.", suggestions: ["Fix a bottleneck"] }),
     ];
 
     render(
@@ -207,8 +263,8 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.queryByText("Bring me the messy workflow, bold idea, or half-finished handoff. I can help you map it, search the library, turn it into visuals, or explain the QR referral system.")).not.toBeInTheDocument();
-    expect(screen.getByText("Bring the mess. We'll make it move.")).toBeInTheDocument();
+    expect(screen.queryByText("Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.")).not.toBeInTheDocument();
+    expect(screen.getByText("Run the work from one AI workspace.")).toBeInTheDocument();
   });
 
   it("falls back to conversation state when the single message is not the seeded hero", () => {
@@ -344,7 +400,7 @@ describe("MessageList", () => {
   it("renders follow-up suggestions in the secondary chip group after the conversation starts", () => {
     const messages = [
       makeMessage({ id: "user-1", role: "user", rawContent: "Audit this workflow" }),
-      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Pick the audit path." }),
+      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Pick the audit path.", responseState: "open" }),
     ];
 
     const { container } = render(
@@ -418,7 +474,7 @@ describe("MessageList", () => {
       makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Ready with next steps", suggestions: ["Stress-test this AI plan"] }),
     ];
 
-    render(
+    const { container } = render(
       <MessageList
         messages={messages}
         isSending={false}
@@ -431,12 +487,17 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByText("Conversation-First Workspaces")).toBeInTheDocument();
-    expect(screen.getByText("Trusted Library Search")).toBeInTheDocument();
-    expect(screen.getByText("QR Referrals")).toBeInTheDocument();
-    expect(screen.getByText("Bring the mess. We'll make it move.")).toBeInTheDocument();
-      expect(screen.getByText(/Studio Ordo is a conversation-first workspace for teams working with AI/i)).toBeInTheDocument();
-      expect(screen.queryByText("Try asking")).not.toBeInTheDocument();
+    expect(screen.getByText("All-in-One AI Workspace")).toBeInTheDocument();
+    expect(screen.getByText("Local Search + Memory")).toBeInTheDocument();
+    expect(screen.getByText("Deferred AI Workflows")).toBeInTheDocument();
+    expect(screen.getByText("Run the work from one AI workspace.")).toBeInTheDocument();
+    expect(screen.getByText(/Studio Ordo gives solopreneurs chat, workflow automation, local search, publishing, and operator control/i)).toBeInTheDocument();
+    expect(screen.getByText("One compact system")).toBeInTheDocument();
+    expect(screen.getByText("Background AI workflows")).toBeInTheDocument();
+    expect(screen.getByText("Governed by default")).toBeInTheDocument();
+    expect(container.querySelector('[data-homepage-proof-strip="true"]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-homepage-proof-card="true"]')).toHaveLength(3);
+    expect(screen.queryByText("Try asking")).not.toBeInTheDocument();
   });
 
   it("does not render the homepage intro when hero state is inactive", () => {
@@ -458,8 +519,9 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.queryByText("Conversation-First Workspaces")).not.toBeInTheDocument();
-    expect(screen.queryByText("Trusted Library Search")).not.toBeInTheDocument();
+    expect(screen.queryByText("All-in-One AI Workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Local Search + Memory")).not.toBeInTheDocument();
+    expect(screen.queryByText("One compact system")).not.toBeInTheDocument();
   });
 
   it("renders MessageActionChips when an assistant message has actions", () => {

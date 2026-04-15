@@ -145,6 +145,11 @@ describe("buildLibraryIndexMetadata", () => {
     expect(meta.title).toContain("104 Chapters");
   });
 
+  it("E11: describes the compact operator system in metadata", () => {
+    const meta = buildLibraryIndexMetadata(10, 104);
+    expect(meta.description).toContain("compact, governed AI operator system");
+  });
+
   it("E7: includes OG image from identity config", () => {
     const meta = buildLibraryIndexMetadata(10, 104);
     const images = meta.openGraph?.images;

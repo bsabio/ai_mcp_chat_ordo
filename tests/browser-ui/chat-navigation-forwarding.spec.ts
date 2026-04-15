@@ -120,13 +120,13 @@ test.describe("Chat navigation forwarding", () => {
 
     await page.goto("/");
 
-    const textarea = page.getByPlaceholder("Bring the messy workflow, bold idea, or handoff...");
+    const textarea = page.getByLabel("Message");
     await expect(textarea).toBeVisible();
 
     await textarea.fill("Take me to the library.");
     await page.getByRole("button", { name: "Send" }).click();
 
     await expect(page).toHaveURL(/\/library$/);
-    await expect(page.getByRole("heading", { name: "Books, chapters, and reusable reference material." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Structured reference for the operator system." })).toBeVisible();
   });
 });

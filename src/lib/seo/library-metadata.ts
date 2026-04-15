@@ -60,7 +60,7 @@ export interface LibraryIndexSeo {
 
 export function buildLibraryIndexSeo(bookCount: number, chapterCount: number): LibraryIndexSeo {
   const identity = getInstanceIdentity();
-  const description = `Browse ${bookCount} books and ${chapterCount} chapters in the ${identity.name} library.`;
+  const description = `Browse ${bookCount} books and ${chapterCount} chapters documenting the compact, governed AI operator system behind ${identity.name}.`;
   const canonicalUrl = `https://${identity.domain}/library`;
 
   return {
@@ -81,7 +81,7 @@ export function buildLibraryIndexSeo(bookCount: number, chapterCount: number): L
       "@context": "https://schema.org",
       "@type": "CollectionPage",
       name: `${identity.name} Library`,
-      description: `Browse ${bookCount} books and ${chapterCount} chapters.`,
+      description: `Browse ${bookCount} books and ${chapterCount} chapters documenting the compact operator system.`,
       url: canonicalUrl,
       numberOfItems: chapterCount,
       provider: { "@type": "Organization", name: identity.name },

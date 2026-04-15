@@ -86,6 +86,7 @@ describe("buildLibraryIndexSeo (composite)", () => {
     const result = buildLibraryIndexSeo(10, 104);
     expect(result.metadata.title).toContain("10 Books");
     expect(result.jsonLd["@type"]).toBe("CollectionPage");
+    expect(result.metadata.description).toContain("compact, governed AI operator system");
   });
 
   it("E2: backward-compatible buildLibraryIndexJsonLd still works", () => {
