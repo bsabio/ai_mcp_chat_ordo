@@ -30,10 +30,10 @@ describe("tool composition runtime manifest", () => {
   it("keeps role tool counts stable", () => {
     expect(getRuntimeToolCountsByRole(registry)).toEqual({
       ANONYMOUS: 16,
-      AUTHENTICATED: 26,
-      APPRENTICE: 26,
-      STAFF: 26,
-      ADMIN: 55,
+      AUTHENTICATED: 27,
+      APPRENTICE: 27,
+      STAFF: 27,
+      ADMIN: 56,
     });
   });
 

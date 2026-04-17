@@ -56,10 +56,10 @@ export function resolveEvalRuntimeConfig(options: EvalRuntimeConfigOptions = {})
     throw new Error("Live evals are not allowed in the ci target environment.");
   }
 
-  const apiKey = readEnv(env, "ANTHROPIC_API_KEY");
+  const apiKey = readEnv(env, "ANTHROPIC_API_KEY") ?? readEnv(env, "API__ANTHROPIC_API_KEY");
 
   if (!apiKey) {
-    throw new Error("Live evals require ANTHROPIC_API_KEY.");
+    throw new Error("Live evals require ANTHROPIC_API_KEY or API__ANTHROPIC_API_KEY.");
   }
 
   return {

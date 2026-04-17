@@ -5,6 +5,7 @@ import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";
 import { errorJson, runRouteTemplate, successJson } from "@/lib/chat/http-facade";
 import { enqueueComposeMediaDeferredJob, InvalidComposeMediaDeferredJobError } from "@/lib/jobs/compose-media-deferred-job";
+import { buildJobStatusSnapshot } from "@/lib/jobs/job-read-model";
 import { getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import { isRegisteredJobCapability } from "@/lib/jobs/job-capability-registry";
 
@@ -142,7 +143,12 @@ export async function POST(request: NextRequest) {
 
         return successJson(
           context,
-          { ok: true, jobId: result.job.id, deduplicated: result.deduplicated },
+          {
+            ok: true,
+            jobId: result.job.id,
+            deduplicated: result.deduplicated,
+            job: buildJobStatusSnapshot(result.job, result.event),
+          },
           { status: result.deduplicated ? 200 : 201 },
         );
       } catch (error) {

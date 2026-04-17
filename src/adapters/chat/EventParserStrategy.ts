@@ -38,6 +38,15 @@ function parseJobStatusPart(value: unknown): JobStatusMessagePart | undefined {
     ...(typeof value.summary === "string" ? { summary: value.summary } : {}),
     ...(typeof value.error === "string" ? { error: value.error } : {}),
     ...(typeof value.updatedAt === "string" ? { updatedAt: value.updatedAt } : {}),
+    ...(typeof value.lifecyclePhase === "string"
+      ? { lifecyclePhase: value.lifecyclePhase as JobStatusMessagePart["lifecyclePhase"] }
+      : {}),
+    ...(typeof value.failureCode === "string" || value.failureCode === null
+      ? { failureCode: value.failureCode as string | null }
+      : {}),
+    ...(typeof value.failureStage === "string" || value.failureStage === null
+      ? { failureStage: value.failureStage as JobStatusMessagePart["failureStage"] }
+      : {}),
     ...(value.resultPayload !== undefined ? { resultPayload: value.resultPayload } : {}),
     ...(value.resultEnvelope === null
       ? { resultEnvelope: null }

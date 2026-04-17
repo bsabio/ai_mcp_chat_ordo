@@ -9,6 +9,7 @@ import {
 
 const {
   appendEventMock,
+  appendRuntimeAuditLogMock,
   createJobMock,
   findActiveJobByDedupeKeyMock,
   findLatestRenderableEventForJobMock,
@@ -18,6 +19,7 @@ const {
   getActiveForUserMock,
 } = vi.hoisted(() => ({
   appendEventMock: vi.fn(),
+  appendRuntimeAuditLogMock: vi.fn(async () => undefined),
   createJobMock: vi.fn(),
   findActiveJobByDedupeKeyMock: vi.fn(),
   findLatestRenderableEventForJobMock: vi.fn(),
@@ -29,6 +31,10 @@ const {
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
+}));
+
+vi.mock("@/lib/observability/runtime-audit-log", () => ({
+  appendRuntimeAuditLog: appendRuntimeAuditLogMock,
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
@@ -202,10 +208,28 @@ describe("GET /api/chat/jobs", () => {
     expect(findActiveJobByDedupeKeyMock).toHaveBeenCalledWith("conv_existing", "compose_media:plan_media_1");
     expect(createJobMock).toHaveBeenCalledTimes(1);
     expect(appendEventMock).toHaveBeenCalledTimes(1);
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "deferred_job",
+      "enqueued",
+      expect.objectContaining({
+        jobId: "job_media_1",
+        planId: "plan_media_1",
+        deduplicated: false,
+      }),
+    );
     expect(payload).toMatchObject({
       ok: true,
       jobId: "job_media_1",
       deduplicated: false,
+      job: {
+        messageId: "jobmsg_job_media_1",
+        part: expect.objectContaining({
+          jobId: "job_media_1",
+          toolName: "compose_media",
+          status: "queued",
+          lifecyclePhase: "compose_queued_deferred",
+        }),
+      },
     });
   });
 
@@ -281,10 +305,28 @@ describe("GET /api/chat/jobs", () => {
     expect(response.status).toBe(200);
     expect(createJobMock).not.toHaveBeenCalled();
     expect(appendEventMock).not.toHaveBeenCalled();
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "deferred_job",
+      "enqueue_deduplicated",
+      expect.objectContaining({
+        jobId: "job_media_existing",
+        planId: "plan_media_1",
+        deduplicated: true,
+      }),
+    );
     expect(payload).toMatchObject({
       ok: true,
       jobId: "job_media_existing",
       deduplicated: true,
+      job: {
+        messageId: "jobmsg_job_media_existing",
+        part: expect.objectContaining({
+          jobId: "job_media_existing",
+          toolName: "compose_media",
+          status: "queued",
+          lifecyclePhase: "compose_queued_deferred",
+        }),
+      },
     });
   });
 });

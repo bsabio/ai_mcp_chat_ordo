@@ -1,4 +1,8 @@
 import type { CapabilityResultEnvelope } from "./capability-result";
+import type {
+  MediaRuntimeFailureStage,
+  MediaRuntimeLifecyclePhase,
+} from "./media-runtime-state";
 import type { ActionLinkType } from "./rich-content";
 import type { JobFailureClass, JobRecoveryMode, JobStatus } from "./job";
 import type {
@@ -26,6 +30,9 @@ export interface JobStatusMessagePart {
   summary?: string;
   error?: string;
   updatedAt?: string;
+  lifecyclePhase?: MediaRuntimeLifecyclePhase;
+  failureCode?: string | null;
+  failureStage?: MediaRuntimeFailureStage | null;
   resultPayload?: unknown;
   resultEnvelope?: CapabilityResultEnvelope | null;
   failureClass?: JobFailureClass | null;

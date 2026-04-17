@@ -7,15 +7,34 @@ import type {
   CapabilityResultEnvelope,
 } from "@/core/entities/capability-result";
 import type { MediaCompositionPlan } from "@/core/entities/media-composition";
+import type { ToolProgressUpdate } from "@/core/tool-registry/ToolExecutionContext";
 import { FfmpegServerExecutor } from "@/lib/media/ffmpeg/server/ffmpeg-server-executor";
-import { COMPOSE_MEDIA_ARTIFACT_LABEL } from "@/lib/media/compose-media-progress";
+import {
+  COMPOSE_MEDIA_ARTIFACT_LABEL,
+  getComposeMediaProgressLabel,
+} from "@/lib/media/compose-media-progress";
+import {
+  type ComposeMediaAssetReadinessEntry,
+  evaluateComposeMediaAssetReadiness,
+} from "@/lib/media/compose-media-preflight";
+import { projectUserFileToMediaAssetDescriptor } from "@/lib/media/media-asset-projection";
 import { UserFileSystem } from "@/lib/user-files";
 
 export interface ExecuteComposeMediaRemotelyParams {
   plan: MediaCompositionPlan;
   userId: string;
   conversationId: string | null;
-  onProgress?: (progress: number, phase: string) => void;
+  onProgress?: (update: ToolProgressUpdate) => void;
+}
+
+export class InvalidComposeMediaAssetReadinessError extends Error {
+  constructor(
+    message: string,
+    public readonly failureCode: string,
+  ) {
+    super(message);
+    this.name = "InvalidComposeMediaAssetReadinessError";
+  }
 }
 
 function getOutputExtension(outputFormat: string): string {
@@ -30,6 +49,7 @@ function buildPersistedArtifacts(
   primaryAssetId: string,
   outputFormat: string,
   conversationId: string | null,
+  resolution?: { width: number; height: number } | null,
 ): CapabilityArtifactRef[] {
   return [
     {
@@ -38,6 +58,8 @@ function buildPersistedArtifacts(
       mimeType: getMimeType(outputFormat),
       assetId: primaryAssetId,
       uri: `/api/user-files/${primaryAssetId}`,
+      width: resolution?.width,
+      height: resolution?.height,
       retentionClass: conversationId ? "conversation" : "ephemeral",
       source: "generated",
     },
@@ -64,15 +86,54 @@ export async function executeComposeMediaRemotely(
     ...params.plan.audioClips.map((clip) => clip.assetId),
   ])];
   const assetPaths = new Map<string, string | null>();
+  const assetsById = new Map<string, ComposeMediaAssetReadinessEntry>();
 
   for (const assetId of assetIds) {
     const stored = await userFiles.getById(assetId);
-    assetPaths.set(assetId, stored && stored.file.userId === params.userId ? stored.diskPath : null);
+    if (!stored) {
+      assetPaths.set(assetId, null);
+      assetsById.set(assetId, {
+        assetId,
+        status: "not_found",
+      });
+      continue;
+    }
+
+    const projected = projectUserFileToMediaAssetDescriptor(stored.file);
+    const isOwnedByUser = stored.file.userId === params.userId;
+
+    assetPaths.set(assetId, isOwnedByUser ? stored.diskPath : null);
+    assetsById.set(assetId, {
+      assetId,
+      status: isOwnedByUser ? "ready" : "forbidden",
+      assetKind: projected?.kind ?? null,
+      conversationId: stored.file.conversationId,
+      derivativeOfAssetId: stored.file.metadata.derivativeOfAssetId ?? null,
+    });
+  }
+
+  const readinessFailure = evaluateComposeMediaAssetReadiness({
+    plan: params.plan,
+    assetsById,
+  });
+
+  if (readinessFailure) {
+    throw new InvalidComposeMediaAssetReadinessError(
+      readinessFailure.message,
+      readinessFailure.code,
+    );
   }
 
   const envelope = await executor.executeDeferredPlan(
     params.plan,
-    (progress, phase) => params.onProgress?.(progress, phase),
+    (progress, phase) => params.onProgress?.({
+      activePhaseKey: phase,
+      progressPercent: progress,
+      progressLabel: getComposeMediaProgressLabel(phase, {
+        plan: params.plan,
+        progressPercent: progress,
+      }),
+    }),
     {
       resolveAssetPath: (assetId) => assetPaths.get(assetId) ?? null,
     },
@@ -109,7 +170,7 @@ export async function executeComposeMediaRemotely(
     ...envelope,
     summary: {
       ...envelope.summary,
-      subtitle: `${params.plan.outputFormat.toUpperCase()} · Media Worker`,
+      subtitle: `${params.plan.outputFormat.toUpperCase()} · Media Worker · ${params.plan.resolution?.width ?? 0}x${params.plan.resolution?.height ?? 0}`,
       statusLine: "succeeded",
     },
     replaySnapshot: {
@@ -117,8 +178,9 @@ export async function executeComposeMediaRemotely(
       planId: params.plan.id,
       outputFormat: params.plan.outputFormat,
       outputBytes: stored.fileSize,
+      resolution: params.plan.resolution ?? null,
     },
-    artifacts: buildPersistedArtifacts(stored.id, params.plan.outputFormat, params.conversationId),
+    artifacts: buildPersistedArtifacts(stored.id, params.plan.outputFormat, params.conversationId, params.plan.resolution),
     payload: {
       route: "deferred_remote",
       planId: params.plan.id,
@@ -126,6 +188,7 @@ export async function executeComposeMediaRemotely(
       outputFormat: params.plan.outputFormat,
       outputBytes: stored.fileSize,
       mimeType: getMimeType(params.plan.outputFormat),
+      resolution: params.plan.resolution ?? null,
     },
   };
 }

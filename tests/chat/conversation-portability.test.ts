@@ -172,6 +172,9 @@ describe("conversation portability transcript durability", () => {
                 sequence: 8,
                 progressPercent: 42,
                 progressLabel: "Reviewing article",
+                lifecyclePhase: "compose_running_deferred",
+                failureCode: null,
+                failureStage: null,
                 resultEnvelope: {
                   schemaVersion: 1,
                   toolName: "produce_blog_article",
@@ -214,6 +217,9 @@ describe("conversation portability transcript durability", () => {
 
     expect(imported.importedMessages[0]?.parts[0]).toMatchObject({
       type: "job_status",
+      lifecyclePhase: "compose_running_deferred",
+      failureCode: null,
+      failureStage: null,
       resultEnvelope: expect.objectContaining({ toolName: "produce_blog_article" }),
       replayedFromJobId: "job_prior",
     });

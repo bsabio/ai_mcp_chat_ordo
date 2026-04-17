@@ -7,7 +7,6 @@ import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import {
   loadAdminJournalList,
-  requireAdminPageAccess,
   requireJournalWorkspaceAccess,
 } from "@/lib/journal/admin-journal";
 import { buildAdminPaginationParams } from "@/lib/admin/admin-pagination";

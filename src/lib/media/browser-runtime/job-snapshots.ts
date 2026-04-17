@@ -7,6 +7,8 @@ import type {
   MediaAssetRetentionClass,
   MediaAssetSource,
 } from "@/core/entities/media-asset";
+import type { BrowserCapabilityExecutionStatus } from "@/core/entities/browser-capability";
+import type { MediaRuntimeFailureStage } from "@/core/entities/media-runtime-state";
 import type { JobStatusMessagePart, MessagePart } from "@/core/entities/message-parts";
 import {
   resolveGenerateChartPayload,
@@ -20,6 +22,7 @@ import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/regist
 import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 import { isDeferredJobResultPayload } from "@/lib/jobs/deferred-job-result";
 import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
+import { normalizeMediaRuntimeState } from "./media-runtime-normalization";
 import {
   type BrowserRuntimeToolName,
   getBrowserCapabilityDescriptor,
@@ -314,11 +317,14 @@ export function buildBrowserRuntimeJobStatusPart(options: {
   candidate: Pick<BrowserRuntimeCandidate, "jobId" | "messageId" | "toolName" | "args">;
   payload: unknown;
   status: RuntimeStatus;
+  browserExecutionStatus?: BrowserCapabilityExecutionStatus | null;
   sequence: number;
   updatedAt?: string;
   progressPercent?: number | null;
   progressLabel?: string | null;
   error?: string;
+  failureCode?: string | null;
+  failureStage?: MediaRuntimeFailureStage | null;
   conversationId: string | null;
 }): JobStatusMessagePart {
   const descriptor = getCapabilityPresentationDescriptor(options.candidate.toolName);
@@ -350,6 +356,15 @@ export function buildBrowserRuntimeJobStatusPart(options: {
   });
 
   const summary = resultEnvelope?.summary;
+  const runtimeState = normalizeMediaRuntimeState({
+    toolName: options.candidate.toolName,
+    jobStatus: options.status,
+    payload: normalizedPayload,
+    executionMode: descriptor.executionMode,
+    browserExecutionStatus: options.browserExecutionStatus,
+    failureCode: options.failureCode,
+    failureStage: options.failureStage,
+  });
 
   return {
     type: "job_status",
@@ -365,9 +380,13 @@ export function buildBrowserRuntimeJobStatusPart(options: {
     ...(summary?.message ? { summary: summary.message } : {}),
     ...(options.error ? { error: options.error } : {}),
     updatedAt: options.updatedAt ?? new Date().toISOString(),
+    lifecyclePhase: runtimeState.lifecyclePhase,
+    failureCode: runtimeState.failureCode,
+    failureStage: runtimeState.failureStage,
     resultPayload: normalizedPayload,
     resultEnvelope,
-    ...(options.status === "failed" ? { failureClass: "terminal" as const } : {}),
+    ...(runtimeState.failureClass !== null ? { failureClass: runtimeState.failureClass } : {}),
+    ...(runtimeState.recoveryMode !== null ? { recoveryMode: runtimeState.recoveryMode } : {}),
   };
 }
 
@@ -432,6 +451,9 @@ export function getBrowserRuntimeCandidates(messages: ChatMessage[]): BrowserRun
       const snapshots = extractJobStatusSnapshots(part.result);
       const jobId = createBrowserRuntimeJobId(message.id, match.name, partIndex);
       const snapshot = snapshots.find((entry) => entry.part.jobId === jobId)?.part;
+      if (!snapshot && snapshots.length > 0) {
+        continue;
+      }
       const payload = snapshot?.resultEnvelope?.payload ?? snapshot?.resultPayload ?? part.result;
 
       candidates.push({

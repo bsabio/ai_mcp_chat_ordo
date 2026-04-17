@@ -7,6 +7,7 @@ import {
   COMPOSE_MEDIA_COMPLETE_LABEL,
   getComposeMediaProgressLabel,
 } from "@/lib/media/compose-media-progress";
+import { getMediaCompositionProfileSettings, resolveMediaCompositionProfile } from "@/lib/media/ffmpeg/media-composition-profile";
 
 export type BrowserExecutorStatus = "succeeded" | "failed" | "fallback_required";
 
@@ -29,13 +30,14 @@ function buildAssetUrlMaps(plan: MediaCompositionPlan): {
   visualAssetUrls: Record<string, string>;
   audioAssetUrls: Record<string, string>;
 } {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
   const visualAssetUrls: Record<string, string> = {};
   for (const clip of plan.visualClips) {
-    visualAssetUrls[clip.assetId] = `/api/user-files/${clip.assetId}`;
+    visualAssetUrls[clip.assetId] = `${origin}/api/user-files/${clip.assetId}`;
   }
   const audioAssetUrls: Record<string, string> = {};
   for (const clip of plan.audioClips) {
-    audioAssetUrls[clip.assetId] = `/api/user-files/${clip.assetId}`;
+    audioAssetUrls[clip.assetId] = `${origin}/api/user-files/${clip.assetId}`;
   }
   return { visualAssetUrls, audioAssetUrls };
 }
@@ -50,6 +52,10 @@ async function uploadResultBlob(
   context: BrowserMediaExecutorContext,
   signal: AbortSignal,
 ): Promise<string> {
+  if (blob.size === 0) {
+    throw new Error("Browser FFmpeg returned an empty media artifact.");
+  }
+
   const filename = `composition-${plan.id}.${plan.outputFormat}`;
   const file = new File([blob], filename, { type: blob.type });
 
@@ -147,9 +153,11 @@ export class FfmpegBrowserExecutor {
           worker.terminate();
 
           try {
-            onProgress?.(99, getComposeMediaProgressLabel("persisting"));
+            onProgress?.(99, getComposeMediaProgressLabel("persisting", { plan, progressPercent: 99 }));
             const assetId = await uploadResultBlob(msg.blob, plan, context, combinedSignal);
             onProgress?.(100, COMPOSE_MEDIA_COMPLETE_LABEL);
+            const resolvedProfile = resolveMediaCompositionProfile(plan);
+            const profileSettings = getMediaCompositionProfileSettings(resolvedProfile);
 
             const envelope: CapabilityResultEnvelope = {
               schemaVersion: 1,
@@ -161,18 +169,22 @@ export class FfmpegBrowserExecutor {
                 planId: plan.id,
                 visualClips: plan.visualClips.length,
                 audioClips: plan.audioClips.length,
+                profile: resolvedProfile,
                 subtitlePolicy: plan.subtitlePolicy,
                 outputFormat: plan.outputFormat,
+                resolution: plan.resolution ?? null,
               },
               summary: {
                 title: "Media Composition",
-                subtitle: `${plan.outputFormat.toUpperCase()} · Browser WASM`,
+                subtitle: `${plan.outputFormat.toUpperCase()} · Browser WASM · ${profileSettings.label} · ${plan.resolution?.width ?? 0}x${plan.resolution?.height ?? 0}`,
                 statusLine: "succeeded",
               },
               replaySnapshot: {
                 route: "browser_wasm",
                 planId: plan.id,
+                profile: resolvedProfile,
                 outputFormat: plan.outputFormat,
+                resolution: plan.resolution ?? null,
               },
               progress: { percent: 100, label: COMPOSE_MEDIA_COMPLETE_LABEL },
               artifacts: [
@@ -182,6 +194,8 @@ export class FfmpegBrowserExecutor {
                   mimeType: `video/${plan.outputFormat}`,
                   assetId,
                   uri: `/api/user-files/${assetId}`,
+                  width: plan.resolution?.width,
+                  height: plan.resolution?.height,
                   retentionClass: context.conversationId ? "conversation" : "ephemeral",
                   source: "generated",
                 },
@@ -189,8 +203,10 @@ export class FfmpegBrowserExecutor {
               payload: {
                 route: "browser_wasm",
                 planId: plan.id,
+                profile: resolvedProfile,
                 primaryAssetId: assetId,
                 outputFormat: plan.outputFormat,
+                resolution: plan.resolution ?? null,
               },
             };
 

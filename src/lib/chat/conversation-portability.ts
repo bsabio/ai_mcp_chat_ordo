@@ -661,6 +661,15 @@ function normalizeImportedPart(
         ...(typeof rawPart.summary === "string" ? { summary: rawPart.summary } : {}),
         ...(typeof rawPart.error === "string" ? { error: rawPart.error } : {}),
         ...(typeof rawPart.updatedAt === "string" ? { updatedAt: rawPart.updatedAt } : {}),
+        ...(typeof rawPart.lifecyclePhase === "string"
+          ? { lifecyclePhase: rawPart.lifecyclePhase as JobStatusMessagePart["lifecyclePhase"] }
+          : {}),
+        ...(typeof rawPart.failureCode === "string" || rawPart.failureCode === null
+          ? { failureCode: rawPart.failureCode as string | null }
+          : {}),
+        ...(typeof rawPart.failureStage === "string" || rawPart.failureStage === null
+          ? { failureStage: rawPart.failureStage as JobStatusMessagePart["failureStage"] }
+          : {}),
         ...(rawPart.resultPayload !== undefined ? { resultPayload: rawPart.resultPayload } : {}),
         ...(rawPart.resultEnvelope === null
           ? { resultEnvelope: null }

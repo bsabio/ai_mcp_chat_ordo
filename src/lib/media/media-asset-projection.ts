@@ -33,6 +33,14 @@ function isMediaAssetKind(value: string): value is MediaAssetKind {
     || value === "waveform";
 }
 
+function defaultsToGeneratedSource(file: UserFile): boolean {
+  return file.fileType === "audio"
+    || file.fileType === "chart"
+    || file.fileType === "graph"
+    || file.fileType === "waveform"
+    || file.fileType === "subtitle";
+}
+
 function inferAssetKind(file: UserFile): MediaAssetKind | null {
   if (file.metadata.assetKind && isMediaAssetKind(file.metadata.assetKind)) {
     return file.metadata.assetKind;
@@ -45,19 +53,19 @@ function inferAssetKind(file: UserFile): MediaAssetKind | null {
   return null;
 }
 
-function inferSource(file: UserFile, assetKind: MediaAssetKind): MediaAssetSource {
+export function resolveUserFileSource(file: UserFile): MediaAssetSource {
   if (file.metadata.source) {
     return file.metadata.source;
   }
 
-  if (assetKind === "audio" || assetKind === "chart" || assetKind === "graph" || assetKind === "waveform" || assetKind === "subtitle") {
+  if (defaultsToGeneratedSource(file)) {
     return "generated";
   }
 
   return "uploaded";
 }
 
-function inferRetentionClass(file: UserFile): MediaAssetRetentionClass {
+export function resolveUserFileRetentionClass(file: UserFile): MediaAssetRetentionClass {
   return file.metadata.retentionClass ?? (file.conversationId ? "conversation" : "ephemeral");
 }
 
@@ -93,7 +101,7 @@ export function projectUserFileToMediaAssetDescriptor(
     id: file.id,
     kind,
     mimeType: file.mimeType,
-    source: inferSource(file, kind),
+    source: resolveUserFileSource(file),
     assetId: file.id,
     ...(typeof file.metadata.width === "number" ? { width: file.metadata.width } : {}),
     ...(typeof file.metadata.height === "number" ? { height: file.metadata.height } : {}),
@@ -102,7 +110,7 @@ export function projectUserFileToMediaAssetDescriptor(
       : {}),
     ...(file.conversationId ? { conversationId: file.conversationId } : {}),
     ...(file.metadata.toolName ? { toolName: file.metadata.toolName } : {}),
-    retentionClass: inferRetentionClass(file),
+    retentionClass: resolveUserFileRetentionClass(file),
   };
 }
 
@@ -121,7 +129,7 @@ export function projectUserFileToConversationMediaAssetCandidate(
     fileName: file.fileName,
     mimeType: asset.mimeType,
     source: asset.source,
-    retentionClass: asset.retentionClass ?? inferRetentionClass(file),
+    retentionClass: asset.retentionClass ?? resolveUserFileRetentionClass(file),
     createdAt: file.createdAt,
     conversationId: file.conversationId,
     ...(asset.toolName ? { toolName: asset.toolName } : {}),

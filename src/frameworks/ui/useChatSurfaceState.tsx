@@ -24,7 +24,15 @@ export type ActionDispatchDeps = {
   setComposerText: (text: string) => void;
 };
 
+function isSyntheticBrowserJobId(jobId: string): boolean {
+  return jobId.startsWith("browser:");
+}
+
 async function postJobAction(jobId: string, operation: string) {
+  if (isSyntheticBrowserJobId(jobId)) {
+    return { job: undefined };
+  }
+
   const response = await fetch(`/api/chat/jobs/${encodeURIComponent(jobId)}`, {
     method: "POST",
     headers: {
@@ -90,6 +98,10 @@ export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, 
   job: async (deps, value, params) => {
     const operation = params?.operation;
     if (!value || !operation) {
+      return;
+    }
+
+    if (isSyntheticBrowserJobId(value)) {
       return;
     }
 

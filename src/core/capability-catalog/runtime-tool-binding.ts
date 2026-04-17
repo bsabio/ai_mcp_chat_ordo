@@ -130,7 +130,7 @@ import {
 } from "@/core/use-cases/tools/user-profile.tool";
 import type { CapabilityDefinition } from "./capability-definition";
 import { CAPABILITY_CATALOG, getCatalogDefinition } from "./catalog";
-import { getDefaultExecutionPlanningForCapability } from "./capability-ownership";
+import { resolveExecutionPlanningContextForCapability } from "./execution-planning-policy";
 import { getMcpProcessMetadata } from "./mcp-process-metadata";
 import {
   buildCatalogBoundToolDescriptor,
@@ -351,17 +351,13 @@ async function executeComposeMediaForSystemWorker(
 
   const conversationId = context.conversationId ?? input.plan.conversationId;
 
-  await context.reportProgress?.({
-    activePhaseKey: "staging_assets",
-    progressPercent: getComposeMediaBaselinePercent("staging_assets"),
-    progressLabel: getComposeMediaProgressLabel("staging_assets"),
-  });
-
   const client = new MediaWorkerClient();
   const result = await client.executeComposeMediaJob({
     plan: input.plan,
     userId: context.userId,
     conversationId,
+  }, async (update) => {
+    await context.reportProgress?.(update);
   });
 
   await context.reportProgress?.({
@@ -749,30 +745,7 @@ function toExecutionPlanningContext(
   def: CatalogBoundDefinition,
   context?: ToolExecutionContext,
 ): ExecutionPlanningContext {
-  const defaultPlanning = getDefaultExecutionPlanningForCapability(def.core.name) ?? {};
-  const planning: ExecutionPlanningContext = {
-    ...defaultPlanning,
-    ...context?.executionPlanning,
-  };
-
-  if (defaultPlanning.enabledTargetKinds || context?.executionPlanning?.enabledTargetKinds) {
-    planning.enabledTargetKinds = context?.executionPlanning?.enabledTargetKinds
-      ?? defaultPlanning.enabledTargetKinds;
-  }
-
-  if (defaultPlanning.preferredTargetKinds || context?.executionPlanning?.preferredTargetKinds) {
-    planning.preferredTargetKinds = context?.executionPlanning?.preferredTargetKinds
-      ?? defaultPlanning.preferredTargetKinds;
-  }
-
-  if (def.browser && planning.browserRuntimeAvailable === undefined) {
-    return {
-      ...planning,
-      browserRuntimeAvailable: true,
-    };
-  }
-
-  return planning;
+  return resolveExecutionPlanningContextForCapability(def, context?.executionPlanning);
 }
 
 export interface ResolvedCatalogRuntimeBinding {

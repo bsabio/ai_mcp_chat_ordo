@@ -81,6 +81,31 @@ describe("capability-catalog", () => {
       expect(result.supportsRetry).toBe("whole_job");
     });
 
+    it("exposes Phase 2 clip lineage and kind rules in the compose_media planner schema", () => {
+      const schema = CAPABILITY_CATALOG.compose_media.schema.inputSchema;
+      const plan = (schema.properties as Record<string, unknown>).plan as {
+        properties: Record<string, unknown>;
+      };
+      const visualClips = plan.properties.visualClips as {
+        items: { properties: Record<string, unknown> };
+      };
+      const audioClips = plan.properties.audioClips as {
+        items: { properties: Record<string, unknown> };
+      };
+
+      expect(visualClips.items.properties).toHaveProperty("sourceAssetId");
+      expect(audioClips.items.properties).toHaveProperty("sourceAssetId");
+      expect((visualClips.items.properties.kind as { enum: string[] }).enum).toEqual([
+        "image",
+        "video",
+        "chart",
+        "graph",
+      ]);
+      expect((audioClips.items.properties.kind as { enum: string[] }).enum).toEqual([
+        "audio",
+      ]);
+    });
+
     it("projects admin_web_search presentation as inline", () => {
       const result = projectPresentationDescriptor(CAPABILITY_CATALOG.admin_web_search);
       expect(result.toolName).toBe("admin_web_search");

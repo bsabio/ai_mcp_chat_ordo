@@ -345,4 +345,357 @@ describe("UserFileDataMapper", () => {
     const loaded = requireValue(await mapper.findById("uf_image_meta"));
     expect(loaded.metadata).toEqual(file.metadata);
   });
+
+  it("listForUser paginates with a created_at and id cursor tie-break", async () => {
+    await mapper.create({
+      id: "uf_page_c",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "page-c",
+      fileType: "image",
+      fileName: "page-c.png",
+      mimeType: "image/png",
+      fileSize: 300,
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+    await mapper.create({
+      id: "uf_page_b",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "page-b",
+      fileType: "audio",
+      fileName: "page-b.mp3",
+      mimeType: "audio/mpeg",
+      fileSize: 200,
+      metadata: { source: "generated", retentionClass: "ephemeral" },
+    });
+    await mapper.create({
+      id: "uf_page_a",
+      userId: "usr_test",
+      conversationId: "conv_1",
+      contentHash: "page-a",
+      fileType: "video",
+      fileName: "page-a.mp4",
+      mimeType: "video/mp4",
+      fileSize: 100,
+      metadata: { source: "uploaded", retentionClass: "conversation" },
+    });
+
+    db.prepare(`UPDATE user_files SET created_at = '2026-04-01 00:00:00' WHERE id IN ('uf_page_a', 'uf_page_b', 'uf_page_c')`).run();
+
+    const firstPage = await mapper.listForUser("usr_test", { limit: 2 });
+    expect(firstPage.items.map((file) => file.id)).toEqual(["uf_page_c", "uf_page_b"]);
+    expect(firstPage.nextCursor).toEqual({
+      createdAt: "2026-04-01 00:00:00",
+      id: "uf_page_b",
+    });
+
+    const secondPage = await mapper.listForUser("usr_test", {
+      limit: 2,
+      cursor: firstPage.nextCursor,
+    });
+    expect(secondPage.items.map((file) => file.id)).toEqual(["uf_page_a"]);
+    expect(secondPage.nextCursor).toBeNull();
+  });
+
+  it("listForUser applies typed filters without loading unrelated user files", async () => {
+    seedUser(db, "usr_other");
+
+    await mapper.create({
+      id: "uf_filter_image",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "filter-image",
+      fileType: "image",
+      fileName: "roadmap-card.png",
+      mimeType: "image/png",
+      fileSize: 1024,
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+    await mapper.create({
+      id: "uf_filter_video",
+      userId: "usr_test",
+      conversationId: "conv_1",
+      contentHash: "filter-video",
+      fileType: "video",
+      fileName: "demo-video.mp4",
+      mimeType: "video/mp4",
+      fileSize: 2048,
+      metadata: { source: "generated", retentionClass: "conversation" },
+    });
+    await mapper.create({
+      id: "uf_filter_other_user",
+      userId: "usr_other",
+      conversationId: null,
+      contentHash: "filter-other",
+      fileType: "image",
+      fileName: "roadmap-card.png",
+      mimeType: "image/png",
+      fileSize: 4096,
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+
+    const filtered = await mapper.listForUser("usr_test", {
+      limit: 10,
+      fileType: "image",
+      source: "uploaded",
+      retentionClass: "ephemeral",
+      attached: false,
+      search: "roadmap",
+    });
+
+    expect(filtered.items.map((file) => file.id)).toEqual(["uf_filter_image"]);
+  });
+
+  it("getUserStorageSummary returns totals and per-type breakdowns", async () => {
+    await mapper.create({
+      id: "uf_summary_image",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "summary-image",
+      fileType: "image",
+      fileName: "summary-image.png",
+      mimeType: "image/png",
+      fileSize: 1024,
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+    await mapper.create({
+      id: "uf_summary_video",
+      userId: "usr_test",
+      conversationId: "conv_1",
+      contentHash: "summary-video",
+      fileType: "video",
+      fileName: "summary-video.mp4",
+      mimeType: "video/mp4",
+      fileSize: 2048,
+      metadata: { source: "generated", retentionClass: "conversation" },
+    });
+
+    const summary = await mapper.getUserStorageSummary("usr_test");
+
+    expect(summary.totalFiles).toBe(2);
+    expect(summary.totalBytes).toBe(3072);
+    expect(summary.attachedFiles).toBe(1);
+    expect(summary.attachedBytes).toBe(2048);
+    expect(summary.unattachedFiles).toBe(1);
+    expect(summary.unattachedBytes).toBe(1024);
+    expect(summary.byType.image).toEqual({ files: 1, bytes: 1024 });
+    expect(summary.byType.video).toEqual({ files: 1, bytes: 2048 });
+    expect(summary.byType.audio).toEqual({ files: 0, bytes: 0 });
+    expect(summary.byRetentionClass.ephemeral).toEqual({ files: 1, bytes: 1024 });
+    expect(summary.byRetentionClass.conversation).toEqual({ files: 1, bytes: 2048 });
+    expect(summary.bySource.uploaded).toEqual({ files: 1, bytes: 1024 });
+    expect(summary.bySource.generated).toEqual({ files: 1, bytes: 2048 });
+  });
+
+  it("createBatchWithinQuota counts only net-new bytes and preserves caller order", async () => {
+    await mapper.create({
+      id: "uf_existing_batch",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "existing-batch",
+      fileType: "document",
+      fileName: "existing-batch.txt",
+      mimeType: "text/plain",
+      fileSize: 40,
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+
+    const createBatchWithinQuota = mapper.createBatchWithinQuota?.bind(mapper);
+    expect(createBatchWithinQuota).toBeDefined();
+    if (!createBatchWithinQuota) {
+      throw new Error("Expected createBatchWithinQuota to be available.");
+    }
+
+    const result = await createBatchWithinQuota(
+      [
+        {
+          id: "uf_duplicate_batch_attempt",
+          userId: "usr_test",
+          conversationId: null,
+          contentHash: "existing-batch",
+          fileType: "document",
+          fileName: "existing-batch.txt",
+          mimeType: "text/plain",
+          fileSize: 40,
+          metadata: { source: "uploaded", retentionClass: "ephemeral" },
+        },
+        {
+          id: "uf_new_batch_attempt",
+          userId: "usr_test",
+          conversationId: null,
+          contentHash: "new-batch",
+          fileType: "document",
+          fileName: "new-batch.txt",
+          mimeType: "text/plain",
+          fileSize: 25,
+          metadata: { source: "uploaded", retentionClass: "ephemeral" },
+        },
+      ],
+      {
+        userId: "usr_test",
+        quotaBytes: 100,
+        hardBlockUploadsAtQuota: true,
+      },
+    );
+
+    expect(result.quotaExceeded).toBe(false);
+    expect(result.insertedBytes).toBe(25);
+    expect(result.projectedTotalBytes).toBe(65);
+    expect(result.files.map((file) => file.id)).toEqual(["uf_existing_batch", "uf_new_batch_attempt"]);
+  });
+
+  it("createBatchWithinQuota rejects the full batch atomically when hard quota would be exceeded", async () => {
+    await mapper.create({
+      id: "uf_quota_baseline",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "quota-baseline",
+      fileType: "document",
+      fileName: "quota-baseline.txt",
+      mimeType: "text/plain",
+      fileSize: 80,
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+
+    const createBatchWithinQuota = mapper.createBatchWithinQuota?.bind(mapper);
+    expect(createBatchWithinQuota).toBeDefined();
+    if (!createBatchWithinQuota) {
+      throw new Error("Expected createBatchWithinQuota to be available.");
+    }
+
+    const result = await createBatchWithinQuota(
+      [
+        {
+          id: "uf_quota_reject_1",
+          userId: "usr_test",
+          conversationId: null,
+          contentHash: "quota-reject-1",
+          fileType: "document",
+          fileName: "quota-reject-1.txt",
+          mimeType: "text/plain",
+          fileSize: 15,
+          metadata: { source: "uploaded", retentionClass: "ephemeral" },
+        },
+        {
+          id: "uf_quota_reject_2",
+          userId: "usr_test",
+          conversationId: null,
+          contentHash: "quota-reject-2",
+          fileType: "document",
+          fileName: "quota-reject-2.txt",
+          mimeType: "text/plain",
+          fileSize: 10,
+          metadata: { source: "uploaded", retentionClass: "ephemeral" },
+        },
+      ],
+      {
+        userId: "usr_test",
+        quotaBytes: 90,
+        hardBlockUploadsAtQuota: true,
+      },
+    );
+
+    expect(result).toEqual({
+      files: [],
+      insertedBytes: 25,
+      projectedTotalBytes: 105,
+      quotaExceeded: true,
+    });
+    expect(await mapper.findById("uf_quota_reject_1")).toBeNull();
+    expect(await mapper.findById("uf_quota_reject_2")).toBeNull();
+  });
+
+  it("listForAdmin and countForAdmin support filtered inventory browsing", async () => {
+    seedUser(db, "usr_other");
+
+    await mapper.create({
+      id: "uf_admin_1",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "admin-1",
+      fileType: "document",
+      fileName: "briefing.pdf",
+      mimeType: "application/pdf",
+      fileSize: 512,
+      metadata: { retentionClass: "ephemeral" },
+    });
+    await mapper.create({
+      id: "uf_admin_2",
+      userId: "usr_other",
+      conversationId: "conv_1",
+      contentHash: "admin-2",
+      fileType: "video",
+      fileName: "briefing-video.mp4",
+      mimeType: "video/mp4",
+      fileSize: 4096,
+      metadata: { source: "generated", retentionClass: "conversation" },
+    });
+
+    const total = await mapper.countForAdmin({ search: "briefing" });
+    const rows = await mapper.listForAdmin({ search: "briefing", limit: 10, offset: 0 });
+    const attachedOnly = await mapper.listForAdmin({ attached: true, limit: 10, offset: 0 });
+
+    expect(total).toBe(2);
+    expect(rows.map((file) => file.id)).toEqual(["uf_admin_2", "uf_admin_1"]);
+    expect(attachedOnly.map((file) => file.id)).toEqual(["uf_admin_2"]);
+  });
+
+  it("getFleetStorageSummary and listLargestUsersByStorage aggregate across all users", async () => {
+    seedUser(db, "usr_other");
+
+    await mapper.create({
+      id: "uf_fleet_1",
+      userId: "usr_test",
+      conversationId: null,
+      contentHash: "fleet-1",
+      fileType: "audio",
+      fileName: "fleet-1.mp3",
+      mimeType: "audio/mpeg",
+      fileSize: 1000,
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+    await mapper.create({
+      id: "uf_fleet_2",
+      userId: "usr_other",
+      conversationId: "conv_1",
+      contentHash: "fleet-2",
+      fileType: "video",
+      fileName: "fleet-2.mp4",
+      mimeType: "video/mp4",
+      fileSize: 4000,
+      metadata: { source: "generated", retentionClass: "conversation" },
+    });
+    await mapper.create({
+      id: "uf_fleet_3",
+      userId: "usr_other",
+      conversationId: null,
+      contentHash: "fleet-3",
+      fileType: "video",
+      fileName: "fleet-3.mp4",
+      mimeType: "video/mp4",
+      fileSize: 2000,
+      metadata: { source: "generated", retentionClass: "ephemeral" },
+    });
+
+    const summary = await mapper.getFleetStorageSummary();
+    const leaderboard = await mapper.listLargestUsersByStorage(10);
+
+    expect(summary.totalUsers).toBe(2);
+    expect(summary.totalFiles).toBe(3);
+    expect(summary.totalBytes).toBe(7000);
+    expect(summary.attachedFiles).toBe(1);
+    expect(summary.unattachedFiles).toBe(2);
+    expect(summary.byType.audio).toEqual({ files: 1, bytes: 1000 });
+    expect(summary.byType.video).toEqual({ files: 2, bytes: 6000 });
+    expect(summary.byRetentionClass.conversation).toEqual({ files: 1, bytes: 4000 });
+    expect(summary.byRetentionClass.ephemeral).toEqual({ files: 2, bytes: 3000 });
+    expect(summary.bySource.generated).toEqual({ files: 2, bytes: 6000 });
+    expect(summary.bySource.uploaded).toEqual({ files: 1, bytes: 1000 });
+
+    expect(leaderboard).toEqual([
+      { userId: "usr_other", totalFiles: 2, totalBytes: 6000 },
+      { userId: "usr_test", totalFiles: 1, totalBytes: 1000 },
+    ]);
+  });
 });

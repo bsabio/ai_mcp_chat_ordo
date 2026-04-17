@@ -123,6 +123,10 @@ function parseUpdatedAt(updatedAt: string | undefined): number {
   return Number.isNaN(value) ? 0 : value;
 }
 
+function isBrowserRuntimeJobId(jobId: string): boolean {
+  return jobId.startsWith("browser:");
+}
+
 function isEligibleDescriptor(descriptor: CapabilityPresentationDescriptor | undefined): descriptor is CapabilityPresentationDescriptor {
   if (!descriptor) {
     return false;
@@ -225,6 +229,7 @@ export function resolveProgressStrip(
         descriptor,
         canRetryWholeJob:
           descriptor.supportsRetry === "whole_job"
+          && !isBrowserRuntimeJobId(entry.part.jobId)
           && (entry.part.status === "failed" || entry.part.status === "canceled"),
       };
 

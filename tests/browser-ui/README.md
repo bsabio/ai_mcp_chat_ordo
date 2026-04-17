@@ -77,6 +77,10 @@ This directory is the discovery entry point for the browser-focused regression s
   - deferred blog job transcript behaviors in a real browser
   - draft, publish, and article-production job-state survivability
   - runs against the Playwright-managed production server unless `PLAYWRIGHT_BASE_URL` overrides it
+- `tests/browser-ui/media-live-workflows.spec.ts`
+  - real generated-media plus uploaded-media acceptance workflows through the live browser harness
+  - real OpenAI image generation, real TTS, real uploads, and real browser FFmpeg composition
+  - copies inspectable MP4 outputs and a manifest into `test-results/media-e2e-artifacts/<run-id>/`
 
 ## Verification Commands
 
@@ -87,6 +91,8 @@ This directory is the discovery entry point for the browser-focused regression s
 - `npm run test:browser-live:worker`
   - runs the worker-enabled deferred-job browser proof against the Playwright-managed production server
   - seeds a real queued job into the Playwright SQLite database and waits for the live deferred worker to complete it
+- `npm run test:media-live`
+  - runs the live media workflow harness and writes inspectable artifacts to `test-results/media-e2e-artifacts/<run-id>/`
 - `npm run browser:verify:quality`
   - runs browser-focused tests, a production build, and Lighthouse CI guidance
 - `npm run lhci`
@@ -98,5 +104,7 @@ This directory is the discovery entry point for the browser-focused regression s
 - Set `PLAYWRIGHT_BASE_URL` if the live smoke target is not `http://127.0.0.1:3000`.
 - Set `PLAYWRIGHT_BASE_URL` to target an existing deployed or already-running environment instead of the default Playwright-managed server.
 - Set `PLAYWRIGHT_ENABLE_DEFERRED_JOB_WORKER=1` when you need the Playwright-managed server to run the real deferred worker instead of the default worker-disabled smoke mode.
+- Live media workflow copies are written to `test-results/media-e2e-artifacts/<run-id>/`.
+- The app also keeps the governed originals addressable at `/api/user-files/<assetId>` for the authenticated test user during the run.
 - Manual evidence and per-browser acceptance criteria live in `docs/_specs/browser-ui-hardening/artifacts/browser-ui-verification-matrix.md`.
 - Baseline comparison notes live in `docs/_specs/browser-ui-hardening/artifacts/browser-ui-baseline.md`.

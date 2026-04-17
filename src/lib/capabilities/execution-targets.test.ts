@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
+import { planCapabilityExecutionWithDefaults } from "@/core/capability-catalog/execution-planning-policy";
 
 import {
   createExecutionTargetAdapterRegistry,
@@ -17,7 +18,7 @@ import {
 } from "./execution-targets";
 
 describe("execution-target planning", () => {
-  it("keeps host_ts as the default target for admin_web_search and declares MCP as a sidecar candidate", () => {
+  it("keeps host_ts as the raw planner default for admin_web_search when no pack planning context is applied", () => {
     const plan = planCapabilityExecution(CAPABILITY_CATALOG.admin_web_search);
 
     expect(plan.primaryTarget?.kind).toBe("host_ts");
@@ -25,6 +26,18 @@ describe("execution-target planning", () => {
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
       ["host_ts", "active"],
       ["mcp_stdio", "declared"],
+      ["mcp_container", "declared"],
+    ]);
+  });
+
+  it("applies the pack-owned default planning context for admin_web_search", () => {
+    const plan = planCapabilityExecutionWithDefaults(CAPABILITY_CATALOG.admin_web_search);
+
+    expect(plan.primaryTarget?.kind).toBe("mcp_stdio");
+    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["host_ts"]);
+    expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
+      ["mcp_stdio", "active"],
+      ["host_ts", "active"],
       ["mcp_container", "declared"],
     ]);
   });
@@ -94,6 +107,18 @@ describe("execution-target planning", () => {
     expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["deferred_job"]);
   });
 
+  it("applies the pack-owned default planning context for compose_media", () => {
+    const plan = planCapabilityExecutionWithDefaults(CAPABILITY_CATALOG.compose_media);
+
+    expect(plan.primaryTarget?.kind).toBe("browser_wasm");
+    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["native_process", "deferred_job"]);
+    expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
+      ["browser_wasm", "active"],
+      ["native_process", "active"],
+      ["deferred_job", "active"],
+    ]);
+  });
+
   it("falls back to deferred_job for compose_media when browser execution is unavailable", () => {
     const plan = planCapabilityExecution(CAPABILITY_CATALOG.compose_media, {
       browserRuntimeAvailable: false,
@@ -118,6 +143,16 @@ describe("execution-target planning", () => {
       browserRuntimeAvailable: false,
     }).map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
       ["browser_wasm", "declared"],
+    ]);
+  });
+
+  it("applies the pack-owned default planning context for generate_audio", () => {
+    const plan = planCapabilityExecutionWithDefaults(CAPABILITY_CATALOG.generate_audio);
+
+    expect(plan.primaryTarget?.kind).toBe("browser_wasm");
+    expect(plan.fallbackTargets).toEqual([]);
+    expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
+      ["browser_wasm", "active"],
     ]);
   });
 

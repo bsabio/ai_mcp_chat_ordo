@@ -1,0 +1,19 @@
+# Calibration Memo — Chapter 3
+
+The old chapter was called "The Evidence." It presented four cases — AlphaEvolve, Sinclair, the creativity collapse, and NIF fusion — and treated each as independent proof that the inversion is real. The thesis was prosecutorial: four separate exhibits, each sufficient on its own, together forming an irrefutable pattern.
+
+The problem was that the evidence stack did not support the claim. AlphaEvolve was strong. The creativity collapse was honestly hedged but structurally treated as an equal pillar. Sinclair was a detour into biology that weakened thematic coherence. NIF was a legitimate engineering milestone but indirect — a future economic implication, not evidence of the inversion itself. The chapter was asking four pieces of evidence to do the work of proof, and the mismatch between claim strength and evidence quality was its core vulnerability.
+
+The new chapter is called "What the Labs Already Know." The thesis has shifted from proof to institutional signal: *the inversion is not demonstrated by a single benchmark; it is revealed by a growing set of threshold-crossings serious enough that the institutions building these systems are already governing differently.* That is a narrower claim. It is also harder to dismiss.
+
+Three structural moves accomplished the shift:
+
+The first was making Anthropic's system card the spine. The old chapter relied on the reader trusting the chapter's own interpretation of broad trends. The new chapter relies on the reader reading what a frontier lab wrote when it was required to document what its model could do. The seven direct quotations carry the argument. The Machine does not need to overstate because the lab's own language is precise enough to be alarming on its own terms — and precise enough to model calibration, because Anthropic simultaneously reports a "striking leap" and says "current risks remain low." That dual register — real capability increase, not yet catastrophic — is exactly the tone the Machine voice should have.
+
+The second was narrowing from four cases to two. Sinclair was removed because it does not fit the AI capability thesis. The creativity collapse was folded into the broader pattern rather than presented as a separate pillar. NIF was removed because it is an indirect economic amplifier, not a direct institutional signal. What remains is Anthropic (institutional behavior change) and AlphaEvolve (capability threshold-crossing in a high-prestige reasoning domain). Two strong cases, tightly argued, are more credible than four mixed ones.
+
+The third was recalibrating AlphaEvolve. The old chapter said "the machine discovered mathematics" as a section heading. The new chapter describes the result as a "threshold-crossing" and explicitly declines to adjudicate whether it constitutes "discovery in the philosophical sense." The factual content is the same — 49 to 48 multiplications, 56 years of prior human effort, novel result without human guidance on the proof. The rhetorical positioning is different: impressive and careful, rather than triumphant.
+
+The Machine voice is now forensic rather than prosecutorial. It reads from the record. It quotes directly. It qualifies where the source qualifies. It says "I am not asking you to trust hype. I am asking you to read the file." That is the voice Keith's spec calls for: precise, bounded, honest about the edges of its claims.
+
+The Architect re-enters at the end to honor Rule 2. The care arrives within a page of the hardest evidence. But instead of declaring the data irrefutable, Keith says: "this is why I stopped treating the inversion as a debate about the future and started treating it as a decision about how to live now." That shifts the chapter from verdict to orientation — which is what the reader needs, and what connects this chapter to Part II.

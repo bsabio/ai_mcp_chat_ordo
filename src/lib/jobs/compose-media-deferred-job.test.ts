@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { JobEvent, JobRequest } from "@/core/entities/job";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 
+const { appendRuntimeAuditLogMock } = vi.hoisted(() => ({
+  appendRuntimeAuditLogMock: vi.fn(async () => undefined),
+}));
+
+vi.mock("@/lib/observability/runtime-audit-log", () => ({
+  appendRuntimeAuditLog: appendRuntimeAuditLogMock,
+}));
+
 import {
   enqueueComposeMediaDeferredJob,
   InvalidComposeMediaDeferredJobError,
@@ -86,6 +94,10 @@ function createRepositoryMock(overrides: Partial<JobQueueRepository> = {}): JobQ
 }
 
 describe("compose-media-deferred-job", () => {
+  beforeEach(() => {
+    appendRuntimeAuditLogMock.mockClear();
+  });
+
   it("creates a queued compose_media deferred job payload with a renderable event", async () => {
     const repository = createRepositoryMock();
 
@@ -107,12 +119,24 @@ describe("compose-media-deferred-job", () => {
     expect(repository.findActiveJobByDedupeKey).toHaveBeenCalledWith("conv_media_1", "compose_media:plan_media_1");
     expect(repository.createJob).toHaveBeenCalledTimes(1);
     expect(repository.appendEvent).toHaveBeenCalledTimes(1);
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "deferred_job",
+      "enqueued",
+      expect.objectContaining({
+        jobId: "job_media_1",
+        planId: "plan_media_1",
+        dedupeKey: "compose_media:plan_media_1",
+        deduplicated: false,
+        status: "queued",
+      }),
+    );
     expect(result.deduplicated).toBe(false);
     expect(result.payload).toMatchObject({
       deferred_job: {
         jobId: "job_media_1",
         toolName: "compose_media",
         status: "queued",
+        lifecyclePhase: "compose_queued_deferred",
         resultEnvelope: expect.objectContaining({
           toolName: "compose_media",
           executionMode: "deferred",
@@ -163,12 +187,23 @@ describe("compose-media-deferred-job", () => {
 
     expect(repository.createJob).not.toHaveBeenCalled();
     expect(repository.appendEvent).not.toHaveBeenCalled();
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "deferred_job",
+      "enqueue_deduplicated",
+      expect.objectContaining({
+        jobId: "job_media_existing",
+        planId: "plan_media_1",
+        deduplicated: true,
+        status: "running",
+      }),
+    );
     expect(result.deduplicated).toBe(true);
     expect(result.payload).toMatchObject({
       deferred_job: {
         jobId: "job_media_existing",
         toolName: "compose_media",
         status: "running",
+        lifecyclePhase: "compose_running_deferred",
         deduped: true,
       },
     });
@@ -188,5 +223,6 @@ describe("compose-media-deferred-job", () => {
 
     expect(repository.findActiveJobByDedupeKey).not.toHaveBeenCalled();
     expect(repository.createJob).not.toHaveBeenCalled();
+    expect(appendRuntimeAuditLogMock).not.toHaveBeenCalled();
   });
 });

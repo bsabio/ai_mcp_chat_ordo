@@ -18,6 +18,9 @@ export interface DeferredJobEnvelope {
   progressLabel?: string | null;
   summary?: string;
   error?: string;
+  lifecyclePhase?: JobStatusMessagePart["lifecyclePhase"];
+  failureCode?: JobStatusMessagePart["failureCode"];
+  failureStage?: JobStatusMessagePart["failureStage"];
   resultPayload?: unknown;
   resultEnvelope?: CapabilityResultEnvelope | null;
   failureClass?: JobStatusMessagePart["failureClass"];
@@ -53,6 +56,9 @@ export function createDeferredJobResultPayload(
       progressLabel: part.progressLabel,
       summary: part.summary,
       error: part.error,
+      lifecyclePhase: part.lifecyclePhase,
+      failureCode: part.failureCode,
+      failureStage: part.failureStage,
       resultPayload: job.resultPayload ?? part.resultPayload,
       resultEnvelope: part.resultEnvelope ?? null,
       failureClass: part.failureClass,
@@ -97,6 +103,9 @@ export function deferredJobResultToMessagePart(payload: DeferredJobResultPayload
     progressLabel: deferredJob.progressLabel ?? envelopeProgress?.label,
     summary,
     error: deferredJob.error,
+    lifecyclePhase: deferredJob.lifecyclePhase,
+    failureCode: deferredJob.failureCode,
+    failureStage: deferredJob.failureStage,
     resultPayload: deferredJob.resultPayload,
     resultEnvelope,
     failureClass: deferredJob.failureClass,

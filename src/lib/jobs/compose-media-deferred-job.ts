@@ -5,6 +5,7 @@ import type {
 } from "@/core/entities/job";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import { normalizeMediaCompositionPlan, validatePlanConstraints } from "@/lib/media/ffmpeg/media-composition-plan";
+import { appendRuntimeAuditLog } from "@/lib/observability/runtime-audit-log";
 
 import type { DeferredJobResultPayload } from "./deferred-job-result";
 import {
@@ -59,6 +60,24 @@ export async function enqueueComposeMediaDeferredJob(
     initiatorType: options.initiatorType,
     priority: options.priority ?? 5,
   });
+
+  await appendRuntimeAuditLog(
+    "deferred_job",
+    result.deduplicated ? "enqueue_deduplicated" : "enqueued",
+    {
+      jobId: result.job.id,
+      eventId: result.event.id,
+      toolName: result.job.toolName,
+      conversationId: options.conversationId,
+      userId: options.userId,
+      planId: plan.id,
+      dedupeKey,
+      deduplicated: result.deduplicated,
+      initiatorType: options.initiatorType ?? "user",
+      priority: options.priority ?? 5,
+      status: result.job.status,
+    },
+  );
 
   return result;
 }

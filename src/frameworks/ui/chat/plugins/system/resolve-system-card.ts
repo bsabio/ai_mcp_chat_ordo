@@ -14,6 +14,19 @@ export interface ResolveSystemCardInput {
   resultEnvelope?: CapabilityResultEnvelope | null;
 }
 
+function shouldPreferMediaFailureCard(input: ResolveSystemCardInput): boolean {
+  if (!input.part || (input.part.status !== "failed" && input.part.status !== "canceled")) {
+    return false;
+  }
+
+  if (input.part.toolName === "generate_audio") {
+    return true;
+  }
+
+  return input.part.toolName === "compose_media"
+    && Boolean(input.resultEnvelope ?? input.part.resultEnvelope);
+}
+
 export function humanizeSystemToolName(toolName: string): string {
   return humanizeCapabilityToolName(toolName);
 }
@@ -53,6 +66,10 @@ export function hasInlineToolCallError(
 }
 
 export function resolveSystemCardKind(input: ResolveSystemCardInput): SystemCardKind {
+  if (shouldPreferMediaFailureCard(input)) {
+    return null;
+  }
+
   if (input.part && (input.part.status === "failed" || input.part.status === "canceled")) {
     return "error";
   }

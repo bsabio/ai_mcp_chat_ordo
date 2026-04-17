@@ -114,6 +114,26 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     accountVisibility: SIGNED_IN_ROLES,
   },
   {
+    id: "my-media",
+    label: "My Media",
+    href: "/my/media",
+    kind: "internal",
+    description: "Browse governed personal media, preview assets, and clean up unattached files.",
+    footerVisibility: SIGNED_IN_ROLES,
+    accountVisibility: SIGNED_IN_ROLES,
+    showInCommands: true,
+  },
+  {
+    id: "operations-media",
+    label: "Media Ops",
+    href: "/operations/media",
+    kind: "internal",
+    description: "Inspect governed media across the fleet without widening the admin shell.",
+    footerVisibility: ["STAFF", "ADMIN"],
+    accountVisibility: ["STAFF", "ADMIN"],
+    showInCommands: true,
+  },
+  {
     id: "journal-admin",
     label: "Journal",
     href: "/admin/journal",
@@ -325,7 +345,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   {
     id: "workspace",
     label: "Workspace",
-    routeIds: ["profile"],
+    routeIds: ["operations-media", "profile"],
     visibility: SIGNED_IN_ROLES,
   },
   {
@@ -337,7 +357,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
 ] as const;
 
 export const PRIMARY_NAV_ROUTE_IDS = ["corpus", "journal"] as const;
-export const ACCOUNT_MENU_ROUTE_IDS = ["jobs", "profile"] as const;
+export const ACCOUNT_MENU_ROUTE_IDS = ["jobs", "my-media", "operations-media", "profile"] as const;
 export const RAIL_MENU_ROUTE_IDS = ["corpus", "journal"] as const;
 
 export const SHELL_NAV_DRAWER_GROUPS: readonly ShellNavDrawerGroup[] = [
@@ -352,7 +372,7 @@ export const SHELL_NAV_DRAWER_GROUPS: readonly ShellNavDrawerGroup[] = [
     id: "workspace",
     label: "Workspace",
     description: "Open signed-in work surfaces and personal context.",
-    routeIds: ["jobs", "profile"],
+    routeIds: ["jobs", "my-media", "operations-media", "profile"],
     visibility: SIGNED_IN_ROLES,
   },
 ] as const;

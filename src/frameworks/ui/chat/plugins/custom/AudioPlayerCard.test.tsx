@@ -58,4 +58,25 @@ describe("AudioPlayerCard", () => {
       "Founder memo:user-file-cache:uf_audio_1",
     );
   });
+
+  it("renders canonical failure metadata for terminal audio jobs", () => {
+    render(
+      <AudioPlayerCard
+        part={createPart({
+          status: "failed",
+          lifecyclePhase: "generation_failed_terminal",
+          failureStage: "asset_generation",
+          failureCode: "tts_provider_failed",
+          error: "Speech provider failed.",
+          title: "Founder memo",
+        })}
+        isStreaming={false}
+      />,
+    );
+
+    expect(screen.getByRole("alert", { name: "Generate Audio result" })).toBeInTheDocument();
+    expect(screen.getByText("Speech provider failed.")).toBeInTheDocument();
+    expect(screen.getByText("Asset Generation")).toBeInTheDocument();
+    expect(screen.getByText("tts_provider_failed")).toBeInTheDocument();
+  });
 });

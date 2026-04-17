@@ -7,6 +7,9 @@ import { describe, expect, it } from "vitest";
 import {
   createRuntimeIntegrityQaEvidence,
   createRuntimeInventory,
+  RUNTIME_INTEGRITY_BROWSER_PROOF_SPECS,
+  RUNTIME_INTEGRITY_FOCUSED_TEST_SUITES,
+  RUNTIME_INTEGRITY_GOVERNED_DELIVERY_ROUTES,
   writeRuntimeIntegrityQaEvidenceArtifact,
 } from "@/lib/evals/runtime-integrity-evidence";
 import { createEliteOpsEvidence } from "@/lib/evals/elite-ops-evidence";
@@ -36,6 +39,8 @@ describe("runtime integrity evidence", () => {
     expect(inventory.tools.manifestsByRole.ANONYMOUS.map((entry) => entry.name)).toContain("navigate_to_page");
     expect(inventory.tools.manifestsByRole.ANONYMOUS.map((entry) => entry.name)).not.toContain("navigate");
     expect(inventory.navigation.routesByRole.ANONYMOUS.some((route) => route.href === "/library")).toBe(true);
+    expect(inventory.navigation.routesByRole.AUTHENTICATED.some((route) => route.href === "/my/media")).toBe(true);
+    expect(inventory.navigation.routesByRole.STAFF.some((route) => route.href === "/operations/media")).toBe(true);
     expect(inventory.mcp.processCount).toBe(3);
     expect(inventory.mcp.processes).toEqual(
       expect.arrayContaining([
@@ -116,6 +121,20 @@ describe("runtime integrity evidence", () => {
     expect(fs.existsSync(artifactPath)).toBe(true);
     expect(JSON.parse(fs.readFileSync(artifactPath, "utf8"))).toEqual(evidence);
     expect(evidence.inventory.mcp.processCount).toBe(3);
+    expect(evidence.coverage.focusedTestSuites).toEqual(expect.arrayContaining([
+      "src/hooks/chat/useBrowserCapabilityRuntime.test.tsx",
+      "src/app/api/chat/uploads/route.test.ts",
+      "src/app/api/user-files/[id]/route.test.ts",
+      "src/app/my/media/page.test.tsx",
+      "src/app/operations/media/page.test.tsx",
+    ]));
+    expect(evidence.coverage.focusedTestSuites).toEqual(expect.arrayContaining([...RUNTIME_INTEGRITY_FOCUSED_TEST_SUITES]));
+    expect(evidence.coverage.browserProofSpecs).toEqual([...RUNTIME_INTEGRITY_BROWSER_PROOF_SPECS]);
+    expect(evidence.coverage.governedDeliveryRoutes).toEqual([...RUNTIME_INTEGRITY_GOVERNED_DELIVERY_ROUTES]);
+    expect(evidence.coverage.notes).toEqual(expect.arrayContaining([
+      expect.stringContaining("Phase 6 media hardening"),
+      expect.stringContaining("Browser proof remains a distinct release input"),
+    ]));
     const regeneratedEliteOps = createEliteOpsEvidence({
       inventoryMcpProcesses: evidence.inventory.mcp.processes.map((process) => ({
         id: process.id,

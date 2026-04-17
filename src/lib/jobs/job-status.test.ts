@@ -278,4 +278,79 @@ describe("job-status", () => {
     expect(part.resultEnvelope?.progress).toBeUndefined();
     expect(describeJobStatus(part)).toContain("failed: Request timed out.");
   });
+
+  it("publishes compose_media deferred progress with canonical deferred lifecycle metadata", () => {
+    const part = buildJobStatusPartFromProjection(
+      {
+        id: "job_media_7",
+        status: "running",
+        toolName: "compose_media",
+        requestPayload: { plan: { id: "plan_media_7" } },
+        progressPercent: 42,
+        progressLabel: "Uploading composition artifact",
+        resultPayload: null,
+        errorMessage: null,
+        failureClass: null,
+        recoveryMode: "rerun",
+        replayedFromJobId: null,
+        supersededByJobId: null,
+      },
+      {
+        id: "evt_media_7",
+        jobId: "job_media_7",
+        conversationId: "conv_media_7",
+        sequence: 4,
+        eventType: "progress",
+        payload: {
+          progressPercent: 42,
+          progressLabel: "Uploading composition artifact",
+        },
+        createdAt: "2026-04-10T12:30:00.000Z",
+      },
+    );
+
+    expect(part).toMatchObject({
+      lifecyclePhase: "compose_running_deferred",
+      failureCode: null,
+      failureStage: null,
+      recoveryMode: "rerun",
+    });
+  });
+
+  it("publishes compose_media deferred failures with explicit canonical failure metadata", () => {
+    const part = buildJobStatusPartFromProjection(
+      {
+        id: "job_media_8",
+        status: "failed",
+        toolName: "compose_media",
+        requestPayload: { plan: { id: "plan_media_8" } },
+        progressPercent: null,
+        progressLabel: null,
+        resultPayload: null,
+        errorMessage: "Remote FFmpeg failed.",
+        failureClass: "terminal",
+        recoveryMode: "rerun",
+        replayedFromJobId: null,
+        supersededByJobId: null,
+      },
+      {
+        id: "evt_media_8",
+        jobId: "job_media_8",
+        conversationId: "conv_media_8",
+        sequence: 5,
+        eventType: "failed",
+        payload: {
+          errorMessage: "Remote FFmpeg failed.",
+        },
+        createdAt: "2026-04-10T12:35:00.000Z",
+      },
+    );
+
+    expect(part).toMatchObject({
+      lifecyclePhase: "compose_failed_terminal",
+      failureCode: "deferred_execution_failed",
+      failureStage: "deferred_execution",
+      failureClass: "terminal",
+    });
+  });
 });

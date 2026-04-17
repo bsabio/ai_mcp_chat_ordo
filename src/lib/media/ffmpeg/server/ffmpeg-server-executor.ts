@@ -8,6 +8,7 @@ import {
   COMPOSE_MEDIA_COMPLETE_LABEL,
   type ComposeMediaProgressPhaseKey,
 } from "@/lib/media/compose-media-progress";
+import { getMediaCompositionProfileSettings, resolveMediaCompositionProfile } from "../media-composition-profile";
 
 /** Path to the system FFmpeg binary on this machine or container. */
 const FFMPEG_BIN = process.env["FFMPEG_BIN"]
@@ -24,6 +25,12 @@ export interface ServerMediaExecutorResult {
   outputPath: string;
   mimeType: string;
   durationSeconds?: number;
+}
+
+function buildConcatManifest(paths: string[]): string {
+  return paths
+    .map((inputPath) => `file '${inputPath.replace(/'/g, String.raw`'\\''`)}'`)
+    .join("\n");
 }
 
 /**
@@ -54,6 +61,8 @@ export class FfmpegServerExecutor {
     try {
       // Build input args from plan
       const args = buildFfmpegArgs(plan, workDir, context);
+      const resolvedProfile = resolveMediaCompositionProfile(plan);
+      const profileSettings = getMediaCompositionProfileSettings(resolvedProfile);
 
       onProgress(20, "rendering_media");
 
@@ -80,29 +89,35 @@ export class FfmpegServerExecutor {
           planId: plan.id,
           visualClips: plan.visualClips.length,
           audioClips: plan.audioClips.length,
+          profile: resolvedProfile,
           subtitlePolicy: plan.subtitlePolicy,
           outputFormat: plan.outputFormat,
+          resolution: plan.resolution ?? null,
         },
         summary: {
           title: "Media Composition",
-          subtitle: `${plan.outputFormat.toUpperCase()} · Server · ${formatBytes(stat.size)}`,
+          subtitle: `${plan.outputFormat.toUpperCase()} · Server · ${profileSettings.label} · ${plan.resolution?.width ?? 0}x${plan.resolution?.height ?? 0} · ${formatBytes(stat.size)}`,
           statusLine: "succeeded",
         },
         replaySnapshot: {
           route: "deferred_server",
           planId: plan.id,
+          profile: resolvedProfile,
           outputFormat: plan.outputFormat,
           outputBytes: stat.size,
+          resolution: plan.resolution ?? null,
         },
         progress: { percent: 100, label: COMPOSE_MEDIA_COMPLETE_LABEL },
         artifacts: [], // populated by the job handler after persisting to user_files
         payload: {
           route: "deferred_server",
           planId: plan.id,
+          profile: resolvedProfile,
           outputPath,      // handler consumes this to persist to user_files
           outputFormat: plan.outputFormat,
           outputBytes: stat.size,
           mimeType,
+          resolution: plan.resolution ?? null,
         },
       };
 
@@ -126,6 +141,8 @@ function buildFfmpegArgs(
   context?: ServerMediaExecutorContext,
 ): string[] {
   const args: string[] = ["-y"]; // overwrite without prompt
+  const resolvedProfile = resolveMediaCompositionProfile(plan);
+  const profileSettings = getMediaCompositionProfileSettings(resolvedProfile);
 
   // Add visual inputs
   const visualInputs = plan.visualClips
@@ -157,10 +174,89 @@ function buildFfmpegArgs(
     );
   }
 
+  if (resolvedProfile === "still_image_narration_fast" && hasVisual) {
+    const imagePath = visualInputs[0];
+    args.length = 1;
+    args.push(
+      "-loop",
+      "1",
+      "-framerate",
+      String(profileSettings.serverEncode.imageInputFramerate),
+      "-i",
+      imagePath,
+    );
+
+    if (hasAudio) {
+      args.push("-i", audioInputs[0]);
+    }
+
+    args.push(
+      ...profileSettings.serverEncode.videoCodecArgs,
+      "-r",
+      String(profileSettings.serverEncode.outputFramerate),
+      "-vf",
+      `scale=${plan.resolution?.width ?? 720}:${plan.resolution?.height ?? 1280},fps=${profileSettings.serverEncode.outputFramerate}`,
+    );
+
+    if (hasAudio) {
+      args.push(...profileSettings.serverEncode.audioCodecArgs, "-shortest");
+    } else {
+      args.push("-t", String(plan.visualClips[0]?.duration ?? 5));
+    }
+
+    if (plan.outputFormat === "mp4") {
+      args.push("-movflags", "+faststart");
+    }
+
+    const outputFilename = `output-${plan.id}.${plan.outputFormat}`;
+    args.push(path.join(workDir, outputFilename));
+    return args;
+  }
+
+  const isMultiVideoSequence = resolvedProfile === "multi_video_standard"
+    && visualInputs.length > 1
+    && plan.visualClips.length === visualInputs.length
+    && plan.visualClips.every((clip) => clip.kind === "video");
+
+  if (isMultiVideoSequence) {
+    const concatManifestPath = path.join(workDir, "concat.txt");
+    fs.writeFileSync(concatManifestPath, buildConcatManifest(visualInputs), "utf8");
+
+    args.length = 1;
+    args.push("-f", "concat", "-safe", "0", "-i", concatManifestPath);
+
+    if (plan.outputFormat === "mp4") {
+      args.push(
+        ...profileSettings.serverEncode.videoCodecArgs,
+        "-r",
+        String(profileSettings.serverEncode.outputFramerate),
+      );
+      if (plan.resolution) {
+        args.push(
+          "-vf",
+          `scale=${plan.resolution.width}:${plan.resolution.height},fps=${profileSettings.serverEncode.outputFramerate}`,
+        );
+      }
+      args.push(...profileSettings.serverEncode.audioCodecArgs, "-movflags", "+faststart");
+    } else {
+      args.push("-c:v", "libvpx-vp9", "-c:a", "libopus");
+      if (plan.resolution) {
+        args.push(
+          "-vf",
+          `scale=${plan.resolution.width}:${plan.resolution.height},fps=${profileSettings.serverEncode.outputFramerate}`,
+        );
+      }
+    }
+
+    const outputFilename = `output-${plan.id}.${plan.outputFormat}`;
+    args.push(path.join(workDir, outputFilename));
+    return args;
+  }
+
   // Codec selection
   if (plan.outputFormat === "mp4") {
-    args.push("-c:v", "libx264", "-preset", "fast", "-crf", "23");
-    if (hasAudio || !hasVisual) args.push("-c:a", "aac");
+    args.push(...profileSettings.serverEncode.videoCodecArgs);
+    if (hasAudio || !hasVisual) args.push(...profileSettings.serverEncode.audioCodecArgs);
     args.push("-movflags", "+faststart");
   } else {
     args.push("-c:v", "libvpx-vp9");
@@ -169,7 +265,7 @@ function buildFfmpegArgs(
 
   // Resolution if specified
   if (plan.resolution) {
-    args.push("-vf", `scale=${plan.resolution.width}:${plan.resolution.height}`);
+    args.push("-vf", `scale=${plan.resolution.width}:${plan.resolution.height},fps=${profileSettings.serverEncode.outputFramerate}`);
   }
 
   const outputFilename = `output-${plan.id}.${plan.outputFormat}`;

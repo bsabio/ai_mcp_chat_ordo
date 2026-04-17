@@ -299,4 +299,87 @@ describe("resolveProgressStrip", () => {
       progressPercent: null,
     });
   });
+
+  it("does not advertise whole-job retry for synthetic browser runtime jobs", () => {
+    const messages = [
+      makeMessage([
+        makeJobEntry("browser:msg_1:compose_media:18", {
+          part: {
+            type: "job_status",
+            jobId: "browser:msg_1:compose_media:18",
+            toolName: "produce_blog_article",
+            label: "Produce Blog Article",
+            status: "failed",
+            updatedAt: "2026-04-08T12:06:00.000Z",
+          },
+        }),
+      ]),
+    ];
+
+    const [item] = resolveProgressStrip(messages, () => deferredDescriptor);
+    expect(item).toMatchObject({
+      jobId: "browser:msg_1:compose_media:18",
+      canRetryWholeJob: false,
+    });
+  });
+
+  it("prefers the deferred replacement when a synthetic browser job is superseded", () => {
+    const messages = [
+      makeMessage([
+        makeJobEntry("browser:msg_1:compose_media:18", {
+          descriptor: {
+            ...deferredDescriptor,
+            toolName: "compose_media",
+            label: "Compose Media",
+            executionMode: "hybrid",
+          },
+          part: {
+            type: "job_status",
+            jobId: "browser:msg_1:compose_media:18",
+            toolName: "compose_media",
+            label: "Compose Media",
+            status: "failed",
+            supersededByJobId: "job_media_deferred_18",
+            updatedAt: "2026-04-08T12:06:00.000Z",
+          },
+        }),
+        makeJobEntry("job_media_deferred_18", {
+          descriptor: {
+            ...deferredDescriptor,
+            toolName: "compose_media",
+            label: "Compose Media",
+            executionMode: "deferred",
+          },
+          part: {
+            type: "job_status",
+            jobId: "job_media_deferred_18",
+            toolName: "compose_media",
+            label: "Compose Media",
+            status: "queued",
+            updatedAt: "2026-04-08T12:06:05.000Z",
+          },
+        }),
+      ]),
+    ];
+
+    const items = resolveProgressStrip(messages, (toolName) => {
+      if (toolName === "compose_media") {
+        return {
+          ...deferredDescriptor,
+          toolName,
+          label: "Compose Media",
+          executionMode: "hybrid",
+        };
+      }
+
+      return deferredDescriptor;
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      jobId: "job_media_deferred_18",
+      status: "queued",
+      label: "Compose Media",
+    });
+  });
 });

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { normalizeMediaCompositionPlan, validatePlanConstraints } from "./media-composition-plan";
+import {
+  DEFAULT_MEDIA_COMPOSITION_RESOLUTION,
+  normalizeMediaCompositionPlan,
+  validatePlanConstraints,
+} from "./media-composition-plan";
+import { FAST_STILL_IMAGE_NARRATION_RESOLUTION } from "./media-composition-profile";
 
 describe("media-composition-plan — normalization", () => {
   it("normalizes a valid plan with a sidecar subtitle policy", () => {
@@ -21,13 +26,38 @@ describe("media-composition-plan — normalization", () => {
     const raw = {
       id: "plan-defaults",
       conversationId: "conv-defaults",
-      visualClips: [],
+      visualClips: [{ assetId: "image-1", kind: "image" }],
       audioClips: [{ assetId: "audio-1", kind: "audio" }],
     };
     const parsed = normalizeMediaCompositionPlan(raw);
+    expect(parsed?.profile).toBe("auto");
     expect(parsed?.subtitlePolicy).toBe("none");
     expect(parsed?.waveformPolicy).toBe("none");
     expect(parsed?.outputFormat).toBe("mp4");
+    expect(parsed?.resolution).toEqual(FAST_STILL_IMAGE_NARRATION_RESOLUTION);
+  });
+
+  it("uses the standard default resolution for non-narration plans", () => {
+    const raw = {
+      id: "plan-video-defaults",
+      conversationId: "conv-video-defaults",
+      visualClips: [{ assetId: "video-1", kind: "video" }],
+      audioClips: [],
+    };
+    const parsed = normalizeMediaCompositionPlan(raw);
+    expect(parsed?.resolution).toEqual(DEFAULT_MEDIA_COMPOSITION_RESOLUTION);
+  });
+
+  it("preserves an explicit resolution override", () => {
+    const raw = {
+      id: "plan-resolution",
+      conversationId: "conv-resolution",
+      visualClips: [{ assetId: "image-1", kind: "image" }],
+      audioClips: [],
+      resolution: { width: 1920, height: 1080 },
+    };
+    const parsed = normalizeMediaCompositionPlan(raw);
+    expect(parsed?.resolution).toEqual({ width: 1920, height: 1080 });
   });
 
   it("fails to normalize a plan missing required fields", () => {
@@ -87,6 +117,18 @@ describe("media-composition-plan — constraint validation", () => {
     expect(validatePlanConstraints(plan)).toBeNull();
   });
 
+  it("rejects explicit still image narration profiles with non-image visuals", () => {
+    const plan = {
+      id: "p3b", conversationId: "c1",
+      profile: "still_image_narration_fast",
+      visualClips: [{ assetId: "v1", kind: "video" }],
+      audioClips: [{ assetId: "a1", kind: "audio" }],
+      subtitlePolicy: "none", waveformPolicy: "none", outputFormat: "mp4",
+      resolution: { width: 720, height: 1280 },
+    } as any;
+    expect(validatePlanConstraints(plan)).toBe("The still_image_narration_fast profile requires exactly one image visual clip.");
+  });
+
   it("passes a sidecar subtitle plan with visual content", () => {
     const plan = {
       id: "p4", conversationId: "c1",
@@ -95,5 +137,38 @@ describe("media-composition-plan — constraint validation", () => {
       subtitlePolicy: "sidecar", waveformPolicy: "none", outputFormat: "mp4",
     } as any;
     expect(validatePlanConstraints(plan)).toBeNull();
+  });
+
+  it("rejects odd-numbered output dimensions that break h264 compatibility", () => {
+    const plan = {
+      id: "p5", conversationId: "c1",
+      visualClips: [{ assetId: "v1", kind: "video" }],
+      audioClips: [],
+      subtitlePolicy: "none", waveformPolicy: "none", outputFormat: "mp4",
+      resolution: { width: 1079, height: 1921 },
+    } as any;
+    expect(validatePlanConstraints(plan)).toBe("Resolution width and height must be even numbers.");
+  });
+
+  it("rejects chart and graph source assets as visual clips for composition", () => {
+    const plan = {
+      id: "p6", conversationId: "c1",
+      visualClips: [{ assetId: "chart_1", kind: "chart" }],
+      audioClips: [{ assetId: "audio_1", kind: "audio" }],
+      subtitlePolicy: "none", waveformPolicy: "none", outputFormat: "mp4",
+      resolution: { width: 1080, height: 1920 },
+    } as any;
+    expect(validatePlanConstraints(plan)).toBe("Visual clips must be image or video assets. Charts and graphs must be rendered to an image before video composition.");
+  });
+
+  it("rejects non-audio assets in the audio track list", () => {
+    const plan = {
+      id: "p7", conversationId: "c1",
+      visualClips: [{ assetId: "image_1", kind: "image" }],
+      audioClips: [{ assetId: "video_1", kind: "video" }],
+      subtitlePolicy: "none", waveformPolicy: "none", outputFormat: "mp4",
+      resolution: { width: 1080, height: 1920 },
+    } as any;
+    expect(validatePlanConstraints(plan)).toBe("Audio clips must be audio assets.");
   });
 });

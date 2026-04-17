@@ -6,6 +6,8 @@ import {
   projectUserFileToConversationMediaAssetCandidate,
   projectUserFileToArtifactRef,
   projectUserFileToMediaAssetDescriptor,
+  resolveUserFileRetentionClass,
+  resolveUserFileSource,
 } from "./media-asset-projection";
 import type { UserFile } from "@/core/entities/user-file";
 
@@ -124,6 +126,13 @@ describe("media-asset-projection", () => {
       height: 630,
       source: "uploaded",
     });
+  });
+
+  it("normalizes source and retention defaults without reparsing metadata_json in callers", () => {
+    expect(resolveUserFileSource(createUserFile({ fileType: "subtitle", metadata: {} }))).toBe("generated");
+    expect(resolveUserFileSource(createUserFile({ fileType: "document", metadata: {} }))).toBe("uploaded");
+    expect(resolveUserFileRetentionClass(createUserFile({ conversationId: null, metadata: {} }))).toBe("ephemeral");
+    expect(resolveUserFileRetentionClass(createUserFile({ metadata: { retentionClass: "durable" } }))).toBe("durable");
   });
 
   it("preserves stable artifact metadata when projecting a media descriptor directly", () => {

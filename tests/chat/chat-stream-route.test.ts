@@ -1116,7 +1116,7 @@ describe("POST /api/chat/stream", () => {
       toolName: "draft_content",
       label: "Draft Content",
       title: "Deferred Post",
-      subtitle: "Draft journal article",
+      subtitle: "Draft a structured journal article and persist the draft for editorial review.",
       updatedAt: "2026-03-25T03:00:00.000Z",
       part: expect.objectContaining({
         type: "job_status",
@@ -1124,13 +1124,15 @@ describe("POST /api/chat/stream", () => {
         toolName: "draft_content",
         label: "Draft Content",
         title: "Deferred Post",
-        subtitle: "Draft journal article",
+        subtitle: "Draft a structured journal article and persist the draft for editorial review.",
         status: "queued",
         sequence: 7,
         updatedAt: "2026-03-25T03:00:00.000Z",
         resultEnvelope: expect.objectContaining({
           schemaVersion: 1,
           toolName: "draft_content",
+          executionMode: "deferred",
+          family: "editorial",
         }),
       }),
     }));
@@ -1139,7 +1141,13 @@ describe("POST /api/chat/stream", () => {
       parts: Array<Record<string, unknown>>;
     };
     expect(assistantPersistCall.parts).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: "job_status", jobId: "job_draft_1", title: "Deferred Post", subtitle: "Draft journal article", status: "queued" }),
+      expect.objectContaining({
+        type: "job_status",
+        jobId: "job_draft_1",
+        title: "Deferred Post",
+        subtitle: "Draft a structured journal article and persist the draft for editorial review.",
+        status: "queued",
+      }),
     ]));
   });
 
@@ -1239,7 +1247,7 @@ describe("POST /api/chat/stream", () => {
       toolName: "publish_content",
       label: "Publish Content",
       title: "Publish journal draft post_1",
-      subtitle: "Make the saved article live in the journal",
+      subtitle: "Publish an editorial draft and align any linked hero assets for public visibility.",
       updatedAt: "2026-03-25T03:00:00.000Z",
       part: expect.objectContaining({
         type: "job_status",
@@ -1247,13 +1255,15 @@ describe("POST /api/chat/stream", () => {
         toolName: "publish_content",
         label: "Publish Content",
         title: "Publish journal draft post_1",
-        subtitle: "Make the saved article live in the journal",
+        subtitle: "Publish an editorial draft and align any linked hero assets for public visibility.",
         status: "queued",
         sequence: 8,
         updatedAt: "2026-03-25T03:00:00.000Z",
         resultEnvelope: expect.objectContaining({
           schemaVersion: 1,
           toolName: "publish_content",
+          executionMode: "deferred",
+          family: "editorial",
         }),
       }),
     }));

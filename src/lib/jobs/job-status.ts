@@ -13,6 +13,7 @@ import {
 import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
 import { getJobCapability } from "@/lib/jobs/job-capability-registry";
 import { normalizeJobProgressState } from "@/lib/jobs/job-progress-state";
+import { normalizeMediaRuntimeState } from "@/lib/media/browser-runtime/media-runtime-normalization";
 
 type JobStatusProjection = Pick<
   JobRequest,
@@ -29,6 +30,13 @@ type JobStatusProjection = Pick<
   | "replayedFromJobId"
   | "supersededByJobId"
 >;
+
+const CANONICAL_MEDIA_JOB_NAMES = new Set([
+  "compose_media",
+  "generate_audio",
+  "generate_chart",
+  "generate_graph",
+]);
 
 export function projectJobForEvent(
   job: Pick<JobRequest, "id" | "status" | "toolName" | "requestPayload" | "failureClass" | "recoveryMode" | "replayedFromJobId" | "supersededByJobId">,
@@ -113,6 +121,41 @@ function compactText(value: string, maxLength = 84): string {
 
 function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readStringOrNull(value: unknown): string | null | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  return readString(value);
+}
+
+function readFailureStage(value: unknown): JobStatusMessagePart["failureStage"] | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  switch (value) {
+    case "asset_generation":
+      return "asset_generation";
+    case "composition_preflight":
+      return "composition_preflight";
+    case "local_execution":
+      return "local_execution";
+    case "playback_verification":
+      return "playback_verification";
+    case "deferred_enqueue":
+      return "deferred_enqueue";
+    case "deferred_execution":
+      return "deferred_execution";
+    case "recovery":
+      return "recovery";
+    case "unknown":
+      return "unknown";
+    default:
+      return undefined;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -313,6 +356,22 @@ export function buildJobStatusPartFromProjection(
   });
   const envelopeSummary = resultEnvelope?.summary;
   const envelopeProgress = resultEnvelope?.progress;
+  const canonicalFailureCode = readStringOrNull(payload.failureCode)
+    ?? (job.toolName === "compose_media" && status === "failed" ? "deferred_execution_failed" : undefined);
+  const canonicalFailureStage = readFailureStage(payload.failureStage)
+    ?? (job.toolName === "compose_media" && status === "failed" ? "deferred_execution" : undefined);
+  const mediaRuntimeState = CANONICAL_MEDIA_JOB_NAMES.has(job.toolName)
+    ? normalizeMediaRuntimeState({
+        toolName: job.toolName,
+        jobStatus: status,
+        executionMode: "deferred",
+        payload: rawResultPayload,
+        failureCode: canonicalFailureCode,
+        failureStage: canonicalFailureStage,
+        failureClass: job.failureClass,
+        recoveryMode: job.recoveryMode,
+      })
+    : null;
 
   return {
     type: "job_status",
@@ -328,10 +387,13 @@ export function buildJobStatusPartFromProjection(
     summary: summary ?? envelopeSummary?.message,
     error,
     updatedAt: event.createdAt,
+    ...(mediaRuntimeState ? { lifecyclePhase: mediaRuntimeState.lifecyclePhase } : {}),
+    ...(mediaRuntimeState ? { failureCode: mediaRuntimeState.failureCode } : {}),
+    ...(mediaRuntimeState ? { failureStage: mediaRuntimeState.failureStage } : {}),
     resultPayload: rawResultPayload,
     resultEnvelope,
-    failureClass: job.failureClass,
-    recoveryMode: job.recoveryMode,
+    failureClass: mediaRuntimeState?.failureClass ?? job.failureClass,
+    recoveryMode: mediaRuntimeState?.recoveryMode ?? job.recoveryMode,
     replayedFromJobId: job.replayedFromJobId,
     supersededByJobId: job.supersededByJobId,
   };

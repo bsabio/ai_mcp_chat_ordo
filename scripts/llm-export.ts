@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import AdmZip from "adm-zip";
 
 const OUTPUT_FILE = "ordo_llm_export.txt";
+const OUTPUT_ZIP_FILE = "ordo_llm_export.zip";
 const ROOT_DIR = process.cwd();
 
 /** Directories to skip entirely */
@@ -63,7 +65,7 @@ function isTextFile(filePath: string): boolean {
 }
 
 function walk(dir: string, callback: (filePath: string) => void) {
-  const items = fs.readdirSync(dir, { withFileTypes: true });
+  const items = fs.readdirSync(dir, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name));
 
   for (const item of items) {
     const fullPath = path.join(dir, item.name);
@@ -92,7 +94,9 @@ function walk(dir: string, callback: (filePath: string) => void) {
 }
 
 function run() {
-  const outputStream = fs.createWriteStream(path.join(ROOT_DIR, OUTPUT_FILE));
+  const outputFilePath = path.join(ROOT_DIR, OUTPUT_FILE);
+  const outputZipPath = path.join(ROOT_DIR, OUTPUT_ZIP_FILE);
+  const outputStream = fs.createWriteStream(outputFilePath);
 
   outputStream.write(`--- ORDO PROJECT EXPORT ---\n`);
   outputStream.write(`Generated: ${new Date().toISOString()}\n`);
@@ -116,8 +120,14 @@ function run() {
     }
   });
 
-  outputStream.end();
-  console.log(`\nExport complete! Concatenated ${fileCount} files into ${OUTPUT_FILE}.`);
+  outputStream.end(() => {
+    const archive = new AdmZip();
+    archive.addLocalFile(outputFilePath);
+    archive.writeZip(outputZipPath);
+
+    console.log(`\nExport complete! Concatenated ${fileCount} files into ${OUTPUT_FILE}.`);
+    console.log(`Created uploadable archive ${OUTPUT_ZIP_FILE}.`);
+  });
 }
 
 run();

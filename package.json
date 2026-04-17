@@ -29,6 +29,7 @@
     "admin:validate-env": "tsx scripts/admin-validate-env.ts",
     "admin:health": "tsx scripts/admin-health-sweep.ts",
     "admin:diagnostics": "tsx scripts/admin-diagnostics.ts",
+    "media:report-storage": "tsx scripts/report-media-storage.ts",
     "admin:reap-chat-uploads": "tsx scripts/reap-chat-uploads.ts",
     "admin:conversation-retention": "tsx scripts/run-conversation-retention-sweep.ts",
     "jobs:work": "tsx scripts/process-deferred-jobs.ts",
@@ -62,10 +63,12 @@
     "browser:verify": "npm run test:browser-ui && npm run test:homepage-shell",
     "browser:smoke": "npm run test:browser-live",
     "test:ffmpeg-e2e": "playwright test tests/browser-ui/ffmpeg-browser-runtime.spec.ts",
+    "test:media-live": "playwright test tests/browser-ui/media-live-workflows.spec.ts",
     "browser:verify:quality": "npm run browser:verify && npm run build && echo 'Run npm run lhci against the production target to compare with lighthouse-prod.json.'",
     "lhci": "lhci autorun",
     "lhci:dev": "lhci collect --url=http://localhost:3000 && lhci assert",
     "llm_export": "tsx scripts/llm-export.ts",
+    "llm:export": "tsx scripts/llm-export.ts",
     "qa:sprint-7": "tsx scripts/run-sprint-7-qa.ts"
   },
   "dependencies": {

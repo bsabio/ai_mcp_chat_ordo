@@ -21,13 +21,29 @@ describe("shell account menu routes", () => {
   it("includes Jobs for signed-in users", () => {
     const routes = resolveAccountMenuRoutes({ roles: ["AUTHENTICATED"] });
 
-    expect(routes.map((route) => route.id)).toEqual(["jobs", "profile"]);
+    expect(routes.map((route) => route.id)).toEqual(["jobs", "my-media", "profile"]);
   });
 
   it("includes Jobs for apprentices too", () => {
     const routes = resolveAccountMenuRoutes({ roles: ["APPRENTICE"] });
 
-    expect(routes.map((route) => route.id)).toEqual(["jobs", "profile"]);
+    expect(routes.map((route) => route.id)).toEqual(["jobs", "my-media", "profile"]);
+  });
+
+  it("adds the operations workspace for staff and admin users", () => {
+    expect(resolveAccountMenuRoutes({ roles: ["STAFF"] }).map((route) => route.id)).toEqual([
+      "jobs",
+      "my-media",
+      "operations-media",
+      "profile",
+    ]);
+
+    expect(resolveAccountMenuRoutes({ roles: ["ADMIN"] }).map((route) => route.id)).toEqual([
+      "jobs",
+      "my-media",
+      "operations-media",
+      "profile",
+    ]);
   });
 
   it("hides account routes for anonymous users", () => {
@@ -60,6 +76,22 @@ describe("shell route visibility snapshots", () => {
     const route = getShellRouteById("jobs");
 
     expect(canRoleAccessShellRoute(route, "AUTHENTICATED")).toBe(true);
+    expect(canRoleAccessShellRoute(route, "ANONYMOUS")).toBe(false);
+  });
+
+  it("keeps my media visible for signed-in users but hidden for anonymous visitors", () => {
+    const route = getShellRouteById("my-media");
+
+    expect(canRoleAccessShellRoute(route, "AUTHENTICATED")).toBe(true);
+    expect(canRoleAccessShellRoute(route, "ANONYMOUS")).toBe(false);
+  });
+
+  it("keeps operations media visible for staff and admin but hidden from lower roles", () => {
+    const route = getShellRouteById("operations-media");
+
+    expect(canRoleAccessShellRoute(route, "STAFF")).toBe(true);
+    expect(canRoleAccessShellRoute(route, "ADMIN")).toBe(true);
+    expect(canRoleAccessShellRoute(route, "AUTHENTICATED")).toBe(false);
     expect(canRoleAccessShellRoute(route, "ANONYMOUS")).toBe(false);
   });
 });

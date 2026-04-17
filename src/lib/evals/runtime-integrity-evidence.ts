@@ -71,6 +71,8 @@ export interface RuntimeIntegrityQaEvidence {
     deterministicScenarioIds: string[];
     liveScenarioIds: string[];
     focusedTestSuites: string[];
+    browserProofSpecs: string[];
+    governedDeliveryRoutes: string[];
     issueBuckets: Array<"prompt_runtime_truth_drift" | "retrieval_citation_link_correctness" | "output_render_contract_failure">;
     notes: string[];
   };
@@ -105,6 +107,33 @@ export const RUNTIME_INTEGRITY_LIVE_SCENARIOS = [
   "live-duplicate-navigation-avoidance",
 ] as const;
 
+export const RUNTIME_INTEGRITY_MEDIA_HARDENING_TEST_SUITES = [
+  "src/hooks/chat/useBrowserCapabilityRuntime.test.tsx",
+  "src/lib/jobs/compose-media-deferred-job.test.ts",
+  "src/app/api/chat/uploads/route.test.ts",
+  "src/app/api/user-files/[id]/route.test.ts",
+  "src/frameworks/ui/chat/plugins/custom/MediaRenderCard.test.tsx",
+  "src/lib/media/media-asset-projection.test.ts",
+  "src/core/use-cases/ConversationInteractor.test.ts",
+  "src/core/use-cases/tools/list-conversation-media-assets.tool.test.ts",
+  "tests/chat/conversation-portability.test.ts",
+  "src/app/my/media/page.test.tsx",
+  "src/app/operations/media/page.test.tsx",
+] as const;
+
+export const RUNTIME_INTEGRITY_BROWSER_PROOF_SPECS = [
+  "tests/browser-ui/ffmpeg-browser-runtime.spec.ts",
+  "tests/browser-ui/media-capacity-quotas.spec.ts",
+  "tests/browser-ui/operations-media.spec.ts",
+] as const;
+
+export const RUNTIME_INTEGRITY_GOVERNED_DELIVERY_ROUTES = [
+  "/api/chat/uploads",
+  "/api/user-files/[id]",
+  "/my/media",
+  "/operations/media",
+] as const;
+
 export const RUNTIME_INTEGRITY_FOCUSED_TEST_SUITES = [
   "tests/evals/elite-ops-evidence.test.ts",
   "tests/evals/runtime-integrity-checks.test.ts",
@@ -123,6 +152,7 @@ export const RUNTIME_INTEGRITY_FOCUSED_TEST_SUITES = [
   "src/adapters/ChatPresenter.test.ts",
   "src/frameworks/ui/RichContentRenderer.test.tsx",
   "src/components/AudioPlayer.test.tsx",
+  ...RUNTIME_INTEGRITY_MEDIA_HARDENING_TEST_SUITES,
 ] as const;
 
 export const RUNTIME_INTEGRITY_ISSUE_TEMPLATE_PATH = ".github/ISSUE_TEMPLATE/agent-runtime-integrity.yml";
@@ -248,6 +278,8 @@ export function createRuntimeIntegrityQaEvidence(options: {
       deterministicScenarioIds: [...RUNTIME_INTEGRITY_DETERMINISTIC_SCENARIOS],
       liveScenarioIds: [...RUNTIME_INTEGRITY_LIVE_SCENARIOS],
       focusedTestSuites: [...RUNTIME_INTEGRITY_FOCUSED_TEST_SUITES],
+      browserProofSpecs: [...RUNTIME_INTEGRITY_BROWSER_PROOF_SPECS],
+      governedDeliveryRoutes: [...RUNTIME_INTEGRITY_GOVERNED_DELIVERY_ROUTES],
       issueBuckets: [
         "prompt_runtime_truth_drift",
         "retrieval_citation_link_correctness",
@@ -256,6 +288,8 @@ export function createRuntimeIntegrityQaEvidence(options: {
       notes: [
         "Current-page truthfulness is exercised through live-runner fixtures with authoritative page snapshots.",
         "Duplicate navigation avoidance is gated by role-manifest tests and live runner coverage that rejects legacy navigate usage.",
+        "Phase 6 media hardening is gated by focused suites for browser fallback truthfulness, governed upload and retrieval integrity, portability rebinding, and the signed-in media workspace routes.",
+        "Browser proof remains a distinct release input: the ffmpeg fallback spec plus the my-media and operations-media Playwright specs validate rendered user-facing behavior against the governed delivery backbone.",
         "Manual QA intake must map back to either a deterministic integrity scenario, a live runner scenario, or a focused regression suite before closeout.",
       ],
     },

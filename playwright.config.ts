@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [["list"]],
   webServer: {
-    command: `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY=${playwrightPushPublicKey} npm run build && DATA_DIR=.playwright-data HOSTNAME=127.0.0.1 PORT=${playwrightPort} DISABLE_DEFERRED_JOB_WORKER=${workerEnabled ? "0" : "1"} ORDO_RUNTIME_AUDIT_LOG_DIR=${runtimeAuditLogDir} REFERRAL_COOKIE_SECRET=playwright-referral-secret JWT_SECRET=playwright-referral-secret NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY=${playwrightPushPublicKey} node scripts/start-server.mjs`,
+    command: `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY=${playwrightPushPublicKey} npm run build && DATA_DIR=.playwright-data HOSTNAME=127.0.0.1 PORT=${playwrightPort} DISABLE_DEFERRED_JOB_WORKER=${workerEnabled ? "0" : "1"} ORDO_ENABLE_MEDIA_E2E_HARNESS=1 ORDO_RUNTIME_AUDIT_LOG_DIR=${runtimeAuditLogDir} REFERRAL_COOKIE_SECRET=playwright-referral-secret JWT_SECRET=playwright-referral-secret NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY=${playwrightPushPublicKey} node scripts/start-server.mjs`,
     url: playwrightBaseUrl,
     reuseExistingServer: false,
     stdout: "pipe",

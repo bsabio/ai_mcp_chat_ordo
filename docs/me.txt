@@ -1,0 +1,81 @@
+04 — ABOUT
+About
+Learn more about my background, skills, and experience
+Twenty-Three Years.
+Ten Thousand Students.
+For over two decades, I've been teaching at New Jersey Institute of Technology (NJIT), working with students from Newark and the broader region. My role has evolved from adjunct instructor to building the Enterprise AI program, but the core mission has remained constant: helping students from all backgrounds build careers in technology.
+
+My technology journey started early—my father was a mainframe systems lead operator for Alcoa, and I grew up in a data center surrounded by various computers. In 1983, I received a Tandy TRS-80 Color Computer 2 for Christmas and taught myself to program. Since then, I've been continuously building systems and evolving with technology: early internet adopter on AOL, first iPhone owner, developer of one of the first MEAN stack frameworks that became Showedme.net (a SaaS application framework and learning management system), and creator of the iOS collaboration app Wrkbench.
+
+I started as an adjunct instructor in 2002, and founded the Web Systems (WIS) program at NJIT. Over 23 years, I've created 8 regularly offered undergraduate and graduate courses, taught more than 10,000 students across 15 sections annually, and built curricula that Fortune 100 companies recruited from.
+
+My teaching experience extends beyond higher education—I've worked with high schools, served as an AmeriCorps member at an urban after-school youth center in Pittsburgh teaching computers to children, and taught software engineering internationally to government employees in Zambia, Africa, implementing the e-government system and improving their development process by introducing UX design practices using Axure prototyping.
+
+When ChatGPT launched, I started using it within days—and immediately recognized that everything had changed. Since then, I've immersed myself in studying LLM and vector embedding technology, building a series of research projects through NJIT capstone courses that implement advanced ETL pipelines combining LLM and machine learning techniques for NLP and knowledge graph construction to support RAG workflows for personalized knowledge product production.
+
+As an early adopter of Vibe coding, I've combined my deep knowledge of enterprise software engineering and product development processes to develop innovative uses of Generative AI in enterprise software development—including AI-augmented QA review and advanced techniques to leverage AI in the day-to-day workflows of software engineers.
+
+I'm now evolving the WIS program into the Enterprise AI degree—a natural progression driven by my research work and industry projects using Generative AI to train, augment, and automate software engineering and product development processes. This evolution reflects both market demand and my commitment to preparing students for emerging technology careers.
+
+My students aren't just names on a roster. They're working at Amazon, Google, JPMorgan, Goldman Sachs, and hundreds of other companies. They're CTOs, senior engineers, data scientists. Many are building their own companies right here in Newark. But I'm done watching qualified students ghost companies and talented Newark residents get overlooked. So I'm building bridges—real ones. Between students and hiring managers. Between AI hype and practical reality. Between Newark's untapped potential and New Jersey's tech ecosystem.
+
+# Keith Williams
+**Founder & Executive CTO | Director of Enterprise AI | Principal Architect**
+Greater Pittsburgh Region • kwilliam@njit.edu • [linkedin.com/in/keithwilliams5](https://www.linkedin.com/in/keithwilliams5)
+
+---
+
+## Executive Summary
+Strategic technical architect, serial entrepreneur, and educator with a **30-year track record** of building production systems since age 18. A "Programming Polymath" since 1983, with a proven history of launching, scaling, and **successfully exiting** ventures (Acquisition by Anthiem Ventures). Served as **CTO of an Investment Fund** for 5 years, overseeing technical strategy and capital deployment. Currently a **Senior University Lecturer** and **Director of the B.S. in Enterprise AI (BSEAI)** at NJIT, leading a first-of-its-kind degree with 120+ majors. Founder of the **Ordo** open-source ecosystem, specializing in deterministic agentic runtimes, high-performance graphics (Metal), and production-grade RAG architectures.
+
+---
+
+## Technical Mastery & Strategic Oversight
+
+### 🤖 Agentic Systems & Enterprise AI
+- **Founder of Ordo**: Architect of an open-source, deterministic "intelligence substrate" for agents using Swift and Metal.
+- **Orchestration & RAG**: Deep expertise in multi-agent "symphony" design, advanced ETL pipelines, and Knowledge Graph construction for RAG workflows.
+- **Vibe Coding Pioneer**: Early adopter of GenAI-augmented QA systems and engineering workflows to automate enterprise software lifecycles.
+
+### 🎨 High-Performance Engineering
+- **Metal & GPU Compute**: Expert in render graphs and compute kernels for real-time video/AI analysis and deterministic media QC.
+- **Rust Systems Logic**: Developer of high-ambition performance runtimes with strict contract enforcement and persistent session integrity.
+- **System Longevity**: Architect of enterprise platforms (e.g., Medical Billing for post-acute care) with **20+ years of operational runtime** and products that have remained in continuous production for a decade.
+
+---
+
+## Professional Leadership & Experience
+
+### **New Jersey Institute of Technology (NJIT)** | Director of Enterprise AI
+*2002 – Present (Director of BSEAI since 2024; Senior University Lecturer 3 years)*
+
+- **BSEAI Architect**: Designed and launched the world-class **B.S. in Enterprise AI** to replace the Web Systems program; secured **120+ majors** for the Fall 2026 launch.
+- **Academic Tenure**: Taught **10,000+ students** over 23 years, creating 8 core undergraduate and graduate courses; established a massive NJ/NYC talent pipeline for Amazon, Google, JPMorgan, and Goldman Sachs.
+- **Formation-Based AI**: Developed the "Modern Quadrivium" curriculum philosophy, mapping frontier AI competencies to verifiable proof-of-work assets.
+
+### **Anthiem Ventures** | CTO, Investment Fund
+*2013 – 2017*
+
+- **Strategic Acquisition**: Successfully **sold his startup product** to Anthiem Ventures, transitioning into the CTO role for the investment fund.
+- **Capital & Portfolio Oversight**: Served as the fund’s technical lead for 5 years, evaluating new ventures and managing the technical health, DevOps, and delivery cycles of portfolio products.
+- **Product Delivery**: Led the development of **Showd.me** (MEAN stack pioneer) and **WrkBench** (collaborative visual tool), managing global teams across the U.S., India, and Vietnam.
+
+### **Webizly** | Owner & Principal Architect
+*2003 – Present*
+
+- **Ordo/Site Project R&D**: Built the "Elite Chat OS" and **MetavisKit2** suite, integrating MCP, Metal-accelerated graphics, and AI-governed QC.
+- **Enterprise Legacy**: Developed a high-scale medical billing information system for one of the largest post-acute care billing companies in the US (at age 25).
+- **International eGovernment**: Implemented Zambia’s national e-government infrastructure; introduced UX design and software engineering practices that reshaped the nation's development process.
+
+---
+
+## Impact & Community Leadership
+- **Serial Entrepreneur**: Launched multiple startups, one of which has been **successfully in continuous operation for 10 years**.
+- **Newark Bridge Builder**: Proactive leader in connecting Newark’s untapped student potential with the global FAANG and enterprise tech ecosystem.
+- **AmeriCorps Alumnus**: Served at the Hill House (Pittsburgh), teaching programming to underserved youth in an urban after-school center.
+
+---
+
+## Education
+**MS, Instructional Design / Technology** | Bloomsburg University of Pennsylvania
+**BS, Information Systems** | Indiana University of Pennsylvania

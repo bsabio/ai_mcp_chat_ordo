@@ -18,24 +18,88 @@ function RouteLabel({ mode }: { mode: CapabilityResultEnvelope["executionMode"] 
   );
 }
 
+function resolveVideoDimensions(envelope: CapabilityResultEnvelope, artifact?: CapabilityArtifactRef): { width: number; height: number } | null {
+  if (typeof artifact?.width === "number" && typeof artifact?.height === "number") {
+    return { width: artifact.width, height: artifact.height };
+  }
+
+  const replayResolution = (envelope.replaySnapshot as { resolution?: { width?: unknown; height?: unknown } } | null)?.resolution;
+  if (typeof replayResolution?.width === "number" && typeof replayResolution?.height === "number") {
+    return { width: replayResolution.width, height: replayResolution.height };
+  }
+
+  const inputResolution = (envelope.inputSnapshot as { resolution?: { width?: unknown; height?: unknown } } | null)?.resolution;
+  if (typeof inputResolution?.width === "number" && typeof inputResolution?.height === "number") {
+    return { width: inputResolution.width, height: inputResolution.height };
+  }
+
+  return null;
+}
+
+function formatResolutionLabel(dimensions: { width: number; height: number } | null): string | null {
+  if (!dimensions) {
+    return null;
+  }
+
+  const orientation = dimensions.height > dimensions.width ? "Portrait" : dimensions.width > dimensions.height ? "Landscape" : "Square";
+  return `${dimensions.width}x${dimensions.height} · ${orientation}`;
+}
+
+function VideoArtifactRow({
+  artifact,
+  dimensions,
+  progressLabel,
+}: {
+  artifact: CapabilityArtifactRef;
+  dimensions: { width: number; height: number } | null;
+  progressLabel?: string;
+}) {
+  const label = artifact.label || artifact.kind;
+  const href = artifact.uri ?? (artifact.assetId ? `/api/user-files/${artifact.assetId}` : null);
+  const isPortrait = Boolean(dimensions && dimensions.height > dimensions.width);
+  const aspectRatio = dimensions ? `${dimensions.width} / ${dimensions.height}` : undefined;
+  const [isReady, setIsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsReady(false);
+  }, [href]);
+
+  if (!href) {
+    return null;
+  }
+
+  return (
+    <div className={`mt-2 ${isPortrait ? "mx-auto w-full max-w-56 sm:max-w-64" : "w-full"}`}>
+      <div className="relative overflow-hidden rounded-lg bg-black/80">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          controls={isReady}
+          src={href}
+          className={`w-full bg-black/80 object-contain transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
+          preload="auto"
+          aria-label={label}
+          style={aspectRatio ? { aspectRatio } : undefined}
+          onLoadedData={() => setIsReady(true)}
+          onCanPlay={() => setIsReady(true)}
+        />
+        {!isReady && (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-black/90 px-4 text-center"
+            style={aspectRatio ? { aspectRatio } : undefined}
+          >
+            <span className="text-white/70 text-xs tracking-widest uppercase font-bold">
+              {progressLabel ?? "Preparing playback..."}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ArtifactRow({ artifact }: { artifact: CapabilityArtifactRef }) {
   const label = artifact.label || artifact.kind;
   const href = artifact.uri ?? (artifact.assetId ? `/api/user-files/${artifact.assetId}` : null);
-
-  if (artifact.kind === "video" && href) {
-    return (
-      <div className="mt-2">
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video
-          controls
-          src={href}
-          className="w-full rounded-lg max-h-64 bg-black/80"
-          preload="metadata"
-          aria-label={label}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center justify-between mt-1 text-[11px]">
@@ -82,10 +146,13 @@ export function MediaRenderCard({ envelope }: MediaRenderCardProps) {
   const artifacts = envelope.artifacts ?? [];
   const primaryVideo = artifacts.find((a) => a.kind === "video");
   const auxiliaryArtifacts = artifacts.filter((a) => a.kind !== "video");
+  const videoDimensions = resolveVideoDimensions(envelope, primaryVideo);
+  const resolutionLabel = formatResolutionLabel(videoDimensions);
+  const isPortrait = Boolean(videoDimensions && videoDimensions.height > videoDimensions.width);
 
   return (
     <div
-      className="bg-surface-elevated border border-border/50 rounded-xl overflow-hidden pt-4 px-4 pb-3 w-full max-w-sm flex flex-col gap-2"
+      className={`bg-surface-elevated border border-border/50 rounded-xl overflow-hidden pt-4 px-4 pb-3 w-full flex flex-col gap-2 ${isPortrait ? "max-w-88" : "max-w-sm"}`}
       aria-label="Media render result"
     >
       {/* Header */}
@@ -101,16 +168,27 @@ export function MediaRenderCard({ envelope }: MediaRenderCardProps) {
         <p className="text-[11px] text-text-secondary">{envelope.summary.subtitle}</p>
       )}
 
+      {resolutionLabel && (
+        <p className="text-[11px] text-text-secondary/80">{resolutionLabel}</p>
+      )}
+
       {/* Primary video output */}
       {primaryVideo ? (
-        <ArtifactRow artifact={primaryVideo} />
+        <VideoArtifactRow
+          artifact={primaryVideo}
+          dimensions={videoDimensions}
+          progressLabel={envelope.progress?.label ?? undefined}
+        />
       ) : (
         /* Placeholder when artifact not yet available (in-progress or pruned) */
-        <div className="aspect-video bg-black/80 rounded-lg flex items-center justify-center relative overflow-hidden group">
+        <div
+          className={`bg-black/80 rounded-lg flex items-center justify-center relative overflow-hidden group ${isPortrait ? "mx-auto w-full max-w-56 sm:max-w-64" : "aspect-video"}`}
+          style={videoDimensions ? { aspectRatio: `${videoDimensions.width} / ${videoDimensions.height}` } : undefined}
+        >
           <span className="text-white/30 text-xs tracking-widest uppercase z-10 font-bold group-hover:scale-110 transition-transform duration-300">
             {envelope.progress?.label ?? "Processing…"}
           </span>
-          <div className="absolute inset-0 bg-gradient-to-t from-brand/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-linear-to-t from-brand/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       )}
 

@@ -22,6 +22,7 @@ import {
 } from "@/lib/blog/blog-tool-payloads";
 import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/registry/capability-presentation-registry";
 import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
+import { describeJobStatus } from "@/lib/jobs/job-status";
 import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
 import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
 import { getSupportedTheme, isSupportedTheme } from "@/lib/theme/theme-manifest";
@@ -36,6 +37,13 @@ const TOOL_NAMES = {
   ADJUST_UI: "adjust_ui",
   PREPARE_JOURNAL_POST_FOR_PUBLISH: "prepare_journal_post_for_publish",
 } as const;
+
+const MEDIA_TOOL_NAMES = new Set([
+  "compose_media",
+  "generate_audio",
+  "generate_chart",
+  "generate_graph",
+]);
 
 type NavigateToPageResultPayload = {
   path: string;
@@ -680,6 +688,10 @@ function jobActionLinkNode(label: string, jobId: string, operation: "cancel" | "
   };
 }
 
+function isSyntheticBrowserJobId(jobId: string): boolean {
+  return jobId.startsWith("browser:");
+}
+
 function getJobStatusResultPayload(part: JobStatusMessagePart): unknown {
   return part.resultEnvelope?.payload ?? part.resultPayload;
 }
@@ -810,7 +822,8 @@ function buildJobStatusActions(part: JobStatusMessagePart) {
   const resultPayload = getJobStatusResultPayload(part);
   const descriptor = getCapabilityPresentationDescriptor(part.toolName);
   const supportsWholeJobRetry = descriptor?.supportsRetry === "whole_job";
-  const canControlServerJob = descriptor?.executionMode === "deferred" || descriptor?.executionMode === "hybrid";
+  const canControlServerJob = !isSyntheticBrowserJobId(part.jobId)
+    && (descriptor?.executionMode === "deferred" || descriptor?.executionMode === "hybrid");
 
   if (part.actions && part.actions.length > 0) {
     return part.actions.map((action) => ({
@@ -848,6 +861,33 @@ function buildJobStatusActions(part: JobStatusMessagePart) {
   return undefined;
 }
 
+function isMediaJobStatusPart(part: JobStatusMessagePart): boolean {
+  return MEDIA_TOOL_NAMES.has(part.toolName);
+}
+
+function resolveTruthBoundMediaText(
+  originalText: string,
+  parts: JobStatusMessagePart[],
+): string {
+  if (originalText.trim().length === 0) {
+    return originalText;
+  }
+
+  const activeMediaParts = parts.filter((part) =>
+    isMediaJobStatusPart(part)
+    && (part.status === "queued"
+      || part.status === "running"
+      || part.status === "failed"
+      || part.status === "canceled"),
+  );
+
+  if (activeMediaParts.length === 0) {
+    return originalText;
+  }
+
+  return activeMediaParts.map((part) => describeJobStatus(part)).join("\n\n");
+}
+
 export class ChatPresenter {
   constructor(
     private markdownParser: MarkdownParserService,
@@ -869,13 +909,12 @@ export class ChatPresenter {
     );
 
     const visibleSuggestions = responseState === "open" ? suggestions : [];
-
-    const richContent = this.markdownParser.parse(textContent);
     const commands = [...this.commandParser.parse(textContent)];
     const attachments = getPresentedAttachments(message.parts);
     const generationStatus = getGenerationStatusPart(message.parts);
     const renderedJobIds = new Set<string>();
     const toolRenderEntries: ToolRenderEntry[] = [];
+    const truthBoundJobParts: JobStatusMessagePart[] = [];
 
     for (const part of message.parts ?? []) {
       if (!isJobStatusMessagePart(part)) {
@@ -889,6 +928,7 @@ export class ChatPresenter {
         : part;
 
       renderedJobIds.add(renderedPart.jobId);
+      truthBoundJobParts.push(renderedPart);
 
       toolRenderEntries.push({
         kind: "job-status",
@@ -925,6 +965,7 @@ export class ChatPresenter {
           }
 
           renderedJobIds.add(renderedPart.jobId);
+          truthBoundJobParts.push(renderedPart);
           toolRenderEntries.push({
             kind: "job-status",
             part: renderedPart,
@@ -953,6 +994,12 @@ export class ChatPresenter {
         resultEnvelope,
       });
     }
+
+    textContent = message.role === "assistant"
+      ? resolveTruthBoundMediaText(textContent, truthBoundJobParts)
+      : textContent;
+
+    const richContent = this.markdownParser.parse(textContent);
 
     return {
       id: message.id,

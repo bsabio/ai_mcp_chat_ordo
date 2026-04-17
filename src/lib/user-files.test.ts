@@ -20,7 +20,9 @@ import Database from "better-sqlite3";
 import { ensureSchema } from "./db/schema";
 import { UserFileDataMapper } from "../adapters/UserFileDataMapper";
 import {
+  binaryContentHash,
   CHAT_UPLOAD_REAPER_TTL_MINUTES,
+  UserFileQuotaExceededError,
   UserFileSystem,
   contentHash,
   getUserFilePath,
@@ -253,6 +255,95 @@ describe("UserFileSystem", () => {
 
     expect(deleted).toBe(false);
     expect(await ufs.getById(stored.id)).not.toBeNull();
+  });
+
+  it("storeBinaryBatchWithinQuota() persists a full batch atomically under quota", async () => {
+    const result = await ufs.storeBinaryBatchWithinQuota({
+      userId: "usr_test",
+      conversationId: null,
+      quotaPolicy: {
+        defaultUserQuotaBytes: 100,
+        hardBlockUploadsAtQuota: true,
+        warnAtPercent: 80,
+      },
+      files: [
+        {
+          fileType: "document",
+          mimeType: "text/plain",
+          extension: "txt",
+          data: Buffer.from("hello"),
+          metadata: { source: "uploaded", retentionClass: "ephemeral" },
+        },
+        {
+          fileType: "image",
+          mimeType: "image/png",
+          extension: "png",
+          data: Buffer.from("world!!"),
+          metadata: { source: "uploaded", retentionClass: "ephemeral", assetKind: "image" },
+        },
+      ],
+    });
+
+    expect(result.files).toHaveLength(2);
+    expect(result.incomingBytes).toBe(12);
+    expect(result.quota.usedBytes).toBe(12);
+    expect(result.quota.status).toBe("normal");
+    const [firstStoredFile, secondStoredFile] = result.files;
+    expect(firstStoredFile).toBeDefined();
+    expect(secondStoredFile).toBeDefined();
+    if (!firstStoredFile || !secondStoredFile) {
+      throw new Error("Expected the stored batch to contain two files.");
+    }
+    expect(await ufs.getById(firstStoredFile.id)).not.toBeNull();
+    expect(await ufs.getById(secondStoredFile.id)).not.toBeNull();
+  });
+
+  it("storeBinaryBatchWithinQuota() rejects the whole batch and removes new disk files when hard quota would be crossed", async () => {
+    await ufs.storeBinary({
+      userId: "usr_test",
+      conversationId: null,
+      fileType: "document",
+      mimeType: "text/plain",
+      extension: "txt",
+      data: Buffer.alloc(80, 1),
+      metadata: { source: "uploaded", retentionClass: "ephemeral" },
+    });
+
+    const firstRejectedData = Buffer.from("123456789012345");
+    const secondRejectedData = Buffer.from("1234567890");
+
+    await expect(
+      ufs.storeBinaryBatchWithinQuota({
+        userId: "usr_test",
+        conversationId: null,
+        quotaPolicy: {
+          defaultUserQuotaBytes: 90,
+          hardBlockUploadsAtQuota: true,
+          warnAtPercent: 80,
+        },
+        files: [
+          {
+            fileType: "document",
+            mimeType: "text/plain",
+            extension: "txt",
+            data: firstRejectedData,
+            metadata: { source: "uploaded", retentionClass: "ephemeral" },
+          },
+          {
+            fileType: "document",
+            mimeType: "text/plain",
+            extension: "txt",
+            data: secondRejectedData,
+            metadata: { source: "uploaded", retentionClass: "ephemeral" },
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(UserFileQuotaExceededError);
+
+    const files = await db.prepare(`SELECT id FROM user_files WHERE user_id = ?`).all("usr_test") as Array<{ id: string }>;
+    expect(files).toHaveLength(1);
+    expect(fs.existsSync(getUserFilePath("usr_test", `${binaryContentHash(firstRejectedData)}.txt`))).toBe(false);
+    expect(fs.existsSync(getUserFilePath("usr_test", `${binaryContentHash(secondRejectedData)}.txt`))).toBe(false);
   });
 
   it("reapUnattachedFiles() removes only stale unattached files that match the requested type", async () => {

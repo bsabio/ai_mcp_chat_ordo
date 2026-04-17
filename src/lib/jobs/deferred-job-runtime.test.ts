@@ -247,6 +247,35 @@ describe("deferred job runtime", () => {
   it("routes compose_media through the generic catalog-bound handler and reports shared progress", async () => {
     const handlers = createDeferredJobHandlers();
     const reportProgress = vi.fn().mockResolvedValue(undefined);
+    executeComposeMediaJobMock.mockImplementation(async (_request, onProgress) => {
+      await onProgress?.({
+        activePhaseKey: "staging_assets",
+        progressPercent: 5,
+        progressLabel: getComposeMediaProgressLabel("staging_assets", {
+          plan: {
+            id: "plan_media_1",
+            conversationId: "conv_jobs",
+            visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
+            audioClips: [],
+            subtitlePolicy: "none",
+            waveformPolicy: "none",
+            outputFormat: "mp4",
+          },
+          progressPercent: 5,
+        }),
+      });
+
+      return {
+        schemaVersion: 1,
+        toolName: "compose_media",
+        family: "artifact",
+        cardKind: "artifact_viewer",
+        executionMode: "hybrid",
+        inputSnapshot: { planId: "plan_media_1" },
+        summary: { statusLine: "succeeded" },
+        payload: { route: "deferred_remote", primaryAssetId: "uf_media_1", outputFormat: "mp4" },
+      };
+    });
 
     const result = await handlers.compose_media(
       makeJob("compose_media", {
@@ -267,11 +296,22 @@ describe("deferred job runtime", () => {
       plan: expect.objectContaining({ id: "plan_media_1", conversationId: "conv_jobs" }),
       userId: "usr_admin",
       conversationId: "conv_jobs",
-    });
+    }, expect.any(Function));
     expect(reportProgress).toHaveBeenNthCalledWith(1, expect.objectContaining({
       activePhaseKey: "staging_assets",
       progressPercent: 5,
-      progressLabel: getComposeMediaProgressLabel("staging_assets"),
+      progressLabel: getComposeMediaProgressLabel("staging_assets", {
+        plan: {
+          id: "plan_media_1",
+          conversationId: "conv_jobs",
+          visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
+          audioClips: [],
+          subtitlePolicy: "none",
+          waveformPolicy: "none",
+          outputFormat: "mp4",
+        },
+        progressPercent: 5,
+      }),
     }));
     expect(reportProgress).toHaveBeenNthCalledWith(2, expect.objectContaining({
       activePhaseKey: null,

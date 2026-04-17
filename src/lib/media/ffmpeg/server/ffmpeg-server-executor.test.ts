@@ -106,6 +106,147 @@ describe("FfmpegServerExecutor", () => {
     }
   });
 
+  it("supports the fast still-image narration profile on the server path", async () => {
+    if (!ffmpegAvailable) {
+      console.warn(`Skipping: ffmpeg not found at ${FFMPEG_BIN}`);
+      return;
+    }
+
+    const imagePath = path.join(workDir, "image.png");
+    const audioPath = path.join(workDir, "audio.mp3");
+
+    const imageResult = spawnSync(FFMPEG_BIN, [
+      "-y",
+      "-f", "lavfi",
+      "-i", "color=c=black:s=720x1280",
+      "-frames:v", "1",
+      imagePath,
+    ], { stdio: "ignore" });
+    expect(imageResult.status).toBe(0);
+
+    const audioResult = spawnSync(FFMPEG_BIN, [
+      "-y",
+      "-f", "lavfi",
+      "-i", "sine=frequency=880:duration=1",
+      "-q:a", "9",
+      "-acodec", "libmp3lame",
+      audioPath,
+    ], { stdio: "ignore" });
+    expect(audioResult.status).toBe(0);
+
+    const executor = new FfmpegServerExecutor();
+    const envelope = await executor.executeDeferredPlan(
+      {
+        ...basePlan,
+        id: "server-test-plan-image-audio",
+        profile: "still_image_narration_fast",
+        visualClips: [{ assetId: "asset-image-1", kind: "image" }],
+        audioClips: [{ assetId: "asset-audio-1", kind: "audio" }],
+        resolution: { width: 720, height: 1280 },
+      },
+      () => {},
+      {
+        resolveAssetPath: (assetId) => {
+          if (assetId === "asset-image-1") return imagePath;
+          if (assetId === "asset-audio-1") return audioPath;
+          return null;
+        },
+        outputDir: workDir,
+      },
+    );
+
+    expect(envelope.payload).toMatchObject({
+      route: "deferred_server",
+      profile: "still_image_narration_fast",
+      outputFormat: "mp4",
+    });
+
+    const payloadPath = (envelope.payload as { outputPath?: string })?.outputPath;
+    expect(payloadPath).toBeDefined();
+    if (payloadPath) {
+      const stat = fs.statSync(payloadPath);
+      expect(stat.size).toBeGreaterThan(100);
+    }
+  }, 15000);
+
+  it("concatenates multiple source videos for the multi-video standard profile", async () => {
+    if (!ffmpegAvailable) {
+      console.warn(`Skipping: ffmpeg not found at ${FFMPEG_BIN}`);
+      return;
+    }
+
+    const firstVideoPath = path.join(workDir, "clip-1.mp4");
+    const secondVideoPath = path.join(workDir, "clip-2.mp4");
+
+    const firstVideoResult = spawnSync(FFMPEG_BIN, [
+      "-y",
+      "-f", "lavfi",
+      "-i", "testsrc=size=160x90:rate=12",
+      "-f", "lavfi",
+      "-i", "sine=frequency=440:duration=0.5",
+      "-t", "0.5",
+      "-c:v", "libx264",
+      "-c:a", "aac",
+      "-pix_fmt", "yuv420p",
+      firstVideoPath,
+    ], { stdio: "ignore" });
+    expect(firstVideoResult.status).toBe(0);
+
+    const secondVideoResult = spawnSync(FFMPEG_BIN, [
+      "-y",
+      "-f", "lavfi",
+      "-i", "testsrc2=size=160x90:rate=12",
+      "-f", "lavfi",
+      "-i", "sine=frequency=660:duration=0.5",
+      "-t", "0.5",
+      "-c:v", "libx264",
+      "-c:a", "aac",
+      "-pix_fmt", "yuv420p",
+      secondVideoPath,
+    ], { stdio: "ignore" });
+    expect(secondVideoResult.status).toBe(0);
+
+    const executor = new FfmpegServerExecutor();
+    const envelope = await executor.executeDeferredPlan(
+      {
+        ...basePlan,
+        id: "server-test-plan-multi-video",
+        profile: "multi_video_standard",
+        visualClips: [
+          { assetId: "asset-video-1", kind: "video" },
+          { assetId: "asset-video-2", kind: "video" },
+        ],
+        audioClips: [],
+        resolution: { width: 720, height: 1280 },
+      },
+      () => {},
+      {
+        resolveAssetPath: (assetId) => {
+          if (assetId === "asset-video-1") return firstVideoPath;
+          if (assetId === "asset-video-2") return secondVideoPath;
+          return null;
+        },
+        outputDir: workDir,
+      },
+    );
+
+    expect(envelope.payload).toMatchObject({
+      route: "deferred_server",
+      profile: "multi_video_standard",
+      outputFormat: "mp4",
+    });
+
+    const payloadPath = (envelope.payload as { outputPath?: string })?.outputPath;
+    expect(payloadPath).toBeDefined();
+    if (payloadPath) {
+      const stat = fs.statSync(payloadPath);
+      expect(stat.size).toBeGreaterThan(100);
+
+      const inspectResult = spawnSync(FFMPEG_BIN, ["-i", payloadPath], { encoding: "utf8" });
+      expect(`${inspectResult.stdout}\n${inspectResult.stderr}`).toContain("Audio:");
+    }
+  }, 15000);
+
   it("throws with a descriptive message when ffmpeg binary is missing", async () => {
     // Override FFMPEG_BIN via env to a non-existent path
     process.env["FFMPEG_BIN"] = "/nonexistent/ffmpeg";

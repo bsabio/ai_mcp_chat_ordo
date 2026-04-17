@@ -17,7 +17,7 @@ const probeMock = vi.mocked(probeFfmpegWasmCapability);
 const fetchMock = vi.fn();
 
 class MockWorker {
-  static mode: "success" | "error" = "success";
+  static mode: "success" | "error" | "empty" = "success";
 
   onmessage: ((event: MessageEvent<{ type: string; progress?: number; label?: string; blob?: Blob; error?: string }>) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
@@ -25,7 +25,11 @@ class MockWorker {
   postMessage(_message: unknown): void {
     queueMicrotask(() => {
       this.onmessage?.({
-        data: { type: "PROGRESS", progress: 42, label: getComposeMediaProgressLabel("rendering_media") },
+        data: {
+          type: "PROGRESS",
+          progress: 42,
+          label: getComposeMediaProgressLabel("rendering_media", { plan: basePlan, progressPercent: 42 }),
+        },
       } as MessageEvent<{ type: string; progress?: number; label?: string }>);
 
       if (MockWorker.mode === "success") {
@@ -33,6 +37,16 @@ class MockWorker {
           data: {
             type: "SUCCESS",
             blob: new Blob(["video-bytes"], { type: "video/mp4" }),
+          },
+        } as MessageEvent<{ type: string; blob: Blob }>);
+        return;
+      }
+
+      if (MockWorker.mode === "empty") {
+        this.onmessage?.({
+          data: {
+            type: "SUCCESS",
+            blob: new Blob([], { type: "video/mp4" }),
           },
         } as MessageEvent<{ type: string; blob: Blob }>);
         return;
@@ -50,8 +64,8 @@ class MockWorker {
 const basePlan: MediaCompositionPlan = {
   id: "plan-test-1",
   conversationId: "conv-test-1",
-  visualClips: [{ assetId: "asset-v1", kind: "video" }],
-  audioClips: [],
+  visualClips: [{ assetId: "asset-v1", kind: "image" }],
+  audioClips: [{ assetId: "asset-a1", kind: "audio" }],
   subtitlePolicy: "none",
   waveformPolicy: "none",
   outputFormat: "mp4",
@@ -150,16 +164,17 @@ describe("FfmpegBrowserExecutor", () => {
       status: "succeeded",
       envelope: {
         toolName: "compose_media",
-        replaySnapshot: { route: "browser_wasm", planId: "plan-test-1" },
+        replaySnapshot: { route: "browser_wasm", planId: "plan-test-1", profile: "still_image_narration_fast" },
         payload: {
           route: "browser_wasm",
           primaryAssetId: "asset-uploaded-1",
+          profile: "still_image_narration_fast",
           outputFormat: "mp4",
         },
       },
     });
-    expect(progressCalls).toContainEqual([42, getComposeMediaProgressLabel("rendering_media")]);
-    expect(progressCalls).toContainEqual([99, getComposeMediaProgressLabel("persisting")]);
+    expect(progressCalls).toContainEqual([42, getComposeMediaProgressLabel("rendering_media", { plan: basePlan, progressPercent: 42 })]);
+    expect(progressCalls).toContainEqual([99, getComposeMediaProgressLabel("persisting", { plan: basePlan, progressPercent: 99 })]);
     expect(progressCalls).toContainEqual([100, COMPOSE_MEDIA_COMPLETE_LABEL]);
   });
 
@@ -171,6 +186,20 @@ describe("FfmpegBrowserExecutor", () => {
     const result = await executor.execute(basePlan, { conversationId: "conv-1", userId: "usr-1" });
 
     expect(result).toEqual({ status: "failed", failureCode: "worker_error" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns failed and skips upload when the worker returns an empty blob", async () => {
+    probeMock.mockReturnValue({ isAvailable: true });
+    MockWorker.mode = "empty";
+
+    const executor = new FfmpegBrowserExecutor();
+    const result = await executor.execute(basePlan, { conversationId: "conv-1", userId: "usr-1" });
+
+    expect(result).toEqual({
+      status: "failed",
+      failureCode: "Browser FFmpeg returned an empty media artifact.",
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

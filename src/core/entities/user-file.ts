@@ -19,6 +19,17 @@ export type UserFileType =
   | "subtitle"
   | "waveform";
 
+export const USER_FILE_TYPES = [
+  "audio",
+  "chart",
+  "document",
+  "graph",
+  "image",
+  "video",
+  "subtitle",
+  "waveform",
+] as const satisfies readonly UserFileType[];
+
 export interface UserFileMetadata {
   assetKind?: MediaAssetKind;
   source?: MediaAssetSource;

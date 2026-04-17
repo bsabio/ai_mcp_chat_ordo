@@ -2,6 +2,7 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
+import type { CapabilityArtifactRef } from "@/core/entities/capability-result";
 import type { ToolPluginProps } from "../../registry/types";
 import { resolveCapabilityDisplayLabel } from "../../registry/capability-presentation-registry";
 import { CapabilityActionRail } from "../../primitives/CapabilityActionRail";
@@ -27,11 +28,11 @@ type GenerateAudioResultPayload = {
   action: "generate_audio";
   title: string;
   text: string;
-  assetId: string | null;
-  provider: string;
-  generationStatus: "client_fetch_pending" | "cached_asset";
-  estimatedDurationSeconds: number;
-  estimatedGenerationSeconds: number;
+  assetId?: string | null;
+  provider?: string;
+  generationStatus?: string;
+  estimatedDurationSeconds?: number;
+  estimatedGenerationSeconds?: number;
 };
 
 function isGenerateAudioResultPayload(value: unknown): value is GenerateAudioResultPayload {
@@ -41,35 +42,134 @@ function isGenerateAudioResultPayload(value: unknown): value is GenerateAudioRes
     && (value as { action?: unknown }).action === "generate_audio"
     && typeof (value as { text?: unknown }).text === "string"
     && typeof (value as { title?: unknown }).title === "string"
-    && typeof (value as { provider?: unknown }).provider === "string"
-    && typeof (value as { generationStatus?: unknown }).generationStatus === "string"
-    && typeof (value as { estimatedDurationSeconds?: unknown }).estimatedDurationSeconds === "number"
-    && typeof (value as { estimatedGenerationSeconds?: unknown }).estimatedGenerationSeconds === "number"
   );
+}
+
+function humanizeToken(value: string): string {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+}
+
+function findAudioArtifact(artifacts: CapabilityArtifactRef[] | undefined): CapabilityArtifactRef | undefined {
+  return artifacts?.find((artifact) => artifact.kind === "audio");
+}
+
+function resolveAudioData(
+  result: unknown,
+  toolArgs: Record<string, unknown> | undefined,
+  artifact: CapabilityArtifactRef | undefined,
+): GenerateAudioResultPayload | null {
+  if (isGenerateAudioResultPayload(result)) {
+    return {
+      ...result,
+      assetId: result.assetId ?? artifact?.assetId ?? null,
+      generationStatus: result.generationStatus ?? (artifact?.assetId ? "cached_asset" : undefined),
+    };
+  }
+
+  if (
+    typeof toolArgs?.text === "string"
+    && toolArgs.text.trim().length > 0
+    && typeof toolArgs.title === "string"
+    && toolArgs.title.trim().length > 0
+  ) {
+    return {
+      action: "generate_audio",
+      text: toolArgs.text,
+      title: toolArgs.title,
+      assetId: typeof toolArgs.assetId === "string" ? toolArgs.assetId : artifact?.assetId ?? null,
+      generationStatus: artifact?.assetId ? "cached_asset" : undefined,
+    };
+  }
+
+  return null;
+}
+
+function resolveStatusLabel(props: ToolPluginProps, audio: GenerateAudioResultPayload | null): string {
+  const { part, resultEnvelope } = props;
+
+  switch (part?.status) {
+    case "queued":
+      return "Queued";
+    case "running":
+      return "Generating";
+    case "failed":
+      return "Failed";
+    case "canceled":
+      return "Canceled";
+  }
+
+  switch (part?.lifecyclePhase) {
+    case "pending_local_generation":
+      return "Generating";
+    case "durable_asset_available":
+      return "Ready";
+    case "generation_failed_terminal":
+    case "compose_failed_terminal":
+      return "Failed";
+  }
+
+  if (audio?.generationStatus === "client_fetch_pending") {
+    return "Generating";
+  }
+
+  if (audio?.generationStatus === "cached_asset" || audio?.assetId) {
+    return "Ready";
+  }
+
+  return resultEnvelope?.summary.statusLine
+    ? humanizeToken(resultEnvelope.summary.statusLine)
+    : "Ready";
 }
 
 export const AudioPlayerCard: React.FC<ToolPluginProps> = (props) => {
   const { toolCall, resultEnvelope, part, computedActions = [], onActionClick, isStreaming } = props;
-  if (!toolCall) return <JobStatusFallbackCard {...props} />;
 
   const label = resolveCapabilityDisplayLabel({
-    toolName: toolCall.name,
+    toolName: toolCall?.name ?? part?.toolName ?? "generate_audio",
     explicitLabel: part?.label,
     descriptorLabel: props.descriptor?.label,
     fallbackLabel: "Audio",
   });
 
-  const result = resultEnvelope?.payload ?? toolCall.result;
+  const result = resultEnvelope?.payload ?? toolCall?.result;
+  const audioArtifact = findAudioArtifact(resultEnvelope?.artifacts);
+  const audio = resolveAudioData(result, toolCall?.args, audioArtifact);
+  const statusLabel = resolveStatusLabel(props, audio);
+  const failureMessage = part?.error ?? part?.summary ?? resultEnvelope?.summary.message ?? "Audio generation did not complete.";
+  const isTerminalFailure = part?.status === "failed" || part?.status === "canceled";
 
-  const statusLabel = part?.status === "running"
-    ? "Generating"
-    : part?.status === "queued"
-      ? "Queued"
-      : part?.status === "failed"
-        ? "Failed"
-        : resultEnvelope?.summary.statusLine ?? "Ready";
+  if (isTerminalFailure) {
+    return (
+      <CapabilityCardShell
+        descriptor={props.descriptor}
+        state={part?.status}
+        role="alert"
+        ariaLabel={`${label} result`}
+      >
+        <CapabilityCardHeader
+          eyebrow={label}
+          title={audio?.title ?? part?.title ?? resultEnvelope?.summary.title ?? "Audio"}
+          statusLabel={statusLabel}
+        />
+        <p className="px-(--space-inset-compact) text-sm text-red-600">{failureMessage}</p>
+        <CapabilityContextPanel
+          items={[
+            { label: "Failure stage", value: part?.failureStage ? humanizeToken(part.failureStage) : null },
+            { label: "Failure code", value: part?.failureCode ?? null },
+            { label: "Lifecycle", value: part?.lifecyclePhase ? humanizeToken(part.lifecyclePhase) : null },
+            { label: "Asset id", value: audio?.assetId ?? audioArtifact?.assetId ?? null },
+          ]}
+        />
+        <CapabilityActionRail actions={computedActions} onActionClick={onActionClick} />
+      </CapabilityCardShell>
+    );
+  }
 
-  if (isGenerateAudioResultPayload(result)) {
+  if (audio) {
     return (
       <CapabilityCardShell
         descriptor={props.descriptor}
@@ -79,25 +179,26 @@ export const AudioPlayerCard: React.FC<ToolPluginProps> = (props) => {
         <CapabilityCardHeader eyebrow={label} statusLabel={statusLabel} />
         <CapabilityMetricStrip
           items={[
-            { label: "Duration", value: `${Math.round(result.estimatedDurationSeconds)}s` },
-            { label: "Generation", value: `${Math.round(result.estimatedGenerationSeconds)}s` },
+            { label: "Duration", value: typeof audio.estimatedDurationSeconds === "number" ? `${Math.round(audio.estimatedDurationSeconds)}s` : null },
+            { label: "Generation", value: typeof audio.estimatedGenerationSeconds === "number" ? `${Math.round(audio.estimatedGenerationSeconds)}s` : null },
           ]}
         />
         <CapabilityContextPanel
           items={[
-            { label: "Provider", value: result.provider },
-            { label: "Generation status", value: result.generationStatus },
-            { label: "Asset id", value: result.assetId ?? null },
+            { label: "Provider", value: audio.provider ?? null },
+            { label: "Generation status", value: audio.generationStatus ? humanizeToken(audio.generationStatus) : null },
+            { label: "Lifecycle", value: part?.lifecyclePhase ? humanizeToken(part.lifecyclePhase) : null },
+            { label: "Asset id", value: audio.assetId ?? audioArtifact?.assetId ?? null },
           ]}
         />
         <AudioPlayer
-          text={result.text}
-          title={result.title}
-          assetId={result.assetId ?? undefined}
-          provider={result.provider}
-          generationStatus={result.generationStatus}
-          estimatedDurationSeconds={result.estimatedDurationSeconds}
-          estimatedGenerationSeconds={result.estimatedGenerationSeconds}
+          text={audio.text}
+          title={audio.title}
+          assetId={audio.assetId ?? audioArtifact?.assetId ?? undefined}
+          provider={audio.provider}
+          generationStatus={audio.generationStatus}
+          estimatedDurationSeconds={audio.estimatedDurationSeconds}
+          estimatedGenerationSeconds={audio.estimatedGenerationSeconds}
           autoPlay={part ? false : isStreaming && !part}
         />
         <CapabilityActionRail actions={computedActions} onActionClick={onActionClick} />
@@ -105,29 +206,5 @@ export const AudioPlayerCard: React.FC<ToolPluginProps> = (props) => {
     );
   }
 
-  if (
-    typeof toolCall.args.text !== "string"
-    || toolCall.args.text.trim().length === 0
-    || typeof toolCall.args.title !== "string"
-    || toolCall.args.title.trim().length === 0
-  ) {
-    return <JobStatusFallbackCard {...props} />;
-  }
-
-  return (
-    <CapabilityCardShell
-      descriptor={props.descriptor}
-      state={part?.status ?? "succeeded"}
-      ariaLabel={`${label} result`}
-    >
-      <CapabilityCardHeader eyebrow={label} statusLabel={statusLabel} />
-      <AudioPlayer
-        text={toolCall.args.text}
-        title={toolCall.args.title}
-        assetId={typeof toolCall.args.assetId === "string" ? toolCall.args.assetId : undefined}
-        autoPlay={part ? false : isStreaming && !part}
-      />
-      <CapabilityActionRail actions={computedActions} onActionClick={onActionClick} />
-    </CapabilityCardShell>
-  );
+  return <JobStatusFallbackCard {...props} />;
 };

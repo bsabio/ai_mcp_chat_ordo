@@ -18,7 +18,7 @@ const editorialDescriptor: CapabilityPresentationDescriptor = {
 };
 
 describe("resolveSystemCardKind", () => {
-  it("routes failed and canceled job parts to the shared error card", () => {
+  it("routes non-media failed and canceled job parts to the shared error card", () => {
     expect(
       resolveSystemCardKind({
         part: {
@@ -41,7 +41,31 @@ describe("resolveSystemCardKind", () => {
           status: "canceled",
         },
       }),
-    ).toBe("error");
+    ).toBeNull();
+  });
+
+  it("keeps media failures on their dedicated card path when the renderer can present them", () => {
+    expect(
+      resolveSystemCardKind({
+        resultEnvelope: {
+          schemaVersion: 1,
+          toolName: "compose_media",
+          family: "artifact",
+          cardKind: "media_render",
+          executionMode: "hybrid",
+          inputSnapshot: {},
+          summary: { title: "Media Composition" },
+          payload: { planId: "plan_1" },
+        },
+        part: {
+          type: "job_status",
+          jobId: "job_failed_media_1",
+          toolName: "compose_media",
+          label: "Compose Media",
+          status: "failed",
+        },
+      }),
+    ).toBeNull();
   });
 
   it("keeps succeeded transcript snapshots without payload detail on the family card path", () => {

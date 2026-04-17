@@ -12,6 +12,7 @@ import { LowercaseStep } from "@/core/search/query-steps/LowercaseStep";
 import { StopwordStep } from "@/core/search/query-steps/StopwordStep";
 import { SynonymStep } from "@/core/search/query-steps/SynonymStep";
 import { getAnalyticsToolSchemas } from "@/lib/capabilities/shared/analytics-tool";
+import { getAdminIntelligenceToolSchemas } from "@/lib/capabilities/shared/admin-intelligence-tool";
 import { getEmbeddingToolSchemas } from "@/lib/capabilities/shared/embedding-tool";
 import { getCorpusToolSchemas } from "@/lib/capabilities/shared/librarian-tool";
 import { getPromptToolSchemas } from "@/lib/capabilities/shared/prompt-tool";
@@ -87,8 +88,8 @@ const CRITICAL_TOOL_EXPECTATIONS: readonly CriticalToolExpectation[] = [
   },
   {
     toolName: "generate_chart",
-    allowedRoles: SIGNED_IN_ROLES,
-    rationale: "Chart generation stays scoped to signed-in roles.",
+    allowedRoles: ALL_ROLES,
+    rationale: "Chart generation remains available across public and signed-in runtime roles.",
   },
   {
     toolName: "search_my_conversations",
@@ -327,6 +328,7 @@ function getRecordedOperationsToolInventory(): string[] {
 
 function getExpectedOperationsToolInventory(): string[] {
   return [
+    ...getAdminIntelligenceToolSchemas(),
     ...getEmbeddingToolSchemas(corpusConfig.sourceType),
     ...getCorpusToolSchemas(),
     ...getPromptToolSchemas(),
@@ -827,8 +829,7 @@ export function createLatencyBudgetEvidence(): LatencyBudgetEvidence {
 export function createFailureModeEvidence(): FailureModeEvidence {
   const providerPolicy = resolveProviderPolicy();
   const providerSources = [
-    path.join(PROJECT_ROOT, "src/lib/chat/anthropic-stream.ts"),
-    path.join(PROJECT_ROOT, "src/lib/chat/anthropic-client.ts"),
+    path.join(PROJECT_ROOT, "src/lib/chat/provider-runtime.ts"),
   ];
   const providerFallbackProbe: FailureModeProbe = {
     id: "provider_fallback_path",
@@ -840,11 +841,10 @@ export function createFailureModeEvidence(): FailureModeEvidence {
         ? "passed"
         : "failed",
     diagnostic: `modelCandidates=${providerPolicy.modelCandidates.length}; classification=${classifyProviderError(new Error("not_found_error: elite-ops"))}`,
-    expectedSignal: "Model-not-found failures classify predictably and both provider callers emit model_fallback events.",
+    expectedSignal: "Model-not-found failures classify predictably and the shared provider runtime emits model_fallback events.",
     evidenceSources: [
       "src/lib/chat/provider-policy.ts",
-      "src/lib/chat/anthropic-stream.ts",
-      "src/lib/chat/anthropic-client.ts",
+      "src/lib/chat/provider-runtime.ts",
     ],
   };
 

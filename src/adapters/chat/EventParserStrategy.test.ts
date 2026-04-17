@@ -23,6 +23,10 @@ describe("EventParserStrategy", () => {
         sequence: 8,
         progressPercent: 42,
         progressLabel: "Reviewing article",
+        lifecyclePhase: "compose_running_deferred",
+        failureCode: null,
+        failureStage: null,
+        recoveryMode: "rerun",
         resultEnvelope: {
           schemaVersion: 1,
           toolName: "produce_blog_article",
@@ -49,6 +53,10 @@ describe("EventParserStrategy", () => {
       type: "job_progress",
       part: expect.objectContaining({
         type: "job_status",
+        lifecyclePhase: "compose_running_deferred",
+        failureCode: null,
+        failureStage: null,
+        recoveryMode: "rerun",
         resultEnvelope: expect.objectContaining({
           toolName: "produce_blog_article",
           payload: null,

@@ -335,6 +335,35 @@ describe("ChatPresenter", () => {
     );
   });
 
+  it("does not expose retry actions for synthetic browser runtime jobs", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-browser-job-1",
+      role: "assistant",
+      content: "Browser compose failed.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "browser:msg_1:compose_media:18",
+          toolName: "compose_media",
+          label: "Compose Media",
+          status: "failed",
+          error: "Browser compose failed.",
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+    expect(presented.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        descriptor: expect.objectContaining({ toolName: "compose_media" }),
+        computedActions: undefined,
+      }),
+    );
+  });
+
   it("derives image and linked-post actions for completed image-generation jobs", () => {
     const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
     const message: ChatMessage = {
@@ -957,6 +986,64 @@ describe("ChatPresenter", () => {
           estimatedGenerationSeconds: 3,
         },
       }),
+    );
+  });
+
+  it("replaces stale assistant prose with canonical running audio status text", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-audio-running-1",
+      role: "assistant",
+      content: "Your audio is ready.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "browser:msg-audio-running-1:generate_audio:1",
+          toolName: "generate_audio",
+          label: "Generate Audio",
+          status: "running",
+          progressPercent: 25,
+          progressLabel: "Generating audio",
+          lifecyclePhase: "pending_local_generation",
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.rawContent).toBe("Generate Audio job running: Generating audio (25%).");
+    expect(mockMarkdownParser.parse).toHaveBeenCalledWith(
+      "Generate Audio job running: Generating audio (25%).",
+    );
+  });
+
+  it("replaces stale assistant prose with canonical failed media status text", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-media-failed-1",
+      role: "assistant",
+      content: "Your video is ready.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "job_status",
+          jobId: "browser:msg-media-failed-1:compose_media:1",
+          toolName: "compose_media",
+          label: "Compose Media",
+          status: "failed",
+          error: "Remote FFmpeg failed.",
+          lifecyclePhase: "compose_failed_terminal",
+          failureStage: "deferred_execution",
+        },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.rawContent).toBe("Compose Media job failed: Remote FFmpeg failed.");
+    expect(mockMarkdownParser.parse).toHaveBeenCalledWith(
+      "Compose Media job failed: Remote FFmpeg failed.",
     );
   });
 

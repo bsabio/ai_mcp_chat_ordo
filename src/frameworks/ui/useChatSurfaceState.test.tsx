@@ -245,6 +245,21 @@ describe("handleActionClick", () => {
     expect(refreshConversationMock).toHaveBeenCalledWith("conv_jobs");
   });
 
+  it("ignores synthetic browser job actions without hitting the deferred-job endpoint", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    await act(async () => {
+      result.current.handleActionClick("job", "browser:msg_327c35df-7bb6-48e5-94a8-ef0cd3f2f927:compose_media:18", { operation: "retry" });
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(refreshConversationMock).not.toHaveBeenCalled();
+  });
+
   it("surfaces stop controls while a stream is active", () => {
     chatState.activeStreamId = "stream_live_1";
 

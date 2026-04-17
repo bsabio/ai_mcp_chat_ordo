@@ -281,6 +281,8 @@ export function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_uf_user ON user_files(user_id);
     CREATE INDEX IF NOT EXISTS idx_uf_hash ON user_files(user_id, content_hash, file_type);
     CREATE INDEX IF NOT EXISTS idx_uf_conv ON user_files(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_uf_user_created_id ON user_files(user_id, created_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_uf_created_id ON user_files(created_at DESC, id DESC);
   `);
 
   db.exec(`

@@ -29,41 +29,57 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
     [providedDescriptor, registry, toolName],
   );
   const resultEnvelope = useMemo(() => {
-    if (providedResultEnvelope) {
-      return providedResultEnvelope;
-    }
-
-    if (part?.resultEnvelope) {
-      return part.resultEnvelope;
-    }
-
     if (!toolName) {
       return null;
     }
 
+    const baseEnvelope = providedResultEnvelope
+      ?? part?.resultEnvelope
+      ?? projectCapabilityResultEnvelope({
+        toolName,
+        payload: toolCall?.result ?? part?.resultPayload ?? null,
+        inputSnapshot: toolCall?.args,
+        descriptor,
+        executionMode: part
+          ? (part.resultEnvelope?.executionMode ?? descriptor?.executionMode ?? "deferred")
+          : descriptor?.executionMode,
+      });
+
     return projectCapabilityResultEnvelope({
       toolName,
-      payload: toolCall?.result ?? part?.resultPayload ?? null,
+      payload: baseEnvelope ?? toolCall?.result ?? part?.resultPayload ?? null,
       inputSnapshot: toolCall?.args,
       descriptor,
       executionMode: part
-        ? (part.resultEnvelope?.executionMode ?? descriptor?.executionMode ?? "deferred")
+        ? (baseEnvelope?.executionMode ?? descriptor?.executionMode ?? "deferred")
         : descriptor?.executionMode,
       summary: part
         ? {
             title: part.title,
             subtitle: part.subtitle,
-            statusLine: part.error,
-            message: part.summary,
+            statusLine:
+              part.status === "queued" || part.status === "running" || part.status === "failed" || part.status === "canceled"
+                ? part.status
+                : undefined,
+            message: part.error ?? part.summary,
           }
         : undefined,
       progress:
-        part && (part.progressPercent != null || part.progressLabel)
+        part && (
+          part.progressPercent != null
+          || part.progressLabel
+          || baseEnvelope?.progress?.phases
+          || baseEnvelope?.progress?.activePhaseKey !== undefined
+        )
           ? {
-              percent: part.progressPercent,
-              label: part.progressLabel,
+              percent: part.progressPercent ?? baseEnvelope?.progress?.percent,
+              label: part.progressLabel ?? baseEnvelope?.progress?.label,
+              phases: baseEnvelope?.progress?.phases,
+              activePhaseKey: baseEnvelope?.progress?.activePhaseKey,
             }
-          : undefined,
+          : baseEnvelope?.progress,
+      replaySnapshot: baseEnvelope?.replaySnapshot,
+      artifacts: baseEnvelope?.artifacts,
     });
   }, [descriptor, part, providedResultEnvelope, toolCall, toolName]);
   const effectiveToolCall = useMemo(() => {

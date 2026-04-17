@@ -67,3 +67,7 @@ lint_results.txt
 /\.playwright-data/
 /playwright-report/
 /test-results/
+
+# Copyrighted reference materials (local LLM context only — not for distribution)
+docs/content_strategy/reference/antifragile.txt
+docs/content_strategy/reference/transcripts/

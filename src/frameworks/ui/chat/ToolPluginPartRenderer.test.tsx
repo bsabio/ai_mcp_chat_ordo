@@ -264,7 +264,46 @@ describe("ToolPluginPartRenderer", () => {
     expect(screen.getByText("Graph generation timed out.")).toBeInTheDocument();
   });
 
-  it("routes canceled job statuses through the shared error card", () => {
+  it("renders failed compose_media job statuses through the dedicated media card when an envelope is available", () => {
+    render(
+      <ToolPluginRegistryProvider registry={registry}>
+        <ToolPluginPartRenderer
+          part={{
+            type: "job_status",
+            jobId: "job_failed_media_1",
+            toolName: "compose_media",
+            label: "Compose Media",
+            status: "failed",
+            error: "Remote FFmpeg failed.",
+            lifecyclePhase: "compose_failed_terminal",
+            failureStage: "deferred_execution",
+            resultEnvelope: {
+              schemaVersion: 1,
+              toolName: "compose_media",
+              family: "artifact",
+              cardKind: "media_render",
+              executionMode: "deferred",
+              inputSnapshot: { planId: "plan_media_2" },
+              summary: {
+                title: "Media Composition",
+              },
+              payload: {
+                planId: "plan_media_2",
+                outputFormat: "mp4",
+              },
+            },
+          }}
+          isStreaming={false}
+        />
+      </ToolPluginRegistryProvider>,
+    );
+
+    expect(screen.getByRole("alert", { name: "Media composition failed" })).toBeInTheDocument();
+    expect(screen.getByText("Remote FFmpeg failed.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert", { name: "Compose Media failed" })).not.toBeInTheDocument();
+  });
+
+  it("renders canceled audio job statuses through the dedicated audio card", () => {
     render(
       <ToolPluginRegistryProvider registry={registry}>
         <ToolPluginPartRenderer
@@ -275,13 +314,15 @@ describe("ToolPluginPartRenderer", () => {
             label: "Generate Audio",
             status: "canceled",
             summary: "Audio generation was canceled by the user.",
+            lifecyclePhase: "generation_failed_terminal",
+            failureStage: "asset_generation",
           }}
           isStreaming={false}
         />
       </ToolPluginRegistryProvider>,
     );
 
-    expect(screen.getByRole("alert", { name: "Generate Audio canceled" })).toBeInTheDocument();
+    expect(screen.getByRole("alert", { name: "Generate Audio result" })).toBeInTheDocument();
     expect(screen.getByText("Canceled")).toBeInTheDocument();
     expect(screen.getByText("Audio generation was canceled by the user.")).toBeInTheDocument();
   });

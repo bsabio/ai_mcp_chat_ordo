@@ -9,7 +9,14 @@ import {
   validateReleaseEvidence,
   writeReleaseEvidenceArtifacts,
 } from "@/lib/evals/release-evidence";
-import { createRuntimeIntegrityQaEvidence } from "@/lib/evals/runtime-integrity-evidence";
+import {
+  createRuntimeIntegrityQaEvidence,
+  createRuntimeInventory,
+} from "@/lib/evals/runtime-integrity-evidence";
+import {
+  createEliteOpsEvidence,
+  type EliteOpsEvidence,
+} from "@/lib/evals/elite-ops-evidence";
 import type { StagingCanarySummary } from "@/lib/evals/staging-canary";
 import type { ProbeResult } from "@/lib/health/probes";
 
@@ -84,8 +91,50 @@ const REFERRAL_DIAGNOSTICS_OK = {
   warnings: [],
 };
 
+function createPassingEliteOps(now: Date): EliteOpsEvidence {
+  const inventory = createRuntimeInventory(now);
+  const eliteOps = createEliteOpsEvidence({
+    inventoryMcpProcesses: inventory.mcp.processes.map((process) => ({
+      id: process.id,
+      serverName: process.serverName,
+      entrypoint: process.entrypoint,
+      canonicalCommand: process.canonicalCommand,
+      compatibilityAliases: [...process.compatibilityAliases],
+      capabilityGroups: [...process.capabilityGroups],
+    })),
+    now,
+  });
+
+  return {
+    ...eliteOps,
+    status: "passed",
+    blockingReasons: [],
+    architectureDrift: {
+      ...eliteOps.architectureDrift,
+      status: "passed",
+      blockingReasons: [],
+    },
+    rbacMatrix: {
+      ...eliteOps.rbacMatrix,
+      status: "passed",
+      blockingReasons: [],
+    },
+    latencyBudgets: {
+      ...eliteOps.latencyBudgets,
+      status: "passed",
+      blockingReasons: [],
+    },
+    failureModes: {
+      ...eliteOps.failureModes,
+      status: "passed",
+      blockingReasons: [],
+    },
+  };
+}
+
 const RUNTIME_INTEGRITY_OK = createRuntimeIntegrityQaEvidence({
   now: new Date("2026-03-20T12:45:00.000Z"),
+  eliteOps: createPassingEliteOps(new Date("2026-03-20T12:45:00.000Z")),
   steps: [
     { label: "integrity eval suites", command: "npm exec vitest run", status: "passed" },
     { label: "production build", command: "npm run build", status: "passed" },

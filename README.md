@@ -68,3 +68,13 @@ npm run release:evidence
 
 The current release ladder, artifact outputs, and public-governance rules are
 documented in [docs/operations/release-gates-and-evidence.md](docs/operations/release-gates-and-evidence.md).
+
+## LLM Export
+
+Generate a single concatenated project export plus a zip wrapper for upload:
+
+```bash
+npm run llm:export
+```
+
+This writes `ordo_llm_export.txt` and `ordo_llm_export.zip` in the repository root.

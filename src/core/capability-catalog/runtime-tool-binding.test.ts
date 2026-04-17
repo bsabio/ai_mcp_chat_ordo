@@ -4,6 +4,18 @@ import { execFileSync } from "node:child_process";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { executeComposeMediaJobMock } = vi.hoisted(() => ({
+  executeComposeMediaJobMock: vi.fn(),
+}));
+
+vi.mock("@/lib/media/server/media-worker-client", () => ({
+  MediaWorkerClient: vi.fn(function MockMediaWorkerClient() {
+    return {
+      executeComposeMediaJob: executeComposeMediaJobMock,
+    };
+  }),
+}));
+
 import type { BlogPost } from "@/core/entities/blog";
 import type { JobEvent, JobEventSeed, JobRequest, JobRequestSeed } from "@/core/entities/job";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
@@ -336,6 +348,7 @@ function createSharedDeps(registry = new ToolRegistry()) {
 }
 
 afterEach(async () => {
+  executeComposeMediaJobMock.mockReset();
   await closeGlobalMcpProcessSessions();
 });
 
@@ -1191,6 +1204,123 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         process.env.ORDO_NATIVE_COMPOSE_MEDIA_RESULT_FIXTURE = previousFixture;
       }
     }
+  });
+
+  it("routes compose_media worker execution through the media worker and preserves canonical envelope shape", async () => {
+    const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
+      jobQueueRepository: createJobQueueRepositoryMock(),
+    });
+    executeComposeMediaJobMock.mockImplementation(async (_request, onProgress) => {
+      await onProgress?.({
+        activePhaseKey: "rendering_media",
+        progressPercent: 42,
+        progressLabel: "Encoding narration video · about 8s left",
+      });
+
+      return {
+        schemaVersion: 1,
+        toolName: "compose_media",
+        family: "artifact",
+        cardKind: "artifact_viewer",
+        executionMode: "hybrid",
+        inputSnapshot: { planId: "plan_media_worker_1" },
+        summary: {
+          title: "Media Composition",
+          subtitle: "MP4 · Media Worker",
+          statusLine: "succeeded",
+        },
+        replaySnapshot: {
+          route: "deferred_remote",
+          planId: "plan_media_worker_1",
+        },
+        progress: { percent: 100, label: "Composition complete" },
+        artifacts: [
+          {
+            kind: "video",
+            label: "Composed Video",
+            mimeType: "video/mp4",
+            assetId: "uf_media_worker_1",
+            uri: "/api/user-files/uf_media_worker_1",
+            retentionClass: "conversation",
+            source: "generated",
+          },
+        ],
+        payload: {
+          route: "deferred_remote",
+          planId: "plan_media_worker_1",
+          primaryAssetId: "uf_media_worker_1",
+          outputFormat: "mp4",
+        },
+      };
+    });
+    const reportProgress = vi.fn(async () => undefined);
+
+    const result = await descriptor.command.execute(
+      {
+        plan: {
+          id: "plan_media_worker_1",
+          conversationId: "conv_media_1",
+          visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
+          audioClips: [],
+          subtitlePolicy: "none",
+          waveformPolicy: "none",
+          outputFormat: "mp4",
+        },
+      },
+      {
+        role: "AUTHENTICATED",
+        userId: "user-1",
+        conversationId: "conv_media_1",
+        executionPrincipal: "system_worker",
+        reportProgress,
+      },
+    ) as Record<string, unknown>;
+
+    expect(executeComposeMediaJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        conversationId: "conv_media_1",
+        plan: expect.objectContaining({
+          id: "plan_media_worker_1",
+          outputFormat: "mp4",
+        }),
+      }),
+      expect.any(Function),
+    );
+    expect(reportProgress).toHaveBeenCalledWith(expect.objectContaining({
+      activePhaseKey: "rendering_media",
+      progressPercent: 42,
+    }));
+    expect(reportProgress).toHaveBeenCalledWith(expect.objectContaining({
+      activePhaseKey: null,
+      progressPercent: 100,
+      progressLabel: "Composition complete",
+      resultEnvelope: expect.objectContaining({
+        toolName: "compose_media",
+        replaySnapshot: expect.objectContaining({ route: "deferred_remote" }),
+      }),
+    }));
+    expect(result).toMatchObject({
+      schemaVersion: 1,
+      toolName: "compose_media",
+      family: "artifact",
+      cardKind: "artifact_viewer",
+      executionMode: "hybrid",
+      replaySnapshot: expect.objectContaining({
+        route: "deferred_remote",
+        planId: "plan_media_worker_1",
+      }),
+      artifacts: [expect.objectContaining({
+        kind: "video",
+        assetId: "uf_media_worker_1",
+        mimeType: "video/mp4",
+      })],
+      payload: expect.objectContaining({
+        route: "deferred_remote",
+        primaryAssetId: "uf_media_worker_1",
+        outputFormat: "mp4",
+      }),
+    });
   });
 
   it("routes generate_audio through the browser_wasm compatibility adapter by default", async () => {

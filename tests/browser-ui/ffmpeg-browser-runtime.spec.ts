@@ -378,6 +378,130 @@ test.describe("FFmpeg browser runtime e2e", () => {
     expect(cardText!.length).toBeGreaterThan(0);
   });
 
+  test("compose_media fallback enqueues deferred recovery and rewrites the card to queued server state", async ({ page }) => {
+    await routePreferences(page);
+    await routeEvents(page);
+
+    await page.addInitScript(() => {
+      Object.defineProperty(globalThis, "SharedArrayBuffer", {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+    });
+
+    await page.route("**/api/conversations/active", async (route) => {
+      const payload = buildComposeMediaConversation({ status: "client_fetch_pending" });
+      await route.fulfill({
+        status: payload.status,
+        contentType: "application/json",
+        body: JSON.stringify(payload.body),
+      });
+    });
+
+    await page.route("**/api/user-files/**", async (route) => {
+      if (route.request().method() === "HEAD") {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            "Content-Type": "video/mp4",
+            "X-Asset-Kind": "video",
+            "X-Conversation-Id": "conv_media_e2e",
+          },
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "video/mp4",
+        body: Buffer.alloc(64),
+      });
+    });
+
+    const deferredRequests: Array<Record<string, unknown>> = [];
+    await page.route("**/api/chat/jobs**", async (route) => {
+      const request = route.request();
+
+      if (request.method() === "POST") {
+        deferredRequests.push((request.postDataJSON() as Record<string, unknown>) ?? {});
+        await route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            jobId: "job_media_deferred_e2e_1",
+            deduplicated: false,
+            job: {
+              messageId: "jobmsg_job_media_deferred_e2e_1",
+              part: {
+                type: "job_status",
+                jobId: "job_media_deferred_e2e_1",
+                toolName: "compose_media",
+                label: "Compose Media",
+                title: "Media Composition",
+                status: "queued",
+                sequence: 2,
+                progressPercent: 0,
+                progressLabel: "Queued on server",
+                summary: "Queued on server",
+                updatedAt: "2026-04-11T03:00:03.000Z",
+                lifecyclePhase: "compose_queued_deferred",
+                failureClass: null,
+                recoveryMode: "rerun",
+                resultEnvelope: {
+                  schemaVersion: 1,
+                  toolName: "compose_media",
+                  family: "artifact",
+                  cardKind: "artifact_viewer",
+                  executionMode: "hybrid",
+                  inputSnapshot: { planId: "plan-e2e-1" },
+                  summary: {
+                    title: "Media Composition",
+                    statusLine: "queued",
+                    message: "Queued on server",
+                  },
+                  replaySnapshot: { route: "deferred", planId: "plan-e2e-1" },
+                  progress: { percent: 0, label: "Queued on server" },
+                  artifacts: [],
+                  payload: {
+                    route: "deferred",
+                    planId: "plan-e2e-1",
+                  },
+                },
+              },
+            },
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ jobs: [] }),
+      });
+    });
+
+    await page.goto("/");
+    await page.waitForLoadState("domcontentloaded");
+
+    await expect.poll(() => deferredRequests.length).toBe(1);
+    expect(deferredRequests[0]).toMatchObject({
+      toolName: "compose_media",
+      conversationId: "conv_media_e2e",
+      plan: expect.objectContaining({
+        id: "plan-e2e-1",
+        conversationId: "conv_media_e2e",
+        outputFormat: "mp4",
+      }),
+    });
+
+    const mediaCard = page.locator('[aria-label="Media render result"]');
+    await expect(mediaCard).toBeVisible({ timeout: 15000 });
+    await expect(mediaCard).toContainText("Queued on server", { timeout: 15000 });
+  });
+
   test("succeeded compose_media renders video player with asset link", async ({ page }) => {
     await routePreferences(page);
     await routeEvents(page);
@@ -598,7 +722,7 @@ test.describe("FFmpeg browser runtime e2e", () => {
     await page.waitForLoadState("domcontentloaded");
 
     // The failed state should render with error messaging
-    const errorCard = page.locator('[aria-label="Media Composition failed"]');
+    const errorCard = page.locator('[aria-label="Media composition failed"]');
     await expect(errorCard).toBeVisible({ timeout: 10000 });
     await expect(errorCard).toContainText("Media Composition");
     await expect(errorCard).toContainText("Failed");

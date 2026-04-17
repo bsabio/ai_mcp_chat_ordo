@@ -50,6 +50,7 @@ describe("parseComposeMediaInput", () => {
     const result = parseComposeMediaInput(input);
     expect(result.plan.id).toBe("p-parse-1");
     expect(result.plan.visualClips[0].assetId).toBe("v1");
+    expect(result.plan.resolution).toEqual({ width: 1080, height: 1920 });
   });
 
   it("throws on invalid input missing the plan field", () => {

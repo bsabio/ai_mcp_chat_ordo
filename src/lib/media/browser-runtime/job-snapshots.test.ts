@@ -72,7 +72,52 @@ describe("browser runtime job snapshots", () => {
         expect.objectContaining({ kind: "audio", retentionClass: "conversation", source: "generated" }),
       ],
     });
+    expect(part.lifecyclePhase).toBe("pending_local_generation");
     expect(part.progressLabel).toBe("Generating audio");
+  });
+
+  it("marks reroute-required compose failures with canonical recovery metadata", () => {
+    const part = buildBrowserRuntimeJobStatusPart({
+      candidate: {
+        jobId: createBrowserRuntimeJobId("msg_2", "compose_media", 1),
+        messageId: "msg_2",
+        toolName: "compose_media",
+        args: {
+          plan: {
+            id: "plan_2",
+            visualClips: [],
+            audioClips: [],
+            subtitlePolicy: "none",
+            waveformPolicy: "none",
+            outputFormat: "mp4",
+          },
+        },
+      },
+      payload: {
+        action: "compose_media",
+        id: "plan_2",
+        visualClips: [],
+        audioClips: [],
+        subtitlePolicy: "none",
+        waveformPolicy: "none",
+        outputFormat: "mp4",
+      },
+      status: "failed",
+      browserExecutionStatus: "fallback_required",
+      sequence: 2,
+      error: "wasm_unavailable",
+      failureCode: "wasm_unavailable",
+      failureStage: "local_execution",
+      conversationId: "conv_1",
+    });
+
+    expect(part).toMatchObject({
+      lifecyclePhase: "compose_fallback_required",
+      failureCode: "wasm_unavailable",
+      failureStage: "local_execution",
+      failureClass: "transient",
+      recoveryMode: "rerun",
+    });
   });
 
   it("rewrites tool results into embedded job snapshots without losing the tool call", () => {
